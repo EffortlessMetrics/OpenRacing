@@ -22,6 +22,20 @@
 //! - ERS store energy: Joules (as reported by the game)
 //! - Fuel remaining: kg (as reported by the game)
 //! - Temperatures: °C (integers)
+//!
+//! ## Verification against EA F1 UDP specification (2025-07)
+//!
+//! Verified against the EA Sports F1 25 UDP specification (packet format 2025)
+//! and community implementations.
+//!
+//! - **Default port**: 20777 — standard Codemasters/EA F1 UDP port since F1 2019. ✓
+//! - **Header size**: 29 bytes (consistent across F1 2023/2024/2025 formats). ✓
+//! - **Packet format field**: u16 = 2025 (identifies the year/version). ✓
+//! - **Packet IDs**: 1=Session, 6=CarTelemetry, 7=CarStatus — standard EA IDs. ✓
+//! - **NUM_CARS**: 22 (F1 grid size). ✓
+//! - **CarTelemetryData entry**: 60 bytes per car. ✓
+//! - **CarStatusData entry**: 55 bytes per car. ✓
+//! - **ERS max store**: 4 MJ (4,000,000 J) — per F1 regulations and EA spec. ✓
 
 use crate::{
     NormalizedTelemetry, TelemetryAdapter, TelemetryFlags, TelemetryFrame, TelemetryReceiver,
@@ -41,6 +55,7 @@ use tracing::{debug, info, warn};
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
+/// Verified: EA Sports F1 25 UDP spec, standard Codemasters/EA port since F1 2019.
 const DEFAULT_PORT: u16 = 20777;
 const DEFAULT_HEARTBEAT_TIMEOUT_MS: u64 = 2_000;
 const MAX_PACKET_BYTES: usize = 2048;
@@ -777,18 +792,33 @@ pub fn normalize(
         0.0
     };
 
+    // Tire array reorder: F1 data is [RL, RR, FL, FR], builder expects [FL, FR, RL, RR]
+    let tire_pressures = [
+        telem.tyres_pressure[2],
+        telem.tyres_pressure[3],
+        telem.tyres_pressure[0],
+        telem.tyres_pressure[1],
+    ];
+    let tire_temps = [
+        telem.tyres_surface_temperature[2],
+        telem.tyres_surface_temperature[3],
+        telem.tyres_surface_temperature[0],
+        telem.tyres_surface_temperature[1],
+    ];
+
     NormalizedTelemetry::builder()
         .speed_ms(speed_ms)
         .rpm(rpm)
+        .max_rpm(f32::from(status.max_rpm))
         .gear(telem.gear)
+        .throttle(telem.throttle)
+        .brake(telem.brake)
+        .steering_angle(telem.steer)
+        .engine_temp_c(f32::from(telem.engine_temperature))
+        .tire_pressures_psi(tire_pressures)
+        .tire_temps_c(tire_temps)
         .flags(flags)
         .track_id(track_id)
-        .extended(
-            "throttle".to_string(),
-            TelemetryValue::Float(telem.throttle),
-        )
-        .extended("brake".to_string(), TelemetryValue::Float(telem.brake))
-        .extended("steer".to_string(), TelemetryValue::Float(telem.steer))
         .extended(
             "drs_active".to_string(),
             TelemetryValue::Boolean(drs_active),
@@ -830,10 +860,6 @@ pub fn normalize(
             TelemetryValue::Float(status.engine_power_mguk),
         )
         .extended(
-            "engine_temperature_c".to_string(),
-            TelemetryValue::Integer(i32::from(telem.engine_temperature)),
-        )
-        .extended(
             "rpm_fraction".to_string(),
             TelemetryValue::Float(rpm_fraction),
         )
@@ -856,38 +882,6 @@ pub fn normalize(
         .extended(
             "tyre_age_laps".to_string(),
             TelemetryValue::Integer(i32::from(status.tyre_age_laps)),
-        )
-        .extended(
-            "tyre_pressure_rl_psi".to_string(),
-            TelemetryValue::Float(telem.tyres_pressure[0]),
-        )
-        .extended(
-            "tyre_pressure_rr_psi".to_string(),
-            TelemetryValue::Float(telem.tyres_pressure[1]),
-        )
-        .extended(
-            "tyre_pressure_fl_psi".to_string(),
-            TelemetryValue::Float(telem.tyres_pressure[2]),
-        )
-        .extended(
-            "tyre_pressure_fr_psi".to_string(),
-            TelemetryValue::Float(telem.tyres_pressure[3]),
-        )
-        .extended(
-            "tyre_surface_temp_rl_c".to_string(),
-            TelemetryValue::Integer(i32::from(telem.tyres_surface_temperature[0])),
-        )
-        .extended(
-            "tyre_surface_temp_rr_c".to_string(),
-            TelemetryValue::Integer(i32::from(telem.tyres_surface_temperature[1])),
-        )
-        .extended(
-            "tyre_surface_temp_fl_c".to_string(),
-            TelemetryValue::Integer(i32::from(telem.tyres_surface_temperature[2])),
-        )
-        .extended(
-            "tyre_surface_temp_fr_c".to_string(),
-            TelemetryValue::Integer(i32::from(telem.tyres_surface_temperature[3])),
         )
         .extended(
             "tyre_inner_temp_rl_c".to_string(),

@@ -18,3 +18,4 @@ cc f6c811dc9c07ead200c6484ca03e1b0b873627f7bae5ac38d8a62d781071f3fe # shrinks to
 cc fa2dd68e0cef7d6345206e0dc8280a722ecd9655a01223d8ca7368683ec5f57d # shrinks to device = (5840, 3418, "Simucube 1")
 cc 5607448cd55b7e265b9d9f294947964a8d90c0ba251d04b3b6dc77334b2c7a8c # shrinks to device = (7634, 11, "Leo Bodnar BU0836A Joystick")
 cc 5ce28c6cedadb6e8d62be2cf435e48f4ef1eb7649574f27eea43b07a49687e0d # shrinks to device = (13936, 4097, "Simagic P1000 Pedals")
+cc da08f06ed7c7c96032a3b291cef6a16bb0d0c6dc01c62025c9deb3a24ce570a5 # shrinks to device = (13334, 4120, "Cammus CP5 Pedals")

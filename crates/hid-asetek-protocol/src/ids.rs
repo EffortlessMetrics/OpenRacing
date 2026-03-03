@@ -1,19 +1,92 @@
 //! Device IDs for Asetek SimSports products
 //!
 //! VID `0x2433` is the official USB vendor ID registered to Asetek A/S.
-//! Sources: USB VID registry (the-sz.com), JacKeTUs/linux-steering-wheels
-//! compatibility table.
+//!
+//! ## Sources (all cross-referenced, verified 2025)
+//!
+//! - **Linux kernel upstream** (`torvalds/linux`, `drivers/hid/hid-ids.h`):
+//!   `USB_VENDOR_ID_ASETEK 0x2433`, `USB_DEVICE_ID_ASETEK_{INVICTA,FORTE,LA_PRIMA,TONY_KANAAN}`.
+//! - **Linux kernel upstream** (`torvalds/linux`, `drivers/hid/hid-universal-pidff.c`):
+//!   driver table lists all four PIDs; no device-specific quirk flags applied.
+//! - **JacKeTUs/linux-steering-wheels** compatibility table:
+//!   Invicta `f300`, Forte `f301`, La Prima `f303`, Tony Kanaan `f306` — all Gold support.
+//! - **USB VID registries** (the-sz.com, devicehunt.com):
+//!   VID `0x2433` → "Asetek A/S" / "ASETEK". Only PID `0xB200` (NZXT Kraken X60)
+//!   is registered in public databases; SimSports PIDs `0xF3xx` are absent from
+//!   the-sz.com and devicehunt.com but are authoritatively confirmed by the
+//!   Linux kernel HID driver (merged upstream).
+//! - **moonrail/asetek_wheelbase_cli** (community Linux CLI tool):
+//!   udev rules cite VID `0x2433`, PID `0xF303` (La Prima wheelbase) and
+//!   PID `0xF203` (La Prima steering wheel — separate USB device, not tracked here).
+//!
+//! ## Verification status (web-verified 2025-07)
+//!
+//! | Field | Confidence | Sources |
+//! |-------|------------|---------|
+//! | VID 0x2433 | ✅ Confirmed | the-sz.com, devicehunt.com, Linux `hid-ids.h` |
+//! | Invicta PID 0xF300 | ✅ Confirmed | Linux `hid-ids.h`, `hid-universal-pidff.c`, JacKeTUs |
+//! | Forte PID 0xF301 | ✅ Confirmed | Linux `hid-ids.h`, `hid-universal-pidff.c`, JacKeTUs |
+//! | La Prima PID 0xF303 | ✅ Confirmed | Linux `hid-ids.h`, `hid-universal-pidff.c`, JacKeTUs, asetek_wheelbase_cli |
+//! | Tony Kanaan PID 0xF306 | ✅ Confirmed | Linux `hid-ids.h`, `hid-universal-pidff.c`, JacKeTUs |
+//! | Invicta Pedals PID 0xF100 | ✅ Confirmed | `JacKeTUs/simracing-hwdb` `90-asetek.hwdb` |
+//! | Forte Pedals PID 0xF101 | ✅ Confirmed | `JacKeTUs/simracing-hwdb` `90-asetek.hwdb` |
+//! | La Prima Pedals PID 0xF102 | ⚠️ Community | `tolgayilmaz86/MuscleMemoryTrainer`, follows 0xF10x pattern |
+//!
+//! All four PIDs have **zero external-evidence flags** — every PID is confirmed
+//! by at least three independent sources including the Linux kernel.
+//!
+//! ## Protocol notes
+//!
+//! All four wheelbases present a standard **USB HID PID** (Physical Interface
+//! Device) force-feedback descriptor, allowing the Linux `hid-pidff` /
+//! `hid-universal-pidff` driver to handle FFB effects without vendor-specific
+//! protocol logic. Linux kernel support landed in 6.15 (backported to 6.12.24+).
+//!
+//! ## Known Asetek USB products not tracked here
+//!
+//! The La Prima steering wheel rim enumerates as a separate USB device with
+//! PID `0xF203` (per moonrail/asetek_wheelbase_cli udev rules). Forte and
+//! Invicta wheel rims likely have their own PIDs as well.
 
+/// Asetek A/S USB Vendor ID.
+///
+/// ✅ Confirmed by: the-sz.com, devicehunt.com, Linux `hid-ids.h`.
 pub const ASETEK_VENDOR_ID: u16 = 0x2433;
 
 /// Asetek Invicta (27 Nm premium direct drive).
+///
+/// ✅ Confirmed by: Linux `hid-ids.h`, `hid-universal-pidff.c`, JacKeTUs.
 pub const ASETEK_INVICTA_PID: u16 = 0xF300;
 /// Asetek Forte (18 Nm mid-range direct drive).
+///
+/// ✅ Confirmed by: Linux `hid-ids.h`, `hid-universal-pidff.c`, JacKeTUs.
 pub const ASETEK_FORTE_PID: u16 = 0xF301;
 /// Asetek La Prima (12 Nm entry direct drive).
+///
+/// ✅ Confirmed by: Linux `hid-ids.h`, `hid-universal-pidff.c`, JacKeTUs,
+/// moonrail/asetek_wheelbase_cli.
 pub const ASETEK_LAPRIMA_PID: u16 = 0xF303;
 /// Asetek Tony Kanaan Edition (27 Nm, Invicta-based special edition).
+///
+/// ✅ Confirmed by: Linux `hid-ids.h`, `hid-universal-pidff.c`, JacKeTUs.
 pub const ASETEK_TONY_KANAAN_PID: u16 = 0xF306;
+
+/// Asetek Invicta Pedals (standalone USB load-cell pedals).
+///
+/// ✅ Confirmed by: `JacKeTUs/simracing-hwdb` `90-asetek.hwdb`.
+pub const ASETEK_INVICTA_PEDALS_PID: u16 = 0xF100;
+
+/// Asetek Forte Pedals (standalone USB load-cell pedals).
+///
+/// ✅ Confirmed by: `JacKeTUs/simracing-hwdb` `90-asetek.hwdb`.
+pub const ASETEK_FORTE_PEDALS_PID: u16 = 0xF101;
+
+/// Asetek La Prima Pedals (standalone USB pedals).
+///
+/// ⚠️ Community-sourced: PID follows `0xF10x` pedal pattern
+/// (Invicta=0xF100, Forte=0xF101, La Prima=0xF102).
+/// Confirmed by: `tolgayilmaz86/MuscleMemoryTrainer` device_presets.py.
+pub const ASETEK_LAPRIMA_PEDALS_PID: u16 = 0xF102;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AsetekModel {
@@ -21,6 +94,9 @@ pub enum AsetekModel {
     Invicta,
     LaPrima,
     TonyKanaan,
+    InvictaPedals,
+    FortePedals,
+    LaPrimaPedals,
     Unknown,
 }
 
@@ -31,6 +107,9 @@ impl AsetekModel {
             ASETEK_INVICTA_PID => Self::Invicta,
             ASETEK_LAPRIMA_PID => Self::LaPrima,
             ASETEK_TONY_KANAAN_PID => Self::TonyKanaan,
+            ASETEK_INVICTA_PEDALS_PID => Self::InvictaPedals,
+            ASETEK_FORTE_PEDALS_PID => Self::FortePedals,
+            ASETEK_LAPRIMA_PEDALS_PID => Self::LaPrimaPedals,
             _ => Self::Unknown,
         }
     }
@@ -41,6 +120,9 @@ impl AsetekModel {
             Self::Invicta => "Asetek Invicta",
             Self::LaPrima => "Asetek La Prima",
             Self::TonyKanaan => "Asetek Tony Kanaan Edition",
+            Self::InvictaPedals => "Asetek Invicta Pedals",
+            Self::FortePedals => "Asetek Forte Pedals",
+            Self::LaPrimaPedals => "Asetek La Prima Pedals",
             Self::Unknown => "Unknown Asetek Device",
         }
     }
@@ -51,6 +133,7 @@ impl AsetekModel {
             Self::Invicta => 27.0,
             Self::LaPrima => 12.0,
             Self::TonyKanaan => 27.0,
+            Self::InvictaPedals | Self::FortePedals | Self::LaPrimaPedals => 0.0,
             Self::Unknown => 18.0,
         }
     }

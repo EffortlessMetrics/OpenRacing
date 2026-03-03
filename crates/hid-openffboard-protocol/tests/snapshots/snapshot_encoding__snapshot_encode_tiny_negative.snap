@@ -1,0 +1,5 @@
+---
+source: crates/hid-openffboard-protocol/tests/snapshot_encoding.rs
+expression: "format!(\"{:?}\", report)"
+---
+[1, 156, 255, 0, 0]

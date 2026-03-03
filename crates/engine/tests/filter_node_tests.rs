@@ -352,16 +352,16 @@ mod notch_filter_tests {
     use super::*;
 
     #[test]
-    #[ignore = "Notch filter DC response test - filter implementation needs review"]
     fn test_notch_filter_dc_response() {
         let mut state = NotchState::new(50.0, 2.0, -20.0, 1000.0); // 50Hz notch
         let state_ptr = &mut state as *mut _ as *mut u8;
 
-        // Test with DC input (should pass through)
+        // Feed constant DC input to reach steady state
         let mut frame = create_test_frame(1.0, 0.0);
-
-        // Apply filter multiple times to reach steady state
-        apply_filter_n_times(notch_filter, &mut frame, state_ptr, 20);
+        for _ in 0..20 {
+            frame.torque_out = 1.0; // reset input to DC each iteration
+            notch_filter(&mut frame, state_ptr);
+        }
 
         // DC should pass through relatively unchanged - allow wider tolerance for numerical precision
         assert!(

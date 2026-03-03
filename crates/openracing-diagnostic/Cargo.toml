@@ -9,6 +9,10 @@ description = "Diagnostic recording and replay system for OpenRacing"
 keywords = ["diagnostic", "blackbox", "replay", "recording", "real-time"]
 categories = ["development-tools::debugging", "aerospace::simulation"]
 
+
+[package.metadata.cargo-udeps.ignore]
+normal = ["workspace-hack"]
+
 [dependencies]
 bincode = { workspace = true }
 serde = { workspace = true }

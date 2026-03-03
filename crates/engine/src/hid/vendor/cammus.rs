@@ -25,6 +25,12 @@ pub const CAMMUS_C5_PID: u16 = 0x0301;
 /// Cammus C12 product ID (12 Nm direct drive, confirmed)
 pub const CAMMUS_C12_PID: u16 = 0x0302;
 
+/// Cammus CP5 Pedals product ID (confirmed: simracing-hwdb)
+pub const CAMMUS_CP5_PEDALS_PID: u16 = 0x1018;
+
+/// Cammus LC100 Pedals product ID (confirmed: simracing-hwdb)
+pub const CAMMUS_LC100_PEDALS_PID: u16 = 0x1019;
+
 /// Cammus model classification.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CammusModel {
@@ -67,7 +73,10 @@ impl CammusModel {
 
 /// Return true when `product_id` is a known Cammus product.
 pub fn is_cammus_product(product_id: u16) -> bool {
-    matches!(product_id, CAMMUS_C5_PID | CAMMUS_C12_PID)
+    matches!(
+        product_id,
+        CAMMUS_C5_PID | CAMMUS_C12_PID | CAMMUS_CP5_PEDALS_PID | CAMMUS_LC100_PEDALS_PID
+    )
 }
 
 /// Protocol handler for Cammus direct drive wheelbases.

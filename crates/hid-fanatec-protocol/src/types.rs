@@ -47,6 +47,13 @@ impl FanatecModel {
     }
 
     /// Maximum continuous torque in Newton-meters for this model.
+    ///
+    /// These values are from Fanatec's official product specifications, not from
+    /// the Linux driver (which does not contain torque constants). The Linux driver
+    /// assigns device quirk flags (`hid-ftec.c` device table):
+    /// - `FTEC_HIGHRES`: DD1, DD2, CSL DD — 16-bit force encoding
+    /// - `FTEC_WHEELBASE_LEDS`: CSL Elite, CSL Elite PS4 — has base LEDs
+    /// - `FTEC_TUNING_MENU`: CSL Elite (both), DD1, DD2, CSL DD
     pub fn max_torque_nm(self) -> f32 {
         match self {
             Self::Dd1 => 20.0,
@@ -77,6 +84,42 @@ impl FanatecModel {
             self,
             Self::CslDd | Self::GtDdPro | Self::ClubSportDd | Self::Dd1 | Self::Dd2
         )
+    }
+
+    /// Maximum supported steering rotation in degrees.
+    ///
+    /// Direct-drive bases support up to 2520° (sentinel 2530 in Linux driver).
+    /// Belt-driven bases support up to 900° (ClubSport/CSR) or 1080° (CSL Elite).
+    /// Source: `hid-ftecff.c:ftec_probe` per-device max_range assignments.
+    pub fn max_rotation_degrees(self) -> u16 {
+        match self {
+            Self::Dd1 | Self::Dd2 | Self::CslDd | Self::GtDdPro | Self::ClubSportDd => 2520,
+            Self::CslElite => 1080,
+            Self::ClubSportV2 | Self::ClubSportV25 | Self::CsrElite => 900,
+            Self::Unknown => 900,
+        }
+    }
+
+    /// Whether this model uses high-resolution (16-bit) force encoding.
+    ///
+    /// Source: `FTEC_HIGHRES` quirk flag in `hid-ftec.c` device table.
+    pub fn is_highres(self) -> bool {
+        matches!(
+            self,
+            Self::Dd1 | Self::Dd2 | Self::CslDd | Self::GtDdPro | Self::ClubSportDd
+        )
+    }
+
+    /// Whether this model needs the `fix_values` sign correction on HID reports.
+    ///
+    /// Source: `hid-ftecff.c:send_report_request_to_device()` — all wheelbases
+    /// EXCEPT CSR Elite apply `fix_values()`, which converts byte values ≥ 0x80
+    /// to signed form (`-0x100 + value`). CSR Elite skips this fix because its
+    /// HID report descriptor handles the sign differently.
+    ///
+    /// Returns `true` for devices that need the fix (i.e., NOT CSR Elite).
+    pub fn needs_sign_fix(self) -> bool {
+        !matches!(self, Self::CsrElite | Self::Unknown)
     }
 }
 
@@ -149,7 +192,12 @@ impl FanatecPedalModel {
     }
 }
 
-/// Steering wheel rim IDs as reported in feature report 0x02, byte 2.
+/// Steering wheel rim IDs as reported in byte 0x1F of the standard input report.
+///
+/// The community Linux driver (`gotzl/hid-fanatecff`) reads this from `data[0x1f]`
+/// in `ftecff_raw_event` (`hid-ftec.c`). When the rim ID changes (e.g., quick-release
+/// swap), the driver fires a `kobject_uevent(KOBJ_CHANGE)` to notify userspace.
+/// See `hid-ftec.h` for verified constants.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FanatecRimId {
     BmwGt2,
@@ -157,34 +205,31 @@ pub enum FanatecRimId {
     FormulaV25,
     /// McLaren GT3 V2 — funky switch + rotary encoders + dual clutch paddles.
     McLarenGt3V2,
+    /// Podium Steering Wheel Porsche 911 GT3 R.
+    Porsche911Gt3R,
     Porsche918Rsr,
     ClubSportRs,
     Wrc,
     CslEliteP1,
     PodiumHub,
-    /// Podium Advanced Paddle Module — bite-point dual-clutch paddles + rotary encoders.
-    PodiumApm,
-    /// Podium Button Module Endurance — extended button panel for endurance racing.
-    EnduranceModule,
     /// Rim is not attached or ID is unrecognised.
     Unknown,
 }
 
 impl FanatecRimId {
-    /// Decode a rim ID byte from the device-info feature report.
+    /// Decode a rim ID byte from byte 0x1F of the standard input report.
     pub fn from_byte(byte: u8) -> Self {
         match byte {
             rim_ids::BMW_GT2 => Self::BmwGt2,
             rim_ids::FORMULA_V2 => Self::FormulaV2,
             rim_ids::FORMULA_V2_5 => Self::FormulaV25,
             rim_ids::MCLAREN_GT3_V2 => Self::McLarenGt3V2,
+            rim_ids::PORSCHE_911_GT3_R => Self::Porsche911Gt3R,
             rim_ids::PORSCHE_918_RSR => Self::Porsche918Rsr,
             rim_ids::CLUBSPORT_RS => Self::ClubSportRs,
             rim_ids::WRC => Self::Wrc,
             rim_ids::CSL_ELITE_P1 => Self::CslEliteP1,
             rim_ids::PODIUM_HUB => Self::PodiumHub,
-            rim_ids::PODIUM_APM => Self::PodiumApm,
-            rim_ids::ENDURANCE_MODULE => Self::EnduranceModule,
             _ => Self::Unknown,
         }
     }
@@ -198,16 +243,13 @@ impl FanatecRimId {
     pub fn has_dual_clutch(self) -> bool {
         matches!(
             self,
-            Self::FormulaV2 | Self::FormulaV25 | Self::McLarenGt3V2 | Self::PodiumApm
+            Self::FormulaV2 | Self::FormulaV25 | Self::McLarenGt3V2
         )
     }
 
     /// Return `true` if this rim has rotary encoders (beyond the standard hat switch).
     pub fn has_rotary_encoders(self) -> bool {
-        matches!(
-            self,
-            Self::McLarenGt3V2 | Self::FormulaV25 | Self::PodiumApm
-        )
+        matches!(self, Self::McLarenGt3V2 | Self::FormulaV25)
     }
 }
 
@@ -366,25 +408,12 @@ mod tests {
     }
 
     #[test]
-    fn test_rim_id_podium_apm() -> Result<(), Box<dyn std::error::Error>> {
-        let rim = FanatecRimId::from_byte(rim_ids::PODIUM_APM);
-        assert_eq!(rim, FanatecRimId::PodiumApm);
-        assert!(
-            rim.has_dual_clutch(),
-            "APM has dual-clutch bite-point paddles"
-        );
-        assert!(rim.has_rotary_encoders(), "APM has rotary encoders");
+    fn test_rim_id_porsche_911_gt3_r() -> Result<(), Box<dyn std::error::Error>> {
+        let rim = FanatecRimId::from_byte(rim_ids::PORSCHE_911_GT3_R);
+        assert_eq!(rim, FanatecRimId::Porsche911Gt3R);
         assert!(!rim.has_funky_switch());
-        Ok(())
-    }
-
-    #[test]
-    fn test_rim_id_endurance_module() -> Result<(), Box<dyn std::error::Error>> {
-        let rim = FanatecRimId::from_byte(rim_ids::ENDURANCE_MODULE);
-        assert_eq!(rim, FanatecRimId::EnduranceModule);
         assert!(!rim.has_dual_clutch());
         assert!(!rim.has_rotary_encoders());
-        assert!(!rim.has_funky_switch());
         Ok(())
     }
 
@@ -402,6 +431,41 @@ mod tests {
         let rim = FanatecRimId::from_byte(rim_ids::FORMULA_V2);
         assert!(rim.has_dual_clutch());
         assert!(!rim.has_funky_switch());
+        Ok(())
+    }
+
+    /// Kill mutants: delete match arms for BMW_GT2, FORMULA_V2_5, PORSCHE_918_RSR,
+    /// CLUBSPORT_RS, and PODIUM_HUB in FanatecRimId::from_byte.
+    /// Each rim ID must decode to its specific variant, not fall through to Unknown.
+    #[test]
+    fn test_all_rim_ids_round_trip() -> Result<(), Box<dyn std::error::Error>> {
+        let expected = [
+            (rim_ids::BMW_GT2, FanatecRimId::BmwGt2),
+            (rim_ids::FORMULA_V2, FanatecRimId::FormulaV2),
+            (rim_ids::FORMULA_V2_5, FanatecRimId::FormulaV25),
+            (rim_ids::MCLAREN_GT3_V2, FanatecRimId::McLarenGt3V2),
+            (rim_ids::PORSCHE_911_GT3_R, FanatecRimId::Porsche911Gt3R),
+            (rim_ids::PORSCHE_918_RSR, FanatecRimId::Porsche918Rsr),
+            (rim_ids::CLUBSPORT_RS, FanatecRimId::ClubSportRs),
+            (rim_ids::WRC, FanatecRimId::Wrc),
+            (rim_ids::CSL_ELITE_P1, FanatecRimId::CslEliteP1),
+            (rim_ids::PODIUM_HUB, FanatecRimId::PodiumHub),
+        ];
+        for (byte, expected_variant) in expected {
+            let actual = FanatecRimId::from_byte(byte);
+            assert_eq!(
+                actual, expected_variant,
+                "rim ID byte 0x{:02X} must decode to {:?}, got {:?}",
+                byte, expected_variant, actual
+            );
+            // Also verify it's not Unknown
+            assert_ne!(
+                actual,
+                FanatecRimId::Unknown,
+                "rim ID byte 0x{:02X} must not be Unknown",
+                byte
+            );
+        }
         Ok(())
     }
 }

@@ -3,4 +3,4 @@ source: crates/hid-fanatec-protocol/tests/snapshot_tests.rs
 assertion_line: 115
 expression: "format!(\"{:?}\", report)"
 ---
-[1, 18, 56, 4, 0, 0, 0, 0]
+[1, 18, 216, 9, 0, 0, 0, 0]

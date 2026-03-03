@@ -162,21 +162,10 @@ pub fn hands_off_detector(frame: &mut Frame, state: &mut HandsOffState) {
 mod tests {
     use super::*;
 
-    fn create_test_frame(torque_out: f32) -> Frame {
-        Frame {
-            ffb_in: 0.0,
-            torque_out,
-            wheel_speed: 0.0,
-            hands_off: false,
-            ts_mono_ns: 0,
-            seq: 0,
-        }
-    }
-
     #[test]
     fn test_hands_off_disabled() {
         let mut state = HandsOffState::disabled();
-        let mut frame = create_test_frame(0.0);
+        let mut frame = Frame::from_torque(0.0);
 
         for _ in 0..3000 {
             hands_off_detector(&mut frame, &mut state);
@@ -189,7 +178,7 @@ mod tests {
     fn test_hands_off_with_resistance() {
         let mut state = HandsOffState::new(true, 0.05, 2.0);
 
-        let mut frame = create_test_frame(0.1); // Significant torque
+        let mut frame = Frame::from_torque(0.1); // Significant torque
         hands_off_detector(&mut frame, &mut state);
 
         assert!(!frame.hands_off);
@@ -201,7 +190,7 @@ mod tests {
 
         for _ in 0..200 {
             // 200ms at 1kHz
-            let mut frame = create_test_frame(0.01); // Low torque
+            let mut frame = Frame::from_torque(0.01); // Low torque
             hands_off_detector(&mut frame, &mut state);
 
             if frame.hands_off {
@@ -209,7 +198,7 @@ mod tests {
             }
         }
 
-        let mut final_frame = create_test_frame(0.01);
+        let mut final_frame = Frame::from_torque(0.01);
         hands_off_detector(&mut final_frame, &mut state);
         assert!(final_frame.hands_off);
     }
@@ -222,13 +211,13 @@ mod tests {
 
         // Run for just under the timeout
         for _ in 0..(expected_ticks - 1) {
-            let mut frame = create_test_frame(0.01);
+            let mut frame = Frame::from_torque(0.01);
             hands_off_detector(&mut frame, &mut state);
             assert!(!frame.hands_off);
         }
 
         // One more tick should trigger hands-off
-        let mut frame = create_test_frame(0.01);
+        let mut frame = Frame::from_torque(0.01);
         hands_off_detector(&mut frame, &mut state);
         assert!(frame.hands_off);
     }
@@ -239,14 +228,14 @@ mod tests {
 
         // Build up counter
         for _ in 0..50 {
-            let mut frame = create_test_frame(0.01);
+            let mut frame = Frame::from_torque(0.01);
             hands_off_detector(&mut frame, &mut state);
         }
 
         assert!(state.counter > 0);
 
         // Apply resistance
-        let mut frame = create_test_frame(0.1);
+        let mut frame = Frame::from_torque(0.1);
         hands_off_detector(&mut frame, &mut state);
 
         assert_eq!(state.counter, 0);
@@ -259,7 +248,7 @@ mod tests {
 
         // Even low absolute torque with significant change should reset
         state.last_torque = 0.0;
-        let mut frame = create_test_frame(0.1); // Change of 0.1 > threshold
+        let mut frame = Frame::from_torque(0.1); // Change of 0.1 > threshold
         hands_off_detector(&mut frame, &mut state);
 
         assert_eq!(state.counter, 0);
@@ -271,7 +260,7 @@ mod tests {
 
         for i in 0..2000 {
             let torque = if i % 100 == 0 { 0.1 } else { 0.01 };
-            let mut frame = create_test_frame(torque);
+            let mut frame = Frame::from_torque(torque);
             hands_off_detector(&mut frame, &mut state);
 
             // Should not crash or overflow
@@ -285,7 +274,7 @@ mod tests {
 
         // Build up counter
         for _ in 0..500 {
-            let mut frame = create_test_frame(0.01);
+            let mut frame = Frame::from_torque(0.01);
             hands_off_detector(&mut frame, &mut state);
         }
 

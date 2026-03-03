@@ -1,0 +1,5 @@
+---
+source: crates/hid-thrustmaster-protocol/tests/snapshot_encoding.rs
+expression: "format!(\"{report:02X?}\")"
+---
+[82, 00]

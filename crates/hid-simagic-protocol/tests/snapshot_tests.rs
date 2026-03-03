@@ -234,6 +234,15 @@ fn test_snapshot_device_neo() {
 }
 
 #[test]
+fn test_snapshot_device_neo_mini() {
+    let identity = simagic::identify_device(0x0701); // Neo Mini
+    assert_snapshot!(format!(
+        "name={}, category={:?}, supports_ffb={}, max_torque={:?}",
+        identity.name, identity.category, identity.supports_ffb, identity.max_torque_nm
+    ));
+}
+
+#[test]
 fn test_snapshot_device_pedals() {
     let identity = simagic::identify_device(0x1001);
     assert_snapshot!(format!(
@@ -245,6 +254,87 @@ fn test_snapshot_device_pedals() {
 #[test]
 fn test_snapshot_device_unknown() {
     let identity = simagic::identify_device(0xFFFF);
+    assert_snapshot!(format!(
+        "name={}, category={:?}, supports_ffb={}, max_torque={:?}",
+        identity.name, identity.category, identity.supports_ffb, identity.max_torque_nm
+    ));
+}
+
+#[test]
+fn test_snapshot_device_p2000_pedals() {
+    let identity = simagic::identify_device(0x1002); // P2000
+    assert_snapshot!(format!(
+        "name={}, category={:?}, supports_ffb={}, max_torque={:?}",
+        identity.name, identity.category, identity.supports_ffb, identity.max_torque_nm
+    ));
+}
+
+#[test]
+fn test_snapshot_device_p1000a_pedals() {
+    let identity = simagic::identify_device(0x1003); // P1000A
+    assert_snapshot!(format!(
+        "name={}, category={:?}, supports_ffb={}, max_torque={:?}",
+        identity.name, identity.category, identity.supports_ffb, identity.max_torque_nm
+    ));
+}
+
+#[test]
+fn test_snapshot_device_shifter_h() {
+    let identity = simagic::identify_device(0x2001);
+    assert_snapshot!(format!(
+        "name={}, category={:?}, supports_ffb={}, max_torque={:?}",
+        identity.name, identity.category, identity.supports_ffb, identity.max_torque_nm
+    ));
+}
+
+#[test]
+fn test_snapshot_device_shifter_seq() {
+    let identity = simagic::identify_device(0x2002);
+    assert_snapshot!(format!(
+        "name={}, category={:?}, supports_ffb={}, max_torque={:?}",
+        identity.name, identity.category, identity.supports_ffb, identity.max_torque_nm
+    ));
+}
+
+#[test]
+fn test_snapshot_device_handbrake() {
+    let identity = simagic::identify_device(0x0A04);
+    assert_snapshot!(format!(
+        "name={}, category={:?}, supports_ffb={}, max_torque={:?}",
+        identity.name, identity.category, identity.supports_ffb, identity.max_torque_nm
+    ));
+}
+
+#[test]
+fn test_snapshot_device_rim_wr1() {
+    let identity = simagic::identify_device(0x4001);
+    assert_snapshot!(format!(
+        "name={}, category={:?}, supports_ffb={}, max_torque={:?}",
+        identity.name, identity.category, identity.supports_ffb, identity.max_torque_nm
+    ));
+}
+
+#[test]
+fn test_snapshot_device_rim_gt1() {
+    let identity = simagic::identify_device(0x4002);
+    assert_snapshot!(format!(
+        "name={}, category={:?}, supports_ffb={}, max_torque={:?}",
+        identity.name, identity.category, identity.supports_ffb, identity.max_torque_nm
+    ));
+}
+
+#[test]
+fn test_snapshot_device_rim_gt_neo() {
+    let identity = simagic::identify_device(0x4003);
+    assert_snapshot!(format!(
+        "name={}, category={:?}, supports_ffb={}, max_torque={:?}",
+        identity.name, identity.category, identity.supports_ffb, identity.max_torque_nm
+    ));
+}
+
+#[test]
+fn test_snapshot_device_rim_formula() {
+    let identity = simagic::identify_device(0x4004);
     assert_snapshot!(format!(
         "name={}, category={:?}, supports_ffb={}, max_torque={:?}",
         identity.name, identity.category, identity.supports_ffb, identity.max_torque_nm

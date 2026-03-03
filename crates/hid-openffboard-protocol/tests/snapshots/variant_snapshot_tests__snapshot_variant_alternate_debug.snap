@@ -1,0 +1,6 @@
+---
+source: crates/hid-openffboard-protocol/tests/variant_snapshot_tests.rs
+assertion_line: 64
+expression: "format!(\"{:?}\", OpenFFBoardVariant::Alternate)"
+---
+Alternate

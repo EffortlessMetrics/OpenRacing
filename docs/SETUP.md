@@ -131,7 +131,7 @@ OpenRacing supports the following 14 vendors and their product lines out of the 
 | **Simagic** | `0x0483` / `0x3670` / `0x16D0` | Alpha, Alpha Mini/EVO, M10, Neo/Mini | ✅ HID PIDFF |
 | **VRS DirectForce Pro** | `0x0483` | DirectForce Pro V1/V2 (20/25 Nm) | ✅ HID PIDFF |
 | **Simucube** | `0x16D0` / `0x1D50` | Simucube 2 Sport/Pro/Ultimate; Simucube 1 (IONI / ARGON) | ✅ HID PIDFF / SimpleMotion V2 |
-| **Heusinkveld** | `0x16D0` | Sprint, Ultimate+, Pro pedals | Input only |
+| **Heusinkveld** | `0x04D8` | Sprint, Ultimate+, Pro pedals | Input only |
 | **Cammus** | `0x3416` | C5, C12 direct drive | ✅ HID PIDFF |
 | **Leo Bodnar** | `0x1DD2` | USB sim racing interfaces, load-cell brake controllers | Input only |
 | **Asetek SimSports** | `0x2433` | Forte (20 Nm), Invicta (15 Nm), LaPrima (10 Nm) | ✅ HID PIDFF |

@@ -7,7 +7,7 @@
 //! - Vendor ID: `0x1DD2`
 //! - Product ID `0x000E`: USB Sim Racing Wheel Interface (HID PID force feedback)
 //! - Product ID `0x000C`: BBI-32 Button Box (input-only)
-//! - Product ID `0xBEEF`: SLI-M Shift Light Indicator (input-only)
+//! - Product ID `0x1301`: SLI-Pro Shift Light Indicator (input-only, estimated)
 //! - Product ID `0x0001`: USB Joystick (input-only, no FFB)
 //!
 //! ## Protocol
@@ -32,7 +32,7 @@ pub use racing_wheel_hid_leo_bodnar_protocol::VENDOR_ID as LEO_BODNAR_VENDOR_ID;
 pub const LEO_BODNAR_PID_WHEEL: u16 = PID_WHEEL_INTERFACE;
 /// BBI-32 Button Box product ID (input-only).
 pub const LEO_BODNAR_PID_BBI32: u16 = PID_BBI32;
-/// SLI-M Shift Light Indicator product ID (input-only).
+/// SLI-Pro Shift Light Indicator product ID (input-only, estimated).
 pub const LEO_BODNAR_PID_SLIM: u16 = PID_SLI_M;
 /// USB Joystick product ID (input-only, no FFB).
 pub const LEO_BODNAR_PID_JOYSTICK: u16 = PID_USB_JOYSTICK;

@@ -1,0 +1,5 @@
+---
+source: crates/hid-button-box-protocol/tests/snapshot_tests.rs
+expression: "format!(\"VID={:#06x}, PID={:#06x}, unique_pair={}\",\nbutton_box::VENDOR_ID_GENERIC, button_box::PRODUCT_ID_BUTTON_BOX,\nbutton_box::VENDOR_ID_GENERIC != button_box::PRODUCT_ID_BUTTON_BOX)"
+---
+"VID=0x1209, PID=0x1bbd, unique_pair=true"

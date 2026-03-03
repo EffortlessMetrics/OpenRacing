@@ -2,6 +2,28 @@
 
 use crate::{AxisCalibration, CalibrationResult};
 
+/// Collects raw pedal samples and produces per-axis calibrations.
+///
+/// Feed throttle, brake, and clutch readings via the `add_*` methods while
+/// the user sweeps each pedal through its full range, then call
+/// [`calibrate`](Self::calibrate) to compute the result.
+///
+/// # Examples
+///
+/// ```
+/// use openracing_calibration::PedalCalibrator;
+///
+/// let mut cal = PedalCalibrator::new();
+/// cal.add_throttle(0);
+/// cal.add_throttle(65535);
+/// cal.add_brake(0);
+/// cal.add_brake(65535);
+/// cal.add_clutch(0);
+/// cal.add_clutch(65535);
+///
+/// let axes = cal.calibrate().expect("calibration should succeed");
+/// assert_eq!(axes.len(), 3); // throttle, brake, clutch
+/// ```
 pub struct PedalCalibrator {
     throttle_samples: Vec<u16>,
     brake_samples: Vec<u16>,
@@ -9,6 +31,7 @@ pub struct PedalCalibrator {
 }
 
 impl PedalCalibrator {
+    /// Creates an empty pedal calibrator with no samples.
     pub fn new() -> Self {
         Self {
             throttle_samples: Vec::new(),
@@ -17,14 +40,17 @@ impl PedalCalibrator {
         }
     }
 
+    /// Records a raw throttle reading.
     pub fn add_throttle(&mut self, raw: u16) {
         self.throttle_samples.push(raw);
     }
 
+    /// Records a raw brake reading.
     pub fn add_brake(&mut self, raw: u16) {
         self.brake_samples.push(raw);
     }
 
+    /// Records a raw clutch reading.
     pub fn add_clutch(&mut self, raw: u16) {
         self.clutch_samples.push(raw);
     }
@@ -46,6 +72,10 @@ impl PedalCalibrator {
         Ok(AxisCalibration::new(min, max))
     }
 
+    /// Computes calibrations for all three pedal axes.
+    ///
+    /// Returns `[throttle, brake, clutch]` calibrations. Fails if any axis
+    /// has no samples.
     pub fn calibrate(&self) -> CalibrationResult<Vec<AxisCalibration>> {
         let results = vec![
             self.calibrate_axis(&self.throttle_samples)?,
@@ -56,6 +86,7 @@ impl PedalCalibrator {
         Ok(results)
     }
 
+    /// Discards all collected samples so calibration can be restarted.
     pub fn reset(&mut self) {
         self.throttle_samples.clear();
         self.brake_samples.clear();
@@ -69,6 +100,10 @@ impl Default for PedalCalibrator {
     }
 }
 
+/// Convenience function to calibrate all three pedal axes from raw sample slices.
+///
+/// Equivalent to creating a [`PedalCalibrator`], feeding all samples, and calling
+/// [`calibrate`](PedalCalibrator::calibrate).
 pub fn create_pedal_calibration(
     throttle: &[u16],
     brake: &[u16],

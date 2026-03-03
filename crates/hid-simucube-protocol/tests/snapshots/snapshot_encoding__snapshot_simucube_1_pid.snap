@@ -1,0 +1,5 @@
+---
+source: crates/hid-simucube-protocol/tests/snapshot_encoding.rs
+expression: "format!(\"{:#06X}\", sc::SIMUCUBE_1_PID)"
+---
+0x0D5A

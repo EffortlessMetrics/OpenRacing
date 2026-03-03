@@ -148,6 +148,36 @@ fn test_snapshot_input_report_zero() -> Result<(), String> {
 }
 
 #[test]
+fn test_snapshot_model_invicta_pedals() {
+    let model = asetek::AsetekModel::InvictaPedals;
+    assert_debug_snapshot!(format!(
+        "name={}, max_torque={:.1}",
+        model.display_name(),
+        model.max_torque_nm()
+    ));
+}
+
+#[test]
+fn test_snapshot_model_forte_pedals() {
+    let model = asetek::AsetekModel::FortePedals;
+    assert_debug_snapshot!(format!(
+        "name={}, max_torque={:.1}",
+        model.display_name(),
+        model.max_torque_nm()
+    ));
+}
+
+#[test]
+fn test_snapshot_model_laprima_pedals() {
+    let model = asetek::AsetekModel::LaPrimaPedals;
+    assert_debug_snapshot!(format!(
+        "name={}, max_torque={:.1}",
+        model.display_name(),
+        model.max_torque_nm()
+    ));
+}
+
+#[test]
 fn test_snapshot_protocol_constants() {
     assert_debug_snapshot!(format!(
         "VID={:#06X}, FORTE_PID={:#06X}, INVICTA_PID={:#06X}, LAPRIMA_PID={:#06X}, \

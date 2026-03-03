@@ -15,18 +15,23 @@ pub use types::*;
 
 use thiserror::Error;
 
+/// Errors that can occur during device calibration.
 #[derive(Error, Debug)]
 pub enum CalibrationError {
+    /// The supplied calibration data is invalid (e.g., min > max).
     #[error("Invalid calibration data")]
     InvalidData,
 
+    /// Not enough samples have been collected to produce a calibration.
     #[error("Calibration not complete")]
     NotComplete,
 
+    /// An underlying device communication error.
     #[error("Device error: {0}")]
     DeviceError(String),
 }
 
+/// Convenience alias for calibration operations.
 pub type CalibrationResult<T> = Result<T, CalibrationError>;
 
 #[cfg(test)]

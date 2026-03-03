@@ -1,4 +1,13 @@
 //! Output report generation for Asetek force feedback
+//!
+//! **Protocol note:** Asetek wheelbases expose a standard USB HID PID
+//! force-feedback descriptor, which the Linux kernel (`hid-pidff` /
+//! `hid-universal-pidff`) uses for standard FF effects. No Asetek-specific
+//! quirk flags are applied in the upstream driver. This output report
+//! structure is a simplified direct-motor-control interface (torque in
+//! centi-Newton-metres, little-endian i16) for the RT hot path. The exact
+//! vendor-specific byte layout has not been independently confirmed by
+//! community USB descriptor dumps.
 
 use super::{AsetekResult, MAX_TORQUE_NM, REPORT_SIZE_OUTPUT};
 use openracing_hid_common::ReportBuilder;

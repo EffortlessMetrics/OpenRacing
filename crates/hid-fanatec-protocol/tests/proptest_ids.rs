@@ -8,7 +8,8 @@
 
 use proptest::prelude::*;
 use racing_wheel_hid_fanatec_protocol::{
-    FANATEC_VENDOR_ID, FanatecModel, is_wheelbase_product, product_ids,
+    FANATEC_VENDOR_ID, FanatecModel, FanatecPedalModel, is_pedal_product, is_wheelbase_product,
+    product_ids,
 };
 
 /// All known Fanatec wheelbase product IDs.
@@ -23,6 +24,36 @@ const WHEELBASE_PIDS: [u16; 10] = [
     product_ids::CSL_DD,
     product_ids::GT_DD_PRO,
     product_ids::CLUBSPORT_DD,
+];
+
+/// All known Fanatec pedal product IDs.
+const PEDAL_PIDS: [u16; 5] = [
+    product_ids::CLUBSPORT_PEDALS_V1_V2,
+    product_ids::CLUBSPORT_PEDALS_V3,
+    product_ids::CSL_ELITE_PEDALS,
+    product_ids::CSL_PEDALS_LC,
+    product_ids::CSL_PEDALS_V2,
+];
+
+/// All known Fanatec product IDs (wheelbases + pedals + accessories).
+const ALL_PIDS: [u16; 17] = [
+    product_ids::CLUBSPORT_V2,
+    product_ids::CLUBSPORT_V2_5,
+    product_ids::CSL_ELITE_PS4,
+    product_ids::CSL_ELITE,
+    product_ids::DD1,
+    product_ids::DD2,
+    product_ids::CSR_ELITE,
+    product_ids::CSL_DD,
+    product_ids::GT_DD_PRO,
+    product_ids::CLUBSPORT_DD,
+    product_ids::CLUBSPORT_PEDALS_V1_V2,
+    product_ids::CLUBSPORT_PEDALS_V3,
+    product_ids::CSL_ELITE_PEDALS,
+    product_ids::CSL_PEDALS_LC,
+    product_ids::CSL_PEDALS_V2,
+    product_ids::CLUBSPORT_SHIFTER,
+    product_ids::CLUBSPORT_HANDBRAKE,
 ];
 
 proptest! {
@@ -100,5 +131,60 @@ proptest! {
             prop_assert_ne!(model, FanatecModel::Unknown,
                 "is_wheelbase_product({:#06x})=true but model is Unknown", pid);
         }
+    }
+
+    /// Every known PID constant (wheelbases, pedals, accessories) must be non-zero.
+    #[test]
+    fn prop_all_pids_nonzero(idx in 0usize..17usize) {
+        let pid = ALL_PIDS[idx];
+        prop_assert!(pid != 0,
+            "PID at index {idx} must not be zero");
+    }
+
+    /// Vendor ID must always be 0x0EB7 (Endor AG / Fanatec).
+    #[test]
+    fn prop_vendor_id_is_0eb7(_unused: u8) {
+        prop_assert_eq!(FANATEC_VENDOR_ID, 0x0EB7,
+            "FANATEC_VENDOR_ID must be 0x0EB7");
+    }
+
+    /// FanatecPedalModel::from_product_id must be deterministic for any PID.
+    #[test]
+    fn prop_pedal_model_from_pid_deterministic(pid: u16) {
+        let a = FanatecPedalModel::from_product_id(pid);
+        let b = FanatecPedalModel::from_product_id(pid);
+        prop_assert_eq!(a, b,
+            "FanatecPedalModel::from_product_id must be deterministic for pid={:#06x}", pid);
+    }
+
+    /// A recognised pedal PID must not resolve to FanatecPedalModel::Unknown.
+    #[test]
+    fn prop_recognised_pedal_pid_not_unknown(idx in 0usize..5usize) {
+        let pid = PEDAL_PIDS[idx];
+        let model = FanatecPedalModel::from_product_id(pid);
+        prop_assert_ne!(model, FanatecPedalModel::Unknown,
+            "recognised pedal PID {:#06x} must not resolve to Unknown", pid);
+    }
+
+    /// FanatecPedalModel classification must be consistent with is_pedal_product.
+    #[test]
+    fn prop_pedal_model_consistent_with_is_pedal(pid: u16) {
+        let model = FanatecPedalModel::from_product_id(pid);
+        let is_ped = is_pedal_product(pid);
+        if is_ped {
+            prop_assert_ne!(model, FanatecPedalModel::Unknown,
+                "is_pedal_product({:#06x})=true but pedal model is Unknown", pid);
+        }
+    }
+
+    /// FanatecPedalModel::axis_count must be 2 or 3 for any PID.
+    #[test]
+    fn prop_pedal_axis_count_valid(pid: u16) {
+        let model = FanatecPedalModel::from_product_id(pid);
+        let axes = model.axis_count();
+        prop_assert!(
+            (2..=3).contains(&axes),
+            "pedal model {:?} axis count {} must be 2 or 3", model, axes
+        );
     }
 }

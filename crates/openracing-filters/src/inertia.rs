@@ -119,27 +119,16 @@ pub fn inertia_filter(frame: &mut Frame, state: &mut InertiaState) {
 mod tests {
     use super::*;
 
-    fn create_test_frame(ffb_in: f32, wheel_speed: f32) -> Frame {
-        Frame {
-            ffb_in,
-            torque_out: ffb_in,
-            wheel_speed,
-            hands_off: false,
-            ts_mono_ns: 0,
-            seq: 0,
-        }
-    }
-
     #[test]
     fn test_inertia_filter_acceleration() {
         let mut state = InertiaState::new(0.1);
 
-        let mut frame1 = create_test_frame(0.0, 0.0);
+        let mut frame1 = Frame::from_ffb(0.0, 0.0);
         inertia_filter(&mut frame1, &mut state);
         let initial_torque = frame1.torque_out;
 
         // Sudden acceleration
-        let mut frame2 = create_test_frame(0.0, 5.0);
+        let mut frame2 = Frame::from_ffb(0.0, 5.0);
         inertia_filter(&mut frame2, &mut state);
 
         // Should produce opposing torque due to inertia
@@ -151,11 +140,11 @@ mod tests {
         let mut state = InertiaState::new(0.1);
 
         // First tick sets prev_wheel_speed
-        let mut frame1 = create_test_frame(0.0, 5.0);
+        let mut frame1 = Frame::from_ffb(0.0, 5.0);
         inertia_filter(&mut frame1, &mut state);
 
         // Second tick at same speed should produce no inertia torque
-        let mut frame2 = create_test_frame(0.0, 5.0);
+        let mut frame2 = Frame::from_ffb(0.0, 5.0);
         frame2.torque_out = 0.0;
         inertia_filter(&mut frame2, &mut state);
 
@@ -167,11 +156,11 @@ mod tests {
         let mut state = InertiaState::new(0.1);
 
         // Start at high speed
-        let mut frame1 = create_test_frame(0.0, 10.0);
+        let mut frame1 = Frame::from_ffb(0.0, 10.0);
         inertia_filter(&mut frame1, &mut state);
 
         // Decelerate
-        let mut frame2 = create_test_frame(0.0, 5.0);
+        let mut frame2 = Frame::from_ffb(0.0, 5.0);
         inertia_filter(&mut frame2, &mut state);
 
         // Inertia should oppose deceleration (positive torque)
@@ -183,7 +172,7 @@ mod tests {
         let mut state = InertiaState::new(0.1);
 
         // Positive acceleration
-        let mut frame_pos = create_test_frame(0.0, 0.0);
+        let mut frame_pos = Frame::from_ffb(0.0, 0.0);
         inertia_filter(&mut frame_pos, &mut state);
         frame_pos.wheel_speed = 5.0;
         frame_pos.torque_out = 0.0;
@@ -192,7 +181,7 @@ mod tests {
 
         // Negative acceleration
         let mut state_neg = InertiaState::new(0.1);
-        let mut frame_neg = create_test_frame(0.0, 5.0);
+        let mut frame_neg = Frame::from_ffb(0.0, 5.0);
         inertia_filter(&mut frame_neg, &mut state_neg);
         frame_neg.wheel_speed = 0.0;
         frame_neg.torque_out = 0.0;
@@ -205,14 +194,14 @@ mod tests {
         let state_high = InertiaState::new(0.2);
         let state_low = InertiaState::new(0.1);
 
-        let mut frame_high = create_test_frame(0.0, 0.0);
+        let mut frame_high = Frame::from_ffb(0.0, 0.0);
         inertia_filter(&mut frame_high, &mut state_high.clone());
         frame_high.wheel_speed = 5.0;
         frame_high.torque_out = 0.0;
         let mut state_high_mut = state_high;
         inertia_filter(&mut frame_high, &mut state_high_mut);
 
-        let mut frame_low = create_test_frame(0.0, 0.0);
+        let mut frame_low = Frame::from_ffb(0.0, 0.0);
         inertia_filter(&mut frame_low, &mut state_low.clone());
         frame_low.wheel_speed = 5.0;
         frame_low.torque_out = 0.0;
@@ -229,7 +218,7 @@ mod tests {
 
         for i in 0..1000 {
             let speed = ((i as f32) * 0.01).sin() * 5.0;
-            let mut frame = create_test_frame(0.5, speed);
+            let mut frame = Frame::from_ffb(0.5, speed);
             inertia_filter(&mut frame, &mut state);
 
             assert!(frame.torque_out.is_finite());
@@ -240,7 +229,7 @@ mod tests {
     fn test_inertia_filter_extreme_acceleration() {
         let mut state = InertiaState::new(0.1);
 
-        let mut frame = create_test_frame(0.0, 0.0);
+        let mut frame = Frame::from_ffb(0.0, 0.0);
         inertia_filter(&mut frame, &mut state);
         frame.wheel_speed = 1000.0;
         frame.torque_out = 0.0;

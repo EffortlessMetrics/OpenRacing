@@ -1,0 +1,6 @@
+---
+source: crates/hid-heusinkveld-protocol/tests/snapshot_tests.rs
+assertion_line: 183
+expression: "format!(\"name={}, max_load={:.1}, pedals={}\", model.display_name(),\nmodel.max_load_kg(), model.pedal_count())"
+---
+"name=Heusinkveld Handbrake V2, max_load=0.0, pedals=0"

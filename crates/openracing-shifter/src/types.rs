@@ -121,6 +121,47 @@ mod tests {
     }
 
     #[test]
+    fn test_gear_position_from_raw_all_valid_gears() {
+        for gear in 1..=7u8 {
+            let pos = GearPosition::from_raw(gear);
+            assert_eq!(pos.gear, gear as i32);
+            assert!(!pos.is_neutral);
+            assert!(!pos.is_reverse);
+        }
+    }
+
+    #[test]
+    fn test_gear_position_from_raw_out_of_range() {
+        for raw in [8u8, 10, 100, 200, 254] {
+            let pos = GearPosition::from_raw(raw);
+            assert!(pos.is_neutral, "raw {} should map to neutral", raw);
+        }
+    }
+
+    #[test]
+    fn test_gear_position_default() {
+        let pos = GearPosition::default();
+        assert!(pos.is_neutral);
+        assert_eq!(pos.gear, 0);
+    }
+
+    #[test]
+    fn test_gear_position_new_positive() {
+        let pos = GearPosition::new(5);
+        assert_eq!(pos.gear, 5);
+        assert!(!pos.is_neutral);
+        assert!(!pos.is_reverse);
+    }
+
+    #[test]
+    fn test_gear_position_new_negative() {
+        let pos = GearPosition::new(-2);
+        assert_eq!(pos.gear, -2);
+        assert!(!pos.is_neutral);
+        assert!(pos.is_reverse);
+    }
+
+    #[test]
     fn test_shifter_capabilities_sequential() {
         let caps = ShifterCapabilities::sequential();
         assert_eq!(caps.shifter_type, ShifterType::Sequential);
@@ -132,5 +173,96 @@ mod tests {
         let caps = ShifterCapabilities::h_pattern();
         assert_eq!(caps.shifter_type, ShifterType::HPattern);
         assert!(caps.has_clutch);
+    }
+
+    #[test]
+    fn test_shifter_capabilities_default() {
+        let caps = ShifterCapabilities::default();
+        assert_eq!(caps.shifter_type, ShifterType::Sequential);
+        assert_eq!(caps.max_gears, MAX_GEARS);
+    }
+
+    #[test]
+    fn test_shifter_type_default() {
+        let st = ShifterType::default();
+        assert_eq!(st, ShifterType::Sequential);
+    }
+
+    #[test]
+    fn test_shifter_type_variants_distinct() {
+        assert_ne!(ShifterType::Sequential, ShifterType::HPattern);
+        assert_ne!(ShifterType::Sequential, ShifterType::SequentialWithReverse);
+        assert_ne!(ShifterType::HPattern, ShifterType::SequentialWithReverse);
+    }
+
+    #[test]
+    fn test_constants() {
+        assert_eq!(MAX_GEARS, 8);
+        assert_eq!(NEUTRAL_GEAR, 0);
+    }
+
+    #[test]
+    fn test_gear_position_clone_copy() {
+        let a = GearPosition::new(3);
+        let b = a;
+        #[allow(clippy::clone_on_copy)]
+        let c = a.clone();
+        assert_eq!(a, b);
+        assert_eq!(a, c);
+    }
+
+    #[test]
+    fn test_shifter_type_clone_copy() {
+        let a = ShifterType::HPattern;
+        let b = a;
+        #[allow(clippy::clone_on_copy)]
+        let c = a.clone();
+        assert_eq!(a, b);
+        assert_eq!(a, c);
+    }
+
+    #[test]
+    fn test_shifter_capabilities_clone_copy() {
+        let a = ShifterCapabilities::h_pattern();
+        let b = a;
+        #[allow(clippy::clone_on_copy)]
+        let c = a.clone();
+        assert_eq!(a, b);
+        assert_eq!(a, c);
+    }
+
+    #[test]
+    fn test_gear_position_eq() {
+        assert_eq!(GearPosition::new(3), GearPosition::new(3));
+        assert_ne!(GearPosition::new(3), GearPosition::new(4));
+        assert_ne!(GearPosition::neutral(), GearPosition::reverse());
+    }
+
+    #[test]
+    fn test_shifter_capabilities_h_pattern_details() {
+        let caps = ShifterCapabilities::h_pattern();
+        assert_eq!(caps.max_gears, 6);
+        assert!(caps.has_clutch);
+        assert!(!caps.has_paddle_shifters);
+    }
+
+    #[test]
+    fn test_shifter_capabilities_sequential_details() {
+        let caps = ShifterCapabilities::sequential();
+        assert_eq!(caps.max_gears, MAX_GEARS);
+        assert!(!caps.has_clutch);
+        assert!(caps.has_paddle_shifters);
+    }
+
+    #[test]
+    fn test_gear_position_from_raw_boundary() {
+        // 0 → neutral
+        assert!(GearPosition::from_raw(0).is_neutral);
+        assert_eq!(GearPosition::from_raw(0).gear, 0);
+
+        // 7 → highest valid gear
+        assert_eq!(GearPosition::from_raw(7).gear, 7);
+        assert!(!GearPosition::from_raw(7).is_neutral);
+        assert!(!GearPosition::from_raw(7).is_reverse);
     }
 }

@@ -88,3 +88,60 @@ fn t818_pid_is_b69b() {
 fn ffb_wheel_generic_pid_is_b65d() {
     assert_eq!(product_ids::FFB_WHEEL_GENERIC, 0xB65D);
 }
+
+#[test]
+fn tx_racing_orig_pid_is_b664() {
+    assert_eq!(product_ids::TX_RACING_ORIG, 0xB664);
+}
+
+#[test]
+fn t80_pid_is_b668() {
+    assert_eq!(product_ids::T80, 0xB668);
+}
+
+#[test]
+fn t80_ferrari_488_pid_is_b66a() {
+    assert_eq!(product_ids::T80_FERRARI_488, 0xB66A);
+}
+
+// ── Product IDs — legacy wheels and peripherals ─────────────────────────────
+
+#[test]
+fn t_gt_ii_gt_pid_is_b681() {
+    assert_eq!(product_ids::T_GT_II_GT, 0xB681);
+}
+
+#[test]
+fn nascar_pro_ff2_pid_is_b605() {
+    assert_eq!(product_ids::NASCAR_PRO_FF2, 0xB605);
+}
+
+#[test]
+fn fgt_rumble_force_pid_is_b651() {
+    assert_eq!(product_ids::FGT_RUMBLE_FORCE, 0xB651);
+}
+
+#[test]
+fn rgt_ff_clutch_pid_is_b653() {
+    assert_eq!(product_ids::RGT_FF_CLUTCH, 0xB653);
+}
+
+#[test]
+fn fgt_force_feedback_pid_is_b654() {
+    assert_eq!(product_ids::FGT_FORCE_FEEDBACK, 0xB654);
+}
+
+#[test]
+fn f430_force_feedback_pid_is_b65a() {
+    assert_eq!(product_ids::F430_FORCE_FEEDBACK, 0xB65A);
+}
+
+#[test]
+fn tpr_pedals_pid_is_b68f() {
+    assert_eq!(product_ids::TPR_PEDALS, 0xB68F);
+}
+
+#[test]
+fn t_lcm_pid_is_b371() {
+    assert_eq!(product_ids::T_LCM, 0xB371);
+}

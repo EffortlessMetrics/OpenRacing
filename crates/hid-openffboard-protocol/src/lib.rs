@@ -6,7 +6,7 @@
 //!
 //! # VID / PID
 //! - Vendor ID: 0x1209 (pid.codes open hardware)
-//! - Product IDs: 0xFFB0 (main firmware), 0xFFB1 (alternate)
+//! - Product IDs: 0xFFB0 (main firmware, confirmed), 0xFFB1 (alternate, unverified)
 //!
 //! # Protocol Overview
 //! OpenFFBoard implements standard USB HID PID, making it compatible with
@@ -30,8 +30,8 @@ pub mod ids;
 pub mod output;
 
 pub use ids::{
-    is_openffboard_product, OPENFFBOARD_PRODUCT_ID, OPENFFBOARD_PRODUCT_ID_ALT,
-    OPENFFBOARD_VENDOR_ID,
+    is_openffboard_product, OpenFFBoardVariant, OPENFFBOARD_PRODUCT_ID,
+    OPENFFBOARD_PRODUCT_ID_ALT, OPENFFBOARD_VENDOR_ID,
 };
 pub use output::{
     build_enable_ffb, build_set_gain, OpenFFBoardTorqueEncoder, CONSTANT_FORCE_REPORT_ID,

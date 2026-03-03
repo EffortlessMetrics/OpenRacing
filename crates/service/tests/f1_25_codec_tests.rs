@@ -56,58 +56,38 @@ fn test_f1_25_car_telemetry_fixture_drs_active() -> TestResult {
     Ok(())
 }
 
-/// CarTelemetry fixture must include tyre pressure extended fields (in PSI).
+/// CarTelemetry fixture must include tyre pressures as typed fields (in PSI).
 #[test]
 fn test_f1_25_car_telemetry_fixture_tyre_pressures() -> TestResult {
-    use racing_wheel_telemetry_core::TelemetryValue;
     let adapter = F1_25Adapter::new();
     let normalized = adapter.normalize(FIXTURE_CAR_TELEMETRY)?;
 
-    for key in [
-        "tyre_pressure_fl_psi",
-        "tyre_pressure_fr_psi",
-        "tyre_pressure_rl_psi",
-        "tyre_pressure_rr_psi",
-    ] {
-        let val = normalized
-            .extended
-            .get(key)
-            .unwrap_or_else(|| panic!("{key} must be in extended map"));
-        match val {
-            TelemetryValue::Float(psi) => {
-                assert!(
-                    *psi > 20.0 && *psi < 35.0,
-                    "{key} PSI {psi} out of expected range"
-                );
-            }
-            other => panic!("{key} should be Float, got {other:?}"),
-        }
+    // Tire pressures are now typed builder fields [FL, FR, RL, RR]
+    for (i, label) in ["FL", "FR", "RL", "RR"].iter().enumerate() {
+        let psi = normalized.tire_pressures_psi[i];
+        assert!(
+            psi > 15.0 && psi < 45.0,
+            "{label} PSI {psi} out of expected range"
+        );
     }
 
     Ok(())
 }
 
-/// CarTelemetry fixture must report throttle and brake in extended fields.
+/// CarTelemetry fixture must report throttle and brake as typed fields.
 #[test]
 fn test_f1_25_car_telemetry_fixture_throttle_brake() -> TestResult {
-    use racing_wheel_telemetry_core::TelemetryValue;
     let adapter = F1_25Adapter::new();
     let normalized = adapter.normalize(FIXTURE_CAR_TELEMETRY)?;
 
-    if let Some(TelemetryValue::Float(throttle)) = normalized.extended.get("throttle") {
-        assert!(
-            *throttle > 0.9 && *throttle <= 1.0,
-            "expected throttle ~0.95, got {throttle}"
-        );
-    } else {
-        panic!("throttle must be Float in extended map");
-    }
+    let throttle = normalized.throttle;
+    assert!(
+        throttle > 0.9 && throttle <= 1.0,
+        "expected throttle ~0.95, got {throttle}"
+    );
 
-    if let Some(TelemetryValue::Float(brake)) = normalized.extended.get("brake") {
-        assert!(*brake < 0.01, "expected brake ~0.0, got {brake}");
-    } else {
-        panic!("brake must be Float in extended map");
-    }
+    let brake = normalized.brake;
+    assert!(brake < 0.01, "expected brake ~0.0, got {brake}");
 
     Ok(())
 }

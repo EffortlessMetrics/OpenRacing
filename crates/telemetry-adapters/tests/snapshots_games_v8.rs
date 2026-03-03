@@ -8,13 +8,12 @@ use racing_wheel_telemetry_adapters::{
     SimHubAdapter, TelemetryAdapter, WrcGenerationsAdapter,
 };
 
+mod helpers;
+use helpers::write_f32_le;
+
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-fn write_f32_le(buf: &mut [u8], offset: usize, val: f32) {
-    buf[offset..offset + 4].copy_from_slice(&val.to_le_bytes());
-}
 
 fn write_i32_le(buf: &mut [u8], offset: usize, val: i32) {
     buf[offset..offset + 4].copy_from_slice(&val.to_le_bytes());
@@ -220,6 +219,10 @@ fn simhub_realistic_snapshot() -> TestResult {
 
 fn make_wrc_generations_data() -> Vec<u8> {
     let mut buf = vec![0u8; 264];
+    // Body velocity (m/s) for slip ratio derivation
+    write_f32_le(&mut buf, 32, 49.0); // velocity_x
+    write_f32_le(&mut buf, 36, 1.0); // velocity_y
+    write_f32_le(&mut buf, 40, 10.0); // velocity_z
     // Wheel speeds (m/s) → speed = average
     write_f32_le(&mut buf, 100, 50.0); // wheel_speed_rl
     write_f32_le(&mut buf, 104, 50.0); // wheel_speed_rr

@@ -206,17 +206,6 @@ pub fn curve_filter(frame: &mut Frame, state: &CurveState) {
 mod tests {
     use super::*;
 
-    fn create_test_frame(torque_out: f32) -> Frame {
-        Frame {
-            ffb_in: torque_out,
-            torque_out,
-            wheel_speed: 0.0,
-            hands_off: false,
-            ts_mono_ns: 0,
-            seq: 0,
-        }
-    }
-
     #[test]
     fn test_curve_state_linear() {
         let state = CurveState::linear();
@@ -248,7 +237,7 @@ mod tests {
         let points = [(0.0f32, 0.0f32), (0.5f32, 0.25f32), (1.0f32, 1.0f32)];
         let state = CurveState::new(&points);
 
-        let mut frame = create_test_frame(0.5);
+        let mut frame = Frame::from_torque(0.5);
         curve_filter(&mut frame, &state);
 
         // Should map 0.5 to approximately 0.25 (quadratic curve)
@@ -259,11 +248,11 @@ mod tests {
     fn test_curve_filter_preserves_sign() {
         let state = CurveState::linear();
 
-        let mut frame_pos = create_test_frame(0.5);
+        let mut frame_pos = Frame::from_torque(0.5);
         curve_filter(&mut frame_pos, &state);
         assert!(frame_pos.torque_out > 0.0);
 
-        let mut frame_neg = create_test_frame(-0.5);
+        let mut frame_neg = Frame::from_torque(-0.5);
         curve_filter(&mut frame_neg, &state);
         assert!(frame_neg.torque_out < 0.0);
     }
@@ -272,15 +261,15 @@ mod tests {
     fn test_curve_filter_endpoints() {
         let state = CurveState::linear();
 
-        let mut frame_0 = create_test_frame(0.0);
+        let mut frame_0 = Frame::from_torque(0.0);
         curve_filter(&mut frame_0, &state);
         assert!((frame_0.torque_out).abs() < 0.01);
 
-        let mut frame_1 = create_test_frame(1.0);
+        let mut frame_1 = Frame::from_torque(1.0);
         curve_filter(&mut frame_1, &state);
         assert!((frame_1.torque_out - 1.0).abs() < 0.01);
 
-        let mut frame_neg1 = create_test_frame(-1.0);
+        let mut frame_neg1 = Frame::from_torque(-1.0);
         curve_filter(&mut frame_neg1, &state);
         assert!((frame_neg1.torque_out - (-1.0)).abs() < 0.01);
     }
@@ -291,7 +280,7 @@ mod tests {
 
         for i in 0..1000 {
             let input = ((i as f32) * 0.001 - 0.5) * 2.0; // -1 to 1
-            let mut frame = create_test_frame(input);
+            let mut frame = Frame::from_torque(input);
             curve_filter(&mut frame, &state);
 
             assert!(frame.torque_out.is_finite());
@@ -303,11 +292,11 @@ mod tests {
     fn test_curve_filter_extreme_input() {
         let state = CurveState::linear();
 
-        let mut frame_high = create_test_frame(100.0);
+        let mut frame_high = Frame::from_torque(100.0);
         curve_filter(&mut frame_high, &state);
         assert!(frame_high.torque_out.is_finite());
 
-        let mut frame_low = create_test_frame(-100.0);
+        let mut frame_low = Frame::from_torque(-100.0);
         curve_filter(&mut frame_low, &state);
         assert!(frame_low.torque_out.is_finite());
     }
@@ -326,5 +315,126 @@ mod tests {
 
         // Should return the single point's output
         assert!((state.lookup(0.5) - 0.75).abs() < 0.01);
+    }
+
+    /// Kill mutant: replace `-` with `+` or `/` in CurveState::linear (line 67).
+    /// The formula `i / (LUT_SIZE - 1)` produces 0.0 at i=0 and 1.0 at i=LUT_SIZE-1.
+    /// If `-` becomes `+`, it would be `i / (LUT_SIZE + 1)` → 0.9990 instead of 1.0.
+    /// If `-` becomes `/`, it would be `i / (LUT_SIZE / 1)` = `i / LUT_SIZE` → 0.999 instead of 1.0.
+    #[test]
+    fn test_linear_curve_exact_endpoints() {
+        let state = CurveState::linear();
+        // First entry must be exactly 0.0
+        assert!(
+            state.lut[0].abs() < 1e-6,
+            "linear LUT[0] must be 0.0, got {}",
+            state.lut[0]
+        );
+        // Last entry must be exactly 1.0
+        assert!(
+            (state.lut[CurveState::LUT_SIZE - 1] - 1.0).abs() < 1e-6,
+            "linear LUT[last] must be 1.0, got {}",
+            state.lut[CurveState::LUT_SIZE - 1]
+        );
+        // Midpoint must be ~0.5
+        let mid = CurveState::LUT_SIZE / 2;
+        assert!(
+            (state.lut[mid] - 0.5).abs() < 0.01,
+            "linear LUT[mid] must be ~0.5, got {}",
+            state.lut[mid]
+        );
+    }
+
+    /// Kill mutant: replace cubic() with Default::default().
+    /// Cubic curve must differ from linear (default) — specifically at midpoint.
+    #[test]
+    fn test_cubic_differs_from_linear() {
+        let cubic = CurveState::cubic();
+        let linear = CurveState::linear();
+
+        // At midpoint, cubic should be significantly less than linear
+        let cubic_mid = cubic.lookup(0.5);
+        let linear_mid = linear.lookup(0.5);
+        assert!(
+            (cubic_mid - linear_mid).abs() > 0.05,
+            "cubic midpoint {} must differ from linear midpoint {}",
+            cubic_mid,
+            linear_mid
+        );
+        // Cubic at 0.5 should be less than 0.5 (softer near center)
+        assert!(
+            cubic_mid < 0.45,
+            "cubic at 0.5 should be < 0.45 (softer), got {}",
+            cubic_mid
+        );
+    }
+
+    /// Kill mutant: replace scurve() with Default::default().
+    /// S-curve must differ from linear at quarter points.
+    #[test]
+    fn test_scurve_differs_from_linear() {
+        let scurve = CurveState::scurve();
+        let linear = CurveState::linear();
+
+        // At 0.25, scurve should output ~0.1 (below linear's 0.25)
+        let s_quarter = scurve.lookup(0.25);
+        let l_quarter = linear.lookup(0.25);
+        assert!(
+            s_quarter < l_quarter,
+            "scurve at 0.25 ({}) must be less than linear ({})",
+            s_quarter,
+            l_quarter
+        );
+        // At 0.75, scurve should output ~0.9 (above linear's 0.75)
+        let s_three_q = scurve.lookup(0.75);
+        let l_three_q = linear.lookup(0.75);
+        assert!(
+            s_three_q > l_three_q,
+            "scurve at 0.75 ({}) must be greater than linear ({})",
+            s_three_q,
+            l_three_q
+        );
+    }
+
+    /// Verify that curve constructors produce valid LUT data.
+    #[test]
+    fn test_curve_constructors_valid_lut() {
+        for (name, state) in [
+            ("linear", CurveState::linear()),
+            ("quadratic", CurveState::quadratic()),
+            ("cubic", CurveState::cubic()),
+            ("scurve", CurveState::scurve()),
+        ] {
+            assert_eq!(state.lut_size, CurveState::LUT_SIZE, "{} lut_size", name);
+            for (i, &val) in state.lut.iter().enumerate() {
+                assert!(
+                    val.is_finite(),
+                    "{} LUT[{}] must be finite, got {}",
+                    name,
+                    i,
+                    val
+                );
+                assert!(
+                    (-0.01..=1.01).contains(&val),
+                    "{} LUT[{}] must be in [0, 1], got {}",
+                    name,
+                    i,
+                    val
+                );
+            }
+            // Endpoints: LUT[0] should be ~0.0, LUT[last] should be ~1.0
+            assert!(
+                state.lut[0].abs() < 0.01,
+                "{} LUT[0] must be ~0.0, got {}",
+                name,
+                state.lut[0]
+            );
+            assert!(
+                (state.lut[CurveState::LUT_SIZE - 1] - 1.0).abs() < 0.01,
+                "{} LUT[last] must be ~1.0, got {}",
+                name,
+                state.lut[CurveState::LUT_SIZE - 1]
+            );
+        }
     }
 }

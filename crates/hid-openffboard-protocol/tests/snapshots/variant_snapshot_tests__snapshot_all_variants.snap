@@ -1,0 +1,7 @@
+---
+source: crates/hid-openffboard-protocol/tests/variant_snapshot_tests.rs
+assertion_line: 52
+expression: "lines.join(\"\\n\")"
+---
+Main: name=OpenFFBoard, VID=0x1209, PID=0xFFB0
+Alternate: name=OpenFFBoard (Alternate), VID=0x1209, PID=0xFFB1

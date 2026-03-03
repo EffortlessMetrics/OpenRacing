@@ -662,4 +662,464 @@ mod tests {
             prop_assert_eq!(map, round_tripped);
         }
     }
+
+    // ── Device map compilation (additional) ──────────────────────────────
+
+    #[test]
+    fn compile_ks_map_wires_independent_axis_clutch() {
+        let map = DeviceInputMap {
+            vendor_id: 0x346E,
+            product_id: 0x0002,
+            clutch: Some(ClutchBinding {
+                combined: None,
+                left: Some(AxisBinding {
+                    name: "clutch_left".to_string(),
+                    byte_offset: 10,
+                    bit_offset: None,
+                    data_type: AxisDataType::U16Le,
+                    signed: false,
+                    invert: false,
+                    min: None,
+                    max: None,
+                }),
+                right: Some(AxisBinding {
+                    name: "clutch_right".to_string(),
+                    byte_offset: 12,
+                    bit_offset: None,
+                    data_type: AxisDataType::U16Le,
+                    signed: false,
+                    invert: false,
+                    min: None,
+                    max: None,
+                }),
+                left_button: None,
+                right_button: None,
+                mode_hint: ClutchModeHint::IndependentAxis,
+            }),
+            ..Default::default()
+        };
+
+        let ks = compile_ks_map(&map).expect("should compile independent axis clutch");
+        assert_eq!(ks.clutch_mode_hint, KsClutchMode::IndependentAxis);
+        assert_eq!(ks.clutch_left_axis.map(|s| s.offset), Some(10));
+        assert_eq!(ks.clutch_right_axis.map(|s| s.offset), Some(12));
+        assert!(ks.clutch_combined_axis.is_none());
+    }
+
+    #[test]
+    fn compile_ks_map_wires_clutch_buttons() {
+        let map = DeviceInputMap {
+            vendor_id: 0x346E,
+            product_id: 0x0002,
+            clutch: Some(ClutchBinding {
+                combined: None,
+                left: None,
+                right: None,
+                left_button: Some(ButtonBinding {
+                    name: "clutch_left_btn".to_string(),
+                    byte_offset: 22,
+                    bit_mask: 0x01,
+                    invert: false,
+                }),
+                right_button: Some(ButtonBinding {
+                    name: "clutch_right_btn".to_string(),
+                    byte_offset: 22,
+                    bit_mask: 0x02,
+                    invert: false,
+                }),
+                mode_hint: ClutchModeHint::Button,
+            }),
+            ..Default::default()
+        };
+
+        let ks = compile_ks_map(&map).expect("should compile clutch buttons");
+        assert_eq!(ks.clutch_mode_hint, KsClutchMode::Button);
+        assert_eq!(ks.clutch_left_button.map(|b| b.mask), Some(0x01));
+        assert_eq!(ks.clutch_right_button.map(|b| b.mask), Some(0x02));
+    }
+
+    #[test]
+    fn compile_ks_map_wires_joystick_buttons_mode() {
+        let map = DeviceInputMap {
+            vendor_id: 0x346E,
+            product_id: 0x0002,
+            joystick: Some(JsBinding {
+                mode_hint: JsModeHint::Buttons,
+                axis: None,
+                buttons: vec![ButtonBinding {
+                    name: "js_up".to_string(),
+                    byte_offset: 5,
+                    bit_mask: 0x10,
+                    invert: false,
+                }],
+            }),
+            ..Default::default()
+        };
+
+        let ks = compile_ks_map(&map).expect("should compile joystick buttons");
+        assert_eq!(ks.joystick_mode_hint, KsJoystickMode::Button);
+        assert!(ks.joystick_hat.is_none());
+    }
+
+    #[test]
+    fn compile_ks_map_propagates_report_id() {
+        let map = DeviceInputMap {
+            vendor_id: 0x346E,
+            product_id: 0x0002,
+            report: ReportConstraint {
+                report_id: Some(0x07),
+                report_len: Some(64),
+            },
+            rotaries: vec![RotaryBinding {
+                name: "r".to_string(),
+                byte_offset: 10,
+                mode: RotaryModeHint::Knob,
+            }],
+            ..Default::default()
+        };
+
+        let ks = compile_ks_map(&map).expect("should propagate report_id");
+        assert_eq!(ks.report_id, Some(0x07));
+    }
+
+    // ── Button/axis mapping ─────────────────────────────────────────────
+
+    #[test]
+    fn axis_binding_signed_types_produce_signed_ks_source() {
+        let signed_types = [AxisDataType::I8, AxisDataType::I16Le, AxisDataType::I16Be];
+        for dt in signed_types {
+            let binding = AxisBinding {
+                name: "test".to_string(),
+                byte_offset: 5,
+                bit_offset: None,
+                data_type: dt,
+                signed: true,
+                invert: false,
+                min: None,
+                max: None,
+            };
+            let source =
+                axis_binding_to_ks_source(&binding).expect("should produce source for signed type");
+            assert!(source.signed);
+            assert_eq!(source.offset, 5);
+        }
+    }
+
+    #[test]
+    fn axis_binding_unsigned_types_produce_unsigned_ks_source() {
+        let unsigned_types = [
+            AxisDataType::U8,
+            AxisDataType::U16Le,
+            AxisDataType::U16Be,
+            AxisDataType::Bool,
+        ];
+        for dt in unsigned_types {
+            let binding = AxisBinding {
+                name: "test".to_string(),
+                byte_offset: 7,
+                bit_offset: None,
+                data_type: dt,
+                signed: false,
+                invert: false,
+                min: None,
+                max: None,
+            };
+            let source = axis_binding_to_ks_source(&binding)
+                .expect("should produce source for unsigned type");
+            assert!(!source.signed);
+            assert_eq!(source.offset, 7);
+        }
+    }
+
+    // ── Input normalization ─────────────────────────────────────────────
+
+    #[test]
+    fn compile_ks_map_rotary_mode_knob_propagates() {
+        let map = DeviceInputMap {
+            vendor_id: 0x346E,
+            product_id: 0x0002,
+            rotaries: vec![RotaryBinding {
+                name: "dial".to_string(),
+                byte_offset: 15,
+                mode: RotaryModeHint::Knob,
+            }],
+            ..Default::default()
+        };
+
+        let ks = compile_ks_map(&map).expect("should compile rotary knob");
+        assert_eq!(ks.rotary_mode_hint, KsRotaryMode::Knob);
+    }
+
+    #[test]
+    fn compile_ks_map_clutch_unknown_mode_propagates() {
+        let map = DeviceInputMap {
+            vendor_id: 0x346E,
+            product_id: 0x0002,
+            clutch: Some(ClutchBinding {
+                combined: None,
+                left: None,
+                right: None,
+                left_button: None,
+                right_button: None,
+                mode_hint: ClutchModeHint::Unknown,
+            }),
+            ..Default::default()
+        };
+
+        let ks = compile_ks_map(&map).expect("should compile unknown clutch");
+        assert_eq!(ks.clutch_mode_hint, KsClutchMode::Unknown);
+    }
+
+    #[test]
+    fn compile_ks_map_joystick_unknown_mode_propagates() {
+        let map = DeviceInputMap {
+            vendor_id: 0x346E,
+            product_id: 0x0002,
+            joystick: Some(JsBinding {
+                mode_hint: JsModeHint::Unknown,
+                axis: None,
+                buttons: vec![],
+            }),
+            ..Default::default()
+        };
+
+        let ks = compile_ks_map(&map).expect("should compile unknown joystick");
+        assert_eq!(ks.joystick_mode_hint, KsJoystickMode::Unknown);
+    }
+
+    #[test]
+    fn compile_ks_map_rotary_button_mode_propagates() {
+        let map = DeviceInputMap {
+            vendor_id: 0x346E,
+            product_id: 0x0002,
+            rotaries: vec![RotaryBinding {
+                name: "enc".to_string(),
+                byte_offset: 8,
+                mode: RotaryModeHint::Button,
+            }],
+            ..Default::default()
+        };
+
+        let ks = compile_ks_map(&map).expect("should compile rotary button");
+        assert_eq!(ks.rotary_mode_hint, KsRotaryMode::Button);
+    }
+
+    // ── Serde round-trips (additional) ──────────────────────────────────
+
+    #[test]
+    fn clutch_binding_serde_round_trip() -> Result<(), Box<dyn std::error::Error>> {
+        let binding = ClutchBinding {
+            combined: Some(AxisBinding {
+                name: "combined".to_string(),
+                byte_offset: 7,
+                bit_offset: None,
+                data_type: AxisDataType::U16Le,
+                signed: false,
+                invert: false,
+                min: Some(0),
+                max: Some(65535),
+            }),
+            left: Some(AxisBinding {
+                name: "left".to_string(),
+                byte_offset: 9,
+                bit_offset: None,
+                data_type: AxisDataType::I16Le,
+                signed: true,
+                invert: true,
+                min: Some(-32768),
+                max: Some(32767),
+            }),
+            right: None,
+            left_button: Some(ButtonBinding {
+                name: "left_btn".to_string(),
+                byte_offset: 22,
+                bit_mask: 0x04,
+                invert: true,
+            }),
+            right_button: None,
+            mode_hint: ClutchModeHint::IndependentAxis,
+        };
+
+        let json = serde_json::to_string(&binding)?;
+        let round_tripped: ClutchBinding = serde_json::from_str(&json)?;
+        assert_eq!(binding, round_tripped);
+        Ok(())
+    }
+
+    #[test]
+    fn init_report_frame_serde_round_trip() -> Result<(), Box<dyn std::error::Error>> {
+        let frame = InitReportFrame {
+            report_id: 0x09,
+            payload: vec![0x01, 0x02, 0x03, 0xFF],
+            direction: InitFrameDirection::Out,
+        };
+
+        let json = serde_json::to_string(&frame)?;
+        let round_tripped: InitReportFrame = serde_json::from_str(&json)?;
+        assert_eq!(frame, round_tripped);
+        Ok(())
+    }
+
+    #[test]
+    fn device_map_mode_hints_serde_round_trip() -> Result<(), Box<dyn std::error::Error>> {
+        let hints = DeviceMapModeHints {
+            clutch: Some(ClutchModeHint::Button),
+            joystick: Some(JsModeHint::DPad),
+            rotary: Some(RotaryModeHint::Knob),
+        };
+
+        let json = serde_json::to_string(&hints)?;
+        let round_tripped: DeviceMapModeHints = serde_json::from_str(&json)?;
+        assert_eq!(hints, round_tripped);
+        Ok(())
+    }
+
+    #[test]
+    fn full_device_input_map_serde_round_trip() -> Result<(), Box<dyn std::error::Error>> {
+        let map = DeviceInputMap {
+            schema_version: 1,
+            vendor_id: 0x346E,
+            product_id: 0x0022,
+            transport: DeviceTransportHint::UniversalHub,
+            report: ReportConstraint {
+                report_id: Some(1),
+                report_len: Some(64),
+            },
+            axes: vec![AxisBinding {
+                name: "steering".to_string(),
+                byte_offset: 1,
+                bit_offset: None,
+                data_type: AxisDataType::I16Le,
+                signed: true,
+                invert: false,
+                min: Some(-32768),
+                max: Some(32767),
+            }],
+            buttons: vec![ButtonBinding {
+                name: "paddle_left".to_string(),
+                byte_offset: 11,
+                bit_mask: 0x01,
+                invert: false,
+            }],
+            clutch: Some(ClutchBinding {
+                combined: None,
+                left: Some(AxisBinding {
+                    name: "clutch_l".to_string(),
+                    byte_offset: 18,
+                    bit_offset: None,
+                    data_type: AxisDataType::U16Le,
+                    signed: false,
+                    invert: false,
+                    min: None,
+                    max: None,
+                }),
+                right: Some(AxisBinding {
+                    name: "clutch_r".to_string(),
+                    byte_offset: 20,
+                    bit_offset: None,
+                    data_type: AxisDataType::U16Le,
+                    signed: false,
+                    invert: false,
+                    min: None,
+                    max: None,
+                }),
+                left_button: None,
+                right_button: None,
+                mode_hint: ClutchModeHint::IndependentAxis,
+            }),
+            joystick: Some(JsBinding {
+                mode_hint: JsModeHint::DPad,
+                axis: Some(AxisBinding {
+                    name: "hat".to_string(),
+                    byte_offset: 27,
+                    bit_offset: None,
+                    data_type: AxisDataType::U8,
+                    signed: false,
+                    invert: false,
+                    min: None,
+                    max: None,
+                }),
+                buttons: vec![],
+            }),
+            rotaries: vec![
+                RotaryBinding {
+                    name: "left_dial".to_string(),
+                    byte_offset: 29,
+                    mode: RotaryModeHint::Knob,
+                },
+                RotaryBinding {
+                    name: "right_dial".to_string(),
+                    byte_offset: 31,
+                    mode: RotaryModeHint::Button,
+                },
+            ],
+            handbrake: Some(AxisBinding {
+                name: "handbrake".to_string(),
+                byte_offset: 33,
+                bit_offset: None,
+                data_type: AxisDataType::U16Le,
+                signed: false,
+                invert: false,
+                min: Some(0),
+                max: Some(65535),
+            }),
+            mode_hints: Some(DeviceMapModeHints {
+                clutch: Some(ClutchModeHint::IndependentAxis),
+                joystick: Some(JsModeHint::DPad),
+                rotary: Some(RotaryModeHint::Knob),
+            }),
+            init_sequence: vec![
+                InitReportFrame {
+                    report_id: 0x09,
+                    payload: vec![0x01, 0x02],
+                    direction: InitFrameDirection::Out,
+                },
+                InitReportFrame {
+                    report_id: 0x09,
+                    payload: vec![0x03, 0x04],
+                    direction: InitFrameDirection::In,
+                },
+            ],
+        };
+
+        let json = serde_json::to_string_pretty(&map)?;
+        let round_tripped: DeviceInputMap = serde_json::from_str(&json)?;
+        assert_eq!(map, round_tripped);
+        Ok(())
+    }
+
+    #[test]
+    fn transport_hint_all_variants_serde_round_trip() -> Result<(), Box<dyn std::error::Error>> {
+        let variants = [
+            DeviceTransportHint::WheelbaseAggregated,
+            DeviceTransportHint::StandaloneUsb,
+            DeviceTransportHint::UniversalHub,
+            DeviceTransportHint::Unknown,
+        ];
+        for variant in variants {
+            let json = serde_json::to_string(&variant)?;
+            let round_tripped: DeviceTransportHint = serde_json::from_str(&json)?;
+            assert_eq!(variant, round_tripped);
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn axis_data_type_all_variants_serde_round_trip() -> Result<(), Box<dyn std::error::Error>> {
+        let variants = [
+            AxisDataType::U8,
+            AxisDataType::I8,
+            AxisDataType::U16Le,
+            AxisDataType::I16Le,
+            AxisDataType::U16Be,
+            AxisDataType::I16Be,
+            AxisDataType::Bool,
+        ];
+        for variant in variants {
+            let json = serde_json::to_string(&variant)?;
+            let round_tripped: AxisDataType = serde_json::from_str(&json)?;
+            assert_eq!(variant, round_tripped);
+        }
+        Ok(())
+    }
 }

@@ -87,25 +87,29 @@ fn test_recovery_cancellation() {
 }
 
 #[test]
-fn test_non_recoverable_fault() {
+fn test_non_recoverable_fault() -> Result<(), Box<dyn std::error::Error>> {
     let mut fmea = FmeaSystem::new();
 
     // EncoderNaN is not recoverable
-    fmea.handle_fault(FaultType::EncoderNaN, 10.0).unwrap();
+    fmea.handle_fault(FaultType::EncoderNaN, 10.0)?;
 
     assert!(!fmea.can_recover());
+
+    Ok(())
 }
 
 #[test]
-fn test_recoverable_fault() {
+fn test_recoverable_fault() -> Result<(), Box<dyn std::error::Error>> {
     let mut fmea = FmeaSystem::new();
 
     // USB stall is recoverable
-    fmea.handle_fault(FaultType::UsbStall, 10.0).unwrap();
+    fmea.handle_fault(FaultType::UsbStall, 10.0)?;
     fmea.update_soft_stop(Duration::from_millis(100));
 
     assert!(fmea.can_recover());
     assert!(fmea.recovery_procedure().is_some());
+
+    Ok(())
 }
 
 #[test]

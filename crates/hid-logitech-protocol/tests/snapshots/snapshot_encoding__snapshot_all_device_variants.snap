@@ -1,0 +1,18 @@
+---
+source: crates/hid-logitech-protocol/tests/snapshot_encoding.rs
+expression: "results.join(\"\\n\")"
+---
+WingManFormulaForce: torque=0.5Nm, rotation=180°, range=false, friction=false, trueforce=false
+MOMO: torque=2.0Nm, rotation=270°, range=false, friction=false, trueforce=false
+DrivingForceEX: torque=2.0Nm, rotation=270°, range=false, friction=false, trueforce=false
+DrivingForcePro: torque=2.0Nm, rotation=900°, range=true, friction=true, trueforce=false
+DrivingForceGT: torque=2.0Nm, rotation=900°, range=true, friction=true, trueforce=false
+SpeedForceWireless: torque=2.0Nm, rotation=270°, range=false, friction=false, trueforce=false
+VibrationWheel: torque=0.5Nm, rotation=270°, range=false, friction=false, trueforce=false
+G25: torque=2.5Nm, rotation=900°, range=true, friction=true, trueforce=false
+G27: torque=2.5Nm, rotation=900°, range=true, friction=true, trueforce=false
+G29: torque=2.2Nm, rotation=900°, range=true, friction=false, trueforce=false
+G920: torque=2.2Nm, rotation=900°, range=true, friction=false, trueforce=false
+G923: torque=2.2Nm, rotation=900°, range=true, friction=false, trueforce=true
+GPro: torque=11.0Nm, rotation=1080°, range=true, friction=false, trueforce=false
+Unknown: torque=2.0Nm, rotation=900°, range=false, friction=false, trueforce=false

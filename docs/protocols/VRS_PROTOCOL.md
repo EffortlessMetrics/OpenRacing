@@ -30,6 +30,41 @@ They are distinguished by Product ID ranges in `0xA3xx`.
 | Handbrake | `0x0483` | `0xA359` | Digital handbrake |
 | Shifter | `0x0483` | `0xA35A` | H-pattern + sequential shifter |
 
+### Pedal Protocol Details
+
+VRS pedals are **standalone USB HID devices**. They connect directly to the PC
+via USB and are not aggregated through the wheelbase.
+
+#### Pedal Connection Topology
+
+```
+VRS Pedals V1/V2 ── USB ── PC  (VID 0x0483, PID 0xA357/0xA358)
+VRS Wheelbase     ── USB ── PC  (VID 0x0483, PID 0xA355/0xA356)
+```
+
+Pedals and wheelbase are completely independent USB devices. Each requires its
+own USB port.
+
+#### Axis Reporting
+
+VRS pedals report axes via standard HID input reports. Per the STM32 HID
+implementation:
+
+| Property | Value |
+|----------|-------|
+| Report rate | Up to 1000 Hz |
+| Resolution | 16-bit unsigned per axis (0–65535) |
+| Axes | Throttle, Brake, Clutch (load cell brake) |
+| Sensor type | Load cell (brake), Hall effect (throttle/clutch) |
+
+#### Calibration
+
+VRS pedals are calibrated through **VRS software** (Windows). Calibration values
+are stored in the pedal controller's STM32 flash memory. No USB-level calibration
+protocol is exposed to host software.
+
+**No initialization required** for pedals — they are plug-and-play input devices.
+
 ## VID Disambiguation
 
 VID `0x0483` is shared with legacy Simagic devices (PIDs `0x0522`–`0x0524`,

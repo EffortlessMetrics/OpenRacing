@@ -1,0 +1,11 @@
+---
+source: crates/hid-thrustmaster-protocol/tests/snapshot_tests.rs
+expression: "results.join(\"\\n\")"
+---
+model=0x0306, switch=0x0006, name=T150 RS
+model=0x0200, switch=0x0005, name=T300 RS (No Attachment)
+model=0x0206, switch=0x0005, name=T300 RS
+model=0x0209, switch=0x0005, name=T300 RS (Open Wheel)
+model=0x020A, switch=0x0005, name=T300 RS (Sparco R383)
+model=0x0204, switch=0x0005, name=T300 Ferrari Alcantara
+model=0x0002, switch=0x0002, name=T500 RS

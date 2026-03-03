@@ -12,6 +12,10 @@ description = "Automobilista 2 (AMS2) shared memory telemetry adapter (PCARS2 fo
 readme = "README.md"
 keywords = ["telemetry", "ams2", "automobilista", "pcars2", "racing"]
 
+
+[package.metadata.cargo-udeps.ignore]
+normal = ["workspace-hack"]
+
 [dependencies]
 racing-wheel-telemetry-adapters = { path = "../telemetry-adapters" }
 racing-wheel-telemetry-core = { path = "../telemetry-core" }
@@ -22,4 +26,6 @@ tracing = { workspace = true }
 workspace-hack = { version = "0.1", path = "../../workspace-hack" }
 
 [dev-dependencies]
+insta = { version = "1.42.2", features = ["yaml"] }
+proptest = { workspace = true }
 tokio = { workspace = true, features = ["rt", "macros"] }

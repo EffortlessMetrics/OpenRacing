@@ -1,0 +1,5 @@
+---
+source: crates/hid-cammus-protocol/tests/snapshot_encoding.rs
+expression: "format!(\"{model:?}\")"
+---
+"Some(C12)"

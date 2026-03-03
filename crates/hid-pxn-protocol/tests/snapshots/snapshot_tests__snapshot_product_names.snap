@@ -1,0 +1,5 @@
+---
+source: crates/hid-pxn-protocol/tests/snapshot_tests.rs
+expression: "format!(\"{results:?}\")"
+---
+"[(\"V10\", Some(\"PXN V10\")), (\"V12\", Some(\"PXN V12\")), (\"V12_LITE\", Some(\"PXN V12 Lite\")), (\"V12_LITE_2\", Some(\"PXN V12 Lite (SE)\")), (\"GT987\", Some(\"Lite Star GT987 FF\")), (\"unknown\", None)]"

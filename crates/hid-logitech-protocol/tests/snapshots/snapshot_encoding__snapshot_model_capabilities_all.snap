@@ -1,0 +1,13 @@
+---
+source: crates/hid-logitech-protocol/tests/snapshot_encoding.rs
+expression: "results.join(\"\\n\")"
+---
+G25: range=true, friction=true, trueforce=false
+G27: range=true, friction=true, trueforce=false
+G29: range=true, friction=false, trueforce=false
+G920: range=true, friction=false, trueforce=false
+G923: range=true, friction=false, trueforce=true
+GPro: range=true, friction=false, trueforce=false
+DrivingForcePro: range=true, friction=true, trueforce=false
+DrivingForceEX: range=false, friction=false, trueforce=false
+DrivingForceGT: range=true, friction=true, trueforce=false

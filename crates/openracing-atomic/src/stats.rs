@@ -462,4 +462,113 @@ mod tests {
         stats.reset();
         assert!(stats.is_empty());
     }
+
+    #[test]
+    fn test_jitter_stats_default() {
+        let stats = JitterStats::default();
+        assert_eq!(stats.p50_ns, 0);
+        assert_eq!(stats.p99_ns, 0);
+        assert_eq!(stats.max_ns, 0);
+    }
+
+    #[test]
+    fn test_latency_stats_default() {
+        let stats = LatencyStats::default();
+        assert_eq!(stats.p50_us, 0);
+        assert_eq!(stats.p99_us, 0);
+        assert_eq!(stats.max_us, 0);
+    }
+
+    #[test]
+    fn test_jitter_stats_does_not_exceed_equal_threshold() {
+        let stats = JitterStats::from_values(100, 200, 300);
+        assert!(!stats.exceeds_threshold(200));
+    }
+
+    #[test]
+    fn test_latency_stats_does_not_exceed_equal_threshold() {
+        let stats = LatencyStats::from_values(100, 200, 300);
+        assert!(!stats.exceeds_threshold(200));
+    }
+
+    #[test]
+    fn test_rt_metrics_processing_time_violation() {
+        let mut metrics = RTMetricsSnapshot::new();
+        let thresholds = RTThresholds::default();
+
+        metrics.processing_time.p99_us = thresholds.max_processing_time_us + 1;
+        assert!(metrics.has_violations(&thresholds));
+    }
+
+    #[test]
+    fn test_rt_metrics_hid_latency_violation() {
+        let mut metrics = RTMetricsSnapshot::new();
+        let thresholds = RTThresholds::default();
+
+        metrics.hid_latency.p99_us = thresholds.max_hid_latency_us + 1;
+        assert!(metrics.has_violations(&thresholds));
+    }
+
+    #[test]
+    fn test_app_metrics_telemetry_loss_violation() {
+        let mut metrics = AppMetricsSnapshot::new();
+        let thresholds = AppThresholds::default();
+
+        metrics.telemetry_packet_loss_percent = thresholds.max_telemetry_loss_percent + 1.0;
+        assert!(metrics.has_violations(&thresholds));
+    }
+
+    #[test]
+    fn test_streaming_stats_single_sample() {
+        let mut stats = StreamingStats::new();
+        stats.record(42);
+        assert_eq!(stats.count(), 1);
+        assert_eq!(stats.min(), 42);
+        assert_eq!(stats.max(), 42);
+        assert!((stats.mean() - 42.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_streaming_stats_empty_min_is_max_u64() {
+        let stats = StreamingStats::new();
+        assert_eq!(stats.min(), u64::MAX);
+    }
+
+    #[test]
+    fn test_streaming_stats_empty_max_is_zero() {
+        let stats = StreamingStats::new();
+        assert_eq!(stats.max(), 0);
+    }
+
+    #[test]
+    fn test_streaming_stats_empty_mean_is_zero() {
+        let stats = StreamingStats::new();
+        assert!((stats.mean()).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_streaming_stats_saturating_add() {
+        let mut stats = StreamingStats::new();
+        stats.record(u64::MAX);
+        stats.record(u64::MAX);
+        // count saturates at u64::MAX
+        assert_eq!(stats.count(), 2);
+    }
+
+    #[test]
+    fn test_rt_thresholds_default_values() {
+        let t = RTThresholds::default();
+        assert_eq!(t.max_jitter_ns, 250_000);
+        assert_eq!(t.max_processing_time_us, 200);
+        assert_eq!(t.max_hid_latency_us, 300);
+        assert!((t.max_cpu_usage_percent - 3.0_f32).abs() < f32::EPSILON);
+        assert_eq!(t.max_memory_usage_bytes, 150 * 1024 * 1024);
+    }
+
+    #[test]
+    fn test_app_thresholds_default_values() {
+        let t = AppThresholds::default();
+        assert!((t.max_torque_saturation_percent - 95.0_f32).abs() < f32::EPSILON);
+        assert!((t.max_telemetry_loss_percent - 5.0_f32).abs() < f32::EPSILON);
+    }
 }

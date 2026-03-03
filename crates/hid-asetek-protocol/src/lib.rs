@@ -10,6 +10,27 @@
 //! - Direct drive force feedback
 //! - Quick release system
 //! - USB HID interface
+//!
+//! ## Wire-format verification status (2025-07)
+//!
+//! **VID/PID:** ✅ All four VID/PID pairs confirmed in the Linux kernel upstream
+//! (`torvalds/linux`, `drivers/hid/hid-ids.h`) and the `hid-universal-pidff.c`
+//! driver table. Cross-referenced with JacKeTUs/linux-steering-wheels (Gold rating)
+//! and USB VID registries (the-sz.com, usb-ids.gowdy.us).
+//!
+//! **FFB protocol:** Asetek wheelbases expose a standard **USB HID PID** descriptor.
+//! The Linux `hid-universal-pidff` driver handles them with no vendor-specific quirk
+//! flags. The custom input/output report structures in this crate (`input.rs`,
+//! `output.rs`) represent a **simplified direct-motor-control interface** for the RT
+//! hot path. The exact vendor-specific byte layout (field offsets, scaling factors)
+//! has **not** been independently confirmed by community USB descriptor dumps.
+//!
+//! **Community tooling:** [moonrail/asetek_wheelbase_cli](https://github.com/moonrail/asetek_wheelbase_cli)
+//! provides a Python CLI for configuration (high-torque mode, profile read/write)
+//! using vendor-specific HID reports, but does not document FFB wire format.
+//!
+//! **No open-source FFB wire-format documentation exists** for Asetek at this time.
+//! Changes to byte layout should not be made without a USB capture from real hardware.
 
 #![deny(unsafe_op_in_unsafe_fn)]
 #![deny(clippy::unwrap_used)]

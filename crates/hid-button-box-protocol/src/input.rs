@@ -246,4 +246,211 @@ mod tests {
         report.axis_x = 0;
         assert!((report.axis_normalized(0)).abs() < 0.001);
     }
+
+    #[test]
+    fn test_axis_normalized_negative() {
+        let report = ButtonBoxInputReport {
+            axis_x: i16::MIN,
+            ..Default::default()
+        };
+        let norm = report.axis_normalized(0);
+        assert!(norm < 0.0);
+        assert!(norm >= -1.01);
+    }
+
+    #[test]
+    fn test_axis_normalized_out_of_range() {
+        let report = ButtonBoxInputReport::default();
+        assert!((report.axis_normalized(5)).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn test_default_hat_is_neutral() {
+        let report = ButtonBoxInputReport::default();
+        assert_eq!(report.hat, 0xFF);
+        assert_eq!(report.hat_direction(), HatDirection::Neutral);
+    }
+
+    #[test]
+    fn test_default_buttons_zero() {
+        let report = ButtonBoxInputReport::default();
+        assert_eq!(report.buttons, 0);
+        assert_eq!(report.button_count(), 0);
+        for i in 0..32 {
+            assert!(!report.button(i));
+        }
+    }
+
+    #[test]
+    fn test_default_axes_zero() {
+        let report = ButtonBoxInputReport::default();
+        assert_eq!(report.axis_x, 0);
+        assert_eq!(report.axis_y, 0);
+        assert_eq!(report.axis_z, 0);
+        assert_eq!(report.axis_rz, 0);
+    }
+
+    #[test]
+    fn test_parse_gamepad_exact_minimum() {
+        // parse_gamepad size check requires >= 8 bytes, but parser reads 10 bytes total
+        // 8 bytes passes size check but fails at parser level
+        let data = [0u8; 8];
+        let result = ButtonBoxInputReport::parse_gamepad(&data);
+        assert!(result.is_err());
+
+        // 10 bytes is the actual minimum for successful parse
+        let data10 = [0u8; 10];
+        let result10 = ButtonBoxInputReport::parse_gamepad(&data10);
+        assert!(result10.is_ok());
+    }
+
+    #[test]
+    fn test_parse_gamepad_7_bytes_fails() {
+        let data = [0u8; 7];
+        let result = ButtonBoxInputReport::parse_gamepad(&data);
+        assert!(matches!(
+            result,
+            Err(ButtonBoxError::InvalidReportSize { .. })
+        ));
+    }
+
+    #[test]
+    fn test_parse_extended_exact_minimum() {
+        // parse_extended size check requires >= 12 bytes, but parser reads 13 bytes total
+        // 12 bytes passes size check but fails at parser level
+        let data = [0u8; 12];
+        let result = ButtonBoxInputReport::parse_extended(&data);
+        assert!(result.is_err());
+
+        // 13 bytes is the actual minimum for successful parse
+        let data13 = [0u8; 13];
+        let result13 = ButtonBoxInputReport::parse_extended(&data13);
+        assert!(result13.is_ok());
+    }
+
+    #[test]
+    fn test_parse_extended_13_bytes() {
+        let data = [0u8; 13];
+        let result = ButtonBoxInputReport::parse_extended(&data);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_parse_extended_11_bytes_fails() {
+        let data = [0u8; 11];
+        let result = ButtonBoxInputReport::parse_extended(&data);
+        assert!(matches!(
+            result,
+            Err(ButtonBoxError::InvalidReportSize { .. })
+        ));
+    }
+
+    #[test]
+    fn test_button_31_highest() {
+        let mut report = ButtonBoxInputReport::default();
+        report.set_button(31, true);
+        assert!(report.button(31));
+        assert_eq!(report.button_count(), 1);
+
+        // Out of range should be no-op
+        report.set_button(32, true);
+        assert!(!report.button(32));
+        assert_eq!(report.button_count(), 1);
+    }
+
+    #[test]
+    fn test_hat_direction_all_named() {
+        let report_up = ButtonBoxInputReport {
+            hat: 0,
+            ..Default::default()
+        };
+        assert_eq!(report_up.hat_direction(), HatDirection::Up);
+
+        let report_right = ButtonBoxInputReport {
+            hat: 2,
+            ..Default::default()
+        };
+        assert_eq!(report_right.hat_direction(), HatDirection::Right);
+
+        let report_down = ButtonBoxInputReport {
+            hat: 4,
+            ..Default::default()
+        };
+        assert_eq!(report_down.hat_direction(), HatDirection::Down);
+
+        let report_left = ButtonBoxInputReport {
+            hat: 6,
+            ..Default::default()
+        };
+        assert_eq!(report_left.hat_direction(), HatDirection::Left);
+    }
+
+    #[test]
+    fn test_hat_direction_diagonals() {
+        assert_eq!(
+            ButtonBoxInputReport {
+                hat: 1,
+                ..Default::default()
+            }
+            .hat_direction(),
+            HatDirection::UpRight
+        );
+        assert_eq!(
+            ButtonBoxInputReport {
+                hat: 3,
+                ..Default::default()
+            }
+            .hat_direction(),
+            HatDirection::DownRight
+        );
+        assert_eq!(
+            ButtonBoxInputReport {
+                hat: 5,
+                ..Default::default()
+            }
+            .hat_direction(),
+            HatDirection::DownLeft
+        );
+        assert_eq!(
+            ButtonBoxInputReport {
+                hat: 7,
+                ..Default::default()
+            }
+            .hat_direction(),
+            HatDirection::UpLeft
+        );
+    }
+
+    #[test]
+    fn test_parse_extended_with_axes() -> Result<(), Box<dyn std::error::Error>> {
+        let mut data = [0u8; 13];
+        // buttons = 0
+        // axis_x = 1000 (0x03E8)
+        data[4] = 0xE8;
+        data[5] = 0x03;
+        // axis_y = -1000 (0xFC18)
+        data[6] = 0x18;
+        data[7] = 0xFC;
+        let report = ButtonBoxInputReport::parse_extended(&data).map_err(|e| e.to_string())?;
+        assert_eq!(report.axis_x, 1000);
+        assert_eq!(report.axis_y, -1000);
+        Ok(())
+    }
+
+    #[test]
+    fn test_hat_direction_default() {
+        let dir = HatDirection::default();
+        assert_eq!(dir, HatDirection::Neutral);
+    }
+
+    #[test]
+    fn test_report_clone() {
+        let mut report = ButtonBoxInputReport::default();
+        report.set_button(5, true);
+        report.axis_x = 123;
+        let cloned = report.clone();
+        assert_eq!(cloned.buttons, report.buttons);
+        assert_eq!(cloned.axis_x, report.axis_x);
+        assert_eq!(cloned.hat, report.hat);
+    }
 }

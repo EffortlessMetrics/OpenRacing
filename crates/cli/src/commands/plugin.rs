@@ -625,3 +625,197 @@ fn get_mock_registry_plugins() -> Vec<PluginInfo> {
         },
     ]
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // --- get_mock_registry_plugins ---
+
+    #[test]
+    fn mock_registry_not_empty() {
+        let plugins = get_mock_registry_plugins();
+        assert!(!plugins.is_empty());
+    }
+
+    #[test]
+    fn mock_registry_has_installed_plugins() {
+        let plugins = get_mock_registry_plugins();
+        let installed_count = plugins.iter().filter(|p| p.installed).count();
+        assert!(
+            installed_count > 0,
+            "registry should contain at least one installed plugin"
+        );
+    }
+
+    #[test]
+    fn mock_registry_has_uninstalled_plugins() {
+        let plugins = get_mock_registry_plugins();
+        let uninstalled_count = plugins.iter().filter(|p| !p.installed).count();
+        assert!(
+            uninstalled_count > 0,
+            "registry should contain at least one non-installed plugin"
+        );
+    }
+
+    #[test]
+    fn mock_registry_has_unsigned_plugin() {
+        let plugins = get_mock_registry_plugins();
+        let unsigned = plugins.iter().filter(|p| !p.signature_verified).count();
+        assert!(
+            unsigned > 0,
+            "registry should contain at least one unsigned plugin"
+        );
+    }
+
+    #[test]
+    fn mock_registry_ids_unique() {
+        let plugins = get_mock_registry_plugins();
+        let mut ids: Vec<&str> = plugins.iter().map(|p| p.id.as_str()).collect();
+        ids.sort();
+        ids.dedup();
+        assert_eq!(
+            ids.len(),
+            plugins.len(),
+            "all plugin IDs should be unique"
+        );
+    }
+
+    #[test]
+    fn mock_registry_fields_populated() {
+        let plugins = get_mock_registry_plugins();
+        for plugin in &plugins {
+            assert!(!plugin.id.is_empty(), "plugin id should not be empty");
+            assert!(!plugin.name.is_empty(), "plugin name should not be empty");
+            assert!(
+                !plugin.version.is_empty(),
+                "plugin version should not be empty for {}",
+                plugin.id
+            );
+            assert!(
+                !plugin.author.is_empty(),
+                "plugin author should not be empty for {}",
+                plugin.id
+            );
+            assert!(
+                !plugin.description.is_empty(),
+                "plugin description should not be empty for {}",
+                plugin.id
+            );
+            assert!(
+                !plugin.license.is_empty(),
+                "plugin license should not be empty for {}",
+                plugin.id
+            );
+        }
+    }
+
+    #[test]
+    fn mock_registry_installed_have_version() {
+        let plugins = get_mock_registry_plugins();
+        for plugin in plugins.iter().filter(|p| p.installed) {
+            assert!(
+                plugin.installed_version.is_some(),
+                "installed plugin {} should have installed_version",
+                plugin.id
+            );
+        }
+    }
+
+    // --- search / filter logic ---
+
+    #[test]
+    fn search_by_name_finds_match() {
+        let plugins = get_mock_registry_plugins();
+        let query = "smoothing";
+        let query_lower = query.to_lowercase();
+        let results: Vec<_> = plugins
+            .iter()
+            .filter(|p| {
+                p.name.to_lowercase().contains(&query_lower)
+                    || p.description.to_lowercase().contains(&query_lower)
+            })
+            .collect();
+        assert!(!results.is_empty());
+        assert!(results.iter().any(|p| p.id == "ffb-smoothing"));
+    }
+
+    #[test]
+    fn search_by_description_finds_match() {
+        let plugins = get_mock_registry_plugins();
+        let query = "csv";
+        let query_lower = query.to_lowercase();
+        let results: Vec<_> = plugins
+            .iter()
+            .filter(|p| p.description.to_lowercase().contains(&query_lower))
+            .collect();
+        assert!(!results.is_empty());
+        assert!(results.iter().any(|p| p.id == "telemetry-logger"));
+    }
+
+    #[test]
+    fn search_no_match_returns_empty() {
+        let plugins = get_mock_registry_plugins();
+        let query = "zzz_nonexistent_zzz";
+        let query_lower = query.to_lowercase();
+        let results: Vec<_> = plugins
+            .iter()
+            .filter(|p| {
+                p.name.to_lowercase().contains(&query_lower)
+                    || p.description.to_lowercase().contains(&query_lower)
+            })
+            .collect();
+        assert!(results.is_empty());
+    }
+
+    #[test]
+    fn category_filter_by_description() {
+        let plugins = get_mock_registry_plugins();
+        let category = "led";
+        let filtered: Vec<_> = plugins
+            .iter()
+            .filter(|p| p.description.to_lowercase().contains(&category.to_lowercase()))
+            .collect();
+        assert!(!filtered.is_empty());
+        assert!(filtered.iter().any(|p| p.id == "led-dashboard"));
+    }
+
+    // --- plugin_info serialization ---
+
+    #[test]
+    fn plugin_info_serializes_to_json() {
+        let plugin = &get_mock_registry_plugins()[0];
+        let serialized = serde_json::to_string(plugin);
+        assert!(serialized.is_ok());
+        let s = serialized.unwrap_or_default();
+        assert!(s.contains(&plugin.id));
+        assert!(s.contains(&plugin.name));
+    }
+
+    #[test]
+    fn plugin_info_round_trip() {
+        let plugins = get_mock_registry_plugins();
+        for plugin in &plugins {
+            let json_str = serde_json::to_string(plugin);
+            assert!(json_str.is_ok(), "failed to serialize plugin {}", plugin.id);
+            let deserialized: Result<PluginInfo, _> =
+                serde_json::from_str(&json_str.unwrap_or_default());
+            assert!(
+                deserialized.is_ok(),
+                "failed to deserialize plugin {}",
+                plugin.id
+            );
+        }
+    }
+
+    // --- get_plugin_directory ---
+
+    #[test]
+    fn plugin_directory_is_not_empty() {
+        let dir = get_plugin_directory();
+        assert!(
+            dir.components().count() > 1,
+            "plugin directory should have multiple path components"
+        );
+    }
+}

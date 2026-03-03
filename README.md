@@ -38,6 +38,10 @@ OpenRacing is a high-performance, safety-critical racing wheel and force feedbac
 | **OpenFFBoard** | `0x1209` | All production firmware variants | ✅ HID PIDFF |
 | **FFBeast** | `0x045B` | Joystick, rudder, wheel builds | ✅ HID PIDFF |
 | **Granite Devices IONI/ARGON** | `0x1D50` | IONI / Simucube 1 (15 Nm), IONI Premium (35 Nm), ARGON (10 Nm) | ✅ SimpleMotion V2 |
+| **SimXperience AccuForce** | `0x1FC9` | AccuForce Pro V1/V2 | ✅ HID PIDFF |
+| **Cammus** | `0x3416` | C5, C12, CP5/LC100 pedals | ✅ HID PIDFF |
+| **Leo Bodnar** | `0x1DD2` | Wheel Interface, FFB Joystick, BBI-32, SLI-Pro | ⚠️ Partial FFB |
+| **Cube Controls** | `0x0483` | GT Pro, Formula CSX-3 (provisional) | Input only |
 | **Generic HID button box** | `0x1209` | Arduino DIY, BangButtons, SimRacingInputs | Input only |
 
 ## Supported Games

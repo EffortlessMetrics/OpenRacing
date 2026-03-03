@@ -13,15 +13,24 @@ use racing_wheel_hid_logitech_protocol::{
 };
 
 /// All known Logitech wheel product IDs.
-const WHEEL_PIDS: [u16; 10] = [
+const WHEEL_PIDS: [u16; 19] = [
+    product_ids::MOMO,
+    product_ids::MOMO_2,
+    product_ids::WINGMAN_FORMULA_FORCE_GP,
+    product_ids::WINGMAN_FORMULA_FORCE,
+    product_ids::VIBRATION_WHEEL,
+    product_ids::DRIVING_FORCE_EX,
+    product_ids::DRIVING_FORCE_PRO,
+    product_ids::DRIVING_FORCE_GT,
+    product_ids::SPEED_FORCE_WIRELESS,
     product_ids::G25,
-    product_ids::G27_A,
     product_ids::G27,
     product_ids::G29_PS,
     product_ids::G920,
     product_ids::G923,
     product_ids::G923_PS,
     product_ids::G923_XBOX,
+    product_ids::G923_XBOX_ALT,
     product_ids::G_PRO,
     product_ids::G_PRO_XBOX,
 ];
@@ -38,7 +47,7 @@ proptest! {
 
     /// Every known wheel PID must be non-zero.
     #[test]
-    fn prop_known_pids_nonzero(idx in 0usize..10usize) {
+    fn prop_known_pids_nonzero(idx in 0usize..19usize) {
         let pid = WHEEL_PIDS[idx];
         prop_assert!(pid != 0,
             "wheel PID at index {idx} must not be zero");
@@ -57,7 +66,7 @@ proptest! {
 
     /// Known wheel models must have strictly positive torque.
     #[test]
-    fn prop_known_model_torque_positive(idx in 0usize..10usize) {
+    fn prop_known_model_torque_positive(idx in 0usize..19usize) {
         let pid = WHEEL_PIDS[idx];
         let model = LogitechModel::from_product_id(pid);
         let torque = model.max_torque_nm();
@@ -85,7 +94,7 @@ proptest! {
 
     /// A recognised PID must not resolve to LogitechModel::Unknown.
     #[test]
-    fn prop_recognised_pid_not_unknown(idx in 0usize..10usize) {
+    fn prop_recognised_pid_not_unknown(idx in 0usize..19usize) {
         let pid = WHEEL_PIDS[idx];
         let model = LogitechModel::from_product_id(pid);
         prop_assert_ne!(model, LogitechModel::Unknown,
@@ -102,5 +111,22 @@ proptest! {
             model != LogitechModel::Unknown,
             "is_wheel_product and from_product_id must agree for pid={:#06x}", pid
         );
+    }
+
+    /// Every known model variant must have a non-empty Debug representation.
+    #[test]
+    fn prop_known_model_debug_nonempty(idx in 0usize..19usize) {
+        let pid = WHEEL_PIDS[idx];
+        let model = LogitechModel::from_product_id(pid);
+        let debug_str = format!("{model:?}");
+        prop_assert!(!debug_str.is_empty(),
+            "model for PID {pid:#06x} must have non-empty Debug format");
+    }
+
+    /// LOGITECH_VENDOR_ID must always equal 0x046D.
+    #[test]
+    fn prop_vendor_id_is_046d(_unused: u8) {
+        prop_assert_eq!(LOGITECH_VENDOR_ID, 0x046D,
+            "LOGITECH_VENDOR_ID must be 0x046D");
     }
 }

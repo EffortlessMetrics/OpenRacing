@@ -1,0 +1,5 @@
+---
+source: crates/hid-simucube-protocol/tests/snapshot_encoding.rs
+expression: "format!(\"max_torque={:.1}, encoder_bits={}, wireless={}, active_pedal={}, max_rpm={}\",\ncaps.max_torque_nm, caps.encoder_resolution_bits, caps.supports_wireless,\ncaps.supports_active_pedal, caps.max_speed_rpm,)"
+---
+"max_torque=17.0, encoder_bits=22, wireless=true, active_pedal=true, max_rpm=3000"

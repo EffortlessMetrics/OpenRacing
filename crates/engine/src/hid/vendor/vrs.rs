@@ -33,6 +33,7 @@ impl VrsProtocolHandler {
         match self.product_id {
             product_ids::DIRECTFORCE_PRO => 20.0,
             product_ids::DIRECTFORCE_PRO_V2 => 25.0,
+            product_ids::R295 => 20.0,
             _ => 20.0,
         }
     }
@@ -40,7 +41,7 @@ impl VrsProtocolHandler {
 
 /// Return true when the product ID is a known VRS product.
 pub fn is_vrs_product(product_id: u16) -> bool {
-    matches!(product_id, 0xA355..=0xA35A)
+    matches!(product_id, 0xA355..=0xA35A | 0xA3BE | 0xA44C)
 }
 
 impl VendorProtocol for VrsProtocolHandler {

@@ -2,4 +2,4 @@
 source: crates/hid-vrs-protocol/tests/snapshot_tests.rs
 expression: "format!(\"{:?}\", results)"
 ---
-[("DIRECTFORCE_PRO", true), ("DIRECTFORCE_PRO_V2", true), ("PEDALS_V1", false), ("PEDALS_V2", false), ("HANDBRAKE", false), ("SHIFTER", false), ("UNKNOWN", false)]
+[("DIRECTFORCE_PRO", true), ("DIRECTFORCE_PRO_V2", true), ("R295", true), ("PEDALS", false), ("PEDALS_V1", false), ("PEDALS_V2", false), ("HANDBRAKE", false), ("SHIFTER", false), ("UNKNOWN", false)]

@@ -17,6 +17,10 @@ unused_must_use = "deny"
 [lints.clippy]
 unwrap_used = "deny"
 
+
+[package.metadata.cargo-udeps.ignore]
+normal = ["workspace-hack"]
+
 [dependencies]
 chrono = { workspace = true }
 semver = { workspace = true }

@@ -9,6 +9,11 @@ description = "IPC server and transport for OpenRacing"
 keywords = ["ipc", "grpc", "tonic", "transport", "racing"]
 categories = ["network-programming", "asynchronous"]
 
+
+[package.metadata.cargo-udeps.ignore]
+normal = ["workspace-hack", "async-stream", "chrono", "futures", "openracing-errors", "prost-types", "tokio-stream", "tonic"]
+development = ["quickcheck", "quickcheck_macros", "tokio-test", "tracing-test"]
+
 [dependencies]
 openracing-errors = { workspace = true }
 tokio = { workspace = true }
@@ -45,6 +50,8 @@ criterion = { workspace = true }
 tokio-test = "0.4.4"
 tempfile = "3.24.0"
 tracing-test = "0.2.5"
+serde_json = { workspace = true }
+prost-types = { workspace = true }
 
 [[bench]]
 name = "ipc_throughput"

@@ -1,6 +1,23 @@
 //! Thrustmaster HID input report parsing.
 //!
 //! All functions are pure and allocation-free.
+//!
+//! # Input report format variants (from hid-tmff2 HID descriptors)
+//!
+//! Thrustmaster wheels expose different input report formats depending on mode:
+//!
+//! - **PS3 normal / advanced mode** (T300RS, TX, TS-XW, TS-PC): Report ID 0x07,
+//!   steering as 16-bit LE (0–65535), pedals as 10-bit (0–1023, Usage Rz/Z/Y).
+//! - **PS4 mode** (T300RS PS4, T248): Report ID 0x01, steering as 16-bit LE
+//!   (bytes 44–45 in a larger 64-byte report), pedals as 16-bit LE.
+//!
+//! This module currently parses a simplified format (Report ID 0x01, 8-bit pedals)
+//! suitable for initial integration. A full implementation should handle both
+//! PS3-mode 10-bit and PS4-mode 16-bit pedal resolutions.
+//!
+//! Source: HID report descriptor fixups in Kimplul/hid-tmff2
+//! `src/tmt300rs/hid-tmt300rs.c` (`t300rs_rdesc_nrm_fixed`,
+//! `t300rs_rdesc_ps4_fixed`) and `src/tmt248/hid-tmt248.c`.
 
 #![deny(static_mut_refs)]
 

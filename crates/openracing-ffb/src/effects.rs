@@ -50,13 +50,20 @@ pub enum EffectType {
 /// ```
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
 pub struct EffectParams {
+    /// The kind of force feedback effect.
     pub effect_type: EffectType,
+    /// Duration of the effect in milliseconds. `0` means infinite.
     pub duration_ms: u32,
+    /// Gain applied to this effect (0–255). Higher values produce stronger output.
     pub gain: u8,
+    /// Direction of the effect in device-specific units.
     pub direction: u16,
 }
 
 impl EffectParams {
+    /// Creates new effect parameters with the given type and duration.
+    ///
+    /// Gain defaults to `255` (full strength) and direction to `0`.
     pub fn new(effect_type: EffectType, duration_ms: u32) -> Self {
         Self {
             effect_type,
@@ -66,11 +73,13 @@ impl EffectParams {
         }
     }
 
+    /// Sets the effect gain (0–255).
     pub fn with_gain(mut self, gain: u8) -> Self {
         self.gain = gain;
         self
     }
 
+    /// Sets the effect direction.
     pub fn with_direction(mut self, direction: u16) -> Self {
         self.direction = direction;
         self
@@ -93,11 +102,14 @@ impl EffectParams {
 /// ```
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
 pub struct ConstantEffect {
+    /// Shared effect parameters (type, duration, gain, direction).
     pub params: EffectParams,
+    /// Signed force magnitude. Positive pushes right, negative pushes left.
     pub magnitude: i16,
 }
 
 impl ConstantEffect {
+    /// Creates a constant-force effect with the given magnitude.
     pub fn new(magnitude: i16) -> Self {
         Self {
             params: EffectParams::new(EffectType::Constant, 0),
@@ -105,6 +117,7 @@ impl ConstantEffect {
         }
     }
 
+    /// Scales the magnitude by `global_gain`, clamping to `i16` range.
     pub fn apply_gain(&self, global_gain: f32) -> i16 {
         ((self.magnitude as f32) * global_gain).clamp(i16::MIN as f32, i16::MAX as f32) as i16
     }
@@ -129,13 +142,18 @@ impl ConstantEffect {
 /// ```
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
 pub struct SpringEffect {
+    /// Shared effect parameters.
     pub params: EffectParams,
+    /// Spring stiffness. Higher values produce stronger centering force.
     pub coefficient: i16,
+    /// Center position offset. The spring pulls toward this point.
     pub offset: i16,
+    /// Dead-band width around the offset where no force is produced.
     pub deadband: i16,
 }
 
 impl SpringEffect {
+    /// Creates a spring effect with the given coefficient, centered at zero with no dead-band.
     pub fn new(coefficient: i16) -> Self {
         Self {
             params: EffectParams::new(EffectType::Spring, 0),
@@ -145,6 +163,10 @@ impl SpringEffect {
         }
     }
 
+    /// Computes the spring force for the given wheel `position`.
+    ///
+    /// Returns zero inside the dead-band, otherwise a force proportional to
+    /// `(position - offset) * coefficient / 1000`, clamped to `i16` range.
     pub fn calculate(&self, position: i16) -> i16 {
         let diff = (position as i32) - (self.offset as i32);
         if diff.abs() < self.deadband as i32 {
@@ -172,11 +194,14 @@ impl SpringEffect {
 /// ```
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
 pub struct DamperEffect {
+    /// Shared effect parameters.
     pub params: EffectParams,
+    /// Damping coefficient. Higher values increase viscous resistance.
     pub coefficient: i16,
 }
 
 impl DamperEffect {
+    /// Creates a damper effect with the given coefficient.
     pub fn new(coefficient: i16) -> Self {
         Self {
             params: EffectParams::new(EffectType::Damper, 0),
@@ -184,6 +209,9 @@ impl DamperEffect {
         }
     }
 
+    /// Computes the damping force for the given wheel `velocity`.
+    ///
+    /// Returns `velocity * coefficient / 1000`, clamped to `i16` range.
     pub fn calculate(&self, velocity: i16) -> i16 {
         ((velocity as f32) * (self.coefficient as f32 / 1000.0))
             .clamp(i16::MIN as f32, i16::MAX as f32) as i16
@@ -208,12 +236,16 @@ impl DamperEffect {
 /// ```
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
 pub struct FrictionEffect {
+    /// Shared effect parameters.
     pub params: EffectParams,
+    /// Base friction coefficient. Combined with velocity to determine resistance.
     pub coefficient: i16,
+    /// Velocity offset before friction is applied.
     pub offset: i16,
 }
 
 impl FrictionEffect {
+    /// Creates a friction effect with the given coefficient and zero offset.
     pub fn new(coefficient: i16) -> Self {
         Self {
             params: EffectParams::new(EffectType::Friction, 0),
@@ -222,6 +254,10 @@ impl FrictionEffect {
         }
     }
 
+    /// Computes the friction force opposing the given `velocity`.
+    ///
+    /// The returned force always opposes the direction of movement
+    /// and is zero when velocity is zero.
     pub fn calculate(&self, velocity: i16) -> i16 {
         let sign = velocity.signum();
         let abs_vel = velocity.saturating_abs();
@@ -246,12 +282,18 @@ impl FrictionEffect {
 /// ```
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
 pub struct SineEffect {
+    /// Shared effect parameters.
     pub params: EffectParams,
+    /// Oscillation frequency in Hz.
     pub frequency_hz: f32,
+    /// Initial phase offset in radians.
     pub phase: f32,
 }
 
 impl SineEffect {
+    /// Creates a sine-wave vibration at the given frequency and duration.
+    ///
+    /// Phase defaults to `0.0`.
     pub fn new(frequency_hz: f32, duration_ms: u32) -> Self {
         Self {
             params: EffectParams::new(EffectType::Sine, duration_ms),
@@ -260,6 +302,7 @@ impl SineEffect {
         }
     }
 
+    /// Samples the sine wave at `time_ms`, returning a force value scaled by the effect gain.
     pub fn calculate(&self, time_ms: u32) -> i16 {
         let t = time_ms as f32 / 1000.0;
         let angle = 2.0 * std::f32::consts::PI * self.frequency_hz * t + self.phase;

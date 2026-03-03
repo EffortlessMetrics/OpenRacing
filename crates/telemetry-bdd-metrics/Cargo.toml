@@ -13,5 +13,9 @@ readme = "README.md"
 keywords = ["telemetry", "bdd", "matrix", "metrics", "parity"]
 categories = ["development-tools::testing"]
 
+
+[package.metadata.cargo-udeps.ignore]
+normal = ["workspace-hack"]
+
 [dependencies]
 workspace-hack = { version = "0.1", path = "../../workspace-hack" }

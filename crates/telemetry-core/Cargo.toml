@@ -16,6 +16,10 @@ keywords = ["telemetry", "racing", "ffb", "connection", "normalization"]
 default = []
 orchestrator = ["dep:racing-wheel-telemetry-recorder", "dep:racing-wheel-telemetry-config", "dep:tracing"]
 
+
+[package.metadata.cargo-udeps.ignore]
+normal = ["workspace-hack"]
+
 [dependencies]
 serde = { workspace = true }
 thiserror = { workspace = true }

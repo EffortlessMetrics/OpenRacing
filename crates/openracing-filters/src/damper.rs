@@ -116,26 +116,15 @@ pub fn damper_filter(frame: &mut Frame, state: &DamperState) {
 mod tests {
     use super::*;
 
-    fn create_test_frame(ffb_in: f32, wheel_speed: f32) -> Frame {
-        Frame {
-            ffb_in,
-            torque_out: ffb_in,
-            wheel_speed,
-            hands_off: false,
-            ts_mono_ns: 0,
-            seq: 0,
-        }
-    }
-
     #[test]
     fn test_damper_filter_speed_adaptive() {
         let state = DamperState::new(0.1, true);
 
-        let mut frame_low = create_test_frame(0.0, 1.0);
+        let mut frame_low = Frame::from_ffb(0.0, 1.0);
         damper_filter(&mut frame_low, &state);
         let damping_low = frame_low.torque_out.abs();
 
-        let mut frame_high = create_test_frame(0.0, 10.0);
+        let mut frame_high = Frame::from_ffb(0.0, 10.0);
         damper_filter(&mut frame_high, &state);
         let damping_high = frame_high.torque_out.abs();
 
@@ -147,11 +136,11 @@ mod tests {
     fn test_damper_filter_non_adaptive() {
         let state = DamperState::new(0.1, false);
 
-        let mut frame_low = create_test_frame(0.0, 1.0);
+        let mut frame_low = Frame::from_ffb(0.0, 1.0);
         damper_filter(&mut frame_low, &state);
         let damping_low = frame_low.torque_out.abs();
 
-        let mut frame_high = create_test_frame(0.0, 10.0);
+        let mut frame_high = Frame::from_ffb(0.0, 10.0);
         damper_filter(&mut frame_high, &state);
         let damping_high = frame_high.torque_out.abs();
 
@@ -163,7 +152,7 @@ mod tests {
     fn test_damper_filter_zero_speed() {
         let state = DamperState::new(0.1, true);
 
-        let mut frame = create_test_frame(0.5, 0.0);
+        let mut frame = Frame::from_ffb(0.5, 0.0);
         damper_filter(&mut frame, &state);
 
         // No damping at zero speed
@@ -174,11 +163,11 @@ mod tests {
     fn test_damper_filter_opposes_motion() {
         let state = DamperState::new(0.1, false);
 
-        let mut frame_pos = create_test_frame(0.0, 1.0);
+        let mut frame_pos = Frame::from_ffb(0.0, 1.0);
         damper_filter(&mut frame_pos, &state);
         assert!(frame_pos.torque_out < 0.0); // Opposes positive speed
 
-        let mut frame_neg = create_test_frame(0.0, -1.0);
+        let mut frame_neg = Frame::from_ffb(0.0, -1.0);
         damper_filter(&mut frame_neg, &state);
         assert!(frame_neg.torque_out > 0.0); // Opposes negative speed
     }
@@ -187,7 +176,7 @@ mod tests {
     fn test_damper_filter_proportional() {
         let state = DamperState::new(0.2, false);
 
-        let mut frame = create_test_frame(0.0, 1.0);
+        let mut frame = Frame::from_ffb(0.0, 1.0);
         damper_filter(&mut frame, &state);
 
         // Damping should be proportional to coefficient * speed
@@ -200,7 +189,7 @@ mod tests {
 
         for i in 0..1000 {
             let speed = ((i as f32) * 0.01 - 5.0).clamp(-10.0, 10.0);
-            let mut frame = create_test_frame(0.5, speed);
+            let mut frame = Frame::from_ffb(0.5, speed);
             damper_filter(&mut frame, &state);
 
             assert!(frame.torque_out.is_finite());
@@ -211,7 +200,7 @@ mod tests {
     fn test_damper_filter_extreme_speed() {
         let state = DamperState::new(0.1, true);
 
-        let mut frame = create_test_frame(0.0, 100.0);
+        let mut frame = Frame::from_ffb(0.0, 100.0);
         damper_filter(&mut frame, &state);
 
         assert!(frame.torque_out.is_finite());

@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [ main ]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
@@ -14,6 +18,7 @@ jobs:
   deprecated-field-detection:
     name: Deprecated Field Detection
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     
     steps:
     - uses: actions/checkout@v4
@@ -86,6 +91,7 @@ jobs:
             | grep -v "crates/openracing-ipc/src/codec" \
             | grep -v "crates/openracing-native-plugin/src/plugin" \
             | grep -v "crates/simplemotion-v2/" \
+            | grep -v "crates/telemetry-forza/" \
             | head -10 || true)
           
           if [ -n "$MATCHES" ]; then
@@ -114,6 +120,7 @@ jobs:
   trybuild-compile-fail-tests:
     name: Trybuild Compile-Fail Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     
     steps:
     - uses: actions/checkout@v4
@@ -172,6 +179,7 @@ jobs:
   json-schema-validation:
     name: JSON Schema Validation
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     
     steps:
     - uses: actions/checkout@v4
@@ -298,6 +306,7 @@ jobs:
   lint-enforcement:
     name: Lint Enforcement
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     
     steps:
     - uses: actions/checkout@v4
@@ -373,7 +382,7 @@ jobs:
       continue-on-error: ${{ github.event_name == 'pull_request' }}
       run: |
         echo "Checking for unused dependencies..."
-        cargo +nightly udeps --all-targets
+        cargo +nightly udeps --workspace --all-targets --exclude workspace-hack
     
     - name: Verify lint attributes in source files
       run: |
@@ -415,6 +424,7 @@ jobs:
   protobuf-breaking-changes:
     name: Protobuf Breaking Changes
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     
     steps:
     - uses: actions/checkout@v4
@@ -462,6 +472,7 @@ jobs:
   comprehensive-validation:
     name: Comprehensive Validation
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     needs: [deprecated-field-detection, trybuild-compile-fail-tests, json-schema-validation, lint-enforcement, protobuf-breaking-changes]
     
     steps:

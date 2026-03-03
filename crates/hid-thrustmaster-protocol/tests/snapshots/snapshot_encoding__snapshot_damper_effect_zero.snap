@@ -1,0 +1,5 @@
+---
+source: crates/hid-thrustmaster-protocol/tests/snapshot_encoding.rs
+expression: "format!(\"{effect:02X?}\")"
+---
+[22, 41, 01, 00, 00, 00, 00, 00]

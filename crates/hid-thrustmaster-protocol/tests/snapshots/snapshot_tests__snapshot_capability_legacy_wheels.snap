@@ -1,0 +1,9 @@
+---
+source: crates/hid-thrustmaster-protocol/tests/snapshot_tests.rs
+expression: "results.join(\"\\n\")"
+---
+pid=0xB605, name=Thrustmaster Legacy Wheel, category=Wheelbase, ffb=true
+pid=0xB651, name=Thrustmaster Legacy Wheel, category=Wheelbase, ffb=true
+pid=0xB653, name=Thrustmaster Legacy Wheel, category=Wheelbase, ffb=true
+pid=0xB654, name=Thrustmaster Legacy Wheel, category=Wheelbase, ffb=true
+pid=0xB65A, name=Thrustmaster Legacy Wheel, category=Wheelbase, ffb=true

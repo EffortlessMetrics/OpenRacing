@@ -1,0 +1,5 @@
+---
+source: crates/hid-asetek-protocol/tests/snapshot_encoding.rs
+expression: "format!(\"max_torque={:.1}, max_speed={}, quick_release={}\",\ncaps.max_torque_nm, caps.max_speed_rpm, caps.supports_quick_release,)"
+---
+"max_torque=27.0, max_speed=2500, quick_release=true"

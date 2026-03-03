@@ -302,3 +302,228 @@ impl FailureTracker {
         self.stats.get(&plugin_id)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_default_quarantine_policy() {
+        let policy = QuarantinePolicy::default();
+        assert_eq!(policy.max_crashes, 3);
+        assert_eq!(policy.max_budget_violations, 10);
+        assert_eq!(policy.violation_window_minutes, 60);
+        assert_eq!(policy.quarantine_duration_minutes, 60);
+        assert_eq!(policy.max_escalation_levels, 5);
+    }
+
+    #[test]
+    fn test_new_plugin_not_quarantined() {
+        let policy = QuarantinePolicy::default();
+        let mut manager = QuarantineManager::new(policy);
+        let plugin_id = Uuid::new_v4();
+        assert!(!manager.is_quarantined(plugin_id));
+    }
+
+    #[test]
+    fn test_single_violation_does_not_quarantine() -> Result<(), PluginError> {
+        let policy = QuarantinePolicy::default();
+        let mut manager = QuarantineManager::new(policy);
+        let plugin_id = Uuid::new_v4();
+
+        manager.record_violation(plugin_id, ViolationType::Crash, "test crash".to_string())?;
+        assert!(!manager.is_quarantined(plugin_id));
+        Ok(())
+    }
+
+    #[test]
+    fn test_max_crashes_triggers_quarantine() -> Result<(), PluginError> {
+        let policy = QuarantinePolicy {
+            max_crashes: 3,
+            ..QuarantinePolicy::default()
+        };
+        let mut manager = QuarantineManager::new(policy);
+        let plugin_id = Uuid::new_v4();
+
+        for i in 0..3 {
+            manager.record_violation(plugin_id, ViolationType::Crash, format!("crash {i}"))?;
+        }
+
+        assert!(manager.is_quarantined(plugin_id));
+        Ok(())
+    }
+
+    #[test]
+    fn test_budget_violations_trigger_quarantine() -> Result<(), PluginError> {
+        let policy = QuarantinePolicy {
+            max_budget_violations: 3,
+            ..QuarantinePolicy::default()
+        };
+        let mut manager = QuarantineManager::new(policy);
+        let plugin_id = Uuid::new_v4();
+
+        for i in 0..3 {
+            manager.record_violation(
+                plugin_id,
+                ViolationType::BudgetViolation,
+                format!("budget violation {i}"),
+            )?;
+        }
+
+        assert!(manager.is_quarantined(plugin_id));
+        Ok(())
+    }
+
+    #[test]
+    fn test_manual_quarantine() -> Result<(), PluginError> {
+        let policy = QuarantinePolicy::default();
+        let mut manager = QuarantineManager::new(policy);
+        let plugin_id = Uuid::new_v4();
+
+        manager.manual_quarantine(plugin_id, 30)?;
+        assert!(manager.is_quarantined(plugin_id));
+
+        let state = manager.get_quarantine_state(plugin_id);
+        assert!(state.is_some());
+        let state = state.unwrap_or_else(|| unreachable!());
+        assert!(state.quarantine_start.is_some());
+        assert!(state.quarantine_end.is_some());
+        Ok(())
+    }
+
+    #[test]
+    fn test_release_from_quarantine() -> Result<(), PluginError> {
+        let policy = QuarantinePolicy::default();
+        let mut manager = QuarantineManager::new(policy);
+        let plugin_id = Uuid::new_v4();
+
+        manager.manual_quarantine(plugin_id, 30)?;
+        assert!(manager.is_quarantined(plugin_id));
+
+        manager.release_from_quarantine(plugin_id)?;
+        assert!(!manager.is_quarantined(plugin_id));
+        Ok(())
+    }
+
+    #[test]
+    fn test_release_unknown_plugin_fails() {
+        let policy = QuarantinePolicy::default();
+        let mut manager = QuarantineManager::new(policy);
+        let plugin_id = Uuid::new_v4();
+
+        let result = manager.release_from_quarantine(plugin_id);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_get_quarantine_stats_empty() {
+        let policy = QuarantinePolicy::default();
+        let manager = QuarantineManager::new(policy);
+        let stats = manager.get_quarantine_stats();
+        assert!(stats.is_empty());
+    }
+
+    #[test]
+    fn test_quarantine_state_tracks_totals() -> Result<(), PluginError> {
+        let policy = QuarantinePolicy::default();
+        let mut manager = QuarantineManager::new(policy);
+        let plugin_id = Uuid::new_v4();
+
+        manager.record_violation(plugin_id, ViolationType::Crash, "crash 1".to_string())?;
+        manager.record_violation(
+            plugin_id,
+            ViolationType::BudgetViolation,
+            "budget 1".to_string(),
+        )?;
+
+        let state = manager.get_quarantine_state(plugin_id);
+        assert!(state.is_some());
+        let state = state.unwrap_or_else(|| unreachable!());
+        assert_eq!(state.total_crashes, 1);
+        assert_eq!(state.total_budget_violations, 1);
+        Ok(())
+    }
+
+    #[test]
+    fn test_capability_violation_does_not_increment_crash_counter() -> Result<(), PluginError> {
+        let policy = QuarantinePolicy::default();
+        let mut manager = QuarantineManager::new(policy);
+        let plugin_id = Uuid::new_v4();
+
+        manager.record_violation(
+            plugin_id,
+            ViolationType::CapabilityViolation,
+            "cap violation".to_string(),
+        )?;
+
+        let state = manager.get_quarantine_state(plugin_id);
+        assert!(state.is_some());
+        let state = state.unwrap_or_else(|| unreachable!());
+        assert_eq!(state.total_crashes, 0);
+        assert_eq!(state.total_budget_violations, 0);
+        Ok(())
+    }
+
+    #[test]
+    fn test_failure_tracker_new_is_empty() {
+        let tracker = FailureTracker::new();
+        let plugin_id = Uuid::new_v4();
+        assert!(tracker.get_stats(plugin_id).is_none());
+    }
+
+    #[test]
+    fn test_failure_tracker_records_execution() {
+        let mut tracker = FailureTracker::new();
+        let plugin_id = Uuid::new_v4();
+
+        tracker.record_execution(plugin_id, 100, true);
+        tracker.record_execution(plugin_id, 200, true);
+        tracker.record_execution(plugin_id, 300, false);
+
+        let stats = tracker.get_stats(plugin_id);
+        assert!(stats.is_some());
+        let stats = stats.unwrap_or_else(|| unreachable!());
+        assert_eq!(stats.executions, 3);
+        assert_eq!(stats.total_time_us, 600);
+        assert_eq!(stats.max_time_us, 300);
+        assert_eq!(stats.crashes, 1);
+        assert!((stats.avg_time_us - 200.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_failure_tracker_max_time_tracks_peak() {
+        let mut tracker = FailureTracker::new();
+        let plugin_id = Uuid::new_v4();
+
+        tracker.record_execution(plugin_id, 500, true);
+        tracker.record_execution(plugin_id, 100, true);
+        tracker.record_execution(plugin_id, 300, true);
+
+        let stats = tracker.get_stats(plugin_id);
+        assert!(stats.is_some());
+        assert_eq!(stats.unwrap_or_else(|| unreachable!()).max_time_us, 500);
+    }
+
+    #[test]
+    fn test_violation_type_equality() {
+        assert_eq!(ViolationType::Crash, ViolationType::Crash);
+        assert_ne!(ViolationType::Crash, ViolationType::BudgetViolation);
+        assert_ne!(
+            ViolationType::CapabilityViolation,
+            ViolationType::TimeoutViolation
+        );
+    }
+
+    #[test]
+    fn test_quarantine_policy_serialization() -> Result<(), serde_json::Error> {
+        let policy = QuarantinePolicy::default();
+        let json = serde_json::to_string(&policy)?;
+        let deserialized: QuarantinePolicy = serde_json::from_str(&json)?;
+        assert_eq!(deserialized.max_crashes, policy.max_crashes);
+        assert_eq!(
+            deserialized.max_budget_violations,
+            policy.max_budget_violations
+        );
+        Ok(())
+    }
+}

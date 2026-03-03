@@ -240,6 +240,16 @@ Byte 1: Gain (0x00 - 0xFF)
 
 TrueForce provides high-frequency haptic feedback synchronized with game audio.
 
+> **⚠ UNVERIFIED — The protocol details below (report ID, packet format,
+> endpoint, sample rate) are NOT confirmed by any public open-source source.**
+> No open-source driver (Linux kernel, new-lg4ff, libhidpp, SDL) implements
+> TrueForce. The only known implementation is in Logitech's proprietary
+> G HUB software, which requires an NDA. The following details should be
+> treated as speculative until independently verified through USB packet
+> capture or official public documentation. See
+> `crates/hid-logitech-protocol/src/ids.rs` for the verified public facts
+> about G923 hardware and protocol support.
+
 ### TrueForce Endpoint
 
 - **Endpoint**: Separate USB endpoint (typically EP 0x03)

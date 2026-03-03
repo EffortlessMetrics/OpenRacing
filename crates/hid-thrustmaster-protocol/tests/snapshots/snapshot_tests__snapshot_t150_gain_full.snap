@@ -1,0 +1,5 @@
+---
+source: crates/hid-thrustmaster-protocol/tests/snapshot_tests.rs
+expression: "format!(\"{:02X?}\", report)"
+---
+[43, FF]

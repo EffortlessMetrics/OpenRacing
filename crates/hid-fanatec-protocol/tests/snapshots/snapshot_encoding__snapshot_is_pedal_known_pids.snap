@@ -1,0 +1,5 @@
+---
+source: crates/hid-fanatec-protocol/tests/snapshot_encoding.rs
+expression: "results.join(\", \")"
+---
+0x183B=true, 0x6204=true, 0x6205=true

@@ -61,11 +61,46 @@ proptest! {
             asetek::ASETEK_INVICTA_PID,
             asetek::ASETEK_LAPRIMA_PID,
             asetek::ASETEK_TONY_KANAAN_PID,
+            asetek::ASETEK_INVICTA_PEDALS_PID,
+            asetek::ASETEK_FORTE_PEDALS_PID,
+            asetek::ASETEK_LAPRIMA_PEDALS_PID,
         ];
         if !known.contains(&pid) {
             let model = asetek::asetek_model_from_info(asetek::ASETEK_VENDOR_ID, pid);
             prop_assert_eq!(model, asetek::AsetekModel::Unknown);
         }
+    }
+
+    /// Known pedal PIDs with the correct VID never map to Unknown.
+    #[test]
+    fn prop_known_pedal_pids_are_not_unknown(pid in prop_oneof![
+        Just(asetek::ASETEK_INVICTA_PEDALS_PID),
+        Just(asetek::ASETEK_FORTE_PEDALS_PID),
+        Just(asetek::ASETEK_LAPRIMA_PEDALS_PID),
+    ]) {
+        let model = asetek::asetek_model_from_info(asetek::ASETEK_VENDOR_ID, pid);
+        prop_assert_ne!(
+            model,
+            asetek::AsetekModel::Unknown,
+            "pedal PID {:#06X} must not map to Unknown",
+            pid
+        );
+    }
+
+    /// Pedal models must report zero max torque.
+    #[test]
+    fn prop_pedal_models_zero_torque(pid in prop_oneof![
+        Just(asetek::ASETEK_INVICTA_PEDALS_PID),
+        Just(asetek::ASETEK_FORTE_PEDALS_PID),
+        Just(asetek::ASETEK_LAPRIMA_PEDALS_PID),
+    ]) {
+        let model = asetek::AsetekModel::from_product_id(pid);
+        prop_assert_eq!(
+            model.max_torque_nm(),
+            0.0,
+            "pedal model {:?} must have zero torque",
+            model
+        );
     }
 
     /// Output report build always returns at least REPORT_SIZE_OUTPUT bytes.

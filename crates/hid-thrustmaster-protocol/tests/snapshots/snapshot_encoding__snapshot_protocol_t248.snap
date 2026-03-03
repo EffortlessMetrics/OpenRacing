@@ -1,0 +1,5 @@
+---
+source: crates/hid-thrustmaster-protocol/tests/snapshot_encoding.rs
+expression: "format!(\"model={:?}, max_torque={}, range={}, ffb={}\", proto.model(),\nproto.max_torque_nm(), proto.rotation_range(), proto.supports_ffb())"
+---
+model=T248, max_torque=4, range=900, ffb=true

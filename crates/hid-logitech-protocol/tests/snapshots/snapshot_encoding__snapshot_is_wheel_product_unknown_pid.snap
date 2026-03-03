@@ -1,0 +1,5 @@
+---
+source: crates/hid-logitech-protocol/tests/snapshot_encoding.rs
+expression: "format!(\"unknown={}\", lg::is_wheel_product(0xFFFF))"
+---
+unknown=false

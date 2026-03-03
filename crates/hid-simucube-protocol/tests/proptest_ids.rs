@@ -7,12 +7,13 @@
 //! - Model round-trip: from_product_id always yields consistent metadata
 
 use hid_simucube_protocol::{
-    SIMUCUBE_1_PID, SIMUCUBE_2_PRO_PID, SIMUCUBE_2_SPORT_PID, SIMUCUBE_2_ULTIMATE_PID,
-    SIMUCUBE_ACTIVE_PEDAL_PID, SIMUCUBE_VENDOR_ID, SIMUCUBE_WIRELESS_WHEEL_PID, SimucubeModel,
+    SIMUCUBE_1_BOOTLOADER_PID, SIMUCUBE_1_PID, SIMUCUBE_2_BOOTLOADER_PID, SIMUCUBE_2_PRO_PID,
+    SIMUCUBE_2_SPORT_PID, SIMUCUBE_2_ULTIMATE_PID, SIMUCUBE_ACTIVE_PEDAL_PID, SIMUCUBE_VENDOR_ID,
+    SIMUCUBE_WIRELESS_WHEEL_PID, SimucubeModel,
 };
 use proptest::prelude::*;
 
-/// All known Simucube product IDs.
+/// All known Simucube product IDs (normal operation).
 const ALL_PIDS: [u16; 6] = [
     SIMUCUBE_1_PID,
     SIMUCUBE_2_SPORT_PID,
@@ -21,6 +22,9 @@ const ALL_PIDS: [u16; 6] = [
     SIMUCUBE_ACTIVE_PEDAL_PID,
     SIMUCUBE_WIRELESS_WHEEL_PID,
 ];
+
+/// Bootloader/firmware-upgrade PIDs (not used for HID protocol).
+const BOOTLOADER_PIDS: [u16; 2] = [SIMUCUBE_1_BOOTLOADER_PID, SIMUCUBE_2_BOOTLOADER_PID];
 
 /// Wheelbase-only PIDs (those with positive torque).
 const WHEELBASE_PIDS: [u16; 4] = [
@@ -38,6 +42,13 @@ proptest! {
     fn prop_vendor_id_nonzero(_unused: u8) {
         prop_assert!(SIMUCUBE_VENDOR_ID != 0,
             "SIMUCUBE_VENDOR_ID must not be zero");
+    }
+
+    /// SIMUCUBE_VENDOR_ID must be exactly 0x16D0 (Granite Devices / SimuCube).
+    #[test]
+    fn prop_vendor_id_is_0x16d0(_unused: u8) {
+        prop_assert_eq!(SIMUCUBE_VENDOR_ID, 0x16D0,
+            "SIMUCUBE_VENDOR_ID must be 0x16D0");
     }
 
     /// Every known product PID must be non-zero.
@@ -99,5 +110,25 @@ proptest! {
             (m1.max_torque_nm() - m2.max_torque_nm()).abs() < f32::EPSILON,
             "max_torque_nm must be consistent for pid={:#06x}", pid
         );
+    }
+
+    /// Bootloader PIDs must be non-zero and distinct from normal PIDs.
+    #[test]
+    fn prop_bootloader_pids_nonzero(idx in 0usize..2usize) {
+        let pid = BOOTLOADER_PIDS[idx];
+        prop_assert!(pid != 0, "bootloader PID at index {idx} must not be zero");
+        // Bootloader PIDs must not appear in the normal PID list.
+        prop_assert!(
+            !ALL_PIDS.contains(&pid),
+            "bootloader PID {pid:#06x} must not overlap with normal PIDs"
+        );
+    }
+
+    /// Bootloader PIDs must resolve to Unknown model (they are not wheelbases).
+    #[test]
+    fn prop_bootloader_pids_are_unknown(idx in 0usize..2usize) {
+        let pid = BOOTLOADER_PIDS[idx];
+        let model = SimucubeModel::from_product_id(pid);
+        prop_assert_eq!(model, SimucubeModel::Unknown);
     }
 }

@@ -1,0 +1,5 @@
+---
+source: crates/hid-leo-bodnar-protocol/tests/snapshot_encoding.rs
+expression: "leo_bodnar::MAX_REPORT_BYTES"
+---
+64

@@ -78,3 +78,52 @@ fn csl_pedals_lc_pid_is_6205() {
 fn csl_pedals_v2_pid_is_6206() {
     assert_eq!(product_ids::CSL_PEDALS_V2, 0x6206);
 }
+
+// ── Product IDs — verified against wine-mirror/wine and linux-hardware.org ──
+
+/// ClubSport Pedals V1/V2 PID must be 0x1839.
+///
+/// Source: wine-mirror/wine dlls/winebus.sys/main.c HIDRAW whitelist;
+///         linux-hardware.org hardware probe VID 0x0EB7 PID 0x1839.
+#[test]
+fn clubsport_pedals_v1_v2_pid_is_1839() {
+    assert_eq!(product_ids::CLUBSPORT_PEDALS_V1_V2, 0x1839);
+}
+
+// ── Product IDs — unverified, retained for completeness ─────────────────────
+
+/// GT DD Pro PID must be 0x0024.
+///
+/// Source: internal constant, unverified. Community driver (gotzl/hid-fanatecff)
+/// confirms GT DD Pro enumerates as PID 0x0020 (CSL DD) in PC mode.
+#[test]
+fn gt_dd_pro_pid_is_0024() {
+    assert_eq!(product_ids::GT_DD_PRO, 0x0024);
+}
+
+/// ClubSport DD PID must be 0x01E9.
+///
+/// Source: internal constant, unverified. Community driver (gotzl/hid-fanatecff)
+/// confirms ClubSport DD shares PID 0x0020 (CSL DD) in PC mode.
+#[test]
+fn clubsport_dd_pid_is_01e9() {
+    assert_eq!(product_ids::CLUBSPORT_DD, 0x01E9);
+}
+
+// ── Product IDs — verified against JacKeTUs/simracing-hwdb 90-fanatec.hwdb ──
+
+/// ClubSport Shifter PID must be 0x1A92.
+///
+/// Source: JacKeTUs/simracing-hwdb `90-fanatec.hwdb` (`v0EB7p1A92`).
+#[test]
+fn clubsport_shifter_pid_is_1a92() {
+    assert_eq!(product_ids::CLUBSPORT_SHIFTER, 0x1A92);
+}
+
+/// ClubSport Handbrake PID must be 0x1A93.
+///
+/// Source: JacKeTUs/simracing-hwdb `90-fanatec.hwdb` (`v0EB7p1A93`).
+#[test]
+fn clubsport_handbrake_pid_is_1a93() {
+    assert_eq!(product_ids::CLUBSPORT_HANDBRAKE, 0x1A93);
+}

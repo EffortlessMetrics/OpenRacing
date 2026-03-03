@@ -1,0 +1,5 @@
+---
+source: crates/hid-pxn-protocol/tests/snapshot_tests.rs
+expression: "format!(\"{results:?}\")"
+---
+"[(\"v10_correct\", true), (\"v12_correct\", true), (\"v12_lite_correct\", true), (\"v12_lite_2_correct\", true), (\"gt987_correct\", true), (\"wrong_vid\", false), (\"wrong_pid\", false)]"

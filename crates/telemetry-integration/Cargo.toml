@@ -12,6 +12,10 @@ description = "Utilities for validating telemetry matrix and runtime registry pa
 readme = "README.md"
 keywords = ["telemetry", "racing", "matrix", "integration", "compatibility"]
 
+
+[package.metadata.cargo-udeps.ignore]
+normal = ["workspace-hack"]
+
 [dependencies]
 racing-wheel-telemetry-bdd-metrics = { path = "../telemetry-bdd-metrics" }
 workspace-hack = { version = "0.1", path = "../../workspace-hack" }

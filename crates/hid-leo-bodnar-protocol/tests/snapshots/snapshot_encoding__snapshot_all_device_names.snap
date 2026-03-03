@@ -1,0 +1,5 @@
+---
+source: crates/hid-leo-bodnar-protocol/tests/snapshot_encoding.rs
+expression: "summary.join(\"\\n\")"
+---
+"USB_JOYSTICK: name=Leo Bodnar USB Joystick\nBU0836A: name=Leo Bodnar BU0836A\nBBI32: name=Leo Bodnar BBI-32\nWHEEL_INTERFACE: name=Leo Bodnar USB Sim Racing Wheel Interface\nFFB_JOYSTICK: name=Leo Bodnar FFB Joystick\nBU0836X: name=Leo Bodnar BU0836X\nBU0836_16BIT: name=Leo Bodnar BU0836 16-bit\nSLI_M: name=Leo Bodnar SLI-Pro"

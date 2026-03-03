@@ -1,0 +1,5 @@
+---
+source: crates/hid-moza-protocol/tests/snapshot_encoding.rs
+expression: "format!(\"{id:?}\")"
+---
+MozaDeviceIdentity { product_id: 65535, name: "Moza Unknown", category: Unknown, topology_hint: Unknown, supports_ffb: false }

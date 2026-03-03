@@ -1,0 +1,24 @@
+---
+source: crates/schemas/tests/schema_validation_comprehensive.rs
+expression: value
+---
+{
+  "abs_active": false,
+  "blue_flag": false,
+  "checkered_flag": false,
+  "drs_active": false,
+  "drs_available": false,
+  "engine_limiter": false,
+  "ers_active": false,
+  "ers_available": false,
+  "formation_lap": false,
+  "green_flag": true,
+  "in_pits": false,
+  "launch_control": false,
+  "pit_limiter": false,
+  "red_flag": false,
+  "safety_car": false,
+  "session_paused": false,
+  "traction_control": false,
+  "yellow_flag": false
+}

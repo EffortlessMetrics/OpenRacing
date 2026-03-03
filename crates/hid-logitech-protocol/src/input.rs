@@ -216,4 +216,55 @@ mod tests {
             }
         }
     }
+
+    /// Kill mutant: `data.len() < 10` → `data.len() <= 10`.
+    /// A 10-byte report is the minimum valid size and must parse successfully.
+    #[test]
+    fn test_parse_exact_minimum_length() -> Result<(), Box<dyn std::error::Error>> {
+        let mut data = [0u8; 10];
+        data[0] = 0x01;
+        data[1] = 0x00;
+        data[2] = 0x80; // center steering
+        let state = parse_input_report(&data).ok_or("10-byte report must parse")?;
+        assert!(state.steering.abs() < 0.001);
+        // Paddles should be 0 since there's no byte 9 beyond the minimum
+        // Actually len=10 means data[9] exists (indices 0..9)
+        assert_eq!(state.paddles & 0x03, data[9] & 0x03);
+        Ok(())
+    }
+
+    /// Kill mutant: `data.len() > 9` → `data.len() >= 9`.
+    /// A 10-byte report has data[9], so paddles should come from data[9].
+    /// A 9-byte report should NOT have paddles.
+    #[test]
+    fn test_parse_nine_byte_report_no_paddles() -> Result<(), Box<dyn std::error::Error>> {
+        // 9 bytes is below the minimum length (< 10), so it should return None
+        let mut data = [0u8; 9];
+        data[0] = 0x01;
+        assert!(
+            parse_input_report(&data).is_none(),
+            "9-byte report must be rejected"
+        );
+        Ok(())
+    }
+
+    /// Verify paddles are read when data is exactly 10 bytes vs 12 bytes.
+    #[test]
+    fn test_parse_paddles_boundary() -> Result<(), Box<dyn std::error::Error>> {
+        // 10 bytes: data[9] exists, paddles should be read
+        let mut data10 = [0u8; 10];
+        data10[0] = 0x01;
+        data10[1] = 0x00;
+        data10[2] = 0x80;
+        data10[9] = 0x03; // both paddles set
+        let state10 = parse_input_report(&data10).ok_or("10-byte report must parse")?;
+        assert_eq!(state10.paddles, 0x03, "paddles should be read from byte 9");
+
+        // Verify paddles=0 when byte 9 is zero
+        data10[9] = 0x00;
+        let state10_zero = parse_input_report(&data10).ok_or("parse failed")?;
+        assert_eq!(state10_zero.paddles, 0x00, "paddles should be 0");
+
+        Ok(())
+    }
 }

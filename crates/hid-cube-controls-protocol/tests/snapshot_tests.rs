@@ -120,6 +120,51 @@ fn snapshot_unknown_max_torque() {
     insta::assert_debug_snapshot!(CubeControlsModel::Unknown.max_torque_nm());
 }
 
+// -- is_provisional (PROVISIONAL status emphasis) -----------------------------
+
+/// Snapshot the provisional status of each known model variant.
+/// All Cube Controls PIDs are PROVISIONAL — unverified from hardware captures.
+/// These snapshots will change when devices are confirmed from real USB descriptors.
+
+#[test]
+fn snapshot_provisional_gt_pro() {
+    insta::assert_debug_snapshot!(CubeControlsModel::GtPro.is_provisional());
+}
+
+#[test]
+fn snapshot_provisional_formula_pro() {
+    insta::assert_debug_snapshot!(CubeControlsModel::FormulaPro.is_provisional());
+}
+
+#[test]
+fn snapshot_provisional_csx3() {
+    insta::assert_debug_snapshot!(CubeControlsModel::Csx3.is_provisional());
+}
+
+#[test]
+fn snapshot_provisional_unknown() {
+    insta::assert_debug_snapshot!(CubeControlsModel::Unknown.is_provisional());
+}
+
+/// Snapshot summarizing all PROVISIONAL protocol constants.
+/// VID 0x0483 is STMicroelectronics shared — used by many STM32-based devices.
+/// PIDs 0x0C73–0x0C75 are fabricated placeholders with no hardware evidence.
+#[test]
+fn snapshot_provisional_constants_summary() {
+    let summary = format!(
+        "PROVISIONAL Cube Controls constants (VID shared with STMicroelectronics):\n\
+         VID={:#06x} (STMicro shared)\n\
+         GT_PRO PID={:#06x} (provisional)\n\
+         FORMULA_PRO PID={:#06x} (provisional)\n\
+         CSX3 PID={:#06x} (provisional)",
+        CUBE_CONTROLS_VENDOR_ID,
+        CUBE_CONTROLS_GT_PRO_PID,
+        CUBE_CONTROLS_FORMULA_PRO_PID,
+        CUBE_CONTROLS_CSX3_PID,
+    );
+    insta::assert_snapshot!(summary);
+}
+
 // -- All known PIDs list snapshot ---------------------------------------------
 
 #[test]

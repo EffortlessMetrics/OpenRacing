@@ -330,3 +330,115 @@ impl HealthEventStream {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    type TestResult = Result<(), Box<dyn std::error::Error>>;
+
+    #[tokio::test]
+    async fn connect_default_endpoint() -> TestResult {
+        let _client = WheelClient::connect(None).await?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn connect_custom_http_endpoint() -> TestResult {
+        let _client = WheelClient::connect(Some("http://localhost:5000")).await?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn connect_custom_https_endpoint() -> TestResult {
+        let _client = WheelClient::connect(Some("https://localhost:5000")).await?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn connect_rejects_invalid_scheme() {
+        let result = WheelClient::connect(Some("ftp://localhost")).await;
+        assert!(result.is_err());
+        let err_msg = result
+            .as_ref()
+            .err()
+            .map(|e| e.to_string())
+            .unwrap_or_default();
+        assert!(err_msg.contains("Invalid endpoint"));
+    }
+
+    #[tokio::test]
+    async fn connect_rejects_plain_string() {
+        let result = WheelClient::connect(Some("not-a-url")).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn connect_rejects_invalid_endpoint() {
+        let result = WheelClient::connect(Some("http://invalid:99999")).await;
+        assert!(result.is_err());
+        let err_msg = result
+            .as_ref()
+            .err()
+            .map(|e| e.to_string())
+            .unwrap_or_default();
+        assert!(err_msg.contains("Connection refused"));
+    }
+
+    #[tokio::test]
+    async fn list_devices_returns_mock_data() -> TestResult {
+        let client = WheelClient::connect(None).await?;
+        let devices = client.list_devices().await?;
+        assert_eq!(devices.len(), 2);
+        assert_eq!(devices[0].id, "wheel-001");
+        assert_eq!(devices[1].id, "pedals-001");
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn get_device_status_known_device() -> TestResult {
+        let client = WheelClient::connect(None).await?;
+        let status = client.get_device_status("wheel-001").await?;
+        assert_eq!(status.device.id, "wheel-001");
+        assert!(status.active_faults.is_empty());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn get_device_status_unknown_device() {
+        let client = WheelClient::connect(None).await;
+        assert!(client.is_ok());
+        let client = client.ok();
+        assert!(client.is_some());
+        if let Some(c) = client {
+            let result = c.get_device_status("nonexistent").await;
+            assert!(result.is_err());
+        }
+    }
+
+    #[tokio::test]
+    async fn emergency_stop_all() -> TestResult {
+        let client = WheelClient::connect(None).await?;
+        client.emergency_stop(None).await?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn emergency_stop_specific() -> TestResult {
+        let client = WheelClient::connect(None).await?;
+        client.emergency_stop(Some("wheel-001")).await?;
+        Ok(())
+    }
+
+    #[test]
+    fn device_capabilities_default() {
+        let caps = DeviceCapabilities::default();
+        assert!(!caps.supports_pid);
+        assert!(!caps.supports_raw_torque_1khz);
+        assert!(!caps.supports_health_stream);
+        assert!(!caps.supports_led_bus);
+        assert!((caps.max_torque_nm - 0.0).abs() < f32::EPSILON);
+        assert_eq!(caps.encoder_cpr, 1024);
+        assert_eq!(caps.min_report_period_us, 1000);
+    }
+}

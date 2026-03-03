@@ -32,12 +32,18 @@ use serde::{Deserialize, Serialize};
 /// ```
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
 pub struct FfbGain {
+    /// Master gain level (0.0–1.0). Scales all force output.
     pub overall: f32,
+    /// Torque-specific gain (0.0–1.0). Attenuates steering resistance forces.
     pub torque: f32,
+    /// Effect-specific gain (0.0–1.0). Attenuates vibration and periodic effects.
     pub effects: f32,
 }
 
 impl FfbGain {
+    /// Creates a new gain with the given overall level, clamped to `[0.0, 1.0]`.
+    ///
+    /// Torque and effect sub-gains default to `1.0` (full strength).
     pub fn new(overall: f32) -> Self {
         Self {
             overall: overall.clamp(0.0, 1.0),
@@ -46,16 +52,19 @@ impl FfbGain {
         }
     }
 
+    /// Sets the torque sub-gain, clamped to `[0.0, 1.0]`.
     pub fn with_torque(mut self, torque: f32) -> Self {
         self.torque = torque.clamp(0.0, 1.0);
         self
     }
 
+    /// Sets the effects sub-gain, clamped to `[0.0, 1.0]`.
     pub fn with_effects(mut self, effects: f32) -> Self {
         self.effects = effects.clamp(0.0, 1.0);
         self
     }
 
+    /// Returns the product of all three gain factors (`overall × torque × effects`).
     pub fn combined(&self) -> f32 {
         self.overall * self.torque * self.effects
     }
@@ -82,20 +91,24 @@ impl FfbGain {
 /// ```
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
 pub struct FfbDirection {
+    /// Direction in degrees, normalized to `[0.0, 360.0)`.
     pub degrees: f32,
 }
 
 impl FfbDirection {
+    /// Creates a direction from degrees, wrapping into `[0.0, 360.0)`.
     pub fn new(degrees: f32) -> Self {
         Self {
             degrees: degrees.rem_euclid(360.0),
         }
     }
 
+    /// Creates a direction from radians.
     pub fn from_radians(rad: f32) -> Self {
         Self::new(rad.to_degrees())
     }
 
+    /// Converts the direction to radians.
     pub fn to_radians(&self) -> f32 {
         self.degrees.to_radians()
     }

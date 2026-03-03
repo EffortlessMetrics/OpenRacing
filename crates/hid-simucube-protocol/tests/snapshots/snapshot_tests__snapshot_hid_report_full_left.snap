@@ -1,0 +1,34 @@
+---
+source: crates/hid-simucube-protocol/tests/snapshot_tests.rs
+expression: report
+---
+SimucubeHidReport {
+    steering: 0,
+    y_axis: 32768,
+    axes: [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+    ],
+    buttons: [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+    ],
+}

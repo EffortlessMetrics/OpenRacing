@@ -257,7 +257,7 @@ run_dependency_governance() {
     run cargo +stable hakari generate
     check_generated_clean "cargo hakari"
 
-    run cargo +nightly udeps --all-targets
+    run cargo +nightly udeps --workspace --all-targets --exclude workspace-hack
 
     if [[ $SKIP_MINIMAL_VERSIONS -eq 0 ]]; then
         echo "Running minimal-versions build (this updates Cargo.lock)."

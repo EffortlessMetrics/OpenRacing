@@ -90,6 +90,14 @@ fn test_snapshot_product_names() {
     let results = [
         ("C5", cammus::product_name(cammus::PRODUCT_C5)),
         ("C12", cammus::product_name(cammus::PRODUCT_C12)),
+        (
+            "CP5_PEDALS",
+            cammus::product_name(cammus::PRODUCT_CP5_PEDALS),
+        ),
+        (
+            "LC100_PEDALS",
+            cammus::product_name(cammus::PRODUCT_LC100_PEDALS),
+        ),
         ("unknown", cammus::product_name(0xFFFF)),
     ];
     assert_debug_snapshot!(format!("{:?}", results));
@@ -116,6 +124,26 @@ fn test_snapshot_model_c12() {
 }
 
 #[test]
+fn test_snapshot_model_cp5_pedals() {
+    let model = cammus::CammusModel::Cp5Pedals;
+    assert_debug_snapshot!(format!(
+        "name={}, max_torque={:.1}",
+        model.name(),
+        model.max_torque_nm()
+    ));
+}
+
+#[test]
+fn test_snapshot_model_lc100_pedals() {
+    let model = cammus::CammusModel::Lc100Pedals;
+    assert_debug_snapshot!(format!(
+        "name={}, max_torque={:.1}",
+        model.name(),
+        model.max_torque_nm()
+    ));
+}
+
+#[test]
 fn test_snapshot_is_cammus() {
     let results = [
         (
@@ -125,6 +153,14 @@ fn test_snapshot_is_cammus() {
         (
             "c12_correct",
             cammus::is_cammus(cammus::VENDOR_ID, cammus::PRODUCT_C12),
+        ),
+        (
+            "cp5_pedals_correct",
+            cammus::is_cammus(cammus::VENDOR_ID, cammus::PRODUCT_CP5_PEDALS),
+        ),
+        (
+            "lc100_pedals_correct",
+            cammus::is_cammus(cammus::VENDOR_ID, cammus::PRODUCT_LC100_PEDALS),
         ),
         ("wrong_vid", cammus::is_cammus(0x0000, cammus::PRODUCT_C5)),
         ("wrong_pid", cammus::is_cammus(cammus::VENDOR_ID, 0xFFFF)),

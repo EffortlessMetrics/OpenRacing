@@ -9,6 +9,10 @@ description = "Watchdog systems for monitoring plugin execution and system healt
 keywords = ["watchdog", "monitoring", "health-check", "real-time", "safety"]
 categories = ["concurrency", "development-tools::debugging"]
 
+
+[package.metadata.cargo-udeps.ignore]
+normal = ["workspace-hack"]
+
 [dependencies]
 serde = { workspace = true }
 thiserror = { workspace = true }

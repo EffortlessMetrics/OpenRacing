@@ -1,0 +1,5 @@
+---
+source: crates/hid-logitech-protocol/tests/snapshot_encoding.rs
+expression: "format!(\"{r:02X?}\")"
+---
+[F8, 81, 38, 04, 00, 00, 00]

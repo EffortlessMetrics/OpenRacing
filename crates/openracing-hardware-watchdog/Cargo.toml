@@ -9,6 +9,10 @@ description = "Hardware watchdog management for safety-critical torque control i
 keywords = ["watchdog", "hardware", "safety", "real-time", "embedded"]
 categories = ["embedded", "no-std", "hardware-support"]
 
+
+[package.metadata.cargo-udeps.ignore]
+normal = ["workspace-hack"]
+
 [dependencies]
  portable-atomic = "1.10.0"
 workspace-hack = { version = "0.1", path = "../../workspace-hack" }

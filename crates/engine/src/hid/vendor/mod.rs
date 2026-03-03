@@ -18,6 +18,7 @@ pub mod logitech;
 pub mod moza;
 pub mod moza_direct;
 pub mod openffboard;
+pub mod pxn;
 pub mod simagic;
 pub mod simplemotion;
 pub mod simucube;
@@ -50,6 +51,8 @@ mod logitech_tests;
 mod moza_tests;
 #[cfg(test)]
 mod openffboard_tests;
+#[cfg(test)]
+mod pxn_tests;
 #[cfg(test)]
 mod simagic_tests;
 #[cfg(test)]
@@ -93,14 +96,27 @@ pub fn get_vendor_protocol(vendor_id: u16, product_id: u16) -> Option<Box<dyn Ve
                 )))
             }
         }
-        // OpenMoko/MCS VID (0x16D0): shared by Heusinkveld (0x115x), Simucube 2 (0x0D5x),
+        // Microchip VID (0x04D8): used by legacy Heusinkveld pedals (PIDs 0xF6D0–0xF6D3).
+        // VID is shared by many Microchip PIC-based devices; disambiguate by PID.
+        0x04D8 if heusinkveld::is_heusinkveld_product(product_id) => Some(Box::new(
+            heusinkveld::HeusinkveldProtocolHandler::new(vendor_id, product_id),
+        )),
+        // Heusinkveld current firmware VID (0x30B7).
+        0x30B7 if heusinkveld::is_heusinkveld_product(product_id) => Some(Box::new(
+            heusinkveld::HeusinkveldProtocolHandler::new(vendor_id, product_id),
+        )),
+        // Silicon Labs VID (0x10C4): Heusinkveld Handbrake V1.
+        0x10C4 if heusinkveld::is_heusinkveld_product(product_id) => Some(Box::new(
+            heusinkveld::HeusinkveldProtocolHandler::new(vendor_id, product_id),
+        )),
+        // Heusinkveld Sequential Shifter VID (0xA020).
+        0xA020 if heusinkveld::is_heusinkveld_product(product_id) => Some(Box::new(
+            heusinkveld::HeusinkveldProtocolHandler::new(vendor_id, product_id),
+        )),
+        // OpenMoko/MCS VID (0x16D0): Simucube 2 (0x0D5x),
         // and legacy Simagic/Simucube 1 (0x0D5A/0x0D5B). Disambiguate by product_id.
         0x16D0 => {
-            if heusinkveld::is_heusinkveld_product(product_id) {
-                Some(Box::new(heusinkveld::HeusinkveldProtocolHandler::new(
-                    vendor_id, product_id,
-                )))
-            } else if simucube::is_simucube_product(product_id) {
+            if simucube::is_simucube_product(product_id) {
                 Some(Box::new(simucube::SimucubeProtocolHandler::new(
                     vendor_id, product_id,
                 )))
@@ -165,6 +181,16 @@ pub fn get_vendor_protocol(vendor_id: u16, product_id: u16) -> Option<Box<dyn Ve
         0x1DD2 => Some(Box::new(leo_bodnar::LeoBodnarHandler::new(
             vendor_id, product_id,
         ))),
+        // PXN / Lite Star (VID 0x11FF): V10, V12, V12 Lite, GT987 FF wheels
+        0x11FF => {
+            if pxn::is_pxn_product(product_id) {
+                Some(Box::new(pxn::PxnProtocolHandler::new(
+                    vendor_id, product_id,
+                )))
+            } else {
+                None
+            }
+        }
         _ => None,
     }
 }

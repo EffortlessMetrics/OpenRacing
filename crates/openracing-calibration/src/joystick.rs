@@ -2,6 +2,25 @@
 
 use crate::{AxisCalibration, CalibrationPoint, CalibrationResult};
 
+/// Collects raw joystick/steering axis samples and produces a calibration.
+///
+/// Feed `(raw, expected_normalized)` pairs while the user sweeps the axis,
+/// then call [`calibrate`](Self::calibrate) to compute min/max/center.
+///
+/// # Examples
+///
+/// ```
+/// use openracing_calibration::JoystickCalibrator;
+///
+/// let mut cal = JoystickCalibrator::new(0);
+/// cal.add_sample(0, 0.0);
+/// cal.add_sample(32768, 0.5);
+/// cal.add_sample(65535, 1.0);
+///
+/// let axis = cal.calibrate().expect("calibration should succeed");
+/// assert_eq!(axis.min, 0);
+/// assert_eq!(axis.max, 65535);
+/// ```
 pub struct JoystickCalibrator {
     points: Vec<CalibrationPoint>,
     #[allow(dead_code)]
@@ -9,6 +28,7 @@ pub struct JoystickCalibrator {
 }
 
 impl JoystickCalibrator {
+    /// Creates a new calibrator for the given axis index.
     pub fn new(axis_index: usize) -> Self {
         Self {
             points: Vec::new(),
@@ -16,11 +36,16 @@ impl JoystickCalibrator {
         }
     }
 
+    /// Records a raw sample paired with its expected normalized value.
     pub fn add_sample(&mut self, raw: u16, expected_normalized: f32) {
         self.points
             .push(CalibrationPoint::new(raw, expected_normalized));
     }
 
+    /// Computes an [`AxisCalibration`] from the collected samples.
+    ///
+    /// Automatically detects a center point if any sample is near 0.5.
+    /// Returns an error if no samples have been added.
     pub fn calibrate(&self) -> CalibrationResult<AxisCalibration> {
         if self.points.is_empty() {
             return Err(crate::CalibrationError::NotComplete);
@@ -46,11 +71,13 @@ impl JoystickCalibrator {
         })
     }
 
+    /// Discards all collected samples.
     pub fn reset(&mut self) {
         self.points.clear();
     }
 }
 
+/// Convenience function to calibrate a joystick axis from `(raw, normalized)` pairs.
 pub fn calibrate_joystick_axis(samples: &[(u16, f32)]) -> CalibrationResult<AxisCalibration> {
     let mut calibrator = JoystickCalibrator::new(0);
     for (raw, normalized) in samples {

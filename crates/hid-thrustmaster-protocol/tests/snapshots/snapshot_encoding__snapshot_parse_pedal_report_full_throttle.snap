@@ -1,0 +1,5 @@
+---
+source: crates/hid-thrustmaster-protocol/tests/snapshot_encoding.rs
+expression: "format!(\"throttle={:.4}, brake={:.4}, clutch={:?}\", axes.throttle, axes.brake,\naxes.clutch,)"
+---
+throttle=1.0000, brake=0.0000, clutch=Some(0.0)

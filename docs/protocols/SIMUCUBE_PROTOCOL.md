@@ -94,6 +94,89 @@ The Simucube ActivePedal (PID `0x0D66`, via SC-Link Hub) is an active force-feed
 a wheelbase and does not support motor torque FFB commands. Input-only on the force
 feedback channel; it uses its own dedicated HID protocol for pedal feedback.
 
+### ActivePedal Protocol Details
+
+#### Connection Topology
+
+The ActivePedal connects to the PC via **Simucube Link** (real-time Ethernet, RJ45)
+through the **SC-Link Hub** (USB-C ↔ Simucube Link bridge). From the host PC's
+perspective, the SC-Link Hub appears as a single USB HID device (VID `0x16D0`, PID
+`0x0D66`). All ActivePedals and passive pedals behind the Hub are aggregated into
+the Hub's HID report.
+
+```
+                  Simucube Link (RJ45)
+ActivePedal ──────┐
+ActivePedal ──────┤── Ethernet Switch ── SC-Link Hub ── USB-C ── PC
+Co-Pedal    ──────┘        (optional)     (0x16D0:0x0D66)
+```
+
+- **Sub-millisecond latency** between ActivePedal and SC-Link Hub.
+- **Single USB port** for unlimited Simucube Link devices.
+- **Galvanic isolation** between all devices on the Link network.
+
+#### Axis Reporting
+
+Per the official Simucube developer documentation, the SC-Link Hub exposes:
+
+| Axis | Type | Range | Notes |
+|------|------|-------|-------|
+| Pedal axes (up to 6) | Unsigned 16-bit | 0–65535 | Mapped via Simucube Tuner |
+| Buttons | Bitmask | 128 total | Shared with wheelbase button space |
+
+The ActivePedal reports its position as a standard HID axis (unsigned 16-bit,
+0–65535). The axis can be configured in Simucube Tuner to function as brake,
+throttle, or clutch. Value `0` = pedal released, `65535` = fully pressed.
+
+#### Resolution
+
+| Property | Value |
+|----------|-------|
+| Position sensor | Internal encoder (resolution not publicly documented) |
+| USB HID report | 16-bit unsigned (0–65535) |
+| Force range | Up to 170 kg (default), configurable to 120 kg |
+| Travel range | 5–62 mm (default), configurable to 5–79 mm |
+
+#### Passive Pedal Ports
+
+Each ActivePedal has **two RJ12 (6P6C) passive pedal ports** with built-in load cell
+amplifiers. Supported pedals (via adapter cable):
+
+- Heusinkveld Sprint, Ultimate, Ultimate+
+- Simucube Co-Pedal (passive throttle)
+- Any standard 4-wire load cell pedal (1 kΩ typical)
+
+Passive pedals connected to these ports are read by the ActivePedal's ADC and
+aggregated into the SC-Link Hub's HID report. They do not enumerate as separate
+USB devices.
+
+#### Calibration
+
+ActivePedal calibration is performed through **Simucube Tuner** software:
+- Force-travel curve configuration (fully programmable).
+- Per-profile settings (GT, Formula, etc.) with automatic profile switching.
+- Damping, friction, and telemetry effects configuration.
+- Passive pedal axis mapping and calibration.
+
+No USB-level calibration protocol is exposed. Calibration settings are stored
+on-device and in Tuner profiles.
+
+#### Force Feedback Effects (Pedal FFB)
+
+The ActivePedal generates its own force effects based on:
+- **Pedal profile**: Configurable force-travel curve, damping, friction.
+- **Game telemetry**: ABS, traction control, RPM, G-force effects.
+- **API** (work in progress): Simucube has announced a public API for developers.
+
+These effects run **on-device** — the host PC sends telemetry data, and the
+ActivePedal firmware generates the haptic response locally.
+
+#### Simucube 3 / Future
+
+Simucube 3 wheelbases will also use Simucube Link. The SC-Link Hub bridges both
+wheelbase and pedal traffic. ActivePedals are forward-compatible with the
+Simucube 3 ecosystem.
+
 ## Resources
 
 - **Simucube 2 SDK**: [https://github.com/SimuCUBE/SC2-sdk](https://github.com/SimuCUBE/SC2-sdk)

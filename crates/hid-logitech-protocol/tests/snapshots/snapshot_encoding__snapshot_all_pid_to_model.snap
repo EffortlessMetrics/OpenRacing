@@ -1,0 +1,23 @@
+---
+source: crates/hid-logitech-protocol/tests/snapshot_encoding.rs
+expression: "results.join(\"\\n\")"
+---
+MOMO (0xC295) -> MOMO
+MOMO_2 (0xCA03) -> MOMO
+WINGMAN_FFG (0xC293) -> WingManFormulaForce
+WINGMAN_FF (0xC291) -> WingManFormulaForce
+VIBRATION_WHEEL (0xCA04) -> VibrationWheel
+DRIVING_FORCE_EX (0xC294) -> DrivingForceEX
+DRIVING_FORCE_PRO (0xC298) -> DrivingForcePro
+DRIVING_FORCE_GT (0xC29A) -> DrivingForceGT
+SPEED_FORCE_WIRELESS (0xC29C) -> SpeedForceWireless
+G25 (0xC299) -> G25
+G27 (0xC29B) -> G27
+G29_PS (0xC24F) -> G29
+G920 (0xC262) -> G920
+G923 (0xC266) -> G923
+G923_PS (0xC267) -> G923
+G923_XBOX (0xC26E) -> G923
+G923_XBOX_ALT (0xC26D) -> G923
+G_PRO (0xC268) -> GPro
+G_PRO_XBOX (0xC272) -> GPro

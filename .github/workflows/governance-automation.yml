@@ -16,13 +16,14 @@ jobs:
   check-removal-timeline:
     name: Check Compatibility Removal Timeline
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
     
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.11'
     
@@ -33,8 +34,8 @@ jobs:
     - name: Check current compatibility usage
       id: usage
       run: |
-        python scripts/track_compat_usage.py
-        USAGE_COUNT=$(python scripts/track_compat_usage.py | grep 'usage count:' | cut -d' ' -f4)
+        python scripts/track_compat_usage.py --current
+        USAGE_COUNT=$(python scripts/track_compat_usage.py --current | grep 'deprecated API usages:' | awk '{print $NF}')
         echo "usage_count=$USAGE_COUNT" >> $GITHUB_OUTPUT
         echo "Current compatibility usage: $USAGE_COUNT"
     
@@ -132,7 +133,7 @@ jobs:
         echo "" >> governance_report.md
         echo "## Next Steps" >> governance_report.md
         echo "" >> governance_report.md
-        echo "1. Review compatibility usage details: \`python scripts/track_compat_usage.py\`" >> governance_report.md
+        echo "1. Review compatibility usage details: \`python scripts/track_compat_usage.py --current\`" >> governance_report.md
         echo "2. Check migration progress: See [Migration Patterns](docs/MIGRATION_PATTERNS.md)" >> governance_report.md
         echo "3. Plan removal timeline: Target v${{ steps.version.outputs.next_version }} if usage is low" >> governance_report.md
         
@@ -160,6 +161,7 @@ jobs:
   validate-governance-compliance:
     name: Validate Governance Compliance
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     
     steps:
     - name: Checkout code

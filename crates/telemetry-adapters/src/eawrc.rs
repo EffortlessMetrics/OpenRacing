@@ -21,6 +21,7 @@ use tokio::net::UdpSocket as TokioUdpSocket;
 use tokio::sync::mpsc;
 use tracing::{debug, info, warn};
 
+/// Verified: EA WRC default UDP telemetry port per in-game settings.
 const DEFAULT_EAWRC_PORT: u16 = 20778;
 const DEFAULT_STRUCTURE_ID: &str = "openracing";
 const DEFAULT_PACKET_ID: &str = "session_update";

@@ -454,6 +454,9 @@ impl<'a> PacketReader<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::time::Duration;
+
+    type TestResult = Result<(), Box<dyn std::error::Error>>;
 
     #[test]
     fn test_ensure_probe_game_accepts_acc_and_ac_rally() {
@@ -465,5 +468,180 @@ mod tests {
     fn test_ensure_probe_game_rejects_unsupported_game() {
         let result = ensure_probe_game("iracing");
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_ensure_probe_game_rejects_empty_string() {
+        let result = ensure_probe_game("");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_ensure_probe_game_error_message_lists_supported() {
+        let result = ensure_probe_game("ams2");
+        assert!(result.is_err());
+        let msg = result
+            .as_ref()
+            .err()
+            .map(|e| e.to_string())
+            .unwrap_or_default();
+        assert!(msg.contains("acc"));
+        assert!(msg.contains("ac_rally"));
+    }
+
+    #[test]
+    fn build_register_packet_structure() -> TestResult {
+        let packet = build_register_packet("Test", "", Duration::from_millis(16), "")?;
+        assert_eq!(packet[0], REGISTER_COMMAND_APPLICATION);
+        assert_eq!(packet[1], PROTOCOL_VERSION);
+        // display_name "Test" length = 4 as u16 LE
+        assert_eq!(packet[2], 4);
+        assert_eq!(packet[3], 0);
+        assert_eq!(&packet[4..8], b"Test");
+        Ok(())
+    }
+
+    #[test]
+    fn build_register_packet_empty_name() -> TestResult {
+        let packet = build_register_packet("", "", Duration::from_millis(16), "")?;
+        assert_eq!(packet[0], REGISTER_COMMAND_APPLICATION);
+        // name length = 0
+        assert_eq!(packet[2], 0);
+        assert_eq!(packet[3], 0);
+        Ok(())
+    }
+
+    #[test]
+    fn build_register_packet_interval_encoded() -> TestResult {
+        let packet = build_register_packet("X", "", Duration::from_millis(50), "")?;
+        // After header (2 bytes), display_name (2+1), connection_password (2+0)
+        // interval is at offset 2 + (2+1) + (2+0) = 7
+        let interval_offset = 2 + 2 + 1 + 2;
+        let interval_bytes = &packet[interval_offset..interval_offset + 4];
+        let interval = i32::from_le_bytes([
+            interval_bytes[0],
+            interval_bytes[1],
+            interval_bytes[2],
+            interval_bytes[3],
+        ]);
+        assert_eq!(interval, 50);
+        Ok(())
+    }
+
+    #[test]
+    fn parse_registration_result_valid() -> TestResult {
+        let mut data = Vec::new();
+        data.push(MSG_REGISTRATION_RESULT);
+        data.extend_from_slice(&42i32.to_le_bytes());
+        data.push(1); // success
+        data.push(0); // readonly
+        data.extend_from_slice(&0u16.to_le_bytes()); // empty error string
+
+        let result = parse_registration_result(&data)?;
+        assert_eq!(result.connection_id, 42);
+        assert!(result.success);
+        assert!(!result.readonly);
+        assert!(result.error.is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn parse_registration_result_with_error_string() -> TestResult {
+        let mut data = Vec::new();
+        data.push(MSG_REGISTRATION_RESULT);
+        data.extend_from_slice(&(-1i32).to_le_bytes());
+        data.push(0); // not success
+        data.push(0); // not readonly
+        let error_msg = b"connection limit reached";
+        data.extend_from_slice(&(error_msg.len() as u16).to_le_bytes());
+        data.extend_from_slice(error_msg);
+
+        let result = parse_registration_result(&data)?;
+        assert_eq!(result.connection_id, -1);
+        assert!(!result.success);
+        assert_eq!(result.error, "connection limit reached");
+        Ok(())
+    }
+
+    #[test]
+    fn parse_registration_result_wrong_message_type() {
+        let data = vec![255u8, 0, 0, 0, 0, 0, 0, 0, 0];
+        let result = parse_registration_result(&data);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn parse_registration_result_truncated() {
+        let data = vec![MSG_REGISTRATION_RESULT, 0]; // too short
+        let result = parse_registration_result(&data);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn packet_reader_read_exact() -> TestResult {
+        let data = [1, 2, 3, 4, 5];
+        let mut reader = PacketReader::new(&data);
+        let chunk = reader.read_exact(3)?;
+        assert_eq!(chunk, &[1, 2, 3]);
+        let chunk2 = reader.read_exact(2)?;
+        assert_eq!(chunk2, &[4, 5]);
+        Ok(())
+    }
+
+    #[test]
+    fn packet_reader_overflow() {
+        let data = [1, 2];
+        let mut reader = PacketReader::new(&data);
+        let result = reader.read_exact(5);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn packet_reader_u16_le() -> TestResult {
+        let data = [0x34, 0x12];
+        let mut reader = PacketReader::new(&data);
+        let val = reader.read_u16_le()?;
+        assert_eq!(val, 0x1234);
+        Ok(())
+    }
+
+    #[test]
+    fn packet_reader_i32_le() -> TestResult {
+        let data = [0x78, 0x56, 0x34, 0x12];
+        let mut reader = PacketReader::new(&data);
+        let val = reader.read_i32_le()?;
+        assert_eq!(val, 0x12345678);
+        Ok(())
+    }
+
+    #[test]
+    fn packet_reader_bool_u8() -> TestResult {
+        let data = [0, 1, 255];
+        let mut reader = PacketReader::new(&data);
+        assert!(!reader.read_bool_u8()?);
+        assert!(reader.read_bool_u8()?);
+        assert!(reader.read_bool_u8()?);
+        Ok(())
+    }
+
+    #[test]
+    fn write_and_read_acc_string_roundtrip() -> TestResult {
+        let mut buf = Vec::new();
+        write_acc_string(&mut buf, "hello")?;
+
+        let mut reader = PacketReader::new(&buf);
+        let result = read_acc_string(&mut reader)?;
+        assert_eq!(result, "hello");
+        Ok(())
+    }
+
+    #[test]
+    fn write_acc_string_empty() -> TestResult {
+        let mut buf = Vec::new();
+        write_acc_string(&mut buf, "")?;
+        assert_eq!(buf.len(), 2); // just the length prefix
+        assert_eq!(buf[0], 0);
+        assert_eq!(buf[1], 0);
+        Ok(())
     }
 }

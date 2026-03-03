@@ -1,0 +1,5 @@
+---
+source: crates/hid-moza-protocol/tests/snapshot_encoding.rs
+expression: "format!(\"{id:?}\")"
+---
+MozaDeviceIdentity { product_id: 34, name: "Moza HBP Handbrake", category: Handbrake, topology_hint: StandaloneUsb, supports_ffb: false }

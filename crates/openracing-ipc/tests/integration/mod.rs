@@ -123,7 +123,7 @@ mod health_events {
     use super::*;
 
     #[tokio::test]
-    async fn broadcast_health_event() {
+    async fn broadcast_health_event() -> Result<(), Box<dyn std::error::Error>> {
         let config = IpcConfig::default();
         let server = IpcServer::new(config);
 
@@ -139,15 +139,15 @@ mod health_events {
 
         server.broadcast_health_event(event);
 
-        let received = receiver.try_recv();
-        assert!(received.is_ok());
-        let received_event = received.expect("should have event");
+        let received_event = receiver.try_recv()?;
         assert_eq!(received_event.device_id, "test-device");
         assert_eq!(received_event.event_type, HealthEventType::Connected);
+
+        Ok(())
     }
 
     #[tokio::test]
-    async fn broadcast_multiple_health_events() {
+    async fn broadcast_multiple_health_events() -> Result<(), Box<dyn std::error::Error>> {
         let config = IpcConfig::default();
         let server = IpcServer::new(config);
 
@@ -165,10 +165,11 @@ mod health_events {
         }
 
         for i in 0..5 {
-            let received = receiver.try_recv();
-            assert!(received.is_ok());
-            assert_eq!(received.expect("event").device_id, format!("device-{}", i));
+            let event = receiver.try_recv()?;
+            assert_eq!(event.device_id, format!("device-{}", i));
         }
+
+        Ok(())
     }
 }
 
@@ -239,7 +240,7 @@ mod message_codec {
     use super::*;
 
     #[test]
-    fn encode_decode_roundtrip() {
+    fn encode_decode_roundtrip() -> Result<(), Box<dyn std::error::Error>> {
         let codec = MessageCodec::new();
 
         let header = MessageHeader::new(message_types::DEVICE, 100, 1);
@@ -247,10 +248,12 @@ mod message_codec {
 
         assert!(codec.is_valid_size(encoded.len()));
 
-        let decoded = MessageHeader::decode(&encoded).expect("decode should succeed");
+        let decoded = MessageHeader::decode(&encoded)?;
         assert_eq!(decoded.message_type, message_types::DEVICE);
         assert_eq!(decoded.payload_len, 100);
         assert_eq!(decoded.sequence, 1);
+
+        Ok(())
     }
 
     #[test]

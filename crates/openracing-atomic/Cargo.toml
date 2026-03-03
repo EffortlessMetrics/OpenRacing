@@ -9,6 +9,10 @@ description = "RT-safe atomic counters and metrics primitives for OpenRacing"
 keywords = ["real-time", "atomic", "metrics", "counters", "no-std"]
 categories = ["concurrency", "embedded", "no-std"]
 
+
+[package.metadata.cargo-udeps.ignore]
+normal = ["workspace-hack"]
+
 [dependencies]
 crossbeam = { workspace = true, optional = true }
 workspace-hack = { version = "0.1", path = "../../workspace-hack" }

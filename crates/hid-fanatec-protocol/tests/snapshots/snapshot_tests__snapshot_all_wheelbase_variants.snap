@@ -1,0 +1,14 @@
+---
+source: crates/hid-fanatec-protocol/tests/snapshot_tests.rs
+expression: "lines.join(\"\\n\")"
+---
+0x0001 ClubSport V2: model=ClubSportV2, torque=8.0Nm, cpr=4096, 1kHz=false, max_rot=900°, highres=false, sign_fix=true
+0x0004 ClubSport V2.5: model=ClubSportV25, torque=8.0Nm, cpr=4096, 1kHz=false, max_rot=900°, highres=false, sign_fix=true
+0x0005 CSL Elite PS4: model=CslElite, torque=6.0Nm, cpr=4096, 1kHz=false, max_rot=1080°, highres=false, sign_fix=true
+0x0E03 CSL Elite: model=CslElite, torque=6.0Nm, cpr=4096, 1kHz=false, max_rot=1080°, highres=false, sign_fix=true
+0x0006 DD1: model=Dd1, torque=20.0Nm, cpr=16384, 1kHz=true, max_rot=2520°, highres=true, sign_fix=true
+0x0007 DD2: model=Dd2, torque=25.0Nm, cpr=16384, 1kHz=true, max_rot=2520°, highres=true, sign_fix=true
+0x0011 CSR Elite: model=CsrElite, torque=5.0Nm, cpr=4096, 1kHz=false, max_rot=900°, highres=false, sign_fix=false
+0x0020 CSL DD: model=CslDd, torque=8.0Nm, cpr=16384, 1kHz=true, max_rot=2520°, highres=true, sign_fix=true
+0x0024 GT DD Pro: model=GtDdPro, torque=8.0Nm, cpr=16384, 1kHz=true, max_rot=2520°, highres=true, sign_fix=true
+0x01E9 ClubSport DD: model=ClubSportDd, torque=12.0Nm, cpr=16384, 1kHz=true, max_rot=2520°, highres=true, sign_fix=true

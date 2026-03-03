@@ -1,0 +1,5 @@
+---
+source: crates/hid-vrs-protocol/tests/snapshot_encoding.rs
+expression: "format!(\"{report:02X?}\")"
+---
+[0B, 00, 00, 00, 00, 00, 00, 00]

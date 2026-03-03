@@ -1,0 +1,5 @@
+---
+source: crates/hid-moza-protocol/tests/snapshot_encoding.rs
+expression: "format!(\"{id:?}\")"
+---
+MozaDeviceIdentity { product_id: 3, name: "Moza SR-P Pedals", category: Pedals, topology_hint: StandaloneUsb, supports_ffb: false }

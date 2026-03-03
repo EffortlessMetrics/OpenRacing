@@ -1,0 +1,19 @@
+---
+source: crates/hid-logitech-protocol/tests/snapshot_encoding.rs
+expression: snapshot
+---
+LOGITECH_VENDOR_ID: 0x046D
+report_ids:
+  STANDARD_INPUT: 0x01
+  VENDOR: 0xF8
+  CONSTANT_FORCE: 0x12
+  DEVICE_GAIN: 0x16
+commands:
+  NATIVE_MODE: 0x0A
+  SET_RANGE: 0x81
+  SET_AUTOCENTER: 0x14
+  SET_LEDS: 0x12
+  MODE_SWITCH: 0x09
+sizes:
+  CONSTANT_FORCE_REPORT_LEN: 4
+  VENDOR_REPORT_LEN: 7

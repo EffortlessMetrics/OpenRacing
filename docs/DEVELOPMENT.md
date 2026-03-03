@@ -13,6 +13,8 @@ All significant architectural decisions are documented in ADRs located in `docs/
 - [ADR-0004: Real-Time Scheduling Architecture](adr/0004-rt-scheduling-architecture.md)
 - [ADR-0005: Plugin Architecture](adr/0005-plugin-architecture.md)
 - [ADR-0006: Safety Interlocks and Fault Management](adr/0006-safety-interlocks.md)
+- [ADR-0007: Multi-Vendor HID Protocol Architecture](adr/0007-multi-vendor-hid-protocol-architecture.md)
+- [ADR-0008: Game Auto-Configure and Telemetry Bridge](adr/0008-game-auto-configure-telemetry-bridge.md)
 
 ## Continuous Integration
 

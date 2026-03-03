@@ -22,6 +22,7 @@ use tokio::net::UdpSocket as TokioUdpSocket;
 use tokio::sync::mpsc;
 use tracing::{debug, info, warn};
 
+/// Verified: standard Codemasters Mode 1 UDP port (SimHub wiki, in-game settings).
 const DEFAULT_PORT: u16 = 20777;
 const MAX_PACKET_SIZE: usize = 2048;
 const DEFAULT_HEARTBEAT_TIMEOUT_MS: u64 = 1_500;

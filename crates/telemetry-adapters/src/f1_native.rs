@@ -52,6 +52,7 @@ use tracing::{debug, info, warn};
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
+/// Verified: standard Codemasters/EA F1 UDP port since F1 2019 (EA forums, SimHub).
 const DEFAULT_PORT: u16 = 20777;
 const DEFAULT_HEARTBEAT_TIMEOUT_MS: u64 = 2_000;
 const MAX_PACKET_BYTES: usize = 2048;
@@ -567,18 +568,33 @@ pub fn normalize(
         0.0
     };
 
+    // Tire array reorder: F1 data is [RL, RR, FL, FR], builder expects [FL, FR, RL, RR]
+    let tire_pressures = [
+        telem.tyres_pressure[2],
+        telem.tyres_pressure[3],
+        telem.tyres_pressure[0],
+        telem.tyres_pressure[1],
+    ];
+    let tire_temps = [
+        telem.tyres_surface_temperature[2],
+        telem.tyres_surface_temperature[3],
+        telem.tyres_surface_temperature[0],
+        telem.tyres_surface_temperature[1],
+    ];
+
     NormalizedTelemetry::builder()
         .speed_ms(speed_ms)
         .rpm(rpm)
+        .max_rpm(f32::from(status.max_rpm))
         .gear(telem.gear)
+        .throttle(telem.throttle)
+        .brake(telem.brake)
+        .steering_angle(telem.steer)
+        .engine_temp_c(f32::from(telem.engine_temperature))
+        .tire_pressures_psi(tire_pressures)
+        .tire_temps_c(tire_temps)
         .flags(flags)
         .track_id(track_id)
-        .extended(
-            "throttle".to_string(),
-            TelemetryValue::Float(telem.throttle),
-        )
-        .extended("brake".to_string(), TelemetryValue::Float(telem.brake))
-        .extended("steer".to_string(), TelemetryValue::Float(telem.steer))
         .extended(
             "drs_active".to_string(),
             TelemetryValue::Boolean(drs_active),
@@ -620,10 +636,6 @@ pub fn normalize(
             TelemetryValue::Float(status.engine_power_mguk),
         )
         .extended(
-            "engine_temperature_c".to_string(),
-            TelemetryValue::Integer(i32::from(telem.engine_temperature)),
-        )
-        .extended(
             "rpm_fraction".to_string(),
             TelemetryValue::Float(rpm_fraction),
         )
@@ -646,38 +658,6 @@ pub fn normalize(
         .extended(
             "tyre_age_laps".to_string(),
             TelemetryValue::Integer(i32::from(status.tyre_age_laps)),
-        )
-        .extended(
-            "tyre_pressure_rl_psi".to_string(),
-            TelemetryValue::Float(telem.tyres_pressure[0]),
-        )
-        .extended(
-            "tyre_pressure_rr_psi".to_string(),
-            TelemetryValue::Float(telem.tyres_pressure[1]),
-        )
-        .extended(
-            "tyre_pressure_fl_psi".to_string(),
-            TelemetryValue::Float(telem.tyres_pressure[2]),
-        )
-        .extended(
-            "tyre_pressure_fr_psi".to_string(),
-            TelemetryValue::Float(telem.tyres_pressure[3]),
-        )
-        .extended(
-            "tyre_surface_temp_rl_c".to_string(),
-            TelemetryValue::Integer(i32::from(telem.tyres_surface_temperature[0])),
-        )
-        .extended(
-            "tyre_surface_temp_rr_c".to_string(),
-            TelemetryValue::Integer(i32::from(telem.tyres_surface_temperature[1])),
-        )
-        .extended(
-            "tyre_surface_temp_fl_c".to_string(),
-            TelemetryValue::Integer(i32::from(telem.tyres_surface_temperature[2])),
-        )
-        .extended(
-            "tyre_surface_temp_fr_c".to_string(),
-            TelemetryValue::Integer(i32::from(telem.tyres_surface_temperature[3])),
         )
         .extended(
             "tyre_inner_temp_rl_c".to_string(),
@@ -1320,10 +1300,7 @@ mod tests {
         assert_eq!(norm.gear, 8);
         assert!((norm.rpm - 14000.0).abs() < 0.1, "rpm mismatch");
         assert!(norm.flags.ers_available, "ers_available should be true");
-        assert_eq!(
-            norm.extended.get("throttle"),
-            Some(&TelemetryValue::Float(1.0))
-        );
+        assert!((norm.throttle - 1.0).abs() < f32::EPSILON);
         Ok(())
     }
 

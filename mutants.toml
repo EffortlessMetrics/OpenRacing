@@ -1,12 +1,17 @@
 ﻿# cargo-mutants configuration
 #
-# Three scopes:
-#   1. Safety-critical engine code - torque limits, fault detection, emergency stop
-#   2. FFB / filter / pipeline crates - force feedback calculations, torque filtering
-#   3. HID protocol encoding - all crates with encode functions (wrong encoding = wrong torque)
+# Four scopes:
+#   1. Safety-critical engine code — torque limits, fault detection, emergency stop
+#   2. FFB / filter / pipeline crates — force feedback calculations, torque filtering
+#   3. HID protocol encoding — all crates with encode functions (wrong encoding = wrong torque)
+#   4. Safety infrastructure — watchdogs, RT scheduling, atomic counters
 #
-# Run all: cargo mutants
-# Run engine only: cargo mutants --package racing-wheel-engine --test-timeout 60
+# Run all:          cargo mutants
+# Run engine only:  cargo mutants --package racing-wheel-engine
+# Run HID only:     cargo mutants --package 'racing-wheel-hid-*'
+#
+# Tip: set CARGO_TARGET_DIR to an isolated directory for mutation runs to
+#      avoid rebuilding your main target dir.
 
 [packages]
 include = [
@@ -22,6 +27,16 @@ include = [
     # RT pipeline compilation and execution
     "openracing-pipeline",
 
+    # --- Safety infrastructure (watchdogs, RT scheduling, lock-free counters) ---
+    # Hardware watchdog state machine (arm/disarm/timeout transitions)
+    "openracing-hardware-watchdog",
+    # Plugin execution watchdog, fault detection, quarantine
+    "openracing-watchdog",
+    # Real-time 1 kHz scheduler, PLL drift correction, jitter tracking
+    "openracing-scheduler",
+    # Lock-free atomic counters used on the RT path for safety event metrics
+    "openracing-atomic",
+
     # --- HID protocol encoding (wrong bytes = wrong torque on hardware) ---
     "racing-wheel-hid-moza-protocol",
     "racing-wheel-hid-cammus-protocol",
@@ -33,18 +48,25 @@ include = [
     "racing-wheel-hid-thrustmaster-protocol",
     "racing-wheel-hid-vrs-protocol",
     "racing-wheel-hid-leo-bodnar-protocol",
+    # Asetek — torque encoding + input parsing
+    "hid-asetek-protocol",
+    # Simucube — dual-report torque encoding + PID effects
+    "hid-simucube-protocol",
+    # Heusinkveld — pedal input parsing (braking safety)
+    "hid-heusinkveld-protocol",
 
     # --- Supporting crates ---
     "racing-wheel-ks",
     "racing-wheel-input-maps",
 ]
 
-# Skip trivial and auto-generated code
+# Skip trivial, auto-generated, and test-only code
 exclude_globs = [
     "crates/integration-tests/**",
     "crates/schemas/**",
     "crates/telemetry-*/**",
     "crates/service/**",
+    "crates/openracing-test-helpers/**",
     "workspace-hack/**",
     "benches/**",
     "**/target/**",
@@ -52,18 +74,27 @@ exclude_globs = [
     "fuzz/**",
 ]
 
-# 3x test timeout for mutation test runs
+# --- Timeout tuning ---
+# RT tests finish quickly, so the multiplier can be modest.  The minimum
+# prevents false positives when a single test is sub-second.
 timeout_multiplier = 3.0
+minimum_test_timeout = 20
+
+# --- Parallelism ---
+# Leave unset to auto-detect from CPU count.  Override with --jobs=N on CI.
 
 # Skip mutants in test-only code and pure boilerplate
 exclude_re = [
     "#\\[test\\]",
     "#\\[cfg\\(test\\)\\]",
-    # Debug / Display fmt - not safety-relevant
+    # Debug / Display fmt — not safety-relevant
     "fn fmt\\(&self",
     # Derived serde boilerplate
     "fn serialize<",
     "fn deserialize<",
     # Clone boilerplate
     "fn clone\\(&self\\)",
+    # Trivial trait delegations
+    "fn as_ref\\(&self\\)",
+    "fn deref\\(&self\\)",
 ]

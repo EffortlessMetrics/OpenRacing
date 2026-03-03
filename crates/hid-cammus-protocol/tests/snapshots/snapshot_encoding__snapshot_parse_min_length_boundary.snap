@@ -1,0 +1,5 @@
+---
+source: crates/hid-cammus-protocol/tests/snapshot_encoding.rs
+expression: "format!(\"{err}\")"
+---
+"report too short: got 7 bytes, need 12"

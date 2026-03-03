@@ -12,10 +12,15 @@ on:
       - 'crates/schemas/**'
       - '.github/workflows/schema-validation.yml'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   validate-schemas:
     name: Validate Schemas
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     
     steps:
     - name: Checkout code
@@ -103,6 +108,7 @@ jobs:
   test-json-schema:
     name: Test JSON Schema
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     
     steps:
     - name: Checkout code

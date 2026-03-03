@@ -294,14 +294,16 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_mock_hid_device() {
+    fn test_mock_hid_device() -> Result<(), Box<dyn std::error::Error>> {
         let mut device = MockHidDevice::new();
-        device.write_feature_report(&[1, 2, 3]).unwrap();
-        device.write_output_report(&[4, 5, 6]).unwrap();
+        device.write_feature_report(&[1, 2, 3])?;
+        device.write_output_report(&[4, 5, 6])?;
 
         assert_eq!(device.feature_reports().len(), 1);
         assert_eq!(device.output_reports().len(), 1);
         assert_eq!(device.total_writes(), 2);
+
+        Ok(())
     }
 
     #[test]
@@ -312,13 +314,15 @@ mod tests {
     }
 
     #[test]
-    fn test_mock_hid_device_clear() {
+    fn test_mock_hid_device_clear() -> Result<(), Box<dyn std::error::Error>> {
         let mut device = MockHidDevice::new();
-        device.write_feature_report(&[1, 2, 3]).unwrap();
+        device.write_feature_report(&[1, 2, 3])?;
         assert!(!device.feature_reports().is_empty());
 
         device.clear();
         assert!(device.feature_reports().is_empty());
+
+        Ok(())
     }
 
     #[test]
@@ -364,7 +368,7 @@ mod tests {
     }
 
     #[test]
-    fn test_mock_telemetry_port() {
+    fn test_mock_telemetry_port() -> Result<(), Box<dyn std::error::Error>> {
         let mut port = MockTelemetryPort::new();
         port.add(MockTelemetryData::new().with_rpm(1000.0));
         port.add(MockTelemetryData::new().with_rpm(2000.0));
@@ -372,15 +376,17 @@ mod tests {
 
         assert_eq!(port.len(), 3);
 
-        let first = port.next().unwrap();
+        let first = port.next().ok_or("expected first telemetry data")?;
         assert_eq!(first.rpm, 1000.0);
 
-        let second = port.next().unwrap();
+        let second = port.next().ok_or("expected second telemetry data")?;
         assert_eq!(second.rpm, 2000.0);
 
         port.reset();
-        let first_again = port.next().unwrap();
+        let first_again = port.next().ok_or("expected telemetry data after reset")?;
         assert_eq!(first_again.rpm, 1000.0);
+
+        Ok(())
     }
 
     #[test]

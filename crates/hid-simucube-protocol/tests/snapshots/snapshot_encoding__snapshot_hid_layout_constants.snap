@@ -1,0 +1,5 @@
+---
+source: crates/hid-simucube-protocol/tests/snapshot_encoding.rs
+expression: "format!(\"additional_axes={}, button_count={}, button_bytes={}, joystick_min_bytes={}, angle_sensor_bits={}, angle_sensor_max=0x{:X}\",\nsc::HID_ADDITIONAL_AXES, sc::HID_BUTTON_COUNT, sc::HID_BUTTON_BYTES,\nsc::HID_JOYSTICK_REPORT_MIN_BYTES, sc::ANGLE_SENSOR_BITS,\nsc::ANGLE_SENSOR_MAX,)"
+---
+additional_axes=6, button_count=128, button_bytes=16, joystick_min_bytes=32, angle_sensor_bits=22, angle_sensor_max=0x3FFFFF

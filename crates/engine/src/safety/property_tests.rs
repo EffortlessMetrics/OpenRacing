@@ -188,4 +188,92 @@ proptest! {
             prop_assert_eq!(service.state(), &SafetyState::SafeTorque);
         }
     }
+
+    // --- Subnormal handling in torque path ---
+
+    #[test]
+    fn prop_clamp_torque_subnormal_treated_as_finite(
+        safe in safe_torque_strategy(),
+        high in high_torque_strategy(),
+    ) {
+        let service = SafetyService::new(safe, high);
+        // f32::MIN_POSITIVE / 2 is subnormal
+        let subnormal = f32::MIN_POSITIVE / 2.0;
+        let result = service.clamp_torque_nm(subnormal);
+        // Subnormal is finite, so it should pass through (clamped to ±safe)
+        prop_assert!(result.is_finite(), "subnormal must produce finite output");
+        prop_assert!(result.abs() <= safe + f32::EPSILON);
+    }
+
+    #[test]
+    fn prop_clamp_torque_neg_subnormal(
+        safe in safe_torque_strategy(),
+        high in high_torque_strategy(),
+    ) {
+        let service = SafetyService::new(safe, high);
+        let neg_subnormal = -(f32::MIN_POSITIVE / 2.0);
+        let result = service.clamp_torque_nm(neg_subnormal);
+        prop_assert!(result.is_finite());
+        prop_assert!(result.abs() <= safe + f32::EPSILON);
+    }
+
+    // --- Torque symmetry: positive and negative limits must be equal ---
+
+    #[test]
+    fn prop_clamp_torque_symmetric(
+        safe in safe_torque_strategy(),
+        high in high_torque_strategy(),
+        requested in 0.01f32..200.0,
+    ) {
+        let service = SafetyService::new(safe, high);
+        let pos = service.clamp_torque_nm(requested);
+        let neg = service.clamp_torque_nm(-requested);
+        let diff = (pos + neg).abs();
+        prop_assert!(diff < 0.001, "clamp must be symmetric: +{} vs -{}", pos, neg);
+    }
+
+    // --- Faulted state is zero regardless of requested magnitude ---
+
+    #[test]
+    fn prop_faulted_clamp_extreme_values(
+        safe in safe_torque_strategy(),
+        high in high_torque_strategy(),
+        requested in proptest::num::f32::ANY,
+    ) {
+        let mut service = SafetyService::new(safe, high);
+        service.report_fault(FaultType::Overcurrent);
+        let result = service.clamp_torque_nm(requested);
+        prop_assert_eq!(result, 0.0, "faulted must always yield 0.0");
+    }
+
+    // --- Max torque in every non-faulted state is > 0 ---
+
+    #[test]
+    fn prop_non_faulted_max_torque_positive(
+        safe in safe_torque_strategy(),
+        high in high_torque_strategy(),
+    ) {
+        let service = SafetyService::new(safe, high);
+        prop_assert!(
+            service.max_torque_nm() > 0.0,
+            "non-faulted max torque must be positive"
+        );
+    }
+
+    // --- Clamp idempotent: clamping twice gives same result ---
+
+    #[test]
+    fn prop_clamp_idempotent(
+        safe in safe_torque_strategy(),
+        high in high_torque_strategy(),
+        requested in -200.0f32..=200.0,
+    ) {
+        let service = SafetyService::new(safe, high);
+        let once = service.clamp_torque_nm(requested);
+        let twice = service.clamp_torque_nm(once);
+        prop_assert!(
+            (once - twice).abs() < f32::EPSILON,
+            "clamp must be idempotent"
+        );
+    }
 }

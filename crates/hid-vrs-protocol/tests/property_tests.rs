@@ -30,6 +30,7 @@ fn test_wheelbase_pids_detected() -> Result<(), Box<dyn std::error::Error>> {
     let wheelbase_pids = [
         product_ids::DIRECTFORCE_PRO,
         product_ids::DIRECTFORCE_PRO_V2,
+        product_ids::R295,
     ];
     for pid in wheelbase_pids {
         assert!(
@@ -50,6 +51,7 @@ fn test_wheelbase_pids_detected() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn test_non_wheelbase_pids_not_detected() -> Result<(), Box<dyn std::error::Error>> {
     let non_wheelbase = [
+        product_ids::PEDALS,
         product_ids::PEDALS_V1,
         product_ids::PEDALS_V2,
         product_ids::HANDBRAKE,
@@ -69,6 +71,8 @@ fn test_non_wheelbase_pids_not_detected() -> Result<(), Box<dyn std::error::Erro
 fn test_pid_constant_values() -> Result<(), Box<dyn std::error::Error>> {
     assert_eq!(product_ids::DIRECTFORCE_PRO, 0xA355);
     assert_eq!(product_ids::DIRECTFORCE_PRO_V2, 0xA356);
+    assert_eq!(product_ids::R295, 0xA44C);
+    assert_eq!(product_ids::PEDALS, 0xA3BE);
     assert_eq!(product_ids::PEDALS_V1, 0xA357);
     assert_eq!(product_ids::PEDALS_V2, 0xA358);
     assert_eq!(product_ids::HANDBRAKE, 0xA359);

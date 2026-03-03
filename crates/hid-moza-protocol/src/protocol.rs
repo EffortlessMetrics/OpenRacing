@@ -1,6 +1,25 @@
 //! Moza protocol handler: initialization handshake, input parsing, FFB configuration.
 //!
 //! Supports V1 (0x000x) and V2 (0x001x) hardware revisions.
+//!
+//! # Serial configuration protocol (from boxflat community tool)
+//!
+//! Moza devices expose a CDC ACM serial interface for settings/configuration
+//! alongside the HID interface used for input/FFB. The serial protocol uses:
+//!
+//! - **Baud rate**: 115200 (8N1)
+//! - **Message start byte**: `0x7E`
+//! - **Frame format**: `[0x7E, length, group, device_id, cmd_id..., payload..., checksum]`
+//! - **Checksum**: `(magic_value + sum_of_all_frame_bytes) % 256`, magic = 13
+//! - **Device IDs (serial)**: base=19, wheel=23, pedals=25, shifter=26,
+//!   handbrake=27, e-stop=28, hub/main=18
+//!
+//! This crate handles the **HID** interface (input reports and FFB output),
+//! not the serial configuration protocol. The serial protocol details are
+//! documented here for cross-reference.
+//!
+//! Source: <https://github.com/Lawstorant/boxflat> (`data/serial.yml`,
+//! `boxflat/serial_handler.py`, `boxflat/moza_command.py`)
 
 #![deny(static_mut_refs)]
 
@@ -600,6 +619,15 @@ impl VendorProtocol for MozaProtocol {
             return Ok(());
         }
 
+        // Device initialization sequence (HID feature reports):
+        //   1. [optional] Enable high-torque mode (report 0x02) — unlocks full amplitude
+        //   2. Start input reports (report 0x03) — device begins sending input data
+        //   3. Set FFB mode (report 0x11) — Standard (0x00) or Direct (0x02)
+        //
+        // This sequence is confirmed by USB capture analysis. The serial/CDC ACM
+        // configuration interface (115200 baud, 0x7E framing) is separate and not
+        // needed for FFB operation.
+
         info!(
             "Initializing Moza {:?} (V{})",
             self.model,
@@ -684,6 +712,11 @@ impl VendorProtocol for MozaProtocol {
         Ok(())
     }
 
+    /// Get FFB configuration including quirks.
+    ///
+    /// `fix_conditional_direction` matches the Linux kernel
+    /// `HID_PIDFF_QUIRK_FIX_CONDITIONAL_DIRECTION` applied to all Moza
+    /// wheelbases in `hid-universal-pidff.c`.
     fn get_ffb_config(&self) -> FfbConfig {
         FfbConfig {
             fix_conditional_direction: true,

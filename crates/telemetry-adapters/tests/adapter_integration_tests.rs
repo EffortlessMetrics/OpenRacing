@@ -12,14 +12,12 @@ use racing_wheel_telemetry_adapters::{
     RFactor2Adapter, RaceRoomAdapter, TelemetryAdapter,
 };
 
+mod helpers;
+use helpers::write_f32_le;
+
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 
 // ─── Helper ──────────────────────────────────────────────────────────────────
-
-fn write_f32_le(buf: &mut [u8], offset: usize, value: f32) {
-    let bytes = value.to_le_bytes();
-    buf[offset..offset + 4].copy_from_slice(&bytes);
-}
 
 fn write_i32_le(buf: &mut [u8], offset: usize, value: i32) {
     let bytes = value.to_le_bytes();

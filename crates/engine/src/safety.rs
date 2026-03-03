@@ -659,6 +659,10 @@ pub mod watchdog {
 #[cfg(test)]
 pub mod comprehensive_tests;
 #[cfg(test)]
+mod hardening_coverage_tests;
+#[cfg(test)]
+mod interlock_behavior_tests;
+#[cfg(test)]
 mod property_tests;
 #[cfg(test)]
 mod tests;

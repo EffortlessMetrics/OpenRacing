@@ -13,6 +13,11 @@ readme = "README.md"
 keywords = ["pipeline", "ffb", "real-time", "filter", "compilation"]
 categories = ["embedded", "game-development", "algorithms"]
 
+
+[package.metadata.cargo-udeps.ignore]
+normal = ["workspace-hack"]
+development = ["proptest", "tokio-test"]
+
 [dependencies]
 openracing-curves = { workspace = true }
 openracing-errors = { workspace = true }

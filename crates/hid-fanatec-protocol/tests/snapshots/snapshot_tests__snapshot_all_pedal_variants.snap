@@ -1,0 +1,9 @@
+---
+source: crates/hid-fanatec-protocol/tests/snapshot_tests.rs
+expression: "lines.join(\"\\n\")"
+---
+0x1839 ClubSport Pedals V1/V2: model=ClubSportV1V2, axes=2
+0x183B ClubSport Pedals V3: model=ClubSportV3, axes=3
+0x6204 CSL Elite Pedals: model=CslElitePedals, axes=2
+0x6205 CSL Pedals LC: model=CslPedalsLc, axes=3
+0x6206 CSL Pedals V2: model=CslPedalsV2, axes=3

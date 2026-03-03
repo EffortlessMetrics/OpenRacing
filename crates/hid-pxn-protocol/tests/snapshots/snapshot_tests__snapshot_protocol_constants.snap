@@ -1,0 +1,5 @@
+---
+source: crates/hid-pxn-protocol/tests/snapshot_tests.rs
+expression: "format!(\"VENDOR_ID={:#06X}, V10={:#06X}, V12={:#06X}, V12_LITE={:#06X}, \\\n         V12_LITE_2={:#06X}, GT987={:#06X}\",\npxn::VENDOR_ID, pxn::PRODUCT_V10, pxn::PRODUCT_V12, pxn::PRODUCT_V12_LITE,\npxn::PRODUCT_V12_LITE_2, pxn::PRODUCT_GT987,)"
+---
+"VENDOR_ID=0x11FF, V10=0x3245, V12=0x1212, V12_LITE=0x1112, V12_LITE_2=0x1211, GT987=0x2141"

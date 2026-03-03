@@ -5,13 +5,13 @@
 //! Do not change only one of the two — they must stay in sync.
 
 use hid_asetek_protocol::{
-    ASETEK_FORTE_PID, ASETEK_INVICTA_PID, ASETEK_LAPRIMA_PID, ASETEK_TONY_KANAAN_PID,
-    ASETEK_VENDOR_ID,
+    ASETEK_FORTE_PID, ASETEK_FORTE_PEDALS_PID, ASETEK_INVICTA_PID, ASETEK_INVICTA_PEDALS_PID,
+    ASETEK_LAPRIMA_PID, ASETEK_LAPRIMA_PEDALS_PID, ASETEK_TONY_KANAAN_PID, ASETEK_VENDOR_ID,
 };
 
 /// Asetek VID must be 0x2433 (Asetek A/S, official USB VID registry entry).
 ///
-/// Source: USB VID registry (the-sz.com); JacKeTUs/linux-steering-wheels.
+/// ✅ Confirmed by: the-sz.com, devicehunt.com, Linux `hid-ids.h`.
 #[test]
 fn vendor_id_is_2433() {
     assert_eq!(
@@ -22,7 +22,7 @@ fn vendor_id_is_2433() {
 
 /// Asetek Invicta (27 Nm) PID must be 0xF300.
 ///
-/// Source: JacKeTUs/linux-steering-wheels (Platinum support entry).
+/// ✅ Confirmed by: Linux `hid-ids.h`, `hid-universal-pidff.c`, JacKeTUs.
 #[test]
 fn invicta_pid_is_f300() {
     assert_eq!(ASETEK_INVICTA_PID, 0xF300);
@@ -30,7 +30,7 @@ fn invicta_pid_is_f300() {
 
 /// Asetek Forte (18 Nm) PID must be 0xF301.
 ///
-/// Source: JacKeTUs/linux-steering-wheels (Platinum support entry).
+/// ✅ Confirmed by: Linux `hid-ids.h`, `hid-universal-pidff.c`, JacKeTUs.
 #[test]
 fn forte_pid_is_f301() {
     assert_eq!(ASETEK_FORTE_PID, 0xF301);
@@ -38,7 +38,8 @@ fn forte_pid_is_f301() {
 
 /// Asetek La Prima (12 Nm) PID must be 0xF303.
 ///
-/// Source: JacKeTUs/linux-steering-wheels (Platinum support entry).
+/// ✅ Confirmed by: Linux `hid-ids.h`, `hid-universal-pidff.c`, JacKeTUs,
+/// moonrail/asetek_wheelbase_cli.
 #[test]
 fn laprima_pid_is_f303() {
     assert_eq!(ASETEK_LAPRIMA_PID, 0xF303);
@@ -46,8 +47,73 @@ fn laprima_pid_is_f303() {
 
 /// Asetek Tony Kanaan Edition PID must be 0xF306.
 ///
-/// Source: JacKeTUs/linux-steering-wheels (Platinum support entry).
+/// ✅ Confirmed by: Linux `hid-ids.h`, `hid-universal-pidff.c`, JacKeTUs.
 #[test]
 fn tony_kanaan_pid_is_f306() {
     assert_eq!(ASETEK_TONY_KANAAN_PID, 0xF306);
+}
+
+/// Asetek Invicta Pedals PID must be 0xF100.
+///
+/// ✅ Confirmed by: `JacKeTUs/simracing-hwdb` `90-asetek.hwdb`.
+#[test]
+fn invicta_pedals_pid_is_f100() {
+    assert_eq!(ASETEK_INVICTA_PEDALS_PID, 0xF100);
+}
+
+/// Asetek Forte Pedals PID must be 0xF101.
+///
+/// ✅ Confirmed by: `JacKeTUs/simracing-hwdb` `90-asetek.hwdb`.
+#[test]
+fn forte_pedals_pid_is_f101() {
+    assert_eq!(ASETEK_FORTE_PEDALS_PID, 0xF101);
+}
+
+/// Asetek La Prima Pedals PID must be 0xF102.
+///
+/// ⚠️ Community-sourced: follows `0xF10x` pedal pattern.
+#[test]
+fn laprima_pedals_pid_is_f102() {
+    assert_eq!(ASETEK_LAPRIMA_PEDALS_PID, 0xF102);
+}
+
+/// lib.rs re-exported VENDOR_ID must equal ids.rs ASETEK_VENDOR_ID.
+#[test]
+fn lib_vendor_id_matches_ids_module() {
+    assert_eq!(
+        hid_asetek_protocol::VENDOR_ID,
+        ASETEK_VENDOR_ID,
+        "lib.rs VENDOR_ID and ids.rs ASETEK_VENDOR_ID must match"
+    );
+}
+
+/// lib.rs PRODUCT_ID constants must match ids.rs ASETEK_*_PID constants.
+#[test]
+fn lib_product_ids_match_ids_module() {
+    assert_eq!(hid_asetek_protocol::PRODUCT_ID_FORTE, ASETEK_FORTE_PID);
+    assert_eq!(hid_asetek_protocol::PRODUCT_ID_INVICTA, ASETEK_INVICTA_PID);
+    assert_eq!(hid_asetek_protocol::PRODUCT_ID_LAPRIMA, ASETEK_LAPRIMA_PID);
+}
+
+/// All 7 known PIDs (wheelbases + pedals) must be pairwise unique.
+#[test]
+fn all_pids_are_unique() {
+    let pids: [u16; 7] = [
+        ASETEK_INVICTA_PID,
+        ASETEK_FORTE_PID,
+        ASETEK_LAPRIMA_PID,
+        ASETEK_TONY_KANAAN_PID,
+        ASETEK_INVICTA_PEDALS_PID,
+        ASETEK_FORTE_PEDALS_PID,
+        ASETEK_LAPRIMA_PEDALS_PID,
+    ];
+    for i in 0..pids.len() {
+        for j in (i + 1)..pids.len() {
+            assert_ne!(
+                pids[i], pids[j],
+                "PID index {i} ({:#06x}) collides with index {j} ({:#06x})",
+                pids[i], pids[j]
+            );
+        }
+    }
 }

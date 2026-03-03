@@ -1,0 +1,9 @@
+---
+source: crates/hid-cube-controls-protocol/tests/snapshot_tests.rs
+expression: summary
+---
+PROVISIONAL Cube Controls constants (VID shared with STMicroelectronics):
+VID=0x0483 (STMicro shared)
+GT_PRO PID=0x0c73 (provisional)
+FORMULA_PRO PID=0x0c74 (provisional)
+CSX3 PID=0x0c75 (provisional)

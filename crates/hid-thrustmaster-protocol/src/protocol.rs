@@ -202,4 +202,81 @@ mod tests {
         let proto = ThrustmasterProtocol::new(0xFFFF);
         assert_eq!(proto.model(), Model::Unknown);
     }
+
+    /// T500RS must be recognized as a wheelbase with FFB and use its own
+    /// higher torque value (5.0 Nm, above T300RS at 4.0 Nm).
+    #[test]
+    fn test_new_t500rs() {
+        let proto = ThrustmasterProtocol::new(product_ids::T500_RS);
+        assert_eq!(proto.model(), Model::T500RS);
+        assert!(
+            (proto.max_torque_nm() - 5.0).abs() < 0.01,
+            "T500RS torque must be 5.0 Nm, got {}",
+            proto.max_torque_nm()
+        );
+        assert_eq!(proto.rotation_range(), 1080);
+        assert!(proto.supports_ffb());
+        assert!(proto.is_wheelbase());
+    }
+
+    /// T500RS encoder must use the correct torque scale (5.0 Nm).
+    /// At half torque (2.5 Nm), the encoded magnitude should be 5000.
+    #[test]
+    fn test_t500rs_encoder_scale() {
+        let proto = ThrustmasterProtocol::new(product_ids::T500_RS);
+        let enc = proto.create_encoder();
+        let mut out = [0u8; EFFECT_REPORT_LEN];
+        enc.encode(2.5, &mut out);
+        let mag = i16::from_le_bytes([out[2], out[3]]);
+        assert_eq!(mag, 5000, "2.5 Nm at 5.0 Nm max should encode to 5000");
+    }
+
+    /// Kill mutant: replace product_id() → 0 or 1.
+    #[test]
+    fn test_product_id_preserves_value() {
+        let pid = product_ids::T300_RS;
+        let proto = ThrustmasterProtocol::new(pid);
+        assert_eq!(
+            proto.product_id(),
+            pid,
+            "product_id must return the original PID"
+        );
+
+        let pid2 = product_ids::T818;
+        let proto2 = ThrustmasterProtocol::new(pid2);
+        assert_eq!(proto2.product_id(), pid2, "product_id must return T818 PID");
+
+        // Ensure it's not a constant 0 or 1
+        assert_ne!(proto.product_id(), 0);
+        assert_ne!(proto.product_id(), 1);
+    }
+
+    /// Kill mutant: replace supports_ffb with true (T80 must NOT support FFB).
+    #[test]
+    fn test_protocol_supports_ffb_false() {
+        let proto = ThrustmasterProtocol::new(product_ids::T80);
+        assert!(!proto.supports_ffb(), "T80 protocol must NOT support FFB");
+    }
+
+    /// Kill mutants: replace init/reset with ().
+    /// Init must transition state to Ready; reset must transition back to Uninitialized.
+    #[test]
+    fn test_protocol_init_and_reset_state_transitions() {
+        let mut proto = ThrustmasterProtocol::new(product_ids::T300_RS);
+        assert_eq!(proto.init_state(), ThrustmasterInitState::Uninitialized);
+
+        proto.init();
+        assert_eq!(
+            proto.init_state(),
+            ThrustmasterInitState::Ready,
+            "init() must set state to Ready"
+        );
+
+        proto.reset();
+        assert_eq!(
+            proto.init_state(),
+            ThrustmasterInitState::Uninitialized,
+            "reset() must set state to Uninitialized"
+        );
+    }
 }

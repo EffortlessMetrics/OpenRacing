@@ -5,3 +5,4 @@
 # It is recommended to check this file in to source control so that
 # everyone who runs the test benefits from these saved cases.
 cc 055f3dfc3d7e052aaf1039a14060b4a0644e7071d63ef15a819646371c9e130f # shrinks to rate = 406610
+cc bc94d24f8e0370894522aac5bc1a37aa8db5fe70c43af1485ef9a147d331eeab # shrinks to rate = 293774

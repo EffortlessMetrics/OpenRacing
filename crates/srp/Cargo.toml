@@ -13,5 +13,9 @@ unused_must_use = "deny"
 [lints.clippy]
 unwrap_used = "deny"
 
+
+[package.metadata.cargo-udeps.ignore]
+normal = ["workspace-hack"]
+
 [dependencies]
 workspace-hack = { version = "0.1", path = "../../workspace-hack" }

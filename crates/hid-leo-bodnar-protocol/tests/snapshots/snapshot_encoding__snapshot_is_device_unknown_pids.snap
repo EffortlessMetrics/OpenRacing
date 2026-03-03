@@ -1,0 +1,5 @@
+---
+source: crates/hid-leo-bodnar-protocol/tests/snapshot_encoding.rs
+expression: "summary.join(\"\\n\")"
+---
+"0x0000: is_device=false\n0xFFFF: is_device=false\n0x1234: is_device=false"

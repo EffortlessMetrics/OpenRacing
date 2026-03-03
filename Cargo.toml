@@ -23,6 +23,7 @@ members = [
     "crates/hid-ffbeast-protocol",
     "crates/hid-cammus-protocol",
     "crates/hid-cube-controls-protocol",
+    "crates/hid-pxn-protocol",
     "crates/simplemotion-v2",
     "crates/openracing-atomic",
     "crates/openracing-tracing",
@@ -57,6 +58,7 @@ members = [
     "crates/plugins",
     "crates/integration-tests",
     "crates/compat",
+    "crates/hid-capture",
     "crates/openracing-capture-ids",
     "crates/telemetry-core",
     "crates/telemetry-config",
@@ -87,6 +89,7 @@ resolver = "2"
 [workspace.package]
 version = "0.1.0"
 edition = "2024"
+rust-version = "1.85.0"
 license = "MIT OR Apache-2.0"
 authors = ["Racing Wheel Suite Contributors"]
 repository = "https://github.com/EffortlessMetrics/OpenRacing"
@@ -157,6 +160,7 @@ proptest = "1.9.0"
 quickcheck = "1.0.3"
 quickcheck_macros = "1.1.0"
 hdrhistogram = "7.5.4"
+insta = "1.42.2"
 mockall = "0.14.0"
 wiremock = "0.6.5"
 statistical = "1.0.0"

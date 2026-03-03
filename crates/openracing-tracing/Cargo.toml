@@ -13,6 +13,10 @@ readme = "README.md"
 keywords = ["tracing", "observability", "realtime", "etw", "tracepoints"]
 categories = ["development-tools::profiling", "os"]
 
+
+[package.metadata.cargo-udeps.ignore]
+normal = ["workspace-hack"]
+
 [dependencies]
 thiserror = { workspace = true }
 tracing = { workspace = true }

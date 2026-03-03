@@ -1,0 +1,87 @@
+---
+source: crates/telemetry-adapters/tests/snapshots_sim_racing.rs
+expression: normalized
+---
+speed_ms: 33.3
+steering_angle: -0.07874016
+throttle: 1
+brake: 0
+clutch: 0
+rpm: 6800
+max_rpm: 9000
+gear: 3
+num_gears: 7
+lateral_g: 0.15295742
+longitudinal_g: 0.8004772
+vertical_g: 1.0003417
+slip_ratio: 0
+slip_angle_fl: 0
+slip_angle_fr: 0
+slip_angle_rl: 0
+slip_angle_rr: 0
+tire_temps_c:
+  - 82
+  - 84
+  - 80
+  - 81
+tire_pressures_psi:
+  - 23.931269
+  - 24.221346
+  - 23.641193
+  - 23.78623
+ffb_scalar: 0
+ffb_torque_nm: 0
+flags:
+  yellow_flag: false
+  red_flag: false
+  blue_flag: false
+  checkered_flag: false
+  green_flag: true
+  pit_limiter: false
+  in_pits: false
+  drs_available: false
+  drs_active: false
+  ers_available: false
+  ers_active: false
+  launch_control: false
+  traction_control: false
+  abs_active: false
+  engine_limiter: false
+  safety_car: false
+  formation_lap: false
+  session_paused: false
+position: 0
+lap: 0
+current_lap_time_s: 0
+best_lap_time_s: 0
+last_lap_time_s: 0
+delta_ahead_s: 0
+delta_behind_s: 0
+fuel_percent: 0.85
+engine_temp_c: 88
+extended:
+  boost_amount:
+    type: Integer
+    value: 0
+  crash_state:
+    type: Integer
+    value: 0
+  fuel_capacity:
+    type: Integer
+    value: 90
+  fuel_pressure_kpa:
+    type: Integer
+    value: 340
+  odometer_km:
+    type: Float
+    value: 112.3
+  oil_pressure_kpa:
+    type: Integer
+    value: 400
+  oil_temp_c:
+    type: Integer
+    value: 105
+  water_pressure_kpa:
+    type: Integer
+    value: 130
+sequence: 0

@@ -1,0 +1,5 @@
+---
+source: crates/hid-logitech-protocol/tests/snapshot_tests.rs
+expression: "format!(\"DrivingForceEX.supports_range_command() = {}\",\nlg::LogitechModel::DrivingForceEX.supports_range_command())"
+---
+DrivingForceEX.supports_range_command() = false

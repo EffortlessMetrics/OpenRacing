@@ -15,6 +15,10 @@ pub mod hbp_report {
 }
 
 /// Moza HID Report IDs.
+///
+/// These report IDs are used on the HID interface for device control and FFB.
+/// The serial/CDC ACM interface uses a separate framing protocol (see
+/// `protocol.rs` module-level docs).
 pub mod report_ids {
     /// Device info query
     pub const DEVICE_INFO: u8 = 0x01;

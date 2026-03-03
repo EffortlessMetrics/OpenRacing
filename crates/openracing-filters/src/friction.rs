@@ -120,26 +120,15 @@ pub fn friction_filter(frame: &mut Frame, state: &FrictionState) {
 mod tests {
     use super::*;
 
-    fn create_test_frame(ffb_in: f32, wheel_speed: f32) -> Frame {
-        Frame {
-            ffb_in,
-            torque_out: ffb_in,
-            wheel_speed,
-            hands_off: false,
-            ts_mono_ns: 0,
-            seq: 0,
-        }
-    }
-
     #[test]
     fn test_friction_filter_speed_adaptive() {
         let state = FrictionState::new(0.1, true);
 
-        let mut frame_low = create_test_frame(0.0, 1.0);
+        let mut frame_low = Frame::from_ffb(0.0, 1.0);
         friction_filter(&mut frame_low, &state);
         let friction_low = frame_low.torque_out.abs();
 
-        let mut frame_high = create_test_frame(0.0, 10.0);
+        let mut frame_high = Frame::from_ffb(0.0, 10.0);
         friction_filter(&mut frame_high, &state);
         let friction_high = frame_high.torque_out.abs();
 
@@ -151,11 +140,11 @@ mod tests {
     fn test_friction_filter_non_adaptive() {
         let state = FrictionState::new(0.1, false);
 
-        let mut frame_low = create_test_frame(0.0, 1.0);
+        let mut frame_low = Frame::from_ffb(0.0, 1.0);
         friction_filter(&mut frame_low, &state);
         let friction_low = frame_low.torque_out.abs();
 
-        let mut frame_high = create_test_frame(0.0, 10.0);
+        let mut frame_high = Frame::from_ffb(0.0, 10.0);
         friction_filter(&mut frame_high, &state);
         let friction_high = frame_high.torque_out.abs();
 
@@ -167,7 +156,7 @@ mod tests {
     fn test_friction_filter_zero_speed() {
         let state = FrictionState::new(0.1, true);
 
-        let mut frame = create_test_frame(0.5, 0.0);
+        let mut frame = Frame::from_ffb(0.5, 0.0);
         friction_filter(&mut frame, &state);
 
         // No friction at zero speed
@@ -178,11 +167,11 @@ mod tests {
     fn test_friction_filter_opposes_motion() {
         let state = FrictionState::new(0.1, false);
 
-        let mut frame_pos = create_test_frame(0.0, 1.0);
+        let mut frame_pos = Frame::from_ffb(0.0, 1.0);
         friction_filter(&mut frame_pos, &state);
         assert!(frame_pos.torque_out < 0.0); // Opposes positive speed
 
-        let mut frame_neg = create_test_frame(0.0, -1.0);
+        let mut frame_neg = Frame::from_ffb(0.0, -1.0);
         friction_filter(&mut frame_neg, &state);
         assert!(frame_neg.torque_out > 0.0); // Opposes negative speed
     }
@@ -191,7 +180,7 @@ mod tests {
     fn test_friction_filter_proportional() {
         let state = FrictionState::new(0.2, false);
 
-        let mut frame = create_test_frame(0.0, 1.0);
+        let mut frame = Frame::from_ffb(0.0, 1.0);
         friction_filter(&mut frame, &state);
 
         // Friction should be proportional to coefficient
@@ -204,7 +193,7 @@ mod tests {
 
         for i in 0..1000 {
             let speed = ((i as f32) * 0.01 - 5.0).clamp(-10.0, 10.0);
-            let mut frame = create_test_frame(0.5, speed);
+            let mut frame = Frame::from_ffb(0.5, speed);
             friction_filter(&mut frame, &state);
 
             assert!(frame.torque_out.is_finite());
@@ -215,7 +204,7 @@ mod tests {
     #[test]
     fn test_friction_filter_extreme_coefficient() {
         let state_high = FrictionState::new(10.0, false);
-        let mut frame = create_test_frame(0.0, 1.0);
+        let mut frame = Frame::from_ffb(0.0, 1.0);
         friction_filter(&mut frame, &state_high);
         assert!(frame.torque_out.is_finite());
     }

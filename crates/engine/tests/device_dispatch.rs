@@ -7,7 +7,8 @@
 //! 2. Unrecognised VID/PID returns `None`.
 //! 3. The generic HID PID fallback activates iff `has_hid_pid_capability` is `true`.
 //! 4. Shared VID 0x0483 (STM) disambiguates VRS, Cube Controls, and legacy Simagic.
-//! 5. Shared VID 0x16D0 (MCS) disambiguates Heusinkveld, Simucube 2, and legacy Simagic.
+//! 5. Shared VID 0x16D0 (MCS) disambiguates Simucube 2 and legacy Simagic.
+//! 6. VID 0x04D8 (Microchip) routes Heusinkveld PIDs only.
 //!
 //! Per-vendor handler behaviour (FFB config, init sequences, report encoding) is
 //! covered by each vendor's unit-test module (`src/hid/vendor/*_tests.rs`).  Some
@@ -30,8 +31,10 @@ const VID_MOZA: u16 = 0x346E;
 const VID_THRUSTMASTER: u16 = 0x044F;
 /// STMicroelectronics — shared by VRS, Cube Controls (provisional), and legacy Simagic
 const VID_STM: u16 = 0x0483;
-/// OpenMoko / MCS — shared by Heusinkveld, Simucube 2, and legacy Simagic
+/// OpenMoko / MCS — shared by Simucube 2 and legacy Simagic
 const VID_MCS: u16 = 0x16D0;
+/// Microchip Technology — used by Heusinkveld pedals
+const VID_HEUSINKVELD: u16 = 0x04D8;
 /// Shen Zhen Simagic Technology Co., Ltd. (EVO generation)
 const VID_SIMAGIC_EVO: u16 = 0x3670;
 /// Asetek A/S (SimSports)
@@ -58,7 +61,7 @@ const PID_THRUSTMASTER_T818: u16 = 0xB69B;
 const PID_VRS_DIRECTFORCE_PRO: u16 = 0xA355; // VRS on 0x0483
 const PID_CUBE_CONTROLS_GT_PRO: u16 = 0x0C73; // Cube Controls on 0x0483 (provisional)
 const PID_SIMAGIC_ALPHA: u16 = 0x0522; // Legacy Simagic on 0x0483
-const PID_HEUSINKVELD_SPRINT: u16 = 0x1156; // Heusinkveld on 0x16D0
+const PID_HEUSINKVELD_SPRINT: u16 = 0xF6D0; // Heusinkveld on 0x04D8
 const PID_SIMUCUBE_2_SPORT: u16 = 0x0D61; // Simucube 2 on 0x16D0
 const PID_SIMAGIC_M10: u16 = 0x0D5A; // Legacy Simagic on 0x16D0
 const PID_SIMAGIC_EVO_SPORT: u16 = 0x0500;
@@ -269,22 +272,9 @@ fn disambiguate_0x0483_no_cross_routing() -> Result<(), Box<dyn std::error::Erro
     Ok(())
 }
 
-// ══ 5. VID 0x16D0 (MCS): Heusinkveld vs Simucube 2 vs legacy Simagic ═════════
+// ══ 5. VID 0x16D0 (MCS): Simucube 2 vs legacy Simagic ════════════════════════
 
-/// Heusinkveld pedal PIDs (0x1156–0x1158) on VID 0x16D0 must not be misrouted
-/// to Simucube or Simagic.
-#[test]
-fn disambiguate_0x16d0_heusinkveld_pids() -> Result<(), Box<dyn std::error::Error>> {
-    for pid in [0x1156u16, 0x1157, 0x1158] {
-        assert!(
-            get_vendor_protocol(VID_MCS, pid).is_some(),
-            "Heusinkveld PID 0x{pid:04X} on VID 0x16D0 must resolve to a handler"
-        );
-    }
-    Ok(())
-}
-
-/// Simucube 2 PIDs on VID 0x16D0 must not be misrouted to Heusinkveld or Simagic.
+/// Simucube 2 PIDs on VID 0x16D0 must not be misrouted to Simagic.
 #[test]
 fn disambiguate_0x16d0_simucube_pids() -> Result<(), Box<dyn std::error::Error>> {
     // Sport=0x0D61, Pro=0x0D60, Ultimate=0x0D5F, ActivePedal=0x0D62, WirelessWheel=0x0D63
@@ -298,19 +288,43 @@ fn disambiguate_0x16d0_simucube_pids() -> Result<(), Box<dyn std::error::Error>>
 }
 
 /// A legacy Simagic PID (0x0D5A, M10) on VID 0x16D0 must resolve to the Simagic
-/// handler, not Heusinkveld or Simucube.
+/// handler, not Simucube.
 #[test]
 fn disambiguate_0x16d0_simagic_legacy_pid() -> Result<(), Box<dyn std::error::Error>> {
     assert!(get_vendor_protocol(VID_MCS, PID_SIMAGIC_M10).is_some());
     Ok(())
 }
 
-/// All three sub-vendors on 0x16D0 must each resolve; no PID range may shadow
-/// another.
+/// Both sub-vendors on 0x16D0 must each resolve; no PID range may shadow another.
 #[test]
-fn disambiguate_0x16d0_all_three_vendors_resolve() -> Result<(), Box<dyn std::error::Error>> {
-    assert!(get_vendor_protocol(VID_MCS, PID_HEUSINKVELD_SPRINT).is_some());
+fn disambiguate_0x16d0_both_vendors_resolve() -> Result<(), Box<dyn std::error::Error>> {
     assert!(get_vendor_protocol(VID_MCS, PID_SIMUCUBE_2_SPORT).is_some());
     assert!(get_vendor_protocol(VID_MCS, PID_SIMAGIC_M10).is_some());
+    Ok(())
+}
+
+// ══ 6. VID 0x04D8 (Microchip / Heusinkveld) ═════════════════════════════════
+
+/// Heusinkveld pedal PIDs (0xF6D0–0xF6D3) on VID 0x04D8 must dispatch.
+#[test]
+fn disambiguate_0x04d8_heusinkveld_pids() -> Result<(), Box<dyn std::error::Error>> {
+    // Use the constant for Sprint, then iterate additional PIDs
+    assert!(
+        get_vendor_protocol(VID_HEUSINKVELD, PID_HEUSINKVELD_SPRINT).is_some(),
+        "Heusinkveld Sprint on VID 0x04D8 must resolve to a handler"
+    );
+    for pid in [0xF6D2u16, 0xF6D3] {
+        assert!(
+            get_vendor_protocol(VID_HEUSINKVELD, pid).is_some(),
+            "Heusinkveld PID 0x{pid:04X} on VID 0x04D8 must resolve to a handler"
+        );
+    }
+    Ok(())
+}
+
+/// Unknown PIDs on VID 0x04D8 must NOT dispatch (generic Microchip VID).
+#[test]
+fn vid_0x04d8_unknown_pid_returns_none() -> Result<(), Box<dyn std::error::Error>> {
+    assert!(get_vendor_protocol(VID_HEUSINKVELD, 0xFFFF).is_none());
     Ok(())
 }

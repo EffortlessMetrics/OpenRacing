@@ -6,10 +6,19 @@
 //! ## Verification against ACC broadcasting protocol v4
 //!
 //! Verified 2025-07 against the Kunos ACC Broadcasting SDK documentation and
-//! reference C# implementation (`ksBroadcastingNetworkProtocol`).
+//! reference C# implementation (`ksBroadcastingNetworkProtocol`), cross-referenced
+//! against community implementations:
+//!   - mdjarv/assettocorsasharedmemory (C# shared memory, `Physics.cs`, `Graphics.cs`,
+//!     `StaticInfo.cs`)
+//!   - dabde/acc_shared_mem_access_python (Python ctypes `SPageFilePhysics`,
+//!     `SPageFileGraphic`, `SPageFileStatic`)
+//!   - gotzl/pyacc (Python ctypes, includes ACC 1.8+ fields such as `waterTemp`,
+//!     `brakePressure`, `kerbVibration`)
+//!
+//! ### Broadcasting protocol (UDP, port 9000) — used by this adapter
 //!
 //! - **Transport**: UDP broadcasting protocol on port 9000 (not shared memory). ✓
-//! - **Protocol version**: 4 (current). ✓
+//! - **Protocol version**: 4 (current as of ACC 1.9+). ✓
 //! - **Message types**: 1=RegistrationResult, 2=RealtimeUpdate,
 //!   3=RealtimeCarUpdate, 4=EntryList, 5=TrackData, 6=EntryListCar,
 //!   7=BroadcastingEvent. ✓
@@ -17,6 +26,27 @@
 //!   connectionPassword(string), updateInterval(i32), commandPassword(string). ✓
 //! - **Gear encoding**: wire 0=R, 1=N, 2=1st; normalised via `−1` offset. ✓
 //! - **Readonly flag**: byte==0 means read-only (matches Kunos C# SDK). ✓
+//! - **String encoding**: u16-LE length prefix followed by UTF-8 bytes. ✓
+//! - **LapInfo sub-struct**: lapTimeMs(i32), carIndex(u16), driverIndex(u16),
+//!   splitCount(u8), splits(i32 × N), isInvalid(u8), isValidForBest(u8),
+//!   isOutlap(u8), isInlap(u8). ✓
+//!
+//! ### ACC shared memory API (reference, not used here)
+//!
+//! ACC also exposes telemetry through Windows memory-mapped files (MMFs).
+//! These are **not** used by this adapter but are documented here for
+//! cross-reference with the broadcasting protocol fields:
+//!
+//! | MMF name                    | Struct            | Key fields (version) |
+//! |-----------------------------|-------------------|----------------------|
+//! | `Local\acpmf_physics`       | `SPageFilePhysics`  | gear, speedKmh, gas, brake, fuel, rpms, steerAngle, brakeTemp[4], clutch (1.10+), brakeBias (1.11+), waterTemp (1.8+) |
+//! | `Local\acpmf_graphics`      | `SPageFileGraphic`  | packetId, status, session, currentTime, position, tyreCompound, flag, penalty (1.8+), rainLights (1.8+), wiperLV (1.8+) |
+//! | `Local\acpmf_static`        | `SPageFileStatic`   | smVersion, carModel, track, maxRpm, maxFuel, sectorCount, hasDRS, hasERS (1.7.1+), isOnline (1.13+), dryTyresName (1.8+) |
+//!
+//! All shared memory structs use `Pack=4`, `CharSet=Unicode` (UTF-16LE
+//! `wchar` strings). Version tags (e.g. "since 1.5", "since 1.8") indicate
+//! when fields were appended; older versions zero-fill beyond their known
+//! size.
 
 use crate::{
     NormalizedTelemetry, TelemetryAdapter, TelemetryFlags, TelemetryFrame, TelemetryReceiver,
@@ -44,6 +74,7 @@ const MSG_TRACK_DATA: u8 = 5;
 const MSG_ENTRY_LIST_CAR: u8 = 6;
 const MSG_BROADCASTING_EVENT: u8 = 7;
 
+/// Verified: Kunos ACC Broadcasting SDK v4 default port.
 const DEFAULT_ACC_PORT: u16 = 9000;
 const MAX_PACKET_SIZE: usize = 4096;
 
@@ -300,11 +331,14 @@ struct RegistrationResult {
 #[derive(Debug, Clone, PartialEq)]
 struct RealtimeUpdate {
     focused_car_index: Option<u16>,
+    session_type: u8,
+    phase: u8,
     session_time_ms: f32,
     ambient_temp_c: u8,
     track_temp_c: u8,
     rain_level: f32,
     wetness: f32,
+    best_session_lap_ms: i32,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -316,8 +350,12 @@ struct RealtimeCarUpdate {
     position: u16,
     cup_position: u16,
     track_position: u16,
+    spline_position: f32,
     laps: u16,
     delta_ms: i32,
+    best_session_lap_ms: i32,
+    last_lap_ms: i32,
+    current_lap_ms: i32,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -365,40 +403,51 @@ impl ACCSessionState {
     }
 
     fn normalize_car(&self, car: &RealtimeCarUpdate) -> NormalizedTelemetry {
-        let flags = TelemetryFlags {
+        let mut flags = TelemetryFlags {
             in_pits: matches!(car.car_location, 2..=4),
             pit_limiter: car.car_location == 2,
             ..TelemetryFlags::default()
         };
 
+        // ACC phase 3 = FormationLap
+        if let Some(realtime) = &self.latest_realtime
+            && realtime.phase == 3
+        {
+            flags.formation_lap = true;
+        }
+
         let track_id = self.track_name.clone();
         let speed_ms = f32::from(car.speed_kmh) / 3.6;
         let car_id = format!("car_{}", car.car_index);
+
+        // Convert lap times from milliseconds to seconds; negative values
+        // (used by ACC as "no time") are clamped to zero by the builder.
+        let best_lap_s = car.best_session_lap_ms.max(0) as f32 / 1000.0;
+        let last_lap_s = car.last_lap_ms.max(0) as f32 / 1000.0;
+        let current_lap_s = car.current_lap_ms.max(0) as f32 / 1000.0;
 
         let mut builder = NormalizedTelemetry::builder()
             .speed_ms(speed_ms)
             .gear(car.gear)
             .flags(flags)
             .car_id(car_id)
+            .position(car.position.min(255) as u8)
+            .lap(car.laps)
+            .best_lap_time_s(best_lap_s)
+            .last_lap_time_s(last_lap_s)
+            .current_lap_time_s(current_lap_s)
             .extended(
-                "position".to_string(),
-                TelemetryValue::Integer(i32::from(car.position)),
-            )
-            .extended(
-                "cup_position".to_string(),
+                "cup_position",
                 TelemetryValue::Integer(i32::from(car.cup_position)),
             )
             .extended(
-                "track_position".to_string(),
+                "track_position",
                 TelemetryValue::Integer(i32::from(car.track_position)),
             )
+            .extended("delta_ms", TelemetryValue::Integer(car.delta_ms))
             .extended(
-                "laps".to_string(),
-                TelemetryValue::Integer(i32::from(car.laps)),
-            )
-            .extended(
-                "delta_ms".to_string(),
-                TelemetryValue::Integer(car.delta_ms),
+                "spline_position",
+                TelemetryValue::Float(car.spline_position),
             );
 
         if let Some(track_name) = track_id {
@@ -406,27 +455,34 @@ impl ACCSessionState {
         }
 
         if let Some(realtime) = &self.latest_realtime {
+            let best_session_lap_s = realtime.best_session_lap_ms.max(0) as f32 / 1000.0;
             builder = builder
                 .extended(
-                    "session_time_ms".to_string(),
+                    "session_type",
+                    TelemetryValue::Integer(i32::from(realtime.session_type)),
+                )
+                .extended(
+                    "session_phase",
+                    TelemetryValue::Integer(i32::from(realtime.phase)),
+                )
+                .extended(
+                    "session_time_ms",
                     TelemetryValue::Float(realtime.session_time_ms),
                 )
                 .extended(
-                    "ambient_temp_c".to_string(),
+                    "best_session_lap_s",
+                    TelemetryValue::Float(best_session_lap_s),
+                )
+                .extended(
+                    "ambient_temp_c",
                     TelemetryValue::Integer(i32::from(realtime.ambient_temp_c)),
                 )
                 .extended(
-                    "track_temp_c".to_string(),
+                    "track_temp_c",
                     TelemetryValue::Integer(i32::from(realtime.track_temp_c)),
                 )
-                .extended(
-                    "rain_level".to_string(),
-                    TelemetryValue::Float(realtime.rain_level),
-                )
-                .extended(
-                    "wetness".to_string(),
-                    TelemetryValue::Float(realtime.wetness),
-                );
+                .extended("rain_level", TelemetryValue::Float(realtime.rain_level))
+                .extended("wetness", TelemetryValue::Float(realtime.wetness));
         }
 
         builder.build()
@@ -502,6 +558,8 @@ fn parse_inbound_message(data: &[u8]) -> Result<ACCInboundMessage> {
     Ok(message)
 }
 
+// Verified: Kunos SDK RegistrationResult — connectionId(i32), success(u8 bool),
+// readonly(u8, 0=readonly), errorMsg(string). Field order matches SDK v4.
 fn parse_registration_result(reader: &mut PacketReader<'_>) -> Result<RegistrationResult> {
     Ok(RegistrationResult {
         connection_id: reader.read_i32_le()?,
@@ -512,11 +570,18 @@ fn parse_registration_result(reader: &mut PacketReader<'_>) -> Result<Registrati
     })
 }
 
+// Verified: Kunos SDK RealtimeUpdate — eventIndex(u16), sessionIndex(u16),
+// sessionType(u8), phase(u8), sessionTime(f32), sessionEndTime(f32),
+// focusedCarIndex(i32), cameraSet(str), camera(str), hudPage(str),
+// isReplayPlaying(u8), [if replay: replaySessionTime(f32),
+// replayRemainingTime(f32)], timeOfDay(f32), ambientTemp(u8),
+// trackTemp(u8), clouds(u8/10), rainLevel(u8/10), wetness(u8/10),
+// bestSessionLap(LapInfo). Field order matches SDK v4.
 fn parse_realtime_update(reader: &mut PacketReader<'_>) -> Result<RealtimeUpdate> {
     let _event_index = reader.read_u16_le()?;
     let _session_index = reader.read_u16_le()?;
-    let _session_type = reader.read_u8()?;
-    let _phase = reader.read_u8()?;
+    let session_type = reader.read_u8()?;
+    let phase = reader.read_u8()?;
 
     let session_time_ms = reader.read_f32_le()?;
     let _session_end_time_ms = reader.read_f32_le()?;
@@ -541,18 +606,27 @@ fn parse_realtime_update(reader: &mut PacketReader<'_>) -> Result<RealtimeUpdate
     let rain_level = f32::from(reader.read_u8()?) / 10.0;
     let wetness = f32::from(reader.read_u8()?) / 10.0;
 
-    let _best_session_lap = read_lap_time_ms(reader)?;
+    let best_session_lap_ms = read_lap_time_ms(reader)?;
 
     Ok(RealtimeUpdate {
         focused_car_index,
+        session_type,
+        phase,
         session_time_ms,
         ambient_temp_c,
         track_temp_c,
         rain_level,
         wetness,
+        best_session_lap_ms,
     })
 }
 
+// Verified: Kunos SDK RealtimeCarUpdate — carIndex(u16), driverIndex(u16),
+// driverCount(u8), gear(u8), worldPosX(f32), worldPosY(f32), yaw(f32),
+// carLocation(u8), kmh(u16), position(u16), cupPosition(u16),
+// trackPosition(u16), splinePosition(f32), laps(u16), delta(i32),
+// bestSessionLap(LapInfo), lastLap(LapInfo), currentLap(LapInfo).
+// Field order matches SDK v4.
 fn parse_realtime_car_update(reader: &mut PacketReader<'_>) -> Result<RealtimeCarUpdate> {
     let car_index = reader.read_u16_le()?;
     let _driver_index = reader.read_u16_le()?;
@@ -573,13 +647,13 @@ fn parse_realtime_car_update(reader: &mut PacketReader<'_>) -> Result<RealtimeCa
     let position = reader.read_u16_le()?;
     let cup_position = reader.read_u16_le()?;
     let track_position = reader.read_u16_le()?;
-    let _spline_position = reader.read_f32_le()?;
+    let spline_position = reader.read_f32_le()?;
     let laps = reader.read_u16_le()?;
     let delta_ms = reader.read_i32_le()?;
 
-    let _best_session_lap = read_lap_time_ms(reader)?;
-    let _last_lap = read_lap_time_ms(reader)?;
-    let _current_lap = read_lap_time_ms(reader)?;
+    let best_session_lap_ms = read_lap_time_ms(reader)?;
+    let last_lap_ms = read_lap_time_ms(reader)?;
+    let current_lap_ms = read_lap_time_ms(reader)?;
 
     Ok(RealtimeCarUpdate {
         car_index,
@@ -589,11 +663,16 @@ fn parse_realtime_car_update(reader: &mut PacketReader<'_>) -> Result<RealtimeCa
         position,
         cup_position,
         track_position,
+        spline_position,
         laps,
         delta_ms,
+        best_session_lap_ms,
+        last_lap_ms,
+        current_lap_ms,
     })
 }
 
+// Verified: Kunos SDK EntryList — connectionId(i32), carCount(u16), carIds(u16 × N).
 fn parse_entry_list(reader: &mut PacketReader<'_>) -> Result<()> {
     let _connection_id = reader.read_i32_le()?;
     let car_count = usize::from(reader.read_u16_le()?);
@@ -603,6 +682,9 @@ fn parse_entry_list(reader: &mut PacketReader<'_>) -> Result<()> {
     Ok(())
 }
 
+// Verified: Kunos SDK TrackData — connectionId(i32), trackName(str), trackId(i32),
+// trackMeters(i32), cameraSets[cameraSetName(str), cameras[cameraName(str)]],
+// hudPages[hudPage(str)]. Field order matches SDK v4.
 fn parse_track_data(reader: &mut PacketReader<'_>) -> Result<TrackData> {
     let _connection_id = reader.read_i32_le()?;
     let track_name = read_acc_string(reader)?;
@@ -626,6 +708,10 @@ fn parse_track_data(reader: &mut PacketReader<'_>) -> Result<TrackData> {
     Ok(TrackData { track_name })
 }
 
+// Verified: Kunos SDK EntryListCar — carIndex(u16), carModelType(u8),
+// teamName(str), raceNumber(i32), cupCategory(u8), currentDriverIndex(u8),
+// nationality(u16), drivers[firstName(str), lastName(str), shortName(str),
+// category(u8), nationality(u16)]. Field order matches SDK v4.
 fn parse_entry_list_car(reader: &mut PacketReader<'_>) -> Result<()> {
     let _car_index = reader.read_u16_le()?;
     let _car_model_type = reader.read_u8()?;
@@ -647,6 +733,8 @@ fn parse_entry_list_car(reader: &mut PacketReader<'_>) -> Result<()> {
     Ok(())
 }
 
+// Verified: Kunos SDK BroadcastingEvent — type(u8), msg(str),
+// timeMs(i32), carId(i32). Field order matches SDK v4.
 fn parse_broadcasting_event(reader: &mut PacketReader<'_>) -> Result<()> {
     let _kind = reader.read_u8()?;
     let _message = read_acc_string(reader)?;
@@ -655,6 +743,9 @@ fn parse_broadcasting_event(reader: &mut PacketReader<'_>) -> Result<()> {
     Ok(())
 }
 
+// Verified: Kunos SDK LapInfo — lapTimeMs(i32), carIndex(u16),
+// driverIndex(u16), splitCount(u8), splits(i32 × N), isInvalid(u8),
+// isValidForBest(u8), isOutlap(u8), isInlap(u8). Field order matches SDK v4.
 fn read_lap_time_ms(reader: &mut PacketReader<'_>) -> Result<i32> {
     let lap_time_ms = reader.read_i32_le()?;
     let _car_index = reader.read_u16_le()?;
@@ -977,10 +1068,7 @@ mod tests {
         assert_eq!(normalized.gear, 5);
         assert_eq!(normalized.track_id, Some("monza".to_string()));
         assert_eq!(normalized.car_id, Some("car_7".to_string()));
-        assert_eq!(
-            normalized.extended.get("laps"),
-            Some(&TelemetryValue::Integer(12))
-        );
+        assert_eq!(normalized.lap, 12);
         assert_eq!(
             normalized.extended.get("delta_ms"),
             Some(&TelemetryValue::Integer(-120))
@@ -1004,6 +1092,27 @@ mod tests {
         let mut reader = PacketReader::new(&bytes);
         let decoded = read_acc_string(&mut reader)?;
         assert_eq!(decoded, "ferrari_296_gt3");
+        Ok(())
+    }
+
+    // ── Insta snapshot tests ──────────────────────────────────────────────
+
+    #[test]
+    fn snapshot_acc_full_sequence() -> TestResult {
+        let mut state = ACCSessionState::default();
+
+        let track_msg = parse_inbound_message(FIXTURE_TRACK_DATA_MONZA)?;
+        state.update_and_normalize(&track_msg);
+
+        let realtime_msg = parse_inbound_message(FIXTURE_REALTIME_UPDATE_FOCUSED_CAR_7)?;
+        state.update_and_normalize(&realtime_msg);
+
+        let car_msg = parse_inbound_message(FIXTURE_REALTIME_CAR_UPDATE_CAR_7)?;
+        let normalized = state
+            .update_and_normalize(&car_msg)
+            .ok_or("expected normalized telemetry from fixture")?;
+
+        insta::assert_yaml_snapshot!(normalized);
         Ok(())
     }
 

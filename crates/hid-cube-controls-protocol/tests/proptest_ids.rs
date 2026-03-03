@@ -21,7 +21,7 @@ proptest! {
             "CUBE_CONTROLS_VENDOR_ID must always be 0x0483 (STMicroelectronics)");
     }
 
-    /// All three confirmed PIDs must always be recognised by is_cube_controls_product.
+    /// All three provisional PIDs must always be recognised by is_cube_controls_product.
     #[test]
     fn prop_all_known_pids_recognised(idx in 0usize..3usize) {
         let pids = [
@@ -121,6 +121,23 @@ proptest! {
         prop_assert!(model.display_name().contains("Cube Controls"),
             "{model:?} display_name must contain 'Cube Controls', got '{}'",
             model.display_name());
+    }
+
+    /// All provisional PID constants must be non-zero.
+    ///
+    /// A zero PID would match "no device" on most USB stacks, so even
+    /// provisional placeholders must be non-zero.
+    #[test]
+    fn prop_all_pid_constants_non_zero(_unused: u8) {
+        let pids = [
+            ("GT_PRO", CUBE_CONTROLS_GT_PRO_PID),
+            ("FORMULA_PRO", CUBE_CONTROLS_FORMULA_PRO_PID),
+            ("CSX3", CUBE_CONTROLS_CSX3_PID),
+        ];
+        for (name, pid) in &pids {
+            prop_assert_ne!(*pid, 0u16,
+                "PID constant {} must be non-zero (provisional or not)", name);
+        }
     }
 
     /// max_torque_nm for known models must be 0.0 Nm (input devices, not wheelbases).

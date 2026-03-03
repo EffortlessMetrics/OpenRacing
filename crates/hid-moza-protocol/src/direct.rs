@@ -2,6 +2,20 @@
 //!
 //! Provides a pure, testable encoder for Moza report `0x20`.
 //! Intentionally performs no I/O and no heap allocation.
+//!
+//! # Torque command wire format (report ID 0x20, 8 bytes)
+//!
+//! | Byte | Field                    | Description                            |
+//! |------|--------------------------|----------------------------------------|
+//! | 0    | Report ID                | Always `0x20` (DIRECT_TORQUE)          |
+//! | 1-2  | Torque (i16 LE)          | Signed percent-of-max, full-scale ±32767 |
+//! | 3    | Flags                    | bit 0 = motor enable, bit 1 = slew-rate |
+//! | 4-5  | Slew rate (u16 LE)       | Nm/s when bit 1 set, else 0            |
+//! | 6-7  | Reserved                 | Always 0                               |
+//!
+//! The torque value is a signed 16-bit integer representing a fraction of the
+//! wheelbase's maximum torque (model-dependent: R5=5.5Nm, R9=9Nm, etc.).
+//! Positive values = clockwise torque.
 
 #![deny(static_mut_refs)]
 

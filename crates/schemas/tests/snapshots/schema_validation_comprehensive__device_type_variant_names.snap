@@ -1,0 +1,13 @@
+---
+source: crates/schemas/tests/schema_validation_comprehensive.rs
+expression: names
+---
+[
+  "Other",
+  "WheelBase",
+  "SteeringWheel",
+  "Pedals",
+  "Shifter",
+  "Handbrake",
+  "ButtonBox"
+]

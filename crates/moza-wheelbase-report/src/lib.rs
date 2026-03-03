@@ -339,6 +339,285 @@ mod tests {
         assert_eq!(view.axis_u16_or_zero(5), 0);
     }
 
+    #[test]
+    fn raw_report_byte_accessor() -> Result<(), Box<dyn std::error::Error>> {
+        let data = [0x01, 0xAA, 0xBB, 0xCC];
+        let view = RawWheelbaseReport::new(&data);
+        assert_eq!(view.byte(0), Some(0x01));
+        assert_eq!(view.byte(1), Some(0xAA));
+        assert_eq!(view.byte(4), None);
+        Ok(())
+    }
+
+    #[test]
+    fn raw_report_report_bytes_returns_full_slice() {
+        let data = [0x01, 0x02, 0x03];
+        let view = RawWheelbaseReport::new(&data);
+        assert_eq!(view.report_bytes(), &[0x01, 0x02, 0x03]);
+    }
+
+    #[test]
+    fn raw_report_id_defaults_to_zero_on_empty() {
+        let view = RawWheelbaseReport::new(&[]);
+        assert_eq!(view.report_id(), 0);
+    }
+
+    #[test]
+    fn parse_wheelbase_report_rejects_empty_input() {
+        assert!(parse_wheelbase_report(&[]).is_none());
+    }
+
+    #[test]
+    fn parse_wheelbase_pedal_axes_returns_none_for_wrong_id() {
+        let report = [0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00];
+        assert!(parse_wheelbase_pedal_axes(&report).is_none());
+    }
+
+    #[test]
+    fn wheelbase_pedal_axes_raw_eq() {
+        let a = WheelbasePedalAxesRaw {
+            throttle: 100,
+            brake: 200,
+            clutch: Some(300),
+            handbrake: None,
+        };
+        let b = a;
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn wheelbase_input_raw_eq() {
+        let a = WheelbaseInputRaw {
+            steering: 0x1234,
+            pedals: WheelbasePedalAxesRaw {
+                throttle: 100,
+                brake: 200,
+                clutch: None,
+                handbrake: None,
+            },
+            buttons: [0u8; input_report::BUTTONS_LEN],
+            hat: 0,
+            funky: 0,
+            rotary: [0u8; input_report::ROTARY_LEN],
+        };
+        let b = a;
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn input_report_constants_are_consistent() {
+        // Use const assertions for compile-time-known values
+        const _: () = assert!(input_report::STEERING_START < input_report::THROTTLE_START);
+        const _: () = assert!(input_report::THROTTLE_START < input_report::BRAKE_START);
+        const _: () = assert!(input_report::BRAKE_START < input_report::CLUTCH_START);
+        const _: () = assert!(input_report::CLUTCH_START < input_report::HANDBRAKE_START);
+        const _: () = assert!(input_report::HANDBRAKE_START < input_report::BUTTONS_START);
+        assert_eq!(
+            input_report::HAT_START,
+            input_report::BUTTONS_START + input_report::BUTTONS_LEN
+        );
+        assert_eq!(input_report::FUNKY_START, input_report::HAT_START + 1);
+        assert_eq!(input_report::ROTARY_START, input_report::FUNKY_START + 1);
+    }
+
+    #[test]
+    fn min_report_len_matches_brake_end() {
+        assert_eq!(MIN_REPORT_LEN, input_report::BRAKE_START + 2);
+    }
+
+    // --- Round-trip encoding tests ---
+
+    #[test]
+    fn full_report_encoding_round_trip() -> Result<(), Box<dyn std::error::Error>> {
+        let steering: u16 = 0xBEEF;
+        let throttle: u16 = 0xCAFE;
+        let brake: u16 = 0xDEAD;
+        let clutch: u16 = 0xFACE;
+        let handbrake: u16 = 0x1234;
+
+        let mut report = [0u8; input_report::ROTARY_START + input_report::ROTARY_LEN];
+        report[0] = input_report::REPORT_ID;
+        report[input_report::STEERING_START..input_report::STEERING_START + 2]
+            .copy_from_slice(&steering.to_le_bytes());
+        report[input_report::THROTTLE_START..input_report::THROTTLE_START + 2]
+            .copy_from_slice(&throttle.to_le_bytes());
+        report[input_report::BRAKE_START..input_report::BRAKE_START + 2]
+            .copy_from_slice(&brake.to_le_bytes());
+        report[input_report::CLUTCH_START..input_report::CLUTCH_START + 2]
+            .copy_from_slice(&clutch.to_le_bytes());
+        report[input_report::HANDBRAKE_START..input_report::HANDBRAKE_START + 2]
+            .copy_from_slice(&handbrake.to_le_bytes());
+        report[input_report::HAT_START] = 0x07;
+        report[input_report::FUNKY_START] = 0x0A;
+        report[input_report::ROTARY_START] = 0x55;
+        report[input_report::ROTARY_START + 1] = 0xAA;
+
+        let parsed = parse_wheelbase_input_report(&report)
+            .ok_or("expected full round-trip parse")?;
+        assert_eq!(parsed.steering, steering);
+        assert_eq!(parsed.pedals.throttle, throttle);
+        assert_eq!(parsed.pedals.brake, brake);
+        assert_eq!(parsed.pedals.clutch, Some(clutch));
+        assert_eq!(parsed.pedals.handbrake, Some(handbrake));
+        assert_eq!(parsed.hat, 0x07);
+        assert_eq!(parsed.funky, 0x0A);
+        assert_eq!(parsed.rotary, [0x55, 0xAA]);
+        Ok(())
+    }
+
+    #[test]
+    fn pedal_axes_encoding_round_trip() -> Result<(), Box<dyn std::error::Error>> {
+        let throttle: u16 = 0x1111;
+        let brake: u16 = 0x2222;
+        let clutch: u16 = 0x3333;
+        let handbrake: u16 = 0x4444;
+
+        let mut report = [0u8; input_report::HANDBRAKE_START + 2];
+        report[0] = input_report::REPORT_ID;
+        report[input_report::THROTTLE_START..input_report::THROTTLE_START + 2]
+            .copy_from_slice(&throttle.to_le_bytes());
+        report[input_report::BRAKE_START..input_report::BRAKE_START + 2]
+            .copy_from_slice(&brake.to_le_bytes());
+        report[input_report::CLUTCH_START..input_report::CLUTCH_START + 2]
+            .copy_from_slice(&clutch.to_le_bytes());
+        report[input_report::HANDBRAKE_START..input_report::HANDBRAKE_START + 2]
+            .copy_from_slice(&handbrake.to_le_bytes());
+
+        let parsed = parse_wheelbase_pedal_axes(&report)
+            .ok_or("expected pedal axes round-trip parse")?;
+        assert_eq!(parsed.throttle, throttle);
+        assert_eq!(parsed.brake, brake);
+        assert_eq!(parsed.clutch, Some(clutch));
+        assert_eq!(parsed.handbrake, Some(handbrake));
+        Ok(())
+    }
+
+    // --- Boundary value tests ---
+
+    #[test]
+    fn parse_axis_at_usize_max_offset_returns_none() {
+        let report = [0x00, 0x00];
+        assert_eq!(parse_axis(&report, usize::MAX), None);
+    }
+
+    #[test]
+    fn parse_wheelbase_report_one_byte_short_of_min_rejected() {
+        let report = [0u8; MIN_REPORT_LEN - 1];
+        // First byte is 0x00, not REPORT_ID, but even with correct ID it's too short
+        let mut report_with_id = vec![0u8; MIN_REPORT_LEN - 1];
+        report_with_id[0] = input_report::REPORT_ID;
+        assert!(parse_wheelbase_report(&report).is_none());
+        assert!(parse_wheelbase_report(&report_with_id).is_none());
+    }
+
+    #[test]
+    fn parse_wheelbase_report_id_zero_rejected() {
+        let mut report = [0u8; MIN_REPORT_LEN];
+        report[0] = 0x00;
+        assert!(parse_wheelbase_report(&report).is_none());
+    }
+
+    #[test]
+    fn parse_wheelbase_all_ff_axes() -> Result<(), Box<dyn std::error::Error>> {
+        let mut report = [0xFFu8; MIN_REPORT_LEN];
+        report[0] = input_report::REPORT_ID;
+        let parsed = parse_wheelbase_pedal_axes(&report)
+            .ok_or("expected parse for 0xFF-filled axes")?;
+        assert_eq!(parsed.throttle, u16::MAX);
+        assert_eq!(parsed.brake, u16::MAX);
+        Ok(())
+    }
+
+    #[test]
+    fn parse_wheelbase_all_zero_axes() -> Result<(), Box<dyn std::error::Error>> {
+        let mut report = [0x00u8; MIN_REPORT_LEN];
+        report[0] = input_report::REPORT_ID;
+        let parsed = parse_wheelbase_pedal_axes(&report)
+            .ok_or("expected parse for zero-filled axes")?;
+        assert_eq!(parsed.throttle, 0);
+        assert_eq!(parsed.brake, 0);
+        Ok(())
+    }
+
+    // --- Field extraction: partial optional axes ---
+
+    #[test]
+    fn parse_wheelbase_pedal_axes_clutch_present_handbrake_absent()
+        -> Result<(), Box<dyn std::error::Error>>
+    {
+        // Report long enough for clutch (offset 7..9) but not handbrake (offset 9..11)
+        let mut report = [0u8; input_report::HANDBRAKE_START];
+        report[0] = input_report::REPORT_ID;
+        report[input_report::THROTTLE_START..input_report::THROTTLE_START + 2]
+            .copy_from_slice(&0x1111u16.to_le_bytes());
+        report[input_report::BRAKE_START..input_report::BRAKE_START + 2]
+            .copy_from_slice(&0x2222u16.to_le_bytes());
+        report[input_report::CLUTCH_START..input_report::CLUTCH_START + 2]
+            .copy_from_slice(&0x3333u16.to_le_bytes());
+
+        let parsed = parse_wheelbase_pedal_axes(&report)
+            .ok_or("expected parse with clutch but no handbrake")?;
+        assert_eq!(parsed.throttle, 0x1111);
+        assert_eq!(parsed.brake, 0x2222);
+        assert_eq!(parsed.clutch, Some(0x3333));
+        assert_eq!(parsed.handbrake, None);
+        Ok(())
+    }
+
+    // --- Status byte interpretation: hat/funky/rotary edge cases ---
+
+    #[test]
+    fn parse_wheelbase_input_hat_funky_without_rotary() -> Result<(), Box<dyn std::error::Error>> {
+        // Report long enough for hat and funky but not rotary
+        let mut report = [0u8; input_report::ROTARY_START];
+        report[0] = input_report::REPORT_ID;
+        report[input_report::STEERING_START..input_report::STEERING_START + 2]
+            .copy_from_slice(&0x1000u16.to_le_bytes());
+        report[input_report::THROTTLE_START..input_report::THROTTLE_START + 2]
+            .copy_from_slice(&0x2000u16.to_le_bytes());
+        report[input_report::BRAKE_START..input_report::BRAKE_START + 2]
+            .copy_from_slice(&0x3000u16.to_le_bytes());
+        report[input_report::HAT_START] = 0x05;
+        report[input_report::FUNKY_START] = 0x0B;
+
+        let parsed = parse_wheelbase_input_report(&report)
+            .ok_or("expected parse with hat/funky but no rotary")?;
+        assert_eq!(parsed.hat, 0x05);
+        assert_eq!(parsed.funky, 0x0B);
+        assert_eq!(parsed.rotary, [0u8; input_report::ROTARY_LEN]);
+        Ok(())
+    }
+
+    #[test]
+    fn parse_wheelbase_input_partial_rotary() -> Result<(), Box<dyn std::error::Error>> {
+        // Report has one rotary byte but not the second
+        let mut report = [0u8; input_report::ROTARY_START + 1];
+        report[0] = input_report::REPORT_ID;
+        report[input_report::STEERING_START..input_report::STEERING_START + 2]
+            .copy_from_slice(&0x1000u16.to_le_bytes());
+        report[input_report::THROTTLE_START..input_report::THROTTLE_START + 2]
+            .copy_from_slice(&0x2000u16.to_le_bytes());
+        report[input_report::BRAKE_START..input_report::BRAKE_START + 2]
+            .copy_from_slice(&0x3000u16.to_le_bytes());
+        report[input_report::ROTARY_START] = 0x77;
+
+        let parsed = parse_wheelbase_input_report(&report)
+            .ok_or("expected parse with partial rotary")?;
+        assert_eq!(parsed.rotary, [0x77, 0x00]);
+        Ok(())
+    }
+
+    #[test]
+    fn raw_report_axis_u16_le_at_various_offsets() -> Result<(), Box<dyn std::error::Error>> {
+        let data = [0x01, 0xAA, 0xBB, 0xCC, 0xDD];
+        let view = RawWheelbaseReport::new(&data);
+        assert_eq!(view.axis_u16_le(0), Some(0xAA01));
+        assert_eq!(view.axis_u16_le(1), Some(0xBBAA));
+        assert_eq!(view.axis_u16_le(3), Some(0xDDCC));
+        assert_eq!(view.axis_u16_le(4), None);
+        Ok(())
+    }
+
     use proptest::prelude::*;
 
     proptest! {
@@ -375,6 +654,111 @@ mod tests {
 
             if let Some(parsed) = parse_wheelbase_input_report(&report) {
                 prop_assert_eq!(parsed.steering, steering);
+            }
+        }
+
+        #[test]
+        fn prop_pedal_axes_throttle_round_trips(
+            throttle_lo in 0u8..=255u8,
+            throttle_hi in 0u8..=255u8,
+        ) {
+            let throttle = u16::from_le_bytes([throttle_lo, throttle_hi]);
+            let mut report = [0u8; MIN_REPORT_LEN + 4];
+            report[0] = input_report::REPORT_ID;
+            report[input_report::THROTTLE_START] = throttle_lo;
+            report[input_report::THROTTLE_START + 1] = throttle_hi;
+
+            if let Some(parsed) = parse_wheelbase_pedal_axes(&report) {
+                prop_assert_eq!(parsed.throttle, throttle);
+            }
+        }
+
+        #[test]
+        fn prop_pedal_axes_brake_round_trips(
+            brake_lo in 0u8..=255u8,
+            brake_hi in 0u8..=255u8,
+        ) {
+            let brake = u16::from_le_bytes([brake_lo, brake_hi]);
+            let mut report = [0u8; MIN_REPORT_LEN + 4];
+            report[0] = input_report::REPORT_ID;
+            report[input_report::BRAKE_START] = brake_lo;
+            report[input_report::BRAKE_START + 1] = brake_hi;
+
+            if let Some(parsed) = parse_wheelbase_pedal_axes(&report) {
+                prop_assert_eq!(parsed.brake, brake);
+            }
+        }
+
+        #[test]
+        fn prop_wrong_report_id_always_rejected(id in 2u8..=255u8) {
+            let mut report = [0u8; MIN_REPORT_LEN + 4];
+            report[0] = id;
+            prop_assert!(parse_wheelbase_report(&report).is_none());
+        }
+
+        #[test]
+        fn prop_axis_u16_or_zero_matches_option(
+            lo in 0u8..=255u8,
+            hi in 0u8..=255u8,
+        ) {
+            let data = [0x01, lo, hi];
+            let view = RawWheelbaseReport::new(&data);
+            let opt = view.axis_u16_le(1);
+            let or_zero = view.axis_u16_or_zero(1);
+            prop_assert_eq!(opt.unwrap_or(0), or_zero);
+        }
+
+        #[test]
+        fn prop_clutch_round_trips(
+            clutch_lo in 0u8..=255u8,
+            clutch_hi in 0u8..=255u8,
+        ) {
+            let clutch = u16::from_le_bytes([clutch_lo, clutch_hi]);
+            let mut report = [0u8; input_report::HANDBRAKE_START];
+            report[0] = input_report::REPORT_ID;
+            report[input_report::CLUTCH_START] = clutch_lo;
+            report[input_report::CLUTCH_START + 1] = clutch_hi;
+
+            if let Some(parsed) = parse_wheelbase_pedal_axes(&report) {
+                prop_assert_eq!(parsed.clutch, Some(clutch));
+            }
+        }
+
+        #[test]
+        fn prop_handbrake_round_trips(
+            hb_lo in 0u8..=255u8,
+            hb_hi in 0u8..=255u8,
+        ) {
+            let handbrake = u16::from_le_bytes([hb_lo, hb_hi]);
+            let mut report = [0u8; input_report::HANDBRAKE_START + 2];
+            report[0] = input_report::REPORT_ID;
+            report[input_report::HANDBRAKE_START] = hb_lo;
+            report[input_report::HANDBRAKE_START + 1] = hb_hi;
+
+            if let Some(parsed) = parse_wheelbase_pedal_axes(&report) {
+                prop_assert_eq!(parsed.handbrake, Some(handbrake));
+            }
+        }
+
+        #[test]
+        fn prop_full_report_all_axes_preserved(
+            steer in 0u16..=65535u16,
+            throttle in 0u16..=65535u16,
+            brake in 0u16..=65535u16,
+        ) {
+            let mut report = [0u8; MIN_REPORT_LEN + 4];
+            report[0] = input_report::REPORT_ID;
+            report[input_report::STEERING_START..input_report::STEERING_START + 2]
+                .copy_from_slice(&steer.to_le_bytes());
+            report[input_report::THROTTLE_START..input_report::THROTTLE_START + 2]
+                .copy_from_slice(&throttle.to_le_bytes());
+            report[input_report::BRAKE_START..input_report::BRAKE_START + 2]
+                .copy_from_slice(&brake.to_le_bytes());
+
+            if let Some(parsed) = parse_wheelbase_input_report(&report) {
+                prop_assert_eq!(parsed.steering, steer);
+                prop_assert_eq!(parsed.pedals.throttle, throttle);
+                prop_assert_eq!(parsed.pedals.brake, brake);
             }
         }
     }

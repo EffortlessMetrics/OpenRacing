@@ -18,6 +18,10 @@ mock = ["dep:tokio", "dep:async-trait", "dep:parking_lot"]
 tracking = []
 fixtures = ["dep:serde", "dep:serde_json"]
 
+
+[package.metadata.cargo-udeps.ignore]
+normal = ["workspace-hack"]
+
 [dependencies]
 thiserror = { workspace = true }
 tokio = { workspace = true, optional = true }

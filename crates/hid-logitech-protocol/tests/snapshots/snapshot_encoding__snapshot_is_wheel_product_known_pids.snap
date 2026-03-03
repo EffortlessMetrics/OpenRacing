@@ -1,0 +1,5 @@
+---
+source: crates/hid-logitech-protocol/tests/snapshot_encoding.rs
+expression: "results.join(\", \")"
+---
+0xC299=true, 0xC29B=true, 0xC24F=true, 0xC262=true, 0xC266=true, 0xC268=true, 0xC29A=true

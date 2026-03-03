@@ -1,10 +1,11 @@
 ---
 source: crates/telemetry-adapters/tests/snapshots_games_v6.rs
+assertion_line: 38
 expression: normalized
 ---
 speed_ms: 70
 steering_angle: 0
-throttle: 0
+throttle: 0.85
 brake: 0
 clutch: 0
 rpm: 12000
@@ -25,10 +26,10 @@ tire_temps_c:
   - 0
   - 0
 tire_pressures_psi:
-  - 0
-  - 0
-  - 0
-  - 0
+  - 26.5
+  - 26.5
+  - 26
+  - 26
 ffb_scalar: 0
 ffb_torque_nm: 0
 flags:
@@ -64,9 +65,6 @@ extended:
   air_temperature_c:
     type: Integer
     value: 0
-  brake:
-    type: Float
-    value: 0
   brake_temp_fl_c:
     type: Integer
     value: 0
@@ -93,9 +91,6 @@ extended:
     value: 0
   engine_power_mguk_w:
     type: Float
-    value: 0
-  engine_temperature_c:
-    type: Integer
     value: 0
   ers_deploy_mode:
     type: Integer
@@ -127,12 +122,6 @@ extended:
   session_type:
     type: Integer
     value: 0
-  steer:
-    type: Float
-    value: 0
-  throttle:
-    type: Float
-    value: 0.85
   track_temperature_c:
     type: Integer
     value: 0
@@ -155,30 +144,6 @@ extended:
     type: Integer
     value: 0
   tyre_inner_temp_rr_c:
-    type: Integer
-    value: 0
-  tyre_pressure_fl_psi:
-    type: Float
-    value: 26.5
-  tyre_pressure_fr_psi:
-    type: Float
-    value: 26.5
-  tyre_pressure_rl_psi:
-    type: Float
-    value: 26
-  tyre_pressure_rr_psi:
-    type: Float
-    value: 26
-  tyre_surface_temp_fl_c:
-    type: Integer
-    value: 0
-  tyre_surface_temp_fr_c:
-    type: Integer
-    value: 0
-  tyre_surface_temp_rl_c:
-    type: Integer
-    value: 0
-  tyre_surface_temp_rr_c:
     type: Integer
     value: 0
 sequence: 0

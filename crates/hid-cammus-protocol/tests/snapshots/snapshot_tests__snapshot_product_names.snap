@@ -2,4 +2,4 @@
 source: crates/hid-cammus-protocol/tests/snapshot_tests.rs
 expression: "format!(\"{:?}\", results)"
 ---
-"[(\"C5\", Some(\"Cammus C5\")), (\"C12\", Some(\"Cammus C12\")), (\"unknown\", None)]"
+"[(\"C5\", Some(\"Cammus C5\")), (\"C12\", Some(\"Cammus C12\")), (\"CP5_PEDALS\", Some(\"Cammus CP5 Pedals\")), (\"LC100_PEDALS\", Some(\"Cammus LC100 Pedals\")), (\"unknown\", None)]"
