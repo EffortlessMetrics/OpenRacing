@@ -32,6 +32,31 @@ fn writer_for(
         .ok_or_else(|| format!("{game_id} factory not found").into())
 }
 
+fn walkdir(root: &std::path::Path) -> Result<Vec<std::path::PathBuf>, Box<dyn std::error::Error>> {
+    let mut result = Vec::new();
+    walk_recursive(root, &mut result)?;
+    Ok(result)
+}
+
+fn walk_recursive(
+    dir: &std::path::Path,
+    out: &mut Vec<std::path::PathBuf>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if !dir.is_dir() {
+        return Ok(());
+    }
+    for entry in std::fs::read_dir(dir)? {
+        let entry = entry?;
+        let path = entry.path();
+        if path.is_dir() {
+            walk_recursive(&path, out)?;
+        } else {
+            out.push(path);
+        }
+    }
+    Ok(())
+}
+
 // ---------------------------------------------------------------------------
 // Config file generation: verify files are created on disk
 // ---------------------------------------------------------------------------
@@ -969,6 +994,823 @@ mod idempotency {
                 );
             }
         }
+        Ok(())
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Special characters in paths (spaces, unicode)
+// ---------------------------------------------------------------------------
+
+mod special_character_paths {
+    use super::*;
+
+    #[test]
+    fn path_with_spaces_works_for_all_writers() -> TestResult {
+        let config = default_config();
+        for (id, factory) in config_writer_factories() {
+            let parent = tempfile::tempdir()?;
+            let spaced = parent.path().join("My Games Folder");
+            std::fs::create_dir_all(&spaced)?;
+            let writer = factory();
+            let diffs = writer.write_config(&spaced, &config)?;
+            assert!(
+                !diffs.is_empty(),
+                "{id}: should produce diffs with spaces in path"
+            );
+            assert!(
+                writer.validate_config(&spaced)?,
+                "{id}: should validate with spaces in path"
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn path_with_unicode_works_for_representative_writers() -> TestResult {
+        let config = default_config();
+        let games = ["iracing", "acc", "rfactor2", "f1", "eawrc"];
+        for game_id in games {
+            let parent = tempfile::tempdir()?;
+            let unicode_dir = parent.path().join("Ünïcödé_パス");
+            std::fs::create_dir_all(&unicode_dir)?;
+            let writer = writer_for(game_id)?;
+            let diffs = writer.write_config(&unicode_dir, &config)?;
+            assert!(
+                !diffs.is_empty(),
+                "{game_id}: should produce diffs with unicode path"
+            );
+            assert!(
+                writer.validate_config(&unicode_dir)?,
+                "{game_id}: should validate with unicode path"
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn path_with_special_chars_in_output_target() -> TestResult {
+        let config = TelemetryConfig {
+            enabled: true,
+            update_rate_hz: 60,
+            output_method: "udp".to_string(),
+            output_target: "127.0.0.1:20777".to_string(),
+            fields: vec!["rpm".to_string()],
+            enable_high_rate_iracing_360hz: false,
+        };
+        let parent = tempfile::tempdir()?;
+        let deep_path = parent.path().join("path (with) [brackets] & special");
+        std::fs::create_dir_all(&deep_path)?;
+        let writer = writer_for("iracing")?;
+        let diffs = writer.write_config(&deep_path, &config)?;
+        assert!(!diffs.is_empty());
+        assert!(writer.validate_config(&deep_path)?);
+        Ok(())
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Port number configuration for UDP-based games
+// ---------------------------------------------------------------------------
+
+mod port_configuration {
+    use super::*;
+
+    #[test]
+    fn custom_port_reflected_in_bridge_contracts() -> TestResult {
+        let config = TelemetryConfig {
+            enabled: true,
+            update_rate_hz: 60,
+            output_method: "udp".to_string(),
+            output_target: "127.0.0.1:55555".to_string(),
+            fields: vec![],
+            enable_high_rate_iracing_360hz: false,
+        };
+        let bridge_games = ["dirt5", "f1", "forza_motorsport", "trackmania", "simhub"];
+        for game_id in bridge_games {
+            let writer = writer_for(game_id)?;
+            let temp = tempfile::tempdir()?;
+            writer.write_config(temp.path(), &config)?;
+
+            let files = walkdir(temp.path())?;
+            let json_file = files
+                .iter()
+                .find(|p| {
+                    p.extension()
+                        .map(|e| e == "json")
+                        .unwrap_or(false)
+                })
+                .ok_or(format!("{game_id}: expected a json file"))?;
+            let content = std::fs::read_to_string(json_file)?;
+            assert!(
+                content.contains("55555"),
+                "{game_id}: custom port 55555 should appear in output"
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn acc_custom_port_in_broadcasting_json() -> TestResult {
+        let config = TelemetryConfig {
+            enabled: true,
+            update_rate_hz: 120,
+            output_method: "udp".to_string(),
+            output_target: "127.0.0.1:9876".to_string(),
+            fields: vec![],
+            enable_high_rate_iracing_360hz: false,
+        };
+        let writer = writer_for("acc")?;
+        let temp = tempfile::tempdir()?;
+        writer.write_config(temp.path(), &config)?;
+
+        let broadcasting = temp
+            .path()
+            .join("Documents/Assetto Corsa Competizione/Config/broadcasting.json");
+        let content = std::fs::read_to_string(&broadcasting)?;
+        let value: serde_json::Value = serde_json::from_str(&content)?;
+        let port = value
+            .get("updListenerPort")
+            .and_then(|v| v.as_u64())
+            .ok_or("missing updListenerPort")?;
+        assert_eq!(port, 9876);
+        Ok(())
+    }
+
+    #[test]
+    fn eawrc_custom_port_in_config_json() -> TestResult {
+        let config = TelemetryConfig {
+            enabled: true,
+            update_rate_hz: 60,
+            output_method: "udp".to_string(),
+            output_target: "192.168.1.50:33333".to_string(),
+            fields: vec![],
+            enable_high_rate_iracing_360hz: false,
+        };
+        let writer = writer_for("eawrc")?;
+        let temp = tempfile::tempdir()?;
+        writer.write_config(temp.path(), &config)?;
+
+        let config_json = temp
+            .path()
+            .join("Documents/My Games/WRC/telemetry/config.json");
+        let content = std::fs::read_to_string(&config_json)?;
+        assert!(
+            content.contains("33333"),
+            "eawrc config should contain custom port"
+        );
+        assert!(
+            content.contains("192.168.1.50"),
+            "eawrc config should contain custom IP"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn default_port_used_when_no_port_in_target() -> TestResult {
+        let config = TelemetryConfig {
+            enabled: true,
+            update_rate_hz: 60,
+            output_method: "udp".to_string(),
+            output_target: String::new(),
+            fields: vec![],
+            enable_high_rate_iracing_360hz: false,
+        };
+        // ACC defaults to port 9000
+        let writer = writer_for("acc")?;
+        let temp = tempfile::tempdir()?;
+        writer.write_config(temp.path(), &config)?;
+
+        let broadcasting = temp
+            .path()
+            .join("Documents/Assetto Corsa Competizione/Config/broadcasting.json");
+        let content = std::fs::read_to_string(&broadcasting)?;
+        let value: serde_json::Value = serde_json::from_str(&content)?;
+        let port = value
+            .get("updListenerPort")
+            .and_then(|v| v.as_u64())
+            .ok_or("missing updListenerPort")?;
+        assert_eq!(port, 9000, "ACC should fall back to default port 9000");
+        Ok(())
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Backup/restore of existing configs
+// ---------------------------------------------------------------------------
+
+mod backup_restore {
+    use super::*;
+
+    #[test]
+    fn overwrite_preserves_existing_json_fields_in_acc() -> TestResult {
+        let writer = writer_for("acc")?;
+        let temp = tempfile::tempdir()?;
+        let broadcasting = temp
+            .path()
+            .join("Documents/Assetto Corsa Competizione/Config/broadcasting.json");
+        if let Some(parent) = broadcasting.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        // Seed with custom connectionPassword
+        let seed = serde_json::json!({
+            "updListenerPort": 1234,
+            "udpListenerPort": 1234,
+            "broadcastingPort": 1234,
+            "connectionId": "my_id",
+            "connectionPassword": "secret123",
+            "commandPassword": "cmd_pass",
+            "updateRateHz": 30,
+            "customField": "keep_me"
+        });
+        std::fs::write(&broadcasting, serde_json::to_string_pretty(&seed)?)?;
+
+        let config = default_config();
+        writer.write_config(temp.path(), &config)?;
+
+        let content = std::fs::read_to_string(&broadcasting)?;
+        let value: serde_json::Value = serde_json::from_str(&content)?;
+        // connectionPassword should be preserved from existing
+        assert_eq!(
+            value.get("connectionPassword").and_then(|v| v.as_str()),
+            Some("secret123"),
+            "ACC should preserve existing connectionPassword"
+        );
+        // customField should also be preserved
+        assert_eq!(
+            value.get("customField").and_then(|v| v.as_str()),
+            Some("keep_me"),
+            "ACC should preserve unknown fields"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn overwrite_preserves_existing_json_fields_in_ams2() -> TestResult {
+        let writer = writer_for("ams2")?;
+        let temp = tempfile::tempdir()?;
+        let player_json = temp
+            .path()
+            .join("Documents/Automobilista 2/UserData/player/player.json");
+        if let Some(parent) = player_json.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        let seed = serde_json::json!({
+            "customSetting": 42,
+            "playerName": "TestDriver"
+        });
+        std::fs::write(&player_json, serde_json::to_string_pretty(&seed)?)?;
+
+        let config = default_config();
+        writer.write_config(temp.path(), &config)?;
+
+        let content = std::fs::read_to_string(&player_json)?;
+        let value: serde_json::Value = serde_json::from_str(&content)?;
+        assert_eq!(
+            value.get("customSetting").and_then(|v| v.as_u64()),
+            Some(42),
+            "AMS2 should preserve existing customSetting"
+        );
+        assert_eq!(
+            value.get("playerName").and_then(|v| v.as_str()),
+            Some("TestDriver"),
+            "AMS2 should preserve existing playerName"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn iracing_overwrite_preserves_non_telemetry_sections() -> TestResult {
+        let writer = writer_for("iracing")?;
+        let temp = tempfile::tempdir()?;
+        let app_ini = temp.path().join("Documents/iRacing/app.ini");
+        if let Some(parent) = app_ini.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        let seed = "[Graphics]\nresolution=1920x1080\n\n[Audio]\nvolume=80\n";
+        std::fs::write(&app_ini, seed)?;
+
+        let config = default_config();
+        writer.write_config(temp.path(), &config)?;
+
+        let content = std::fs::read_to_string(&app_ini)?;
+        assert!(
+            content.contains("[Graphics]"),
+            "should preserve [Graphics] section"
+        );
+        assert!(
+            content.contains("resolution=1920x1080"),
+            "should preserve graphics settings"
+        );
+        assert!(
+            content.contains("[Audio]"),
+            "should preserve [Audio] section"
+        );
+        assert!(
+            content.contains("[Telemetry]"),
+            "should add [Telemetry] section"
+        );
+        Ok(())
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Config file permission / error handling
+// ---------------------------------------------------------------------------
+
+mod error_handling {
+    use super::*;
+
+    #[test]
+    fn write_to_nonexistent_parent_creates_directories() -> TestResult {
+        let config = default_config();
+        for (id, factory) in config_writer_factories() {
+            let temp = tempfile::tempdir()?;
+            // The tempdir itself is empty; writers must create sub-directories
+            let writer = factory();
+            let result = writer.write_config(temp.path(), &config);
+            assert!(
+                result.is_ok(),
+                "{id}: should create intermediate directories"
+            );
+        }
+        Ok(())
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn write_to_read_only_directory_returns_error() -> TestResult {
+        use std::os::unix::fs::PermissionsExt;
+        let temp = tempfile::tempdir()?;
+        let locked = temp.path().join("locked");
+        std::fs::create_dir_all(&locked)?;
+        let metadata = std::fs::metadata(&locked)?;
+        let mut perms = metadata.permissions();
+        perms.set_mode(0o444);
+        std::fs::set_permissions(&locked, perms)?;
+
+        let writer = writer_for("iracing")?;
+        let config = default_config();
+        let result = writer.write_config(&locked, &config);
+        assert!(result.is_err(), "should fail on read-only directory");
+
+        // Restore permissions for cleanup
+        let mut perms = std::fs::metadata(&locked)?.permissions();
+        perms.set_mode(0o755);
+        std::fs::set_permissions(&locked, perms)?;
+        Ok(())
+    }
+
+    #[test]
+    fn validate_on_corrupted_json_returns_error_or_false() -> TestResult {
+        let writer = writer_for("acc")?;
+        let temp = tempfile::tempdir()?;
+        let broadcasting = temp
+            .path()
+            .join("Documents/Assetto Corsa Competizione/Config/broadcasting.json");
+        if let Some(parent) = broadcasting.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        std::fs::write(&broadcasting, "NOT_VALID_JSON{{{}")?;
+
+        let result = writer.validate_config(temp.path());
+        // Should either return Err or Ok(false) but not panic
+        if let Ok(valid) = result {
+            assert!(!valid, "corrupted JSON should not validate");
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn validate_on_empty_file_returns_error_or_false() -> TestResult {
+        let writer = writer_for("rfactor2")?;
+        let temp = tempfile::tempdir()?;
+        let config_path = temp
+            .path()
+            .join("UserData/player/OpenRacing.Telemetry.json");
+        if let Some(parent) = config_path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        std::fs::write(&config_path, "")?;
+
+        let result = writer.validate_config(temp.path());
+        if let Ok(valid) = result {
+            assert!(!valid, "empty file should not validate");
+        }
+        Ok(())
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Config diff: detecting changes between versions
+// ---------------------------------------------------------------------------
+
+mod config_diff_detection {
+    use super::*;
+
+    #[test]
+    fn changing_update_rate_produces_modify_with_different_values() -> TestResult {
+        let writer = writer_for("acc")?;
+        let temp = tempfile::tempdir()?;
+
+        let config1 = TelemetryConfig {
+            update_rate_hz: 30,
+            ..default_config()
+        };
+        writer.write_config(temp.path(), &config1)?;
+
+        let config2 = TelemetryConfig {
+            update_rate_hz: 120,
+            ..default_config()
+        };
+        let diffs = writer.write_config(temp.path(), &config2)?;
+
+        let diff = diffs.first().ok_or("expected a diff")?;
+        assert_eq!(diff.operation, DiffOperation::Modify);
+        assert!(
+            diff.new_value.contains("120"),
+            "new value should contain updated rate"
+        );
+        assert!(
+            diff.old_value
+                .as_ref()
+                .map(|v| v.contains("30"))
+                .unwrap_or(false),
+            "old value should contain previous rate"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn toggling_enabled_flag_produces_modify() -> TestResult {
+        let writer = writer_for("iracing")?;
+        let temp = tempfile::tempdir()?;
+
+        let on_config = TelemetryConfig {
+            enabled: true,
+            ..default_config()
+        };
+        writer.write_config(temp.path(), &on_config)?;
+
+        let off_config = TelemetryConfig {
+            enabled: false,
+            ..default_config()
+        };
+        let diffs = writer.write_config(temp.path(), &off_config)?;
+        let telemetry_diff = diffs
+            .iter()
+            .find(|d| d.key == "telemetryDiskFile")
+            .ok_or("missing telemetryDiskFile")?;
+        assert_eq!(telemetry_diff.operation, DiffOperation::Modify);
+        assert_eq!(telemetry_diff.new_value, "0");
+        assert_eq!(telemetry_diff.old_value.as_deref(), Some("1"));
+        Ok(())
+    }
+
+    #[test]
+    fn expected_diffs_match_write_diffs_new_values() -> TestResult {
+        let config = TelemetryConfig {
+            update_rate_hz: 144,
+            output_target: "127.0.0.1:9999".to_string(),
+            ..default_config()
+        };
+        for (id, factory) in config_writer_factories() {
+            let writer = factory();
+            let temp = tempfile::tempdir()?;
+            let write_diffs = writer.write_config(temp.path(), &config)?;
+            let expected_diffs = writer.get_expected_diffs(&config)?;
+
+            for (wd, ed) in write_diffs.iter().zip(expected_diffs.iter()) {
+                assert_eq!(
+                    wd.new_value, ed.new_value,
+                    "{id}: write and expected diff new_values should match"
+                );
+            }
+        }
+        Ok(())
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Output format roundtrip: write → read back → verify correctness
+// ---------------------------------------------------------------------------
+
+mod output_roundtrip {
+    use super::*;
+
+    #[test]
+    fn json_writers_produce_valid_parseable_json() -> TestResult {
+        let json_games = [
+            "acc", "ams2", "rfactor2", "eawrc", "ac_rally", "dirt5", "f1",
+            "f1_25", "forza_motorsport", "simhub", "trackmania",
+        ];
+        let config = default_config();
+        for game_id in json_games {
+            let writer = writer_for(game_id)?;
+            let temp = tempfile::tempdir()?;
+            writer.write_config(temp.path(), &config)?;
+
+            let files = walkdir(temp.path())?;
+            for file in &files {
+                if file.extension().map(|e| e == "json").unwrap_or(false) {
+                    let content = std::fs::read_to_string(file)?;
+                    let parsed: Result<serde_json::Value, _> = serde_json::from_str(&content);
+                    assert!(
+                        parsed.is_ok(),
+                        "{game_id}: file {} should be valid JSON: {:?}",
+                        file.display(),
+                        parsed.err()
+                    );
+                }
+            }
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn iracing_ini_write_read_roundtrip() -> TestResult {
+        let writer = writer_for("iracing")?;
+        let temp = tempfile::tempdir()?;
+        let config = TelemetryConfig {
+            enabled: true,
+            enable_high_rate_iracing_360hz: true,
+            ..default_config()
+        };
+        writer.write_config(temp.path(), &config)?;
+
+        let app_ini = temp.path().join("Documents/iRacing/app.ini");
+        let content = std::fs::read_to_string(&app_ini)?;
+        // Verify INI format has section header and key=value pairs
+        assert!(content.contains("[Telemetry]"));
+        assert!(content.contains("telemetryDiskFile=1"));
+        assert!(content.contains("irsdkLog360Hz=1"));
+        Ok(())
+    }
+
+    #[test]
+    fn bridge_contract_roundtrip_has_required_fields() -> TestResult {
+        let bridge_games = [
+            "dirt5",
+            "dirt_rally_2",
+            "dirt4",
+            "wrc_generations",
+            "nascar",
+            "le_mans_ultimate",
+        ];
+        let config = default_config();
+        for game_id in bridge_games {
+            let writer = writer_for(game_id)?;
+            let temp = tempfile::tempdir()?;
+            writer.write_config(temp.path(), &config)?;
+
+            let files = walkdir(temp.path())?;
+            let json_file = files
+                .iter()
+                .find(|p| {
+                    p.extension()
+                        .map(|e| e == "json")
+                        .unwrap_or(false)
+                })
+                .ok_or(format!("{game_id}: no json file"))?;
+            let content = std::fs::read_to_string(json_file)?;
+            let value: serde_json::Value = serde_json::from_str(&content)?;
+
+            assert!(
+                value.get("game_id").is_some(),
+                "{game_id}: bridge contract must have game_id"
+            );
+            assert!(
+                value.get("telemetry_protocol").is_some(),
+                "{game_id}: bridge contract must have telemetry_protocol"
+            );
+            assert!(
+                value.get("enabled").is_some(),
+                "{game_id}: bridge contract must have enabled"
+            );
+        }
+        Ok(())
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Game-specific quirks
+// ---------------------------------------------------------------------------
+
+mod game_specific_quirks {
+    use super::*;
+
+    #[test]
+    fn iracing_ini_format_uses_section_and_key_value_pairs() -> TestResult {
+        let writer = writer_for("iracing")?;
+        let temp = tempfile::tempdir()?;
+        let config = default_config();
+        let diffs = writer.write_config(temp.path(), &config)?;
+
+        // iRacing diffs should have section = Some("Telemetry")
+        for diff in &diffs {
+            assert_eq!(
+                diff.section.as_deref(),
+                Some("Telemetry"),
+                "iRacing diffs should have Telemetry section"
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn ac_contract_references_outgauge_ini_setup() -> TestResult {
+        let writer = writer_for("assetto_corsa")?;
+        let temp = tempfile::tempdir()?;
+        let config = default_config();
+        writer.write_config(temp.path(), &config)?;
+
+        let files = walkdir(temp.path())?;
+        let json_file = files
+            .first()
+            .ok_or("expected at least one file")?;
+        let content = std::fs::read_to_string(json_file)?;
+        assert!(
+            content.contains("OutGauge"),
+            "AC contract should reference OutGauge INI format"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn f1_25_has_packet_format_2025() -> TestResult {
+        let writer = writer_for("f1_25")?;
+        let temp = tempfile::tempdir()?;
+        let config = default_config();
+        writer.write_config(temp.path(), &config)?;
+
+        let files = walkdir(temp.path())?;
+        let json_file = files
+            .first()
+            .ok_or("expected at least one file")?;
+        let content = std::fs::read_to_string(json_file)?;
+        let value: serde_json::Value = serde_json::from_str(&content)?;
+        assert_eq!(
+            value.get("packet_format").and_then(|v| v.as_u64()),
+            Some(2025),
+            "F1 25 should have packet_format 2025"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn forza_contract_lists_supported_formats() -> TestResult {
+        let writer = writer_for("forza_motorsport")?;
+        let temp = tempfile::tempdir()?;
+        let config = default_config();
+        writer.write_config(temp.path(), &config)?;
+
+        let files = walkdir(temp.path())?;
+        let json_file = files
+            .first()
+            .ok_or("expected at least one file")?;
+        let content = std::fs::read_to_string(json_file)?;
+        let value: serde_json::Value = serde_json::from_str(&content)?;
+        let formats = value
+            .get("supported_formats")
+            .and_then(|v| v.as_array())
+            .ok_or("missing supported_formats")?;
+        assert!(
+            formats.len() >= 2,
+            "Forza should list at least 2 supported formats"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn eawrc_creates_two_output_files() -> TestResult {
+        let writer = writer_for("eawrc")?;
+        let temp = tempfile::tempdir()?;
+        let config = default_config();
+        let diffs = writer.write_config(temp.path(), &config)?;
+
+        assert_eq!(
+            diffs.len(),
+            2,
+            "eawrc should create config.json and structure definition"
+        );
+
+        let config_json = temp
+            .path()
+            .join("Documents/My Games/WRC/telemetry/config.json");
+        assert!(config_json.exists(), "eawrc config.json should exist");
+
+        let structure_json = temp
+            .path()
+            .join("Documents/My Games/WRC/telemetry/udp/openracing.json");
+        assert!(
+            structure_json.exists(),
+            "eawrc structure definition should exist"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn rfactor2_contract_references_shared_memory_maps() -> TestResult {
+        let writer = writer_for("rfactor2")?;
+        let temp = tempfile::tempdir()?;
+        let config = default_config();
+        writer.write_config(temp.path(), &config)?;
+
+        let cfg_path = temp
+            .path()
+            .join("UserData/player/OpenRacing.Telemetry.json");
+        let content = std::fs::read_to_string(&cfg_path)?;
+        let value: serde_json::Value = serde_json::from_str(&content)?;
+
+        assert!(
+            value.get("telemetryMap").is_some(),
+            "rfactor2 should have telemetryMap"
+        );
+        assert!(
+            value.get("forceFeedbackMap").is_some(),
+            "rfactor2 should have forceFeedbackMap"
+        );
+        assert_eq!(
+            value
+                .get("requiresSharedMemoryPlugin")
+                .and_then(|v| v.as_bool()),
+            Some(true),
+            "rfactor2 should require shared memory plugin"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn ams2_references_pcars2_shared_memory() -> TestResult {
+        let writer = writer_for("ams2")?;
+        let temp = tempfile::tempdir()?;
+        let config = default_config();
+        writer.write_config(temp.path(), &config)?;
+
+        let player_json = temp
+            .path()
+            .join("Documents/Automobilista 2/UserData/player/player.json");
+        let content = std::fs::read_to_string(&player_json)?;
+        assert!(
+            content.contains("$pcars2$"),
+            "AMS2 should reference $pcars2$ shared memory map"
+        );
+        Ok(())
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Idempotent file content (byte-for-byte comparison)
+// ---------------------------------------------------------------------------
+
+mod idempotent_file_content {
+    use super::*;
+
+    #[test]
+    fn same_config_same_file_bytes_for_json_writers() -> TestResult {
+        let json_games = ["acc", "rfactor2", "ams2", "dirt5", "f1_25"];
+        let config = default_config();
+        for game_id in json_games {
+            let writer = writer_for(game_id)?;
+            let temp1 = tempfile::tempdir()?;
+            let temp2 = tempfile::tempdir()?;
+
+            writer.write_config(temp1.path(), &config)?;
+            writer.write_config(temp2.path(), &config)?;
+
+            let files1 = walkdir(temp1.path())?;
+            let files2 = walkdir(temp2.path())?;
+            assert_eq!(
+                files1.len(),
+                files2.len(),
+                "{game_id}: should create same number of files"
+            );
+
+            for (f1, f2) in files1.iter().zip(files2.iter()) {
+                let c1 = std::fs::read(f1)?;
+                let c2 = std::fs::read(f2)?;
+                assert_eq!(
+                    c1, c2,
+                    "{game_id}: file content should be byte-identical across fresh writes"
+                );
+            }
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn iracing_ini_content_identical_on_fresh_writes() -> TestResult {
+        let writer = writer_for("iracing")?;
+        let config = default_config();
+        let temp1 = tempfile::tempdir()?;
+        let temp2 = tempfile::tempdir()?;
+
+        writer.write_config(temp1.path(), &config)?;
+        writer.write_config(temp2.path(), &config)?;
+
+        let c1 = std::fs::read_to_string(temp1.path().join("Documents/iRacing/app.ini"))?;
+        let c2 = std::fs::read_to_string(temp2.path().join("Documents/iRacing/app.ini"))?;
+        assert_eq!(c1, c2, "iRacing INI should be identical on fresh writes");
         Ok(())
     }
 }
