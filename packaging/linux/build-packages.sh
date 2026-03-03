@@ -29,7 +29,7 @@ VERSION=""
 ARCH="amd64"
 MAINTAINER="OpenRacing Contributors <openracing@example.com>"
 DESCRIPTION="Professional racing wheel force feedback software suite"
-HOMEPAGE="https://github.com/openracing/openracing"
+HOMEPAGE="https://github.com/EffortlessMetrics/OpenRacing"
 
 # Colors for output
 RED='\033[0;31m'

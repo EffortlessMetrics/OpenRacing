@@ -78,7 +78,7 @@ install_binaries() {
         bin_source="bin"
     fi
     
-    for binary in wheeld wheelctl wheel-ui; do
+    for binary in wheeld wheelctl; do
         if [ -f "$bin_source/$binary" ]; then
             cp "$bin_source/$binary" "$INSTALL_PREFIX/bin/"
             chmod +x "$INSTALL_PREFIX/bin/$binary"
@@ -86,6 +86,15 @@ install_binaries() {
         else
             log_error "Binary $binary not found in $bin_source/"
             exit 1
+        fi
+    done
+    
+    # Optional binaries
+    for binary in openracing; do
+        if [ -f "$bin_source/$binary" ]; then
+            cp "$bin_source/$binary" "$INSTALL_PREFIX/bin/"
+            chmod +x "$INSTALL_PREFIX/bin/$binary"
+            log_info "Installed $binary (optional)"
         fi
     done
     
@@ -111,15 +120,15 @@ install_systemd_service() {
     mkdir -p "$service_dir"
     
     # Generate service file from template
-    local service_file="$service_dir/racing-wheel-suite.service"
+    local service_file="$service_dir/openracing.service"
     sed "s|%INSTALL_PATH%|$INSTALL_PREFIX|g" packaging/linux/wheeld.service.template > "$service_file"
     
     # Reload systemd and enable service
     systemctl --user daemon-reload
-    systemctl --user enable racing-wheel-suite.service
+    systemctl --user enable openracing.service
     
     log_info "Systemd service installed and enabled"
-    log_info "Start with: systemctl --user start racing-wheel-suite.service"
+    log_info "Start with: systemctl --user start openracing.service"
 }
 
 install_udev_rules() {
@@ -175,7 +184,7 @@ verify_installation() {
     log_info "Verifying installation..."
     
     # Check binaries
-    for binary in wheeld wheelctl wheel-ui; do
+    for binary in wheeld wheelctl; do
         if ! command -v "$binary" &> /dev/null; then
             log_error "$binary not found in PATH"
             log_error "Make sure $INSTALL_PREFIX/bin is in your PATH"
@@ -184,7 +193,7 @@ verify_installation() {
     done
     
     # Check service file
-    if ! systemctl --user list-unit-files racing-wheel-suite.service &> /dev/null; then
+    if ! systemctl --user list-unit-files openracing.service &> /dev/null; then
         log_error "Systemd service not found"
         return 1
     fi
@@ -207,12 +216,12 @@ print_post_install_instructions() {
     echo "4. Log out and back in for group changes to take effect"
     echo "   (Reboot if using Asetek wheels — the modprobe.d conf needs a reload)"
     echo "5. Start the service:"
-    echo "   systemctl --user start racing-wheel-suite.service"
-    echo "6. Launch the UI:"
-    echo "   wheel-ui"
+    echo "   systemctl --user start openracing.service"
+    echo "6. Launch the UI (if installed):"
+    echo "   openracing"
     echo
     echo "For troubleshooting, check logs with:"
-    echo "   journalctl --user -u racing-wheel-suite.service -f"
+    echo "   journalctl --user -u openracing.service -f"
 }
 
 main() {

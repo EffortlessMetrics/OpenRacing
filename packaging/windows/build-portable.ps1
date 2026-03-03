@@ -189,7 +189,7 @@ Edit config\default.toml for general preferences.
 More Information
 ----------------
 See docs\README.md for full documentation.
-Visit: https://github.com/openracing/openracing
+Visit: https://github.com/EffortlessMetrics/OpenRacing
 "@ | Set-Content -Path "$ZipDir\README.txt" -Encoding UTF8
 
 # Create launcher batch files

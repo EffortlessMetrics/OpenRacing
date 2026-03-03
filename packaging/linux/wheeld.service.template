@@ -1,6 +1,6 @@
 [Unit]
-Description=Racing Wheel Suite Service
-Documentation=https://github.com/racing-wheel-suite/racing-wheel-suite
+Description=OpenRacing Service
+Documentation=https://github.com/EffortlessMetrics/OpenRacing
 After=graphical-session.target
 Wants=graphical-session.target
 

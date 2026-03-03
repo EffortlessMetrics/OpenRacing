@@ -980,6 +980,13 @@ Web-sourced verification of 5 game telemetry adapter protocols against authorita
 - Asetek Tony Kanaan torque corrected (25→20 Nm)
 
 ### RC Cleanup Sprint (2025-06)
+- **ACC gear offset**: Corrected -2 → -1, web-verified against ACC broadcasting protocol v4 (F-043)
+- **Safety panic fix**: `SafetyService::get_max_torque()` NaN panic replaced with zero-torque fallback (F-044)
+- **F1 UDP parser**: `unreachable!()` on untrusted input replaced with proper `Err()` (F-045)
+- **CI reproducibility**: 33 cargo commands across 7 workflows now use `--locked` (F-046)
+- **Nightly soak test**: Extracted from silently-ignored YAML document to standalone workflow (F-047)
+- **Fanatec PID fix**: `0x0E03` corrected from ClubSport V1 to CSL Elite (F-048)
+- **CI modernization**: `actions-rs/toolchain@v1` → `dtolnay/rust-toolchain@stable` (F-049), `actions/cache@v3` → v4 (F-050)
 - **PCars2**: Adapter completely rewritten from fabricated offsets to correct SMS UDP v2 format (F-035)
 - **Telemetry snapshot tests**: 100% coverage achieved — 56/56 adapters have snapshot tests (F-040)
 - **Test quality**: 126 `unwrap()`/`expect()` calls eliminated from 8 test files (F-041)
