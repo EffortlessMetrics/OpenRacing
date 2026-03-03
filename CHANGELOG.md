@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **15,820+ tests** across the workspace (unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, doc-tests, trybuild, BDD) — 0 failures, 44 ignored
 - **16,742+ tests** across the workspace (unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, doc-tests, trybuild, BDD, protocol-verification) — 0 failures, 44 ignored
 - **17,696+ tests** across the workspace (unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, doc-tests, trybuild, BDD, protocol-verification, concurrency-stress, performance-validation) — 0 failures, 44 ignored
+- **18,645+ tests** across the workspace (unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, doc-tests, trybuild, BDD, protocol-verification, concurrency-stress, performance-validation) — 0 failures, 44 ignored
 - **96 fuzz targets** covering all HID protocols and game telemetry adapters (AMS2 target added)
 - **100+ fuzz targets** covering all HID protocols, game telemetry adapters, and new wave 24 targets
 - **104 fuzz targets** covering all HID protocols, game telemetry adapters, and wave 31 targets (telemetry packet, profile, calibration, filter pipeline)
@@ -113,6 +114,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Service diagnostics deep tests (40 tests): diagnostic types, results, categories, timing, history, health scoring, export, error rate tracking
   - Comprehensive profile system tests (64 tests): creation, inheritance, validation, import/export, migration, comparison, merge, templates, tags, search, game/device overrides, versioning, conflict resolution
   - Tracing + curves + calibration deep tests + snapshots (86 tests): tracing spans/events/formats/async/rate-limiting (21 tests), curves interpolation/bezier/fitting/monotonicity/stability (45 tests), calibration workflows/recalibration/validation/migration/pedal curves (24 tests)
+- **Wave 36 — core infrastructure deep, input/KS, SMV2 verification, doc-tests** (17,696 → ~18,300+ tests):
+  - Property-based tests for FFB (17), pipeline (11), schemas (29), IPC (15) — 72 proptests covering serde roundtrips, torque sign preservation, gain monotonicity, output bounds, domain type conversion bounds, codec validation
+  - HID common deep tests (72): device info, report parser/builder, mock devices, error handling
+  - Scheduler deep tests (79): RT setup, PLL, jitter metrics, adaptive scheduling
+  - Atomic deep tests (100): counters, snapshots, streaming stats, concurrent queues
+  - Input maps (67) + KS representation (83) deep tests: button/axis/rotary/LED/display binding, compilation, KS axis/bit/byte sources, report layout stability
+  - SimpleMotion V2 protocol verification (79 tests): command encoding/decoding, CRC polynomial, status/fault registers, known command sequences, parameter types, streaming mode, VID/PID verification
+  - Doc-tests added across 5 crates (~58 examples): openracing-ffb, openracing-filters, openracing-pipeline, openracing-calibration, openracing-ipc
+- **Wave 37 — telemetry deep, protocol deep, peripherals, BDD scenarios** (~18,300 → 18,645+ tests):
+  - Telemetry core (58), integration (59), rate-limiter (35) deep tests: GameTelemetry, NormalizedTelemetry, ConnectionState, flags, thread safety, RegistryCoverage, CoveragePolicy, game detection, ID normalization, drop-rate arithmetic, burst patterns, adaptive CPU limits
+  - HBP protocol (43) + Moza wheelbase report (59) deep tests: layout inference, LE byte order, axis decoding, normalization, report ID validation, endianness, all fields, proptests
+  - Peripherals deep test expansion: handbrake position encoding/calibration/axis mapping/deadzones, shifter gear encoding/multi-gate patterns/sequential/clutch parsing, device-types identification/capability flags/telemetry/hat directions
+  - 13 BDD device + game behavior scenarios: 8 device scenarios (Moza, Fanatec, Logitech, Thrustmaster, SimuCube, OpenFFBoard), 5 game scenarios (iRacing, ACC telemetry, game switching, NaN filtering, standby)
 - **Web-verified VID/PIDs** for Thrustmaster, Logitech, Fanatec, Simucube, Moza, AccuForce, VRS, and OpenFFBoard — source citations added from linux-steering-wheels, kernel drivers (`hid-lg4ff`, `hid-fanatecff`, `simagic-ff`), pid.codes, and vendor documentation
 - **Safety interlock comprehensive test suite**: behavior tests for interlock state machine, watchdog timeout scenarios, and FMEA fault-injection coverage
 - **Protocol verification wave 16**: 6 vendors re-audited (VRS, Heusinkveld, Cube Controls, Cammus, Leo Bodnar, AccuForce) — PID accuracy and torque specs cross-checked against USB captures and vendor documentation
