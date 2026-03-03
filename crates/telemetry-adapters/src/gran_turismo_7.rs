@@ -27,11 +27,13 @@
 //! - **Field offsets**: All verified against `SimulatorPacket.Read()` sequential layout:
 //!   EngineRPM@0x3C, GasLevel@0x44, GasCapacity@0x48, MetersPerSecond@0x4C,
 //!   WaterTemp@0x58, TireFL–RR@0x60–0x6C, LapCount@0x74, BestLap@0x78,
-//!   LastLap@0x7C, MaxAlertRPM@0x8A, Flags@0x8E, Gear@0x90, Throttle@0x91,
+//!   LastLap@0x7C, CurrentLap@0x80, Position@0x84, NumCars@0x86,
+//!   MaxAlertRPM@0x8A, Flags@0x8E, Gear@0x90, Throttle@0x91,
 //!   Brake@0x92, CarCode@0x124. ✓
 //! - **Flags bitmask**: Paused(1<<1), RevLimit(1<<5), ASM(1<<10), TCS(1<<11) — matches
 //!   PDTools `SimulatorFlags` enum. ✓
 //! - **Gear encoding**: low nibble = current gear, high nibble = suggested gear. ✓
+//! - **Tire pressures**: NOT available in the GT7 SimulatorInterface protocol.
 //!
 //! ### Extended packet support (GT7 ≥ 1.42)
 //!
@@ -105,6 +107,10 @@ const OFF_TIRE_TEMP_RR: usize = 0x6C; // 108 — f32
 const OFF_LAP_COUNT: usize = 0x74; // 116 — i16
 const OFF_BEST_LAP_MS: usize = 0x78; // 120 — i32
 const OFF_LAST_LAP_MS: usize = 0x7C; // 124 — i32
+const OFF_CURRENT_LAP_MS: usize = 0x80; // 128 — i32 (TimeOfDayProgression / current lap ms)
+const OFF_POSITION: usize = 0x84; // 132 — i16 (PreRaceStartPositionOrQualiPos)
+#[allow(dead_code)] // Documented offset from PDTools; not yet consumed.
+const OFF_NUM_CARS: usize = 0x86; // 134 — i16 (NumCarsAtPreRace)
 const OFF_MAX_ALERT_RPM: usize = 0x8A; // 138 — i16 (rev-limiter alert ceiling)
 const OFF_FLAGS: usize = 0x8E; // 142 — i16 (SimulatorFlags)
 const OFF_GEAR_BYTE: usize = 0x90; // 144 — u8 (low nibble = gear, high = suggested)
@@ -494,6 +500,8 @@ pub fn parse_decrypted_ext(buf: &[u8]) -> Result<NormalizedTelemetry> {
     let lap_count = read_u16_le(buf, OFF_LAP_COUNT);
     let best_lap_ms = read_i32_le(buf, OFF_BEST_LAP_MS);
     let last_lap_ms = read_i32_le(buf, OFF_LAST_LAP_MS);
+    let current_lap_ms = read_i32_le(buf, OFF_CURRENT_LAP_MS);
+    let position_raw = read_i16_le(buf, OFF_POSITION);
 
     // Throttle/brake are u8 [0..255] → normalised to [0.0, 1.0]
     let throttle = buf[OFF_THROTTLE] as f32 / 255.0;
@@ -529,6 +537,18 @@ pub fn parse_decrypted_ext(buf: &[u8]) -> Result<NormalizedTelemetry> {
     } else {
         0.0
     };
+    let current_lap_s = if current_lap_ms > 0 {
+        current_lap_ms as f32 / 1000.0
+    } else {
+        0.0
+    };
+
+    // Position: 1-based race position; clamp to u8 range.
+    let position: u8 = if position_raw > 0 {
+        (position_raw as u16).min(255) as u8
+    } else {
+        0
+    };
 
     let car_code = read_i32_le(buf, OFF_CAR_CODE);
 
@@ -551,6 +571,8 @@ pub fn parse_decrypted_ext(buf: &[u8]) -> Result<NormalizedTelemetry> {
         .engine_temp_c(water_temp)
         .tire_temps_c([tire_fl, tire_fr, tire_rl, tire_rr])
         .lap(lap_count)
+        .position(position)
+        .current_lap_time_s(current_lap_s)
         .best_lap_time_s(best_lap_s)
         .last_lap_time_s(last_lap_s)
         .flags(telemetry_flags);
@@ -631,6 +653,13 @@ fn read_i32_le(data: &[u8], offset: usize) -> i32 {
     data.get(offset..offset + 4)
         .and_then(|b| b.try_into().ok())
         .map(i32::from_le_bytes)
+        .unwrap_or(0)
+}
+
+fn read_i16_le(data: &[u8], offset: usize) -> i16 {
+    data.get(offset..offset + 2)
+        .and_then(|b| b.try_into().ok())
+        .map(i16::from_le_bytes)
         .unwrap_or(0)
 }
 
