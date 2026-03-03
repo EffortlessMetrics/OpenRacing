@@ -1,0 +1,148 @@
+---
+source: crates/telemetry-f1/tests/snapshot_tests.rs
+expression: norm
+---
+speed_ms: 38.88889
+steering_angle: -0.15
+throttle: 0.5
+brake: 0
+clutch: 0
+rpm: 8500
+max_rpm: 13500
+gear: 4
+num_gears: 0
+lateral_g: 0
+longitudinal_g: 0
+vertical_g: 0
+slip_ratio: 0
+slip_angle_fl: 0
+slip_angle_fr: 0
+slip_angle_rl: 0
+slip_angle_rr: 0
+tire_temps_c:
+  - 60
+  - 62
+  - 65
+  - 66
+tire_pressures_psi:
+  - 19
+  - 19.3
+  - 20
+  - 20.3
+ffb_scalar: 0
+ffb_torque_nm: 0
+flags:
+  yellow_flag: false
+  red_flag: false
+  blue_flag: false
+  checkered_flag: false
+  green_flag: true
+  pit_limiter: false
+  in_pits: false
+  drs_available: false
+  drs_active: false
+  ers_available: true
+  ers_active: false
+  launch_control: false
+  traction_control: true
+  abs_active: true
+  engine_limiter: false
+  safety_car: false
+  formation_lap: false
+  session_paused: false
+track_id: Silverstone
+position: 0
+lap: 0
+current_lap_time_s: 0
+best_lap_time_s: 0
+last_lap_time_s: 0
+delta_ahead_s: 0
+delta_behind_s: 0
+fuel_percent: 0
+engine_temp_c: 100
+extended:
+  air_temperature_c:
+    type: Integer
+    value: 12
+  brake_temp_fl_c:
+    type: Integer
+    value: 330
+  brake_temp_fr_c:
+    type: Integer
+    value: 340
+  brake_temp_rl_c:
+    type: Integer
+    value: 350
+  brake_temp_rr_c:
+    type: Integer
+    value: 360
+  decoder_type:
+    type: String
+    value: f1_native_udp
+  drs_active:
+    type: Boolean
+    value: false
+  drs_available:
+    type: Boolean
+    value: false
+  engine_power_ice_w:
+    type: Float
+    value: 0
+  engine_power_mguk_w:
+    type: Float
+    value: 0
+  ers_deploy_mode:
+    type: Integer
+    value: 1
+  ers_deployed_j:
+    type: Float
+    value: 0
+  ers_harvested_mguh_j:
+    type: Float
+    value: 0
+  ers_harvested_mguk_j:
+    type: Float
+    value: 0
+  ers_store_energy_j:
+    type: Float
+    value: 3000000
+  ers_store_fraction:
+    type: Float
+    value: 0.75
+  fuel_remaining_kg:
+    type: Float
+    value: 50
+  fuel_remaining_laps:
+    type: Float
+    value: 25
+  rpm_fraction:
+    type: Float
+    value: 0.6296296
+  session_type:
+    type: Integer
+    value: 10
+  track_temperature_c:
+    type: Integer
+    value: 15
+  tyre_age_laps:
+    type: Integer
+    value: 3
+  tyre_compound:
+    type: Integer
+    value: 8
+  tyre_compound_name:
+    type: String
+    value: Wet
+  tyre_inner_temp_fl_c:
+    type: Integer
+    value: 72
+  tyre_inner_temp_fr_c:
+    type: Integer
+    value: 73
+  tyre_inner_temp_rl_c:
+    type: Integer
+    value: 75
+  tyre_inner_temp_rr_c:
+    type: Integer
+    value: 76
+sequence: 0
