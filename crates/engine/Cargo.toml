@@ -78,6 +78,8 @@ proptest = { workspace = true }
 num_cpus = { workspace = true }
 criterion = { workspace = true }
 openracing-test-helpers = { workspace = true }
+openracing-calibration = { workspace = true }
+openracing-ffb = { workspace = true }
 trybuild = "1.0.114"
 
 # Enable harness feature for integration tests and examples
