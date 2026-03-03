@@ -51,3 +51,7 @@ path = "tests/property_tests.rs"
 [[test]]
 name = "proptest_edge_cases"
 path = "tests/proptest_edge_cases.rs"
+
+[[test]]
+name = "scheduler_deep_tests"
+path = "tests/scheduler_deep_tests.rs"
