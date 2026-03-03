@@ -371,7 +371,7 @@ impl RFactor2Adapter {
     }
 
     /// Normalize rFactor 2 telemetry data to common format
-    fn normalize_rf2_data(
+    pub fn normalize_rf2_data(
         &self,
         vehicle: &RF2VehicleTelemetry,
         scoring: Option<&RF2ScoringHeader>,
