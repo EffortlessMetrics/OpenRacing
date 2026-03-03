@@ -1,0 +1,19 @@
+---
+source: crates/openracing-ipc/tests/snapshot_tests.rs
+expression: json
+---
+{
+  "transport": {
+    "NamedPipe": {
+      "pipe_name": "\\\\.\\pipe\\openracing"
+    }
+  },
+  "max_connections": 100,
+  "connection_timeout": {
+    "secs": 30,
+    "nanos": 0
+  },
+  "enable_acl": false,
+  "recv_buffer_size": 65536,
+  "send_buffer_size": 65536
+}

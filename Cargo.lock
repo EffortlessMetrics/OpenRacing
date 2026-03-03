@@ -4438,6 +4438,7 @@ dependencies = [
  "chrono",
  "criterion",
  "futures",
+ "insta",
  "libc",
  "openracing-errors",
  "proptest",

@@ -1,0 +1,20 @@
+---
+source: crates/openracing-ipc/tests/snapshot_tests.rs
+expression: json
+---
+{
+  "transport": {
+    "Tcp": {
+      "address": "0.0.0.0",
+      "port": 8080
+    }
+  },
+  "max_connections": 200,
+  "connection_timeout": {
+    "secs": 60,
+    "nanos": 0
+  },
+  "enable_acl": true,
+  "recv_buffer_size": 65536,
+  "send_buffer_size": 65536
+}

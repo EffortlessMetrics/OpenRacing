@@ -1,0 +1,10 @@
+---
+source: crates/openracing-ipc/tests/snapshot_tests.rs
+expression: json
+---
+{
+  "Tcp": {
+    "address": "127.0.0.1",
+    "port": 50051
+  }
+}
