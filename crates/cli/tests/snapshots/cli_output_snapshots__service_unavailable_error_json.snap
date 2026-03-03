@@ -1,0 +1,11 @@
+---
+source: crates/cli/tests/cli_output_snapshots.rs
+expression: error_output
+---
+{
+  "error": {
+    "message": "Service unavailable: Connection refused",
+    "type": "ServiceUnavailable"
+  },
+  "success": false
+}

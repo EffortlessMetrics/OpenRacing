@@ -155,3 +155,109 @@ fn snapshot_error_json_format() {
     });
     insta::assert_json_snapshot!("error_json_format", error_output);
 }
+
+// ---------------------------------------------------------------------------
+// Expanded help-text snapshots for remaining subcommand groups
+// ---------------------------------------------------------------------------
+
+#[test]
+fn snapshot_cli_profile_help() -> Result<(), Box<dyn std::error::Error>> {
+    let mut cmd = assert_cmd::Command::cargo_bin("wheelctl")?;
+    let output = cmd.args(["profile", "--help"]).output()?;
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    insta::assert_snapshot!("cli_profile_help", stdout);
+    Ok(())
+}
+
+#[test]
+fn snapshot_cli_plugin_help() -> Result<(), Box<dyn std::error::Error>> {
+    let mut cmd = assert_cmd::Command::cargo_bin("wheelctl")?;
+    let output = cmd.args(["plugin", "--help"]).output()?;
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    insta::assert_snapshot!("cli_plugin_help", stdout);
+    Ok(())
+}
+
+#[test]
+fn snapshot_cli_game_help() -> Result<(), Box<dyn std::error::Error>> {
+    let mut cmd = assert_cmd::Command::cargo_bin("wheelctl")?;
+    let output = cmd.args(["game", "--help"]).output()?;
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    insta::assert_snapshot!("cli_game_help", stdout);
+    Ok(())
+}
+
+#[test]
+fn snapshot_cli_telemetry_help() -> Result<(), Box<dyn std::error::Error>> {
+    let mut cmd = assert_cmd::Command::cargo_bin("wheelctl")?;
+    let output = cmd.args(["telemetry", "--help"]).output()?;
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    insta::assert_snapshot!("cli_telemetry_help", stdout);
+    Ok(())
+}
+
+#[test]
+fn snapshot_cli_health_help() -> Result<(), Box<dyn std::error::Error>> {
+    let mut cmd = assert_cmd::Command::cargo_bin("wheelctl")?;
+    let output = cmd.args(["health", "--help"]).output()?;
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    insta::assert_snapshot!("cli_health_help", stdout);
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Error message snapshots
+// ---------------------------------------------------------------------------
+
+#[test]
+fn snapshot_cli_device_missing_subcommand() -> Result<(), Box<dyn std::error::Error>> {
+    let mut cmd = assert_cmd::Command::cargo_bin("wheelctl")?;
+    let output = cmd.args(["device"]).output()?;
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    insta::assert_snapshot!("cli_device_missing_subcommand", stderr);
+    Ok(())
+}
+
+#[test]
+fn snapshot_cli_profile_missing_subcommand() -> Result<(), Box<dyn std::error::Error>> {
+    let mut cmd = assert_cmd::Command::cargo_bin("wheelctl")?;
+    let output = cmd.args(["profile"]).output()?;
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    insta::assert_snapshot!("cli_profile_missing_subcommand", stderr);
+    Ok(())
+}
+
+#[test]
+fn snapshot_cli_invalid_calibration_type() -> Result<(), Box<dyn std::error::Error>> {
+    let mut cmd = assert_cmd::Command::cargo_bin("wheelctl")?;
+    let output = cmd
+        .args(["device", "calibrate", "wheel-001", "bogus"])
+        .output()?;
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    insta::assert_snapshot!("cli_invalid_calibration_type", stderr);
+    Ok(())
+}
+
+#[test]
+fn snapshot_validation_error_json() {
+    let error_output = serde_json::json!({
+        "success": false,
+        "error": {
+            "message": "Validation error: ffbGain must be between 0.0 and 1.0",
+            "type": "ValidationError"
+        }
+    });
+    insta::assert_json_snapshot!("validation_error_json", error_output);
+}
+
+#[test]
+fn snapshot_service_unavailable_error_json() {
+    let error_output = serde_json::json!({
+        "success": false,
+        "error": {
+            "message": "Service unavailable: Connection refused",
+            "type": "ServiceUnavailable"
+        }
+    });
+    insta::assert_json_snapshot!("service_unavailable_error_json", error_output);
+}

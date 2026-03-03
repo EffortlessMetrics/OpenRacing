@@ -1,0 +1,19 @@
+---
+source: crates/cli/tests/cli_output_snapshots.rs
+expression: stderr
+---
+Device management commands
+
+Usage: wheelctl.exe device [OPTIONS] <COMMAND>
+
+Commands:
+  list       List all connected devices
+  status     Show device status and telemetry
+  calibrate  Calibrate device (center, DOR, pedals)
+  reset      Reset device to safe state
+  help       Print this message or the help of the given subcommand(s)
+
+Options:
+      --json        Output in JSON format for machine parsing
+  -v, --verbose...  Verbose logging
+  -h, --help        Print help

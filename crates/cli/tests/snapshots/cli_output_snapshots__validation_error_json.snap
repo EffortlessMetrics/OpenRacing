@@ -1,0 +1,11 @@
+---
+source: crates/cli/tests/cli_output_snapshots.rs
+expression: error_output
+---
+{
+  "error": {
+    "message": "Validation error: ffbGain must be between 0.0 and 1.0",
+    "type": "ValidationError"
+  },
+  "success": false
+}
