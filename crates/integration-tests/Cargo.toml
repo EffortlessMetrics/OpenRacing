@@ -81,6 +81,7 @@ openracing-filters = { workspace = true }
 openracing-pipeline = { workspace = true }
 openracing-calibration = { workspace = true }
 openracing-ipc = { workspace = true }
+openracing-curves = { workspace = true }
 openracing-errors = { workspace = true }
 openracing-plugin-abi = { workspace = true }
 openracing-device-types = { workspace = true }
