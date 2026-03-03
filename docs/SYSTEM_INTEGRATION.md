@@ -245,8 +245,18 @@ All faults trigger immediate torque ramp-down within 50ms.
 |------|--------|--------------|-------------|---------|
 | iRacing | Shared Memory | app.ini | ✅ | Full Support |
 | ACC | UDP Broadcast | broadcasting.json | ✅ | Full Support |
-| AMS2 | Shared Memory | None | ❌ | Read-Only |
-| rFactor 2 | Plugin API | Plugin Install | 🔄 | Planned |
+| Assetto Corsa | UDP OutGauge | — | ✅ | Full Support |
+| DiRT Rally 2.0 | Codemasters UDP | — | ✅ | Full Support |
+| Forza Motorsport / Horizon | Forza Data Out UDP | — | ✅ | Full Support |
+| BeamNG.drive | UDP OutGauge | — | ✅ | Full Support |
+| Project CARS 2 | Shared Memory | — | ❌ | Full Support |
+| AMS2 | Shared Memory | None | ❌ | Experimental |
+| rFactor 2 | Shared Memory | None | ❌ | Experimental |
+| F1 24/25 | Codemasters UDP | — | ✅ | Experimental |
+| EA SPORTS WRC | UDP | — | ✅ | Experimental |
+| Gran Turismo 7 | Encrypted UDP | — | ❌ | Experimental |
+
+> For the full list of 28+ supported games, see [SETUP.md — Supported Games](SETUP.md#supported-games).
 
 ### Telemetry Processing
 

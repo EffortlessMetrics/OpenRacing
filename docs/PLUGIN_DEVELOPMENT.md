@@ -1084,7 +1084,7 @@ Budget violation policy:
 
 #### For Safe Plugins (WASM)
 
-- **Rust** 1.70 or later
+- **Rust** 1.85.0 or later (nightly toolchain required)
 - **WASI target**: `rustup target add wasm32-wasi`
 - **Cargo** (included with Rust)
 
@@ -1246,7 +1246,7 @@ valgrind --leak-check=full ./target/release/my_plugin_test
 
 3. **Verify installation**:
    ```bash
-   openracing-cli plugin list
+   wheelctl plugin list
    ```
 
 ### Configuration
@@ -1301,7 +1301,7 @@ Quarantine duration escalates:
 To manually release a plugin from quarantine:
 
 ```bash
-openracing-cli plugin release my_plugin
+wheelctl plugin release my_plugin
 ```
 
 ---
@@ -1470,7 +1470,7 @@ int plugin_process(void* state, float ffb_in, float wheel_speed,
 **Solutions**:
 1. Check manifest syntax:
    ```bash
-   openracing-cli plugin validate my_plugin/plugin.yaml
+   wheelctl plugin validate my_plugin/plugin.yaml
    ```
 
 2. Verify file permissions:
@@ -1480,7 +1480,7 @@ int plugin_process(void* state, float ffb_in, float wheel_speed,
 
 3. Check logs:
    ```bash
-   journalctl -u openracing -f | grep plugin
+   journalctl --user -u wheeld -f | grep plugin
    ```
 
 #### Budget Violations
@@ -1558,7 +1558,7 @@ int plugin_process(void* state, float ffb_in, float wheel_speed,
 
 3. Test with debug build:
    ```bash
-   gdb --args openracing --debug-plugins
+   gdb --args wheeld --debug-plugins
    ```
 
 ### Debugging Tips
@@ -1577,13 +1577,13 @@ logging:
 
 ```bash
 # Inspect plugin details
-openracing-cli plugin inspect my_plugin
+wheelctl plugin inspect my_plugin
 
 # View plugin statistics
-openracing-cli plugin stats my_plugin
+wheelctl plugin stats my_plugin
 
 # View quarantine status
-openracing-cli plugin quarantine list
+wheelctl plugin quarantine list
 ```
 
 #### Test in Isolation
@@ -1593,17 +1593,17 @@ openracing-cli plugin quarantine list
 cargo test --package my_plugin -- --nocapture
 
 # Run with sample data
-openracing-cli plugin test my_plugin --input sample_data.json
+wheelctl plugin test my_plugin --input sample_data.json
 ```
 
 #### Monitor Performance
 
 ```bash
 # Real-time monitoring
-openracing-cli plugin monitor my_plugin
+wheelctl plugin monitor my_plugin
 
 # Performance report
-openracing-cli plugin report my_plugin --format json
+wheelctl plugin report my_plugin --format json
 ```
 
 ---
@@ -1638,8 +1638,8 @@ openracing-cli plugin report my_plugin --format json
 
 ### Community
 
-- **GitHub Issues**: https://github.com/your-org/openracing/issues
-- **Discussions**: https://github.com/your-org/openracing/discussions
+- **GitHub Issues**: https://github.com/EffortlessMetrics/OpenRacing/issues
+- **Discussions**: https://github.com/EffortlessMetrics/OpenRacing/discussions
 - **Contributing Guide**: [`CONTRIBUTING.md`](../CONTRIBUTING.md)
 
 ---

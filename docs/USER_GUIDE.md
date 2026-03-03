@@ -33,7 +33,7 @@ OpenRacing is a safety-critical racing wheel and force feedback simulation softw
 ### Key Features
 
 - **Real-time Force Feedback at 1kHz** - Deterministic processing pipeline with sub-millisecond latency
-- **Multi-Game Integration** - Native support for iRacing, ACC, AMS2, and rFactor 2
+- **Multi-Game Integration** - Support for 28+ racing simulators including iRacing, ACC, Forza, BeamNG, and more (see [Supported Games](SETUP.md#4-game-setup))
 - **Safety-Critical Design** - Comprehensive fault detection and hardware watchdog integration
 - **Cross-Platform Support** - Windows 10+, Linux kernel 4.0+, and macOS
 - **Profile Management** - JSON-based force feedback profiles with schema validation
@@ -60,15 +60,22 @@ OpenRacing is a safety-critical racing wheel and force feedback simulation softw
 
 ### Supported Racing Wheels
 
-OpenRacing supports a wide range of racing wheels through HID (Human Interface Device) communication. Commonly supported devices include:
+OpenRacing supports 14+ vendors and their product lines through HID (Human Interface Device) communication:
 
-- Logitech G-series wheels (G25, G27, G29, G920, G923)
-- Fanatec CSL and ClubSport series
-- Thrustmaster T-series and TX/T300 series
-- Simucube and direct drive wheels
+- Moza Racing (R3, R5, R9, R12, R16, R21)
+- Fanatec CSL DD, GT DD Pro, Podium DD1/DD2, CSW v2.5
+- Logitech G27, G29, G923, G Pro
+- Thrustmaster T-series and TX/T300/T818 series
+- Simagic Alpha, Alpha Mini, M10, Neo
+- VRS DirectForce Pro
+- Simucube 2 Sport/Pro/Ultimate
+- Asetek SimSports Forte, Invicta, LaPrima
+- Cammus C5, C12
+- OpenFFBoard, FFBeast, AccuForce
+- Heusinkveld and Leo Bodnar (input only)
 - Most other HID-compliant racing wheels
 
-> **Note**: For the most up-to-date list of supported devices, check the [GitHub repository](https://github.com/EffortlessMetrics/OpenRacing).
+> **Note**: For the complete vendor table with VID/PID details, see [SETUP.md — Supported Devices](SETUP.md#supported-devices).
 
 ---
 
@@ -1175,8 +1182,18 @@ wheelctl game list --detailed
 |------|-----|--------|----------|
 | iRacing | `iracing` | Full Support | FFB Scalar, RPM, Car ID |
 | Assetto Corsa Competizione | `acc` | Full Support | FFB Scalar, RPM, Car ID, DRS |
-| Automobilista 2 | `ams2` | Read-Only | FFB Scalar, RPM |
-| rFactor 2 | `rf2` | Planned | FFB Scalar, RPM, Telemetry |
+| Assetto Corsa | `assetto_corsa` | Full Support | FFB Scalar, RPM |
+| DiRT Rally 2.0 | `dirt_rally_2` | Full Support | FFB Scalar, RPM |
+| Forza Motorsport / Horizon | `forza_motorsport` | Full Support | FFB Scalar, RPM |
+| BeamNG.drive | `beamng_drive` | Full Support | FFB Scalar, RPM |
+| Project CARS 2 | `project_cars_2` | Full Support | FFB Scalar, RPM |
+| Automobilista 2 | `ams2` | Experimental | FFB Scalar, RPM |
+| rFactor 2 | `rfactor2` | Experimental | FFB Scalar, RPM, Telemetry |
+| F1 24 / F1 25 | `f1` | Experimental | FFB Scalar, RPM |
+| EA SPORTS WRC | `eawrc` | Experimental | FFB Scalar, RPM |
+| Gran Turismo 7 | `gran_turismo_7` | Experimental | FFB Scalar, RPM |
+
+> For the full list of 28+ supported games, see [SETUP.md — Supported Games](SETUP.md#supported-games).
 
 #### `game configure`
 
@@ -1468,16 +1485,16 @@ No manual configuration required - AMS2 exposes shared memory automatically.
 
 #### rFactor 2
 
-**Status**: Planned
+**Status**: Experimental
 
-**Configuration Method**: Plugin API
+**Configuration Method**: Shared Memory
 
 **Features**:
 - FFB Scalar
 - RPM
 - Full Telemetry
 
-**Note**: Plugin installation will be required when support is available.
+**Note**: rFactor 2 support is experimental. Some features may have limited functionality.
 
 ### Auto Profile Switching
 
