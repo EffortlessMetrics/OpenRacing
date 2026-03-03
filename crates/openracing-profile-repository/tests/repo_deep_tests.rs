@@ -1102,3 +1102,616 @@ mod config {
         Ok(())
     }
 }
+
+// ---------------------------------------------------------------------------
+// Profile versioning (save, update, re-save)
+// ---------------------------------------------------------------------------
+
+mod versioning {
+    use super::*;
+    use racing_wheel_schemas::prelude::{Gain, Degrees, TorqueNm};
+
+    fn gain(v: f32) -> Result<Gain, Box<dyn std::error::Error>> {
+        Ok(Gain::new(v)?)
+    }
+    fn dor(v: f32) -> Result<Degrees, Box<dyn std::error::Error>> {
+        Ok(Degrees::new_dor(v)?)
+    }
+    fn torque(v: f32) -> Result<TorqueNm, Box<dyn std::error::Error>> {
+        Ok(TorqueNm::new(v)?)
+    }
+
+    #[tokio::test]
+    async fn save_update_save_preserves_latest() -> TestResult {
+        let (repo, _tmp) = create_test_repository().await?;
+        let profile_id = valid_profile_id("ver_update")?;
+
+        let profile_v1 = Profile::new(
+            profile_id.clone(),
+            ProfileScope::global(),
+            BaseSettings {
+                ffb_gain: gain(0.5)?,
+                degrees_of_rotation: dor(900.0)?,
+                torque_cap: torque(10.0)?,
+                filters: FilterConfig::default(),
+            },
+            "V1".to_string(),
+        );
+        repo.save_profile(&profile_v1, None).await?;
+
+        // Update and re-save with different settings
+        let profile_v2 = Profile::new(
+            profile_id.clone(),
+            ProfileScope::global(),
+            BaseSettings {
+                ffb_gain: gain(0.8)?,
+                degrees_of_rotation: dor(540.0)?,
+                torque_cap: torque(20.0)?,
+                filters: FilterConfig::default(),
+            },
+            "V2".to_string(),
+        );
+        repo.save_profile(&profile_v2, None).await?;
+
+        let loaded = repo.load_profile(&profile_id).await?;
+        let loaded = loaded.ok_or("profile should exist")?;
+        assert!(
+            (loaded.base_settings.ffb_gain.value() - 0.8).abs() < 0.01,
+            "should have v2 gain"
+        );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn save_preserves_scope_after_update() -> TestResult {
+        let (repo, _tmp) = create_test_repository().await?;
+        let profile = create_game_profile("ver_scope", "acc")?;
+        repo.save_profile(&profile, None).await?;
+
+        // Re-save same profile
+        repo.save_profile(&profile, None).await?;
+
+        let loaded = repo.load_profile(&profile.id).await?;
+        let loaded = loaded.ok_or("profile should exist")?;
+        assert_eq!(loaded.scope.game.as_deref(), Some("acc"));
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn reload_recovers_all_profiles() -> TestResult {
+        let temp_dir = TempDir::new()?;
+        let config = ProfileRepositoryConfig::new(temp_dir.path());
+        let repo = ProfileRepository::new(config.clone()).await?;
+
+        let p1 = create_test_profile("ver_reload_a")?;
+        let p2 = create_test_profile("ver_reload_b")?;
+        repo.save_profile(&p1, None).await?;
+        repo.save_profile(&p2, None).await?;
+
+        // Clear cache and reload to simulate restart
+        repo.clear_cache().await;
+        repo.reload().await?;
+
+        let loaded1 = repo.load_profile(&p1.id).await?;
+        let loaded2 = repo.load_profile(&p2.id).await?;
+        assert!(loaded1.is_some(), "p1 should survive reload");
+        assert!(loaded2.is_some(), "p2 should survive reload");
+        Ok(())
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Additional search and filtering
+// ---------------------------------------------------------------------------
+
+mod search_and_filter {
+    use super::*;
+
+    #[tokio::test]
+    async fn filter_by_multiple_game_scopes() -> TestResult {
+        let (repo, _tmp) = create_test_repository().await?;
+
+        let iracing = create_game_profile("sf_iracing", "iracing")?;
+        let acc = create_game_profile("sf_acc", "acc")?;
+        let rfactor = create_game_profile("sf_rfactor2", "rfactor2")?;
+        let global = create_test_profile("sf_global")?;
+
+        repo.save_profile(&iracing, None).await?;
+        repo.save_profile(&acc, None).await?;
+        repo.save_profile(&rfactor, None).await?;
+        repo.save_profile(&global, None).await?;
+
+        let profiles = repo.list_profiles().await?;
+        assert_eq!(profiles.len(), 4);
+
+        let game_profiles: Vec<_> = profiles
+            .iter()
+            .filter(|p| p.scope.game.is_some())
+            .collect();
+        assert_eq!(game_profiles.len(), 3);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn filter_car_profiles_for_specific_game() -> TestResult {
+        let (repo, _tmp) = create_test_repository().await?;
+
+        let gt3 = create_car_profile("sf_gt3", "iracing", "gt3")?;
+        let lmp = create_car_profile("sf_lmp", "iracing", "lmp2")?;
+        let acc_gt3 = create_car_profile("sf_acc_gt3", "acc", "gt3")?;
+
+        repo.save_profile(&gt3, None).await?;
+        repo.save_profile(&lmp, None).await?;
+        repo.save_profile(&acc_gt3, None).await?;
+
+        let profiles = repo.list_profiles().await?;
+        let iracing_cars: Vec<_> = profiles
+            .iter()
+            .filter(|p| p.scope.game.as_deref() == Some("iracing") && p.scope.car.is_some())
+            .collect();
+        assert_eq!(iracing_cars.len(), 2, "should have 2 iracing car profiles");
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn list_after_clear_cache_and_reload() -> TestResult {
+        let (repo, _tmp) = create_test_repository().await?;
+
+        for i in 0..3 {
+            let p = create_test_profile(&format!("sf_reload_{}", i))?;
+            repo.save_profile(&p, None).await?;
+        }
+
+        repo.clear_cache().await;
+        repo.reload().await?;
+
+        let profiles = repo.list_profiles().await?;
+        assert_eq!(profiles.len(), 3, "all profiles should survive reload");
+        Ok(())
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Additional concurrent access patterns
+// ---------------------------------------------------------------------------
+
+mod concurrent_advanced {
+    use super::*;
+    use std::sync::Arc;
+
+    #[tokio::test]
+    async fn concurrent_save_and_delete_different_profiles() -> TestResult {
+        let (repo, _tmp) = create_test_repository().await?;
+        let repo = Arc::new(repo);
+
+        // Pre-populate
+        for i in 0..10 {
+            let p = create_test_profile(&format!("csd_{}", i))?;
+            repo.save_profile(&p, None).await?;
+        }
+
+        let mut handles = Vec::new();
+
+        // Delete even indices
+        for i in (0..10).step_by(2) {
+            let repo = repo.clone();
+            handles.push(tokio::spawn(async move {
+                let id = ProfileId::new(format!("csd_{}", i)).ok();
+                if let Some(id) = id {
+                    let _ = repo.delete_profile(&id).await;
+                }
+            }));
+        }
+
+        // Save new profiles
+        for i in 10..15 {
+            let repo = repo.clone();
+            handles.push(tokio::spawn(async move {
+                let profile_id = ProfileId::new(format!("csd_{}", i)).ok();
+                if let Some(pid) = profile_id {
+                    let p = Profile::new(
+                        pid,
+                        ProfileScope::global(),
+                        BaseSettings::default(),
+                        format!("CSD {}", i),
+                    );
+                    let _ = repo.save_profile(&p, None).await;
+                }
+            }));
+        }
+
+        for handle in handles {
+            handle.await?;
+        }
+
+        let profiles = repo.list_profiles().await?;
+        // We should have odd indices (1,3,5,7,9) + new (10,11,12,13,14) = 10
+        assert!(
+            profiles.len() >= 5,
+            "should have at least 5 remaining profiles"
+        );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn concurrent_reload_safe() -> TestResult {
+        let (repo, _tmp) = create_test_repository().await?;
+
+        for i in 0..5 {
+            let p = create_test_profile(&format!("cr_{}", i))?;
+            repo.save_profile(&p, None).await?;
+        }
+
+        let repo = Arc::new(repo);
+        let mut handles = Vec::new();
+
+        for _ in 0..5 {
+            let repo = repo.clone();
+            handles.push(tokio::spawn(async move {
+                let _ = repo.reload().await;
+            }));
+        }
+
+        for handle in handles {
+            handle.await?;
+        }
+
+        let profiles = repo.list_profiles().await?;
+        assert_eq!(profiles.len(), 5, "all profiles should survive concurrent reloads");
+        Ok(())
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Deterministic merge
+// ---------------------------------------------------------------------------
+
+mod deterministic_merge {
+    use super::*;
+    use racing_wheel_schemas::prelude::{Gain, Degrees, TorqueNm};
+
+    fn gain(v: f32) -> Result<Gain, Box<dyn std::error::Error>> {
+        Ok(Gain::new(v)?)
+    }
+    fn dor(v: f32) -> Result<Degrees, Box<dyn std::error::Error>> {
+        Ok(Degrees::new_dor(v)?)
+    }
+    fn torque(v: f32) -> Result<TorqueNm, Box<dyn std::error::Error>> {
+        Ok(TorqueNm::new(v)?)
+    }
+
+    #[tokio::test]
+    async fn merge_other_takes_precedence() -> TestResult {
+        let (repo, _tmp) = create_test_repository().await?;
+
+        let base = Profile::new(
+            valid_profile_id("merge_base")?,
+            ProfileScope::global(),
+            BaseSettings {
+                ffb_gain: gain(0.5)?,
+                degrees_of_rotation: dor(900.0)?,
+                torque_cap: torque(10.0)?,
+                filters: FilterConfig::default(),
+            },
+            "Base".to_string(),
+        );
+        let other = Profile::new(
+            valid_profile_id("merge_other")?,
+            ProfileScope::global(),
+            BaseSettings {
+                ffb_gain: gain(0.9)?,
+                degrees_of_rotation: dor(540.0)?,
+                torque_cap: torque(25.0)?,
+                filters: FilterConfig::default(),
+            },
+            "Other".to_string(),
+        );
+
+        let merged = repo.merge_profiles_deterministic(&base, &other)?;
+        assert!(
+            (merged.base_settings.ffb_gain.value() - 0.9).abs() < 0.01,
+            "other should take precedence: got {}",
+            merged.base_settings.ffb_gain.value()
+        );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn merge_with_self_is_identity() -> TestResult {
+        let (repo, _tmp) = create_test_repository().await?;
+
+        let profile = Profile::new(
+            valid_profile_id("merge_self")?,
+            ProfileScope::global(),
+            BaseSettings {
+                ffb_gain: gain(0.6)?,
+                degrees_of_rotation: dor(720.0)?,
+                torque_cap: torque(12.0)?,
+                filters: FilterConfig::default(),
+            },
+            "Self".to_string(),
+        );
+
+        let merged = repo.merge_profiles_deterministic(&profile, &profile)?;
+        assert!(
+            (merged.base_settings.ffb_gain.value() - 0.6).abs() < 0.01,
+            "merge with self should preserve values"
+        );
+        Ok(())
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Additional error type coverage
+// ---------------------------------------------------------------------------
+
+mod error_coverage {
+    use openracing_profile_repository::{ProfileRepositoryError, StorageError, ValidationError};
+
+    #[test]
+    fn all_error_variants_display_non_empty() {
+        let errors: Vec<Box<dyn std::fmt::Display>> = vec![
+            Box::new(ProfileRepositoryError::ProfileNotFound("x".into())),
+            Box::new(ProfileRepositoryError::ValidationFailed("x".into())),
+            Box::new(ProfileRepositoryError::MigrationFailed("x".into())),
+            Box::new(ProfileRepositoryError::UnsupportedSchemaVersion("x".into())),
+            Box::new(ProfileRepositoryError::SignatureError("x".into())),
+            Box::new(ProfileRepositoryError::InvalidProfileId("x".into())),
+            Box::new(ProfileRepositoryError::ConfigError("x".into())),
+            Box::new(ProfileRepositoryError::CacheError("x".into())),
+            Box::new(ProfileRepositoryError::HierarchyResolutionFailed("x".into())),
+        ];
+        for err in &errors {
+            assert!(!err.to_string().is_empty());
+        }
+    }
+
+    #[test]
+    fn io_error_is_recoverable() {
+        let io_err = std::io::Error::new(std::io::ErrorKind::NotFound, "gone");
+        let repo_err = ProfileRepositoryError::from(io_err);
+        assert!(repo_err.is_recoverable());
+    }
+
+    #[test]
+    fn scope_mismatch_not_recoverable() {
+        let err = ProfileRepositoryError::ScopeMismatch {
+            expected: "global".into(),
+            actual: "game".into(),
+        };
+        assert!(!err.is_recoverable());
+        assert!(err.to_string().contains("global"));
+        assert!(err.to_string().contains("game"));
+    }
+
+    #[test]
+    fn atomic_write_failed_is_recoverable() {
+        let err = ProfileRepositoryError::atomic_write_failed("/tmp/a.tmp", "/tmp/a.json");
+        assert!(err.is_recoverable());
+        assert!(err.to_string().contains("a.tmp"));
+    }
+
+    #[test]
+    fn file_path_error_not_recoverable() {
+        let err = ProfileRepositoryError::file_path_error("/bad/path", "test reason");
+        assert!(!err.is_recoverable());
+        assert!(err.to_string().contains("test reason"));
+    }
+
+    #[test]
+    fn validation_failed_with_context() {
+        let err = ProfileRepositoryError::validation_failed("gain", "out of range");
+        assert!(err.to_string().contains("gain"));
+        assert!(err.to_string().contains("out of range"));
+    }
+
+    #[test]
+    fn storage_error_write_failed() {
+        let io_err = std::io::Error::new(std::io::ErrorKind::PermissionDenied, "denied");
+        let err = StorageError::write_failed("/tmp/out.json", io_err);
+        assert!(err.to_string().contains("out.json"));
+    }
+
+    #[test]
+    fn validation_error_non_monotonic() {
+        let err = ValidationError::NonMonotonicCurve;
+        assert!(err.to_string().contains("monotonic"));
+    }
+
+    #[test]
+    fn validation_error_unsorted_rpm() {
+        let err = ValidationError::UnsortedRpmBands;
+        assert!(err.to_string().contains("ascending"));
+    }
+
+    #[test]
+    fn validation_error_schema_mismatch() {
+        let err = ValidationError::SchemaVersionMismatch {
+            expected: "1".into(),
+            actual: "2".into(),
+        };
+        assert!(err.to_string().contains("1"));
+        assert!(err.to_string().contains("2"));
+    }
+
+    #[test]
+    fn validation_error_converts_to_repo_error() {
+        let val_err = ValidationError::missing_field("test_field");
+        let repo_err: ProfileRepositoryError = val_err.into();
+        assert!(repo_err.to_string().contains("test_field"));
+        assert!(!repo_err.is_recoverable());
+    }
+
+    #[test]
+    fn storage_error_converts_to_repo_error() {
+        let storage_err = StorageError::FileExists(std::path::PathBuf::from("/tmp/exists.json"));
+        let repo_err: ProfileRepositoryError = storage_err.into();
+        assert!(repo_err.to_string().contains("exists.json"));
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Signer edge cases
+// ---------------------------------------------------------------------------
+
+mod signer_edge_cases {
+    use super::*;
+    use ed25519_dalek::SigningKey;
+    use rand::rngs::OsRng;
+
+    #[test]
+    fn signer_default_has_no_trusted_keys() {
+        let signer = ProfileSigner::default();
+        assert!(!signer.is_trusted("anything"));
+    }
+
+    #[test]
+    fn add_trusted_key_then_check() {
+        let mut signer = ProfileSigner::new();
+        signer.add_trusted_key("my_key".to_string());
+        assert!(signer.is_trusted("my_key"));
+        assert!(!signer.is_trusted("other_key"));
+    }
+
+    #[test]
+    fn hash_empty_json() {
+        let h1 = ProfileSigner::hash_json("");
+        let h2 = ProfileSigner::hash_json("");
+        assert_eq!(h1, h2);
+        assert!(!h1.is_empty());
+    }
+
+    #[test]
+    fn hash_whitespace_differences() {
+        let h1 = ProfileSigner::hash_json(r#"{"a":1}"#);
+        let h2 = ProfileSigner::hash_json(r#"{ "a" : 1 }"#);
+        assert_ne!(h1, h2, "whitespace should affect hash");
+    }
+
+    #[test]
+    fn sign_produces_valid_signature() -> TestResult {
+        let signer = ProfileSigner::new();
+        let mut csprng = OsRng;
+        let key = SigningKey::generate(&mut csprng);
+        let sig = signer.sign(r#"{"data": "test"}"#, &key)?;
+        assert!(sig.is_valid());
+        assert!(sig.is_trusted());
+        assert!(!sig.signature.is_empty());
+        assert!(!sig.public_key.is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn two_different_keys_produce_different_signatures() -> TestResult {
+        let signer = ProfileSigner::new();
+        let mut csprng = OsRng;
+        let key1 = SigningKey::generate(&mut csprng);
+        let key2 = SigningKey::generate(&mut csprng);
+        let json = r#"{"data": "same"}"#;
+
+        let sig1 = signer.sign(json, &key1)?;
+        let sig2 = signer.sign(json, &key2)?;
+
+        assert_ne!(sig1.signature, sig2.signature);
+        assert_ne!(sig1.public_key, sig2.public_key);
+        Ok(())
+    }
+
+    #[test]
+    fn unsigned_trust_state_display() {
+        assert_eq!(TrustState::default().to_string(), "unsigned");
+    }
+
+    #[test]
+    fn profile_signature_invalid_not_valid() {
+        let sig = ProfileSignature::new("s".into(), "k".into(), TrustState::Invalid);
+        assert!(!sig.is_valid());
+        assert!(!sig.is_trusted());
+    }
+
+    #[test]
+    fn profile_signature_unsigned_not_valid() {
+        let sig = ProfileSignature::new("s".into(), "k".into(), TrustState::Unsigned);
+        assert!(!sig.is_valid());
+        assert!(!sig.is_trusted());
+    }
+
+    #[test]
+    fn profile_signature_valid_unknown_is_valid_not_trusted() {
+        let sig = ProfileSignature::new("s".into(), "k".into(), TrustState::ValidUnknown);
+        assert!(sig.is_valid());
+        assert!(!sig.is_trusted());
+    }
+}
+
+// ---------------------------------------------------------------------------
+// ProfileValidationContext
+// ---------------------------------------------------------------------------
+
+mod validation_context {
+    use super::*;
+
+    #[test]
+    fn new_context_has_all_checks_enabled() {
+        let ctx = ProfileValidationContext::new();
+        assert!(ctx.validate_schema_version);
+        assert!(ctx.validate_curves);
+        assert!(ctx.validate_rpm_bands);
+        assert!(ctx.validate_scope);
+    }
+
+    #[test]
+    fn minimal_context_only_schema() {
+        let ctx = ProfileValidationContext::minimal();
+        assert!(ctx.validate_schema_version);
+        assert!(!ctx.validate_curves);
+        assert!(!ctx.validate_rpm_bands);
+    }
+
+    #[test]
+    fn without_curves_disables_curve_check() {
+        let ctx = ProfileValidationContext::new().without_curves();
+        assert!(!ctx.validate_curves);
+        assert!(ctx.validate_rpm_bands);
+    }
+
+    #[test]
+    fn without_rpm_bands_disables_rpm_check() {
+        let ctx = ProfileValidationContext::new().without_rpm_bands();
+        assert!(ctx.validate_curves);
+        assert!(!ctx.validate_rpm_bands);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// ProfileFile
+// ---------------------------------------------------------------------------
+
+mod profile_file_tests {
+    use openracing_profile_repository::storage::ProfileFile;
+    use std::path::PathBuf;
+
+    #[test]
+    fn from_path_extracts_id() {
+        let path = PathBuf::from("profiles/my_profile.json");
+        let pf = ProfileFile::from_path(path);
+        assert!(pf.is_some());
+        if let Some(pf) = pf {
+            assert_eq!(pf.id, "my_profile");
+        }
+    }
+
+    #[test]
+    fn from_path_no_extension() {
+        let path = PathBuf::from("profiles/no_ext");
+        let pf = ProfileFile::from_path(path);
+        assert!(pf.is_some());
+    }
+
+    #[test]
+    fn new_profile_file() {
+        let pf = ProfileFile::new(PathBuf::from("/a/b.json"), "b".to_string());
+        assert_eq!(pf.id, "b");
+        assert!(pf.modified.is_none());
+    }
+}

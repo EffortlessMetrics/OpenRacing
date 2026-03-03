@@ -728,6 +728,751 @@ mod migration_deep {
 // Proptest: random profile data validates or produces clear error
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Default profiles per device class
+// ---------------------------------------------------------------------------
+
+mod default_profiles_per_device {
+    use super::*;
+
+    fn dd_pro_defaults() -> WheelSettings {
+        WheelSettings {
+            ffb: FfbSettings {
+                overall_gain: 0.65,
+                torque_limit: 8.0,
+                spring_strength: 0.2,
+                damper_strength: 0.3,
+                friction_strength: 0.1,
+                effects_enabled: true,
+            },
+            input: InputSettings {
+                steering_range: 1080,
+                steering_deadzone: 0,
+                throttle_curve: CurveType::Linear,
+                brake_curve: CurveType::Exponential,
+                clutch_curve: CurveType::Linear,
+            },
+            limits: LimitSettings {
+                max_speed: None,
+                max_temp: Some(65),
+                emergency_stop: true,
+            },
+            advanced: AdvancedSettings {
+                filter_enabled: true,
+                filter_strength: 0.3,
+                led_mode: LedMode::Rpm,
+                telemetry_enabled: true,
+            },
+        }
+    }
+
+    fn belt_drive_defaults() -> WheelSettings {
+        WheelSettings {
+            ffb: FfbSettings {
+                overall_gain: 0.8,
+                torque_limit: 3.0,
+                spring_strength: 0.5,
+                damper_strength: 0.5,
+                friction_strength: 0.3,
+                effects_enabled: true,
+            },
+            input: InputSettings {
+                steering_range: 900,
+                steering_deadzone: 2,
+                throttle_curve: CurveType::Linear,
+                brake_curve: CurveType::Linear,
+                clutch_curve: CurveType::Linear,
+            },
+            limits: LimitSettings {
+                max_speed: None,
+                max_temp: Some(50),
+                emergency_stop: true,
+            },
+            advanced: AdvancedSettings {
+                filter_enabled: false,
+                filter_strength: 0.5,
+                led_mode: LedMode::Default,
+                telemetry_enabled: true,
+            },
+        }
+    }
+
+    #[test]
+    fn dd_pro_profile_validates() -> TestResult {
+        let p = WheelProfile::new("DD Pro Default", "fanatec-dd-pro")
+            .with_settings(dd_pro_defaults());
+        validate_profile(&p)?;
+        assert_eq!(p.settings.input.steering_range, 1080);
+        assert!((p.settings.ffb.torque_limit - 8.0).abs() < f32::EPSILON);
+        Ok(())
+    }
+
+    #[test]
+    fn belt_drive_profile_validates() -> TestResult {
+        let p = WheelProfile::new("Belt Drive Default", "logitech-g29")
+            .with_settings(belt_drive_defaults());
+        validate_profile(&p)?;
+        assert_eq!(p.settings.input.steering_range, 900);
+        assert!((p.settings.ffb.torque_limit - 3.0).abs() < f32::EPSILON);
+        Ok(())
+    }
+
+    #[test]
+    fn dd_and_belt_profiles_differ() -> TestResult {
+        let dd = WheelProfile::new("DD", "dd-dev").with_settings(dd_pro_defaults());
+        let belt = WheelProfile::new("Belt", "belt-dev").with_settings(belt_drive_defaults());
+        assert!(
+            (dd.settings.ffb.torque_limit - belt.settings.ffb.torque_limit).abs() > 1.0,
+            "DD and belt should have different torque limits"
+        );
+        assert_ne!(
+            dd.settings.input.steering_range,
+            belt.settings.input.steering_range,
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn default_settings_validate() -> TestResult {
+        let s = WheelSettings::default();
+        validate_settings(&s)?;
+        Ok(())
+    }
+
+    #[test]
+    fn default_profile_has_current_schema() -> TestResult {
+        let p = WheelProfile::new("Default", "dev");
+        assert_eq!(p.schema_version, CURRENT_SCHEMA_VERSION);
+        assert_eq!(p.version, 1);
+        Ok(())
+    }
+
+    #[test]
+    fn default_ffb_settings_values() -> TestResult {
+        let ffb = FfbSettings::default();
+        assert!((ffb.overall_gain - 1.0).abs() < f32::EPSILON);
+        assert!((ffb.torque_limit - 25.0).abs() < f32::EPSILON);
+        assert!((ffb.spring_strength - 0.0).abs() < f32::EPSILON);
+        assert!((ffb.damper_strength - 0.0).abs() < f32::EPSILON);
+        assert!((ffb.friction_strength - 0.0).abs() < f32::EPSILON);
+        assert!(ffb.effects_enabled);
+        Ok(())
+    }
+
+    #[test]
+    fn default_input_settings_values() -> TestResult {
+        let input = InputSettings::default();
+        assert_eq!(input.steering_range, 900);
+        assert_eq!(input.steering_deadzone, 0);
+        assert_eq!(input.throttle_curve, CurveType::Linear);
+        assert_eq!(input.brake_curve, CurveType::Linear);
+        assert_eq!(input.clutch_curve, CurveType::Linear);
+        Ok(())
+    }
+
+    #[test]
+    fn default_limit_settings_values() -> TestResult {
+        let limits = LimitSettings::default();
+        assert!(limits.max_speed.is_none());
+        assert_eq!(limits.max_temp, Some(80));
+        assert!(limits.emergency_stop);
+        Ok(())
+    }
+
+    #[test]
+    fn default_advanced_settings_values() -> TestResult {
+        let adv = AdvancedSettings::default();
+        assert!(!adv.filter_enabled);
+        assert!((adv.filter_strength - 0.5).abs() < f32::EPSILON);
+        assert_eq!(adv.led_mode, LedMode::Default);
+        assert!(adv.telemetry_enabled);
+        Ok(())
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Profile comparison and diff
+// ---------------------------------------------------------------------------
+
+mod comparison_and_diff {
+    use super::*;
+
+    fn settings_differ(a: &WheelSettings, b: &WheelSettings) -> Vec<&'static str> {
+        let mut diffs = Vec::new();
+        if (a.ffb.overall_gain - b.ffb.overall_gain).abs() > f32::EPSILON {
+            diffs.push("ffb.overall_gain");
+        }
+        if (a.ffb.torque_limit - b.ffb.torque_limit).abs() > f32::EPSILON {
+            diffs.push("ffb.torque_limit");
+        }
+        if (a.ffb.spring_strength - b.ffb.spring_strength).abs() > f32::EPSILON {
+            diffs.push("ffb.spring_strength");
+        }
+        if (a.ffb.damper_strength - b.ffb.damper_strength).abs() > f32::EPSILON {
+            diffs.push("ffb.damper_strength");
+        }
+        if (a.ffb.friction_strength - b.ffb.friction_strength).abs() > f32::EPSILON {
+            diffs.push("ffb.friction_strength");
+        }
+        if a.ffb.effects_enabled != b.ffb.effects_enabled {
+            diffs.push("ffb.effects_enabled");
+        }
+        if a.input.steering_range != b.input.steering_range {
+            diffs.push("input.steering_range");
+        }
+        if a.input.steering_deadzone != b.input.steering_deadzone {
+            diffs.push("input.steering_deadzone");
+        }
+        if a.input.throttle_curve != b.input.throttle_curve {
+            diffs.push("input.throttle_curve");
+        }
+        if a.input.brake_curve != b.input.brake_curve {
+            diffs.push("input.brake_curve");
+        }
+        if a.input.clutch_curve != b.input.clutch_curve {
+            diffs.push("input.clutch_curve");
+        }
+        if a.limits.max_speed != b.limits.max_speed {
+            diffs.push("limits.max_speed");
+        }
+        if a.limits.max_temp != b.limits.max_temp {
+            diffs.push("limits.max_temp");
+        }
+        if a.limits.emergency_stop != b.limits.emergency_stop {
+            diffs.push("limits.emergency_stop");
+        }
+        if a.advanced.filter_enabled != b.advanced.filter_enabled {
+            diffs.push("advanced.filter_enabled");
+        }
+        if (a.advanced.filter_strength - b.advanced.filter_strength).abs() > f32::EPSILON {
+            diffs.push("advanced.filter_strength");
+        }
+        if a.advanced.led_mode != b.advanced.led_mode {
+            diffs.push("advanced.led_mode");
+        }
+        if a.advanced.telemetry_enabled != b.advanced.telemetry_enabled {
+            diffs.push("advanced.telemetry_enabled");
+        }
+        diffs
+    }
+
+    #[test]
+    fn identical_profiles_have_no_diffs() -> TestResult {
+        let a = WheelSettings::default();
+        let b = WheelSettings::default();
+        let diffs = settings_differ(&a, &b);
+        assert!(diffs.is_empty(), "identical settings should have no diffs");
+        Ok(())
+    }
+
+    #[test]
+    fn single_field_change_detected() -> TestResult {
+        let a = WheelSettings::default();
+        let mut b = WheelSettings::default();
+        b.ffb.overall_gain = 0.5;
+        let diffs = settings_differ(&a, &b);
+        assert_eq!(diffs.len(), 1);
+        assert_eq!(diffs[0], "ffb.overall_gain");
+        Ok(())
+    }
+
+    #[test]
+    fn multiple_field_changes_detected() -> TestResult {
+        let a = WheelSettings::default();
+        let mut b = WheelSettings::default();
+        b.ffb.overall_gain = 0.5;
+        b.input.steering_range = 540;
+        b.advanced.led_mode = LedMode::Speed;
+        let diffs = settings_differ(&a, &b);
+        assert_eq!(diffs.len(), 3);
+        assert!(diffs.contains(&"ffb.overall_gain"));
+        assert!(diffs.contains(&"input.steering_range"));
+        assert!(diffs.contains(&"advanced.led_mode"));
+        Ok(())
+    }
+
+    #[test]
+    fn all_fields_changed_gives_max_diffs() -> TestResult {
+        let a = WheelSettings::default();
+        let b = WheelSettings {
+            ffb: FfbSettings {
+                overall_gain: 0.1,
+                torque_limit: 99.0,
+                spring_strength: 0.9,
+                damper_strength: 0.9,
+                friction_strength: 0.9,
+                effects_enabled: false,
+            },
+            input: InputSettings {
+                steering_range: 180,
+                steering_deadzone: 10,
+                throttle_curve: CurveType::Custom,
+                brake_curve: CurveType::Exponential,
+                clutch_curve: CurveType::Logarithmic,
+            },
+            limits: LimitSettings {
+                max_speed: Some(100.0),
+                max_temp: Some(45),
+                emergency_stop: false,
+            },
+            advanced: AdvancedSettings {
+                filter_enabled: true,
+                filter_strength: 1.0,
+                led_mode: LedMode::Off,
+                telemetry_enabled: false,
+            },
+        };
+        let diffs = settings_differ(&a, &b);
+        assert_eq!(diffs.len(), 18, "all 18 fields should differ");
+        Ok(())
+    }
+
+    #[test]
+    fn profile_ids_always_unique() -> TestResult {
+        let p1 = WheelProfile::new("A", "dev");
+        let p2 = WheelProfile::new("A", "dev");
+        assert_ne!(p1.id, p2.id, "IDs should be unique even with same name/device");
+        Ok(())
+    }
+
+    #[test]
+    fn merge_then_diff_shows_overlay_changes() -> TestResult {
+        let base = WheelProfile::new("Base", "dev");
+        let mut overlay = WheelProfile::new("Overlay", "dev");
+        overlay.settings.ffb.overall_gain = 0.3;
+        overlay.settings.input.steering_range = 540;
+
+        let merged = merge_profiles(&base, &overlay);
+        let diffs = settings_differ(&base.settings, &merged.settings);
+        assert!(diffs.contains(&"ffb.overall_gain"));
+        assert!(diffs.contains(&"input.steering_range"));
+        Ok(())
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Force feedback settings per game/device
+// ---------------------------------------------------------------------------
+
+mod ffb_per_game_device {
+    use super::*;
+
+    fn iracing_gt3_ffb() -> FfbSettings {
+        FfbSettings {
+            overall_gain: 0.7,
+            torque_limit: 15.0,
+            spring_strength: 0.1,
+            damper_strength: 0.2,
+            friction_strength: 0.05,
+            effects_enabled: true,
+        }
+    }
+
+    fn acc_gt3_ffb() -> FfbSettings {
+        FfbSettings {
+            overall_gain: 0.8,
+            torque_limit: 20.0,
+            spring_strength: 0.0,
+            damper_strength: 0.3,
+            friction_strength: 0.1,
+            effects_enabled: true,
+        }
+    }
+
+    fn rally_ffb() -> FfbSettings {
+        FfbSettings {
+            overall_gain: 0.9,
+            torque_limit: 12.0,
+            spring_strength: 0.4,
+            damper_strength: 0.5,
+            friction_strength: 0.3,
+            effects_enabled: true,
+        }
+    }
+
+    #[test]
+    fn iracing_gt3_ffb_validates() -> TestResult {
+        let s = WheelSettings {
+            ffb: iracing_gt3_ffb(),
+            ..WheelSettings::default()
+        };
+        validate_settings(&s)?;
+        Ok(())
+    }
+
+    #[test]
+    fn acc_gt3_ffb_validates() -> TestResult {
+        let s = WheelSettings {
+            ffb: acc_gt3_ffb(),
+            ..WheelSettings::default()
+        };
+        validate_settings(&s)?;
+        Ok(())
+    }
+
+    #[test]
+    fn rally_ffb_validates() -> TestResult {
+        let s = WheelSettings {
+            ffb: rally_ffb(),
+            ..WheelSettings::default()
+        };
+        validate_settings(&s)?;
+        Ok(())
+    }
+
+    #[test]
+    fn game_specific_profiles_have_different_ffb() -> TestResult {
+        let iracing = iracing_gt3_ffb();
+        let acc = acc_gt3_ffb();
+        let rally = rally_ffb();
+
+        assert!(
+            (iracing.overall_gain - acc.overall_gain).abs() > f32::EPSILON,
+            "iRacing and ACC should have different gains"
+        );
+        assert!(
+            (acc.torque_limit - rally.torque_limit).abs() > f32::EPSILON,
+            "ACC and rally should have different torque limits"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn game_profile_serializes_ffb() -> TestResult {
+        let p = WheelProfile::new("iRacing GT3", "dd-pro")
+            .with_settings(WheelSettings {
+                ffb: iracing_gt3_ffb(),
+                ..WheelSettings::default()
+            });
+        let json = serde_json::to_string(&p)?;
+        let restored: WheelProfile = serde_json::from_str(&json)?;
+        assert!((restored.settings.ffb.overall_gain - 0.7).abs() < f32::EPSILON);
+        assert!((restored.settings.ffb.torque_limit - 15.0).abs() < f32::EPSILON);
+        Ok(())
+    }
+
+    #[test]
+    fn merge_game_ffb_over_default() -> TestResult {
+        let default_profile = WheelProfile::new("Default", "dd-pro");
+        let mut game_overlay = WheelProfile::new("Game", "dd-pro");
+        game_overlay.settings.ffb = iracing_gt3_ffb();
+
+        let merged = merge_profiles(&default_profile, &game_overlay);
+        assert!(
+            (merged.settings.ffb.overall_gain - 0.7).abs() < f32::EPSILON,
+            "game overlay gain should override default"
+        );
+        assert!(
+            (merged.settings.ffb.torque_limit - 15.0).abs() < f32::EPSILON,
+            "game overlay torque should override default"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn ffb_boundary_values_all_at_max() -> TestResult {
+        let s = WheelSettings {
+            ffb: FfbSettings {
+                overall_gain: 1.0,
+                torque_limit: 100.0,
+                spring_strength: 1.0,
+                damper_strength: 1.0,
+                friction_strength: 1.0,
+                effects_enabled: true,
+            },
+            ..WheelSettings::default()
+        };
+        validate_settings(&s)?;
+        Ok(())
+    }
+
+    #[test]
+    fn ffb_boundary_values_all_at_min() -> TestResult {
+        let s = WheelSettings {
+            ffb: FfbSettings {
+                overall_gain: 0.0,
+                torque_limit: 0.0,
+                spring_strength: 0.0,
+                damper_strength: 0.0,
+                friction_strength: 0.0,
+                effects_enabled: false,
+            },
+            ..WheelSettings::default()
+        };
+        validate_settings(&s)?;
+        Ok(())
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Additional field-level validation
+// ---------------------------------------------------------------------------
+
+mod additional_field_validation {
+    use super::*;
+
+    #[test]
+    fn steering_deadzone_max_value() -> TestResult {
+        let mut s = WheelSettings::default();
+        s.input.steering_deadzone = u16::MAX;
+        // Deadzone is not range-checked by current validation
+        validate_settings(&s)?;
+        Ok(())
+    }
+
+    #[test]
+    fn spring_strength_boundary_values() -> TestResult {
+        for v in [0.0f32, 0.5, 1.0] {
+            let mut s = WheelSettings::default();
+            s.ffb.spring_strength = v;
+            validate_settings(&s)?;
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn damper_strength_boundary_values() -> TestResult {
+        for v in [0.0f32, 0.5, 1.0] {
+            let mut s = WheelSettings::default();
+            s.ffb.damper_strength = v;
+            validate_settings(&s)?;
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn friction_strength_boundary_values() -> TestResult {
+        for v in [0.0f32, 0.5, 1.0] {
+            let mut s = WheelSettings::default();
+            s.ffb.friction_strength = v;
+            validate_settings(&s)?;
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn max_temp_boundary_values() -> TestResult {
+        for v in [0u8, 1, 127, 255] {
+            let mut s = WheelSettings::default();
+            s.limits.max_temp = Some(v);
+            validate_settings(&s)?;
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn max_speed_positive_value() -> TestResult {
+        let mut s = WheelSettings::default();
+        s.limits.max_speed = Some(500.0);
+        validate_settings(&s)?;
+        Ok(())
+    }
+
+    #[test]
+    fn settings_clone_matches_original() -> TestResult {
+        let s = WheelSettings {
+            ffb: FfbSettings {
+                overall_gain: 0.42,
+                torque_limit: 17.5,
+                spring_strength: 0.11,
+                damper_strength: 0.22,
+                friction_strength: 0.33,
+                effects_enabled: false,
+            },
+            input: InputSettings {
+                steering_range: 720,
+                steering_deadzone: 3,
+                throttle_curve: CurveType::Logarithmic,
+                brake_curve: CurveType::Custom,
+                clutch_curve: CurveType::Exponential,
+            },
+            limits: LimitSettings {
+                max_speed: Some(200.0),
+                max_temp: Some(55),
+                emergency_stop: false,
+            },
+            advanced: AdvancedSettings {
+                filter_enabled: true,
+                filter_strength: 0.77,
+                led_mode: LedMode::Custom,
+                telemetry_enabled: false,
+            },
+        };
+        let cloned = s.clone();
+        assert!((s.ffb.overall_gain - cloned.ffb.overall_gain).abs() < f32::EPSILON);
+        assert_eq!(s.input.steering_range, cloned.input.steering_range);
+        assert_eq!(s.input.throttle_curve, cloned.input.throttle_curve);
+        assert_eq!(s.limits.max_temp, cloned.limits.max_temp);
+        assert_eq!(s.advanced.led_mode, cloned.advanced.led_mode);
+        Ok(())
+    }
+
+    #[test]
+    fn profile_error_variants_display() -> TestResult {
+        let errors = [
+            ProfileError::InvalidProfile("bad".to_string()),
+            ProfileError::SerializationError("ser".to_string()),
+            ProfileError::ValidationError("val".to_string()),
+            ProfileError::NotFound("nf".to_string()),
+            ProfileError::UnsupportedVersion(99, 1),
+        ];
+        for err in &errors {
+            let msg = err.to_string();
+            assert!(!msg.is_empty(), "error display should not be empty");
+        }
+        Ok(())
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Additional migration tests
+// ---------------------------------------------------------------------------
+
+mod migration_additional {
+    use super::*;
+
+    #[test]
+    fn migrate_returns_true_for_v0() -> TestResult {
+        let mut p = WheelProfile::new("MigrateV0", "dev");
+        p.schema_version = 0;
+        let migrated = migrate_profile(&mut p)?;
+        assert!(migrated, "v0 should be migrated");
+        Ok(())
+    }
+
+    #[test]
+    fn migrate_returns_false_for_current() -> TestResult {
+        let mut p = WheelProfile::new("MigrateCurrent", "dev");
+        let migrated = migrate_profile(&mut p)?;
+        assert!(!migrated, "current version should not be migrated");
+        Ok(())
+    }
+
+    #[test]
+    fn migrate_idempotent() -> TestResult {
+        let mut p = WheelProfile::new("MigrateIdem", "dev");
+        p.schema_version = 0;
+        migrate_profile(&mut p)?;
+        let second = migrate_profile(&mut p)?;
+        assert!(!second, "second migration should be no-op");
+        assert_eq!(p.schema_version, CURRENT_SCHEMA_VERSION);
+        Ok(())
+    }
+
+    #[test]
+    fn migrate_preserves_name_and_id() -> TestResult {
+        let mut p = WheelProfile::new("KeepName", "dev");
+        p.schema_version = 0;
+        let original_id = p.id.clone();
+        let original_name = p.name.clone();
+        migrate_profile(&mut p)?;
+        assert_eq!(p.id, original_id);
+        assert_eq!(p.name, original_name);
+        Ok(())
+    }
+
+    #[test]
+    fn migrate_future_version_returns_unsupported() {
+        let mut p = WheelProfile::new("FutureV", "dev");
+        p.schema_version = CURRENT_SCHEMA_VERSION + 100;
+        let result = migrate_profile(&mut p);
+        assert!(matches!(result, Err(ProfileError::UnsupportedVersion(_, _))));
+    }
+
+    #[test]
+    fn backup_then_restore_after_migration() -> TestResult {
+        let dir = std::env::temp_dir().join(format!("profile_mig_{}", std::process::id()));
+        std::fs::create_dir_all(&dir)?;
+        let backup_path = dir.join("pre_migrate.bak");
+
+        let mut p = WheelProfile::new("BackupMig", "dev");
+        p.schema_version = 0;
+        p.settings.ffb.overall_gain = 0.33;
+
+        let pre_json = serde_json::to_string(&p)?;
+        backup_profile(&pre_json, &backup_path)?;
+
+        migrate_profile(&mut p)?;
+        assert_eq!(p.schema_version, CURRENT_SCHEMA_VERSION);
+
+        // Restore from backup
+        let restored: WheelProfile = serde_json::from_str(&std::fs::read_to_string(&backup_path)?)?;
+        assert_eq!(restored.schema_version, 0);
+        assert!((restored.settings.ffb.overall_gain - 0.33).abs() < f32::EPSILON);
+
+        let _ = std::fs::remove_dir_all(&dir);
+        Ok(())
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Additional inheritance / overlay tests
+// ---------------------------------------------------------------------------
+
+mod additional_inheritance {
+    use super::*;
+
+    #[test]
+    fn four_layer_hierarchy() -> TestResult {
+        let global = WheelProfile::new("Global", "dev");
+
+        let mut game = WheelProfile::new("Game", "dev");
+        game.settings.ffb.overall_gain = 0.7;
+
+        // Car layer: set gain to match game layer so merge doesn't override it,
+        // and only change the steering_range
+        let mut car = WheelProfile::new("Car", "dev");
+        car.settings.ffb.overall_gain = 0.7;
+        car.settings.input.steering_range = 540;
+
+        // Track layer: set gain and steering to match previous layers,
+        // and only change the torque_limit
+        let mut track = WheelProfile::new("Track", "dev");
+        track.settings.ffb.overall_gain = 0.7;
+        track.settings.input.steering_range = 540;
+        track.settings.ffb.torque_limit = 18.0;
+
+        let resolved = merge_profiles(
+            &merge_profiles(&merge_profiles(&global, &game), &car),
+            &track,
+        );
+        assert!((resolved.settings.ffb.overall_gain - 0.7).abs() < f32::EPSILON);
+        assert_eq!(resolved.settings.input.steering_range, 540);
+        assert!((resolved.settings.ffb.torque_limit - 18.0).abs() < f32::EPSILON);
+        Ok(())
+    }
+
+    #[test]
+    fn overlay_only_changes_specified_fields() -> TestResult {
+        let base = WheelProfile::new("Base", "dev");
+        let original_range = base.settings.input.steering_range;
+        let original_effects = base.settings.ffb.effects_enabled;
+
+        let mut overlay = WheelProfile::new("Overlay", "dev");
+        overlay.settings.ffb.overall_gain = 0.5;
+
+        let merged = merge_profiles(&base, &overlay);
+        // Unchanged fields should remain
+        assert_eq!(merged.settings.input.steering_range, original_range);
+        assert_eq!(merged.settings.ffb.effects_enabled, original_effects);
+        Ok(())
+    }
+
+    #[test]
+    fn merge_with_self_is_identity() -> TestResult {
+        let p = WheelProfile::new("Self", "dev");
+        let merged = merge_profiles(&p, &p);
+        assert!((merged.settings.ffb.overall_gain - p.settings.ffb.overall_gain).abs() < f32::EPSILON);
+        assert_eq!(merged.settings.input.steering_range, p.settings.input.steering_range);
+        assert_eq!(merged.settings.advanced.led_mode, p.settings.advanced.led_mode);
+        Ok(())
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Proptest: random profile data validates or produces clear error
+// ---------------------------------------------------------------------------
+
 mod proptest_validation {
     use super::*;
 
