@@ -1,0 +1,5 @@
+---
+source: crates/simplemotion-v2/tests/deep_protocol_tests.rs
+expression: "format!(\"seq={} status={:?} pos={} vel={} torque={}\", fb.seq, fb.status,\nfb.motor.position, fb.motor.velocity, fb.motor.torque)"
+---
+seq=1 status=Ok pos=0 vel=0 torque=0

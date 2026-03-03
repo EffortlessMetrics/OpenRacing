@@ -1,0 +1,5 @@
+---
+source: crates/simplemotion-v2/tests/deep_protocol_tests.rs
+expression: "format!(\"pos={} deg={:.2} vel={} rpm={:.2} torque={} nm={:.4}\",\nfb.motor.position, fb.position_degrees(14400), fb.motor.velocity,\nfb.velocity_rpm(14400), fb.motor.torque, fb.torque_nm(0.1))"
+---
+pos=14400 deg=360.00 vel=1000 rpm=4.17 torque=256 nm=0.1000
