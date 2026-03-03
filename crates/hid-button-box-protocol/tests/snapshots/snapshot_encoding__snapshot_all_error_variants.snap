@@ -1,0 +1,8 @@
+---
+source: crates/hid-button-box-protocol/tests/snapshot_encoding.rs
+expression: "messages.join(\"\\n\")"
+---
+Invalid report size: expected 8, got 3
+Invalid button index: 33
+Invalid axis index: 5
+HID error: timeout

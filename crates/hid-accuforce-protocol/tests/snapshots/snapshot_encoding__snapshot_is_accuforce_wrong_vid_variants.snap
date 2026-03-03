@@ -1,0 +1,5 @@
+---
+source: crates/hid-accuforce-protocol/tests/snapshot_encoding.rs
+expression: "wrong_vids.join(\", \")"
+---
+VID=0x0000=false, VID=0x16D0=false, VID=0x1DD2=false, VID=0x0483=false, VID=0xFFFF=false

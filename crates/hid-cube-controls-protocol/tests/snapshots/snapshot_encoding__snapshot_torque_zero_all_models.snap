@@ -1,0 +1,5 @@
+---
+source: crates/hid-cube-controls-protocol/tests/snapshot_encoding.rs
+expression: "results.join(\", \")"
+---
+GtPro: 0.0Nm, FormulaPro: 0.0Nm, Csx3: 0.0Nm, Unknown: 0.0Nm

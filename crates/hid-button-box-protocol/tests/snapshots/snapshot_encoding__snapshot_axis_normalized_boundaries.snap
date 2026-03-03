@@ -1,0 +1,9 @@
+---
+source: crates/hid-button-box-protocol/tests/snapshot_encoding.rs
+expression: "results.join(\"\\n\")"
+---
+max: raw=32767, norm=1.000000
+min: raw=-32768, norm=-1.000031
+zero: raw=0, norm=0.000000
+one: raw=1, norm=0.000031
+neg_one: raw=-1, norm=-0.000031

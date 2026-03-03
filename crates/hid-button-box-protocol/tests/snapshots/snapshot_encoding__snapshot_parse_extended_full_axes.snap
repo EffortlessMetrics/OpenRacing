@@ -1,0 +1,5 @@
+---
+source: crates/hid-button-box-protocol/tests/snapshot_encoding.rs
+expression: "format!(\"x={}, y={}, z={}, rz={}, hat={:?}\", report.axis_x, report.axis_y,\nreport.axis_z, report.axis_rz, report.hat_direction())"
+---
+x=32767, y=-32768, z=1000, rz=-1000, hat=Neutral

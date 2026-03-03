@@ -1,0 +1,5 @@
+---
+source: crates/hid-heusinkveld-protocol/tests/snapshot_encoding.rs
+expression: "format!(\"{err}\")"
+---
+Invalid pedal value: 65535

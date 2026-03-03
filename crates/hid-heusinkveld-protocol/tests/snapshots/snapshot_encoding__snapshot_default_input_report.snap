@@ -1,0 +1,5 @@
+---
+source: crates/hid-heusinkveld-protocol/tests/snapshot_encoding.rs
+expression: "format!(\"throttle={}, brake={}, clutch={}, status=0x{:02X}, connected={}, calibrated={}, fault={}\",\nreport.throttle, report.brake, report.clutch, report.status,\nreport.is_connected(), report.is_calibrated(), report.has_fault())"
+---
+throttle=0, brake=0, clutch=0, status=0x03, connected=true, calibrated=true, fault=false

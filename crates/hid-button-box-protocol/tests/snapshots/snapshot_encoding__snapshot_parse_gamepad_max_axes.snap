@@ -1,0 +1,5 @@
+---
+source: crates/hid-button-box-protocol/tests/snapshot_encoding.rs
+expression: "format!(\"axis_x={}, axis_y={}, norm_x={:.4}, norm_y={:.4}\", report.axis_x,\nreport.axis_y, report.axis_normalized(0), report.axis_normalized(1))"
+---
+axis_x=32767, axis_y=-32768, norm_x=1.0000, norm_y=-1.0000

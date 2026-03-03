@@ -1,0 +1,5 @@
+---
+source: crates/hid-accuforce-protocol/tests/snapshot_encoding.rs
+expression: "format!(\"max_report_bytes={}, usage_page=0x{:04X}, interval_ms={}\",\nMAX_REPORT_BYTES, HID_PID_USAGE_PAGE, RECOMMENDED_B_INTERVAL_MS)"
+---
+max_report_bytes=64, usage_page=0x000F, interval_ms=8

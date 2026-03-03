@@ -1,0 +1,5 @@
+---
+source: crates/hid-heusinkveld-protocol/tests/snapshot_encoding.rs
+expression: "format!(\"{err}\")"
+---
+Device not found: no matching VID/PID

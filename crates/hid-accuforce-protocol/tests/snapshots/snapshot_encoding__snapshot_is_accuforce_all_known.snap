@@ -1,0 +1,5 @@
+---
+source: crates/hid-accuforce-protocol/tests/snapshot_encoding.rs
+expression: "results.join(\"\\n\")"
+---
+VID=0x1FC9,PID=0x804C=true

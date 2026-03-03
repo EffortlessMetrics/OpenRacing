@@ -1,0 +1,9 @@
+---
+source: crates/hid-pxn-protocol/tests/snapshot_encoding.rs
+expression: "table.join(\"\\n\")"
+---
+VID=0x11FF PID=0x3245 name=Some("PXN V10") match=true
+VID=0x11FF PID=0x1212 name=Some("PXN V12") match=true
+VID=0x11FF PID=0x1112 name=Some("PXN V12 Lite") match=true
+VID=0x11FF PID=0x1211 name=Some("PXN V12 Lite (SE)") match=true
+VID=0x11FF PID=0x2141 name=Some("Lite Star GT987 FF") match=true

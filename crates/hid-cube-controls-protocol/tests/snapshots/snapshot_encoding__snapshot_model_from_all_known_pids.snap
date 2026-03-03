@@ -1,0 +1,7 @@
+---
+source: crates/hid-cube-controls-protocol/tests/snapshot_encoding.rs
+expression: "models.join(\"\\n\")"
+---
+0x0C73: GtPro, name=Cube Controls GT Pro, torque=0.0, provisional=true
+0x0C74: FormulaPro, name=Cube Controls Formula Pro, torque=0.0, provisional=true
+0x0C75: Csx3, name=Cube Controls CSX3, torque=0.0, provisional=true

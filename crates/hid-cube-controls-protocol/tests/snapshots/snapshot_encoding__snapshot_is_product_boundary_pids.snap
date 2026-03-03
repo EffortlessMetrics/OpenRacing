@@ -1,0 +1,5 @@
+---
+source: crates/hid-cube-controls-protocol/tests/snapshot_encoding.rs
+expression: "test_pids.join(\", \")"
+---
+0x0000=false, 0x0C72=false, 0x0C73=true, 0x0C74=true, 0x0C74=true, 0x0C75=true, 0x0C76=false, 0xFFFF=false

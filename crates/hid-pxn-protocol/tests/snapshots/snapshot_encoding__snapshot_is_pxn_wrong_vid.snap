@@ -1,0 +1,5 @@
+---
+source: crates/hid-pxn-protocol/tests/snapshot_encoding.rs
+expression: "results.join(\", \")"
+---
+VID=0x0000=false, VID=0x16D0=false, VID=0x1FC9=false, VID=0xFFFF=false

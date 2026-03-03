@@ -1,0 +1,5 @@
+---
+source: crates/hid-cube-controls-protocol/tests/snapshot_encoding.rs
+expression: "format!(\"model={:?}, name={}, torque={:.1}, provisional={}\", model,\nmodel.display_name(), model.max_torque_nm(), model.is_provisional())"
+---
+model=Unknown, name=Cube Controls (unknown model), torque=0.0, provisional=true

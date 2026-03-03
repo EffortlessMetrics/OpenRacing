@@ -1,0 +1,9 @@
+---
+source: crates/hid-button-box-protocol/tests/snapshot_encoding.rs
+expression: "steps.join(\"\\n\")"
+---
+pos=10, delta=10, btn=false
+pos=20, delta=10, btn=false
+pos=15, delta=-5, btn=false
+pos=0, delta=-15, btn=false
+pos=-5, delta=-5, btn=false

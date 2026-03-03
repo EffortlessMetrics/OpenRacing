@@ -1,0 +1,5 @@
+---
+source: crates/hid-pxn-protocol/tests/snapshot_encoding.rs
+expression: "products.join(\", \")"
+---
+0x3245=true, 0x1212=true, 0x1112=true, 0x1211=true, 0x2141=true

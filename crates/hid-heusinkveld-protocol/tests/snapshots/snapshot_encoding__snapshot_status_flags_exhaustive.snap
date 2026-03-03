@@ -1,0 +1,12 @@
+---
+source: crates/hid-heusinkveld-protocol/tests/snapshot_encoding.rs
+expression: "flags.join(\"\\n\")"
+---
+0x00: connected=false, calibrated=false, fault=false
+0x01: connected=true, calibrated=false, fault=false
+0x02: connected=false, calibrated=true, fault=false
+0x03: connected=true, calibrated=true, fault=false
+0x04: connected=false, calibrated=false, fault=true
+0x05: connected=true, calibrated=false, fault=true
+0x06: connected=false, calibrated=true, fault=true
+0x07: connected=true, calibrated=true, fault=true
