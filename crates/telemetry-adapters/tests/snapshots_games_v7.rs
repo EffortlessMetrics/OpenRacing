@@ -183,7 +183,7 @@ fn rfactor2_normalized_snapshot() -> TestResult {
 //   track_name@160([u8;64]).  Total: 224 bytes.
 
 fn make_iracing_data() -> Vec<u8> {
-    let mut buf = vec![0u8; 256]; // generous size for IRacingData
+    let mut buf = vec![0u8; 320]; // sized for expanded IRacingData
     write_f32_le(&mut buf, 0, 120.5); // session_time
     write_u32(&mut buf, 4, 0x04); // session_flags = green
     write_f32_le(&mut buf, 8, 62.0); // speed (m/s) ≈ 223 km/h
@@ -207,10 +207,26 @@ fn make_iracing_data() -> Vec<u8> {
     write_i32(&mut buf, 80, 8); // lap_current
     write_f32_le(&mut buf, 84, 82.5); // lap_best_time (seconds)
     write_f32_le(&mut buf, 88, 15.0); // fuel_level (litres)
-    write_f32_le(&mut buf, 92, 0.0); // fuel_level_pct
-    write_i32(&mut buf, 96, 0); // on_pit_road = false
-    write_string(&mut buf[100..164], "dallarair18");
-    write_string(&mut buf[164..228], "indianapolis");
+    write_f32_le(&mut buf, 92, 0.42); // fuel_level_pct
+    write_i32(&mut buf, 96, 1); // on_pit_road = true
+    write_f32_le(&mut buf, 100, 0.15); // clutch
+    write_i32(&mut buf, 104, 3); // player_car_position
+    write_f32_le(&mut buf, 108, 83.2); // lap_last_time (seconds)
+    write_f32_le(&mut buf, 112, 41.7); // lap_current_time (seconds)
+    write_f32_le(&mut buf, 116, 92.0); // lf_temp_cl (°C)
+    write_f32_le(&mut buf, 120, 94.0); // rf_temp_cl (°C)
+    write_f32_le(&mut buf, 124, 88.0); // lr_temp_cl (°C)
+    write_f32_le(&mut buf, 128, 90.0); // rr_temp_cl (°C)
+    write_f32_le(&mut buf, 132, 172.0); // lf_pressure (kPa)
+    write_f32_le(&mut buf, 136, 172.0); // rf_pressure (kPa)
+    write_f32_le(&mut buf, 140, 165.0); // lr_pressure (kPa)
+    write_f32_le(&mut buf, 144, 165.0); // rr_pressure (kPa)
+    write_f32_le(&mut buf, 148, 4.9); // lat_accel (m/s²)
+    write_f32_le(&mut buf, 152, -2.1); // long_accel (m/s²)
+    write_f32_le(&mut buf, 156, 9.81); // vert_accel (m/s²)
+    write_f32_le(&mut buf, 160, 85.0); // water_temp (°C)
+    write_string(&mut buf[164..228], "dallarair18");
+    write_string(&mut buf[228..292], "indianapolis");
     buf
 }
 

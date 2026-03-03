@@ -65,6 +65,14 @@
 //! - `OnPitRoad`: Player on pit road between cones (bool). ✓
 //! - `Lap`: Laps started count (int). ✓
 //! - `LapBestLapTime`: Player best lap time, s (float). ✓
+//! - `LapLastLapTime`: Player last lap time, s (float). ✓
+//! - `LapCurrentLapTime`: Estimate of current lap time, s (float). ✓
+//! - `Clutch`: 0=engaged to 1=disengaged (float, %). ✓
+//! - `PlayerCarPosition`: Player car class position (int). ✓
+//! - `LFtempCL`/`RFtempCL`/`LRtempCL`/`RRtempCL`: Tire temp center-left, °C (float). ✓
+//! - `LFpressure`/`RFpressure`/`LRpressure`/`RRpressure`: Tire pressure, kPa (float). ✓
+//! - `LatAccel`/`LongAccel`/`VertAccel`: Acceleration, m/s² (float). ✓
+//! - `WaterTemp`: Engine coolant temp, °C (float). ✓
 //! - `LFspeed`/`RFspeed`/`LRspeed`/`RRspeed`: Tire speed, m/s (float). ✓
 //!
 //! ### Update rate & timing
@@ -146,6 +154,8 @@ const IRSDK_SESSION_FLAG_BLUE: u32 = 0x0000_0020;
 const IRSDK_DEFAULT_TIRE_RADIUS_M: f32 = 0.33;
 const IRSDK_MIN_TIRE_SURFACE_SPEED_MPS: f32 = 0.05;
 const IRSDK_STABLE_READ_ATTEMPTS: usize = 3;
+const IRSDK_KPA_TO_PSI: f32 = 0.145_038;
+const IRSDK_MPS2_TO_G: f32 = 1.0 / 9.806_65;
 const IRSDK_MAX_VARS: i32 = 4096;
 const IRSDK_VAR_NAME_LEN: usize = 32;
 #[cfg(windows)]
@@ -283,6 +293,22 @@ struct IRacingLayout {
     lap_best_time: Option<VarBinding>,
     fuel_level: Option<VarBinding>,
     fuel_level_pct: Option<VarBinding>,
+    lap_last_time: Option<VarBinding>,
+    lap_current_time: Option<VarBinding>,
+    clutch: Option<VarBinding>,
+    player_car_position: Option<VarBinding>,
+    lf_temp_cl: Option<VarBinding>,
+    rf_temp_cl: Option<VarBinding>,
+    lr_temp_cl: Option<VarBinding>,
+    rr_temp_cl: Option<VarBinding>,
+    lf_pressure: Option<VarBinding>,
+    rf_pressure: Option<VarBinding>,
+    lr_pressure: Option<VarBinding>,
+    rr_pressure: Option<VarBinding>,
+    lat_accel: Option<VarBinding>,
+    long_accel: Option<VarBinding>,
+    vert_accel: Option<VarBinding>,
+    water_temp: Option<VarBinding>,
     on_pit_road: Option<VarBinding>,
     car_path: Option<VarBinding>,
     track_name: Option<VarBinding>,
@@ -720,10 +746,30 @@ impl IRacingAdapter {
         builder
             .throttle(data.throttle)
             .brake(data.brake)
+            .clutch(data.clutch)
             .steering_angle(data.steering_wheel_angle)
             .fuel_percent(data.fuel_level_pct)
             .lap(u16::try_from(data.lap_current).unwrap_or(0))
             .best_lap_time_s(data.lap_best_time)
+            .last_lap_time_s(data.lap_last_time)
+            .current_lap_time_s(data.lap_current_time)
+            .lateral_g(data.lat_accel * IRSDK_MPS2_TO_G)
+            .longitudinal_g(data.long_accel * IRSDK_MPS2_TO_G)
+            .vertical_g(data.vert_accel * IRSDK_MPS2_TO_G)
+            .engine_temp_c(data.water_temp)
+            .tire_temps_c([
+                data.lf_temp_cl.clamp(0.0, 255.0) as u8,
+                data.rf_temp_cl.clamp(0.0, 255.0) as u8,
+                data.lr_temp_cl.clamp(0.0, 255.0) as u8,
+                data.rr_temp_cl.clamp(0.0, 255.0) as u8,
+            ])
+            .tire_pressures_psi([
+                data.lf_pressure * IRSDK_KPA_TO_PSI,
+                data.rf_pressure * IRSDK_KPA_TO_PSI,
+                data.lr_pressure * IRSDK_KPA_TO_PSI,
+                data.rr_pressure * IRSDK_KPA_TO_PSI,
+            ])
+            .position(data.player_car_position.clamp(0, 255) as u8)
             .extended(
                 "fuel_level".to_string(),
                 TelemetryValue::Float(data.fuel_level),
@@ -899,6 +945,23 @@ fn read_iracing_data_from_ptr(
         } else {
             0
         },
+        clutch: read_f32_var(base_ptr, offset, layout.clutch).unwrap_or(0.0),
+        player_car_position: read_i32_var(base_ptr, offset, layout.player_car_position)
+            .unwrap_or(0),
+        lap_last_time: read_f32_var(base_ptr, offset, layout.lap_last_time).unwrap_or(0.0),
+        lap_current_time: read_f32_var(base_ptr, offset, layout.lap_current_time).unwrap_or(0.0),
+        lf_temp_cl: read_f32_var(base_ptr, offset, layout.lf_temp_cl).unwrap_or(0.0),
+        rf_temp_cl: read_f32_var(base_ptr, offset, layout.rf_temp_cl).unwrap_or(0.0),
+        lr_temp_cl: read_f32_var(base_ptr, offset, layout.lr_temp_cl).unwrap_or(0.0),
+        rr_temp_cl: read_f32_var(base_ptr, offset, layout.rr_temp_cl).unwrap_or(0.0),
+        lf_pressure: read_f32_var(base_ptr, offset, layout.lf_pressure).unwrap_or(0.0),
+        rf_pressure: read_f32_var(base_ptr, offset, layout.rf_pressure).unwrap_or(0.0),
+        lr_pressure: read_f32_var(base_ptr, offset, layout.lr_pressure).unwrap_or(0.0),
+        rr_pressure: read_f32_var(base_ptr, offset, layout.rr_pressure).unwrap_or(0.0),
+        lat_accel: read_f32_var(base_ptr, offset, layout.lat_accel).unwrap_or(0.0),
+        long_accel: read_f32_var(base_ptr, offset, layout.long_accel).unwrap_or(0.0),
+        vert_accel: read_f32_var(base_ptr, offset, layout.vert_accel).unwrap_or(0.0),
+        water_temp: read_f32_var(base_ptr, offset, layout.water_temp).unwrap_or(0.0),
         ..IRacingData::default()
     };
 
@@ -1146,6 +1209,38 @@ fn assign_var_binding(layout: &mut IRacingLayout, name: &str, binding: VarBindin
         layout.fuel_level_pct = Some(binding);
     } else if matches_irsdk_name(name, &["OnPitRoad"]) {
         layout.on_pit_road = Some(binding);
+    } else if matches_irsdk_name(name, &["Clutch"]) {
+        layout.clutch = Some(binding);
+    } else if matches_irsdk_name(name, &["PlayerCarPosition"]) {
+        layout.player_car_position = Some(binding);
+    } else if matches_irsdk_name(name, &["LapLastLapTime"]) {
+        layout.lap_last_time = Some(binding);
+    } else if matches_irsdk_name(name, &["LapCurrentLapTime"]) {
+        layout.lap_current_time = Some(binding);
+    } else if matches_irsdk_name(name, &["LFtempCL"]) {
+        layout.lf_temp_cl = Some(binding);
+    } else if matches_irsdk_name(name, &["RFtempCL"]) {
+        layout.rf_temp_cl = Some(binding);
+    } else if matches_irsdk_name(name, &["LRtempCL"]) {
+        layout.lr_temp_cl = Some(binding);
+    } else if matches_irsdk_name(name, &["RRtempCL"]) {
+        layout.rr_temp_cl = Some(binding);
+    } else if matches_irsdk_name(name, &["LFpressure"]) {
+        layout.lf_pressure = Some(binding);
+    } else if matches_irsdk_name(name, &["RFpressure"]) {
+        layout.rf_pressure = Some(binding);
+    } else if matches_irsdk_name(name, &["LRpressure"]) {
+        layout.lr_pressure = Some(binding);
+    } else if matches_irsdk_name(name, &["RRpressure"]) {
+        layout.rr_pressure = Some(binding);
+    } else if matches_irsdk_name(name, &["LatAccel"]) {
+        layout.lat_accel = Some(binding);
+    } else if matches_irsdk_name(name, &["LongAccel"]) {
+        layout.long_accel = Some(binding);
+    } else if matches_irsdk_name(name, &["VertAccel"]) {
+        layout.vert_accel = Some(binding);
+    } else if matches_irsdk_name(name, &["WaterTemp"]) {
+        layout.water_temp = Some(binding);
     } else if matches_irsdk_name(name, &["CarPath"]) {
         layout.car_path = Some(binding);
     } else if matches_irsdk_name(name, &["TrackName"]) {
@@ -1394,6 +1489,22 @@ struct IRacingData {
     fuel_level: f32,
     fuel_level_pct: f32,
     on_pit_road: i32,
+    clutch: f32,
+    player_car_position: i32,
+    lap_last_time: f32,
+    lap_current_time: f32,
+    lf_temp_cl: f32,
+    rf_temp_cl: f32,
+    lr_temp_cl: f32,
+    rr_temp_cl: f32,
+    lf_pressure: f32,
+    rf_pressure: f32,
+    lr_pressure: f32,
+    rr_pressure: f32,
+    lat_accel: f32,
+    long_accel: f32,
+    vert_accel: f32,
+    water_temp: f32,
     car_path: [u8; 64],
     track_name: [u8; 64],
 }
@@ -1450,6 +1561,22 @@ impl Default for IRacingData {
             fuel_level: 0.0,
             fuel_level_pct: 0.0,
             on_pit_road: 0,
+            clutch: 0.0,
+            player_car_position: 0,
+            lap_last_time: 0.0,
+            lap_current_time: 0.0,
+            lf_temp_cl: 0.0,
+            rf_temp_cl: 0.0,
+            lr_temp_cl: 0.0,
+            rr_temp_cl: 0.0,
+            lf_pressure: 0.0,
+            rf_pressure: 0.0,
+            lr_pressure: 0.0,
+            rr_pressure: 0.0,
+            lat_accel: 0.0,
+            long_accel: 0.0,
+            vert_accel: 0.0,
+            water_temp: 0.0,
             car_path: [0; 64],
             track_name: [0; 64],
         }

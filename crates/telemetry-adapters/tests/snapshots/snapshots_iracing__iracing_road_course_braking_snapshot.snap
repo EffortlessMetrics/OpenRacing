@@ -1,5 +1,6 @@
 ---
 source: crates/telemetry-adapters/tests/snapshots_iracing.rs
+assertion_line: 188
 expression: normalized
 ---
 speed_ms: 38
@@ -11,24 +12,24 @@ rpm: 5800
 max_rpm: 0
 gear: 2
 num_gears: 0
-lateral_g: 0
-longitudinal_g: 0
-vertical_g: 0
+lateral_g: 0.86675876
+longitudinal_g: -1.2236594
+vertical_g: 1.0003417
 slip_ratio: 0
 slip_angle_fl: 0
 slip_angle_fr: 0
 slip_angle_rl: 0
 slip_angle_rr: 0
 tire_temps_c:
-  - 0
-  - 0
-  - 0
-  - 0
+  - 102
+  - 105
+  - 96
+  - 99
 tire_pressures_psi:
-  - 0
-  - 0
-  - 0
-  - 0
+  - 26.977066
+  - 26.977066
+  - 25.961802
+  - 25.961802
 ffb_scalar: 0
 ffb_torque_nm: 0
 flags:
@@ -52,15 +53,15 @@ flags:
   session_paused: false
 car_id: mercedesamggt3
 track_id: spa
-position: 0
+position: 8
 lap: 5
-current_lap_time_s: 0
+current_lap_time_s: 52.3
 best_lap_time_s: 98.2
-last_lap_time_s: 0
+last_lap_time_s: 99.1
 delta_ahead_s: 0
 delta_behind_s: 0
 fuel_percent: 0.58
-engine_temp_c: 0
+engine_temp_c: 92
 extended:
   ffb_scalar_source:
     type: String

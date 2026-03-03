@@ -1,34 +1,35 @@
 ---
 source: crates/telemetry-adapters/tests/snapshots_games_v7.rs
+assertion_line: 237
 expression: normalized
 ---
 speed_ms: 62
 steering_angle: -0.08
 throttle: 0.92
 brake: 0
-clutch: 0
+clutch: 0.15
 rpm: 7800
 max_rpm: 0
 gear: 4
 num_gears: 0
-lateral_g: 0
-longitudinal_g: 0
-vertical_g: 0
+lateral_g: 0.49966094
+longitudinal_g: -0.21414039
+vertical_g: 1.0003417
 slip_ratio: 0
 slip_angle_fl: 0
 slip_angle_fr: 0
 slip_angle_rl: 0
 slip_angle_rr: 0
 tire_temps_c:
-  - 0
-  - 0
-  - 0
-  - 0
+  - 92
+  - 94
+  - 88
+  - 90
 tire_pressures_psi:
-  - 0
-  - 0
-  - 0
-  - 0
+  - 24.946535
+  - 24.946535
+  - 23.931269
+  - 23.931269
 ffb_scalar: 0
 ffb_torque_nm: 0
 flags:
@@ -38,7 +39,7 @@ flags:
   checkered_flag: false
   green_flag: true
   pit_limiter: false
-  in_pits: false
+  in_pits: true
   drs_available: false
   drs_active: false
   ers_available: false
@@ -52,15 +53,15 @@ flags:
   session_paused: false
 car_id: dallarair18
 track_id: indianapolis
-position: 0
+position: 3
 lap: 8
-current_lap_time_s: 0
+current_lap_time_s: 41.7
 best_lap_time_s: 82.5
-last_lap_time_s: 0
+last_lap_time_s: 83.2
 delta_ahead_s: 0
 delta_behind_s: 0
-fuel_percent: 0
-engine_temp_c: 0
+fuel_percent: 0.42
+engine_temp_c: 85
 extended:
   ffb_scalar_source:
     type: String
