@@ -15,9 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **13,075 tests** across the workspace (unit, integration, proptest, snapshot, E2E) — 0 failures, 52 ignored
 - **14,017+ tests** across the workspace (unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, doc-tests) — 0 failures
 - **15,444+ tests** across the workspace (unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, doc-tests, trybuild) — 0 failures
+- **15,820+ tests** across the workspace (unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, doc-tests, trybuild, BDD) — 0 failures, 44 ignored
 - **96 fuzz targets** covering all HID protocols and game telemetry adapters (AMS2 target added)
 - **100+ fuzz targets** covering all HID protocols, game telemetry adapters, and new wave 24 targets
 - **977 snapshot files** across 38 snapshot directories
+- **1,141 snapshot files** across 44 snapshot directories
 - **Fanatec GT DD Pro/ClubSport DD PID findings**: GT DD Pro and ClubSport DD confirmed to share PID `0x0020` with CSL DD in PC mode
 - **OpenFFBoard PID 0xFFB1 confirmed SPECULATIVE**: zero evidence across 5 independent sources (pid.codes, firmware, configurator, GitHub, linux-steering-wheels)
 - **Cube Controls PIDs remain unverified**: PIDs `0x0C73`–`0x0C75` have zero external evidence; OpenFlight uses different estimates
@@ -73,6 +75,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - 9 HID protocol crate deep tests (comprehensive encoding/decoding coverage)
   - Tracing, support, core, and streams deep tests (infrastructure coverage)
   - Trybuild compile-fail tests expanded
+- **Wave 28 — telemetry-config-writers, streams, snapshot expansion** (15,444 → ~15,650+ tests):
+  - Telemetry-config-writers and telemetry-streams coverage tests
+  - Snapshot tests for FFB, profile, pipeline, and engine crates
+  - Stale proptest regression file cleanup
+- **Wave 29 — BDD behavior scenarios, final hardening** (~15,650 → 15,820+ tests):
+  - 15 BDD Given/When/Then behavior scenario tests
+  - Final test suite verification: 14,933 tests verified passing (566 test binaries), 44 ignored
 - **Web-verified VID/PIDs** for Thrustmaster, Logitech, Fanatec, Simucube, Moza, AccuForce, VRS, and OpenFFBoard — source citations added from linux-steering-wheels, kernel drivers (`hid-lg4ff`, `hid-fanatecff`, `simagic-ff`), pid.codes, and vendor documentation
 - **Safety interlock comprehensive test suite**: behavior tests for interlock state machine, watchdog timeout scenarios, and FMEA fault-injection coverage
 - **Protocol verification wave 16**: 6 vendors re-audited (VRS, Heusinkveld, Cube Controls, Cammus, Leo Bodnar, AccuForce) — PID accuracy and torque specs cross-checked against USB captures and vendor documentation

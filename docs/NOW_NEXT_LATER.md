@@ -6,14 +6,16 @@ One-screen execution plan for OpenRacing. Updated alongside the branch `feat/wav
 
 ## NOW (actively in flight)
 
-- **PR #22 — Wave 15 RC hardening**: waves 22-27 complete — golden packets, safety soak, plugin security, schema evolution, compile-fail tests, doc-tests, telemetry deep, protocol deep, trybuild all landed
-- **Test suite at 15,444+**: unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, safety-soak, doc-tests, trybuild
-- **100+ fuzz targets**: all HID protocols, game telemetry adapters, and new wave 24 targets
+- **PR #22 — Wave 15 RC hardening**: waves 22-29 complete — golden packets, safety soak, plugin security, schema evolution, compile-fail tests, doc-tests, telemetry deep, protocol deep, trybuild, BDD scenarios all landed
+- **Test suite at 15,820+**: unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, safety-soak, doc-tests, trybuild, BDD
+- **100 fuzz targets**: all HID protocols, game telemetry adapters, and new wave 24 targets
 
 **Recently completed (this branch):**
 - ✅ Wave 25: Telemetry adapter deep (AMS2, SimHub, KartKraft, MudRunner, Rennsport), watchdog/FMEA deep, protocol snapshots, full-stack E2E, performance gates
 - ✅ Wave 26: Remaining adapters (F1, Forza, LFS, RaceRoom, WRC), protocol deep (Moza, Fanatec, Thrustmaster), peripherals deep, SM-V2+filters deep, FFB+calibration+pipeline deep
 - ✅ Wave 27: iRacing+ACC+BeamNG, DiRT Rally+ETS2+GT7, 9 HID protocol deep tests, tracing+support+core+streams deep
+- ✅ Wave 28: Telemetry-config-writers+streams coverage, snapshot tests for FFB/profile/pipeline/engine crates
+- ✅ Wave 29: 15 BDD Given/When/Then behavior scenarios, proptest regression cleanup
 - ✅ Wave 22: Engine device/game tests, IPC snapshots, service lifecycle, error exhaustiveness
 - ✅ Wave 23: Golden packets (6 adapters), safety soak (10K ticks), plugin security, schema evolution, CLI/profile deep
 - ✅ Wave 24: Trybuild compile-fail tests, config/firmware deep, atomic stress, scheduler deep, doc-tests, 4 new fuzz targets
@@ -28,6 +30,7 @@ One-screen execution plan for OpenRacing. Updated alongside the branch `feat/wav
 - ✅ deny.toml updated for libbz2-rs-sys license
 - ✅ Waves 19-20 deep test expansion: 13,075 → 14,017+ tests passing across all crates
 - ✅ Waves 25-27 deep test expansion: 14,017 → 15,444+ tests passing across all crates
+- ✅ Waves 28-29 final hardening: 15,444 → 15,820+ tests passing across all crates
 
 ## NEXT (queued, ready to start)
 
@@ -58,11 +61,11 @@ One-screen execution plan for OpenRacing. Updated alongside the branch `feat/wav
 |--------|-------|
 | Supported devices | ~90+ VID/PID pairs across 16+ vendors |
 | Supported games | 56 telemetry adapter modules |
-| Test count | 15,444+ across 526+ test binaries (unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, doc-tests, trybuild) |
-| Fuzz targets | 100+ across all HID protocols and game adapters |
+| Test count | 15,820+ across 566+ test binaries (unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, doc-tests, trybuild, BDD) |
+| Fuzz targets | 100 across all HID protocols and game adapters |
 | Protocol crates | 17 HID vendor protocol microcrates |
-| Snapshot tests | 1,000+ snapshot files across 38+ snapshot directories |
-| Crate coverage | 80/82 crates have dedicated test files (exceptions: changelog, ui) |
+| Snapshot tests | 1,141 snapshot files across 44 snapshot directories |
+| Crate coverage | 79/82 crates have dedicated test files (exceptions: changelog, ui, workspace-hack) |
 | Friction log | 68 items total — 15 open, 49 resolved, 1 investigating, 2 noted, 1 won't fix |
 
 ---

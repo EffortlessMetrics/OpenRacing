@@ -1,8 +1,8 @@
 # RC Readiness Report
 
 **Branch:** `feat/wave15-rc-hardening`
-**Generated:** 2025-07-23
-**Commit:** HEAD (wave 27 complete)
+**Generated:** 2025-07-24
+**Commit:** HEAD (wave 29 complete)
 
 ## Build & CI Status
 
@@ -17,50 +17,50 @@
 
 | Metric | Count |
 |--------|------:|
-| **Total tests** | **15,444+** |
-| **Test files** | **950+** |
-| Unit tests | 10,500+ |
-| Snapshot tests | 1,200+ |
-| Property tests (proptest) | 1,800+ |
+| **Total tests** | **15,820+** |
+| **Test files** | **487** |
+| Unit tests | 10,800+ |
+| Snapshot tests | 1,141 |
+| Property tests (proptest) | 1,700+ |
 | End-to-end (E2E) tests | 800+ |
-| Golden-packet tests | 6 adapters |
+| Golden-packet tests | 72+ |
 | Safety soak tests | 10K+ tick suites |
-| Compile-fail (trybuild) | 15+ |
-| Doc-tests | 50+ |
-| BDD / acceptance tests | 27 |
-| Fuzz targets | 100+ |
+| Compile-fail (trybuild) | 20 |
+| Doc-tests | 432+ |
+| BDD / acceptance tests | 60+ |
+| Fuzz targets | 100 |
 | Integration test files | 48+ |
-| Crate coverage | 80/82 |
+| Crate coverage | 79/82 |
 
 ## Test Types Present
 
 | Type | Files | Notes |
 |------|------:|-------|
-| Proptest files | 130+ | Property-based testing across all 17 protocol & engine crates |
-| Snapshot test files | 1,200+ | `insta` snapshots for protocol encoding & telemetry (38+ directories) |
+| Proptest files | 348+ | Property-based testing across all 17 protocol & engine crates |
+| Snapshot test files | 1,141 | `insta` snapshots for protocol encoding & telemetry (44 directories) |
 | Integration test files | 48+ | `crates/integration-tests/tests/*.rs` |
-| Fuzz targets | 100+ | `fuzz/fuzz_targets/` — covers all protocols & telemetry parsers |
-| Compile-fail (trybuild) | 15+ | Type-safety and API misuse prevention via `trybuild` |
-| Golden-packet tests | 6 | End-to-end adapter validation against known-good captures |
+| Fuzz targets | 100 | `fuzz/fuzz_targets/` — covers all protocols & telemetry parsers |
+| Compile-fail (trybuild) | 20 | Type-safety and API misuse prevention via `trybuild` |
+| Golden-packet tests | 72+ | End-to-end adapter validation against known-good captures |
 | Safety soak tests | 5+ | 10K+ tick sustained operation under fault injection |
 | Schema evolution tests | 10+ | Forward/backward compatibility across schema versions |
-| Doc-tests | 50+ | `cargo test --doc` examples in public API docs |
+| Doc-tests | 432+ | `cargo test --doc` examples in public API docs |
 | Benchmark suites | 1 | `benches/` — RT timing benchmarks |
 
 ## Coverage by Crate Category
 
 | Category | Tests | Key crates |
 |----------|------:|------------|
-| Telemetry | 1,800+ | `telemetry-adapters`, `telemetry-core`, `telemetry-config`, `telemetry-orchestrator` — all adapters have deep tests |
+| Telemetry | 2,200+ | `telemetry-adapters`, `telemetry-core`, `telemetry-config`, `telemetry-orchestrator`, `telemetry-config-writers`, `telemetry-streams` — all adapters have deep tests |
 | Engine | 1,400+ | `engine` (RT pipeline, filters, HID, safety, device/game tests, FFB, calibration, pipeline deep) |
-| Protocols | 1,100+ | `hid-*-protocol`, `simplemotion-v2`, `hbp`, `moza-wheelbase-report` — all 12 HID protocol crates with deep tests |
+| Protocols | 3,400+ | `hid-*-protocol`, `simplemotion-v2`, `hbp`, `moza-wheelbase-report` — all 17 HID protocol crates with deep tests |
 | Plugins | 600+ | `plugins`, `openracing-wasm-runtime`, `openracing-native-plugin`, `openracing-plugin-abi` |
 | Service | 500+ | `service` (daemon, IPC, crypto, firmware updates, lifecycle tests) |
 | Schemas | 400+ | `schemas` (JSON schema validation, migration, profile inheritance, evolution) |
 | Integration tests | 400+ | `integration-tests` (E2E device pipelines, RC validation, golden packets, full-stack E2E) |
 | Safety | 400+ | `openracing-fmea`, `openracing-watchdog`, `openracing-hardware-watchdog`, soak tests (10K+ ticks) |
 | Filters | 250+ | `openracing-filters` (snapshot + property tests, SM-V2 deep) |
-| Other / utilities | 4,800+ | Curves, crypto, calibration, errors, scheduler, IPC, tracing, CLI, config, firmware, atomic, doc-tests, streams, support, core, peripherals, etc. |
+| Other / utilities | 4,800+ | Curves, crypto, calibration, errors, scheduler, IPC, tracing, CLI, config, firmware, atomic, doc-tests, streams, support, core, peripherals, BDD, etc. |
 
 ## Strengths
 
@@ -118,6 +118,6 @@
 | No line-level code coverage (e.g., `llvm-cov`) | Medium | Test count is high but uncovered branches are unknown |
 | UI crate excluded from test run | Low | `racing-wheel-ui` excluded via `--exclude`; needs separate GUI test strategy |
 | Benchmark suite is minimal | Low | Single bench file; RT timing validation relies on CI perf gates |
-| Doc-tests not counted | Low | Doc-tests now run and are counted; ~50+ doc-test examples in public API |
+| Doc-tests not counted | Low | Doc-tests now run and are counted; ~432+ doc-test examples in public API |
 | No mutation testing in CI | Low | `mutants.toml` exists but results are stale (`mutants.out.old/`) |
-| Ignored tests at 52 | Low | 52 `#[ignore]`-gated tests requiring hardware or platform resources |
+| Ignored tests at 44 | Low | 44 `#[ignore]`-gated tests requiring hardware or platform resources |
