@@ -262,11 +262,29 @@ impl NormalizedTelemetry {
     }
 
     /// Get speed in km/h.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use racing_wheel_schemas::telemetry::NormalizedTelemetry;
+    ///
+    /// let t = NormalizedTelemetry::builder().speed_ms(10.0).build();
+    /// assert!((t.speed_kmh() - 36.0).abs() < 0.1);
+    /// ```
     pub fn speed_kmh(&self) -> f32 {
         self.speed_ms * 3.6
     }
 
     /// Get speed in mph.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use racing_wheel_schemas::telemetry::NormalizedTelemetry;
+    ///
+    /// let t = NormalizedTelemetry::builder().speed_ms(10.0).build();
+    /// assert!((t.speed_mph() - 22.37).abs() < 0.1);
+    /// ```
     pub fn speed_mph(&self) -> f32 {
         self.speed_ms * 2.237
     }
@@ -287,11 +305,35 @@ impl NormalizedTelemetry {
     }
 
     /// Check if the vehicle is stationary (speed below threshold).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use racing_wheel_schemas::telemetry::NormalizedTelemetry;
+    ///
+    /// let stopped = NormalizedTelemetry::builder().speed_ms(0.0).build();
+    /// assert!(stopped.is_stationary());
+    ///
+    /// let moving = NormalizedTelemetry::builder().speed_ms(10.0).build();
+    /// assert!(!moving.is_stationary());
+    /// ```
     pub fn is_stationary(&self) -> bool {
         self.speed_ms < 0.5
     }
 
     /// Get total G-force magnitude.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use racing_wheel_schemas::telemetry::NormalizedTelemetry;
+    ///
+    /// let t = NormalizedTelemetry::builder()
+    ///     .lateral_g(3.0)
+    ///     .longitudinal_g(4.0)
+    ///     .build();
+    /// assert!((t.total_g() - 5.0).abs() < 0.01);
+    /// ```
     pub fn total_g(&self) -> f32 {
         (self.lateral_g * self.lateral_g + self.longitudinal_g * self.longitudinal_g).sqrt()
     }
@@ -312,6 +354,18 @@ impl NormalizedTelemetry {
     }
 
     /// Get RPM as fraction of redline (0.0-1.0).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use racing_wheel_schemas::telemetry::NormalizedTelemetry;
+    ///
+    /// let t = NormalizedTelemetry::builder()
+    ///     .rpm(6000.0)
+    ///     .max_rpm(8000.0)
+    ///     .build();
+    /// assert!((t.rpm_fraction() - 0.75).abs() < 0.01);
+    /// ```
     pub fn rpm_fraction(&self) -> f32 {
         if self.max_rpm > 0.0 {
             (self.rpm / self.max_rpm).clamp(0.0, 1.0)
@@ -556,6 +610,27 @@ impl NormalizedTelemetry {
 }
 
 /// Builder for constructing NormalizedTelemetry with validation.
+///
+/// # Examples
+///
+/// ```
+/// use racing_wheel_schemas::telemetry::NormalizedTelemetry;
+///
+/// let telemetry = NormalizedTelemetry::builder()
+///     .speed_ms(45.0)
+///     .rpm(6500.0)
+///     .max_rpm(8000.0)
+///     .gear(4)
+///     .throttle(0.8)
+///     .brake(0.0)
+///     .lateral_g(0.5)
+///     .car_id("porsche-911-gt3")
+///     .build();
+///
+/// assert!((telemetry.speed_ms - 45.0).abs() < f32::EPSILON);
+/// assert_eq!(telemetry.gear, 4);
+/// assert_eq!(telemetry.car_id.as_deref(), Some("porsche-911-gt3"));
+/// ```
 #[derive(Debug, Default)]
 pub struct NormalizedTelemetryBuilder {
     inner: NormalizedTelemetry,

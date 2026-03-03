@@ -86,6 +86,19 @@ impl CurveLut {
     /// # Returns
     ///
     /// A `CurveLut` with values computed from the function.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_curves::CurveLut;
+    ///
+    /// // Create a quadratic response curve: f(x) = x²
+    /// let lut = CurveLut::from_fn(|x| x * x);
+    ///
+    /// assert!((lut.lookup(0.0) - 0.0).abs() < 0.01);
+    /// assert!((lut.lookup(0.5) - 0.25).abs() < 0.02);
+    /// assert!((lut.lookup(1.0) - 1.0).abs() < 0.01);
+    /// ```
     pub fn from_fn<F>(f: F) -> Self
     where
         F: Fn(f32) -> f32,

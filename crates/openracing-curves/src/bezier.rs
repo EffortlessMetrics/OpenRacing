@@ -92,6 +92,17 @@ impl BezierCurve {
     /// Create a linear curve (identity mapping).
     ///
     /// The linear curve has control points that result in f(x) = x.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_curves::BezierCurve;
+    ///
+    /// let curve = BezierCurve::linear();
+    /// assert!((curve.map(0.0) - 0.0).abs() < 0.01);
+    /// assert!((curve.map(0.5) - 0.5).abs() < 0.01);
+    /// assert!((curve.map(1.0) - 1.0).abs() < 0.01);
+    /// ```
     pub fn linear() -> Self {
         Self {
             control_points: [(0.0, 0.0), (0.33, 0.33), (0.67, 0.67), (1.0, 1.0)],
@@ -233,6 +244,23 @@ impl BezierCurve {
     /// # Returns
     ///
     /// Output value in `[0,1]`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_curves::BezierCurve;
+    ///
+    /// let curve = BezierCurve::new([
+    ///     (0.0, 0.0),
+    ///     (0.25, 0.75),
+    ///     (0.75, 0.25),
+    ///     (1.0, 1.0),
+    /// ])?;
+    ///
+    /// let output = curve.map(0.5);
+    /// assert!(output >= 0.0 && output <= 1.0);
+    /// # Ok::<(), openracing_curves::CurveError>(())
+    /// ```
     pub fn map(&self, input: f32) -> f32 {
         let t = self.find_t_for_x(input);
         let (_, y) = self.evaluate(t);

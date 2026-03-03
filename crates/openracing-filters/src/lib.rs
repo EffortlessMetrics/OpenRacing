@@ -117,6 +117,17 @@ pub struct Frame {
 
 impl Frame {
     /// Create a frame from FFB input and wheel speed (`torque_out` = `ffb_in`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_filters::Frame;
+    ///
+    /// let frame = Frame::from_ffb(0.5, 1.2);
+    /// assert!((frame.ffb_in - 0.5).abs() < f32::EPSILON);
+    /// assert!((frame.torque_out - 0.5).abs() < f32::EPSILON);
+    /// assert!((frame.wheel_speed - 1.2).abs() < f32::EPSILON);
+    /// ```
     pub fn from_ffb(ffb_in: f32, wheel_speed: f32) -> Self {
         Self {
             ffb_in,
@@ -127,6 +138,17 @@ impl Frame {
     }
 
     /// Create a frame from torque output (`ffb_in` = `torque_out`, `wheel_speed` = 0).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_filters::Frame;
+    ///
+    /// let frame = Frame::from_torque(0.7);
+    /// assert!((frame.ffb_in - 0.7).abs() < f32::EPSILON);
+    /// assert!((frame.torque_out - 0.7).abs() < f32::EPSILON);
+    /// assert!((frame.wheel_speed - 0.0).abs() < f32::EPSILON);
+    /// ```
     pub fn from_torque(torque_out: f32) -> Self {
         Self {
             ffb_in: torque_out,
