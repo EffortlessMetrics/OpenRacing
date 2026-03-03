@@ -575,3 +575,329 @@ proptest! {
         prop_assert_eq!(inputs.clutch_combined, Some(clutch));
     }
 }
+
+// ── Device identification: tick and field state ───────────────────────────
+
+mod device_identification {
+    use super::*;
+
+    #[test]
+    fn tick_field_can_be_set() {
+        let inputs = DeviceInputs {
+            tick: 42,
+            ..Default::default()
+        };
+        assert_eq!(inputs.tick, 42);
+    }
+
+    #[test]
+    fn tick_wraps_at_u32_max() {
+        let inputs = DeviceInputs {
+            tick: u32::MAX,
+            ..Default::default()
+        };
+        assert_eq!(inputs.tick, u32::MAX);
+        let next_tick = inputs.tick.wrapping_add(1);
+        assert_eq!(next_tick, 0);
+    }
+
+    #[test]
+    fn tick_incrementing() {
+        let mut inputs = DeviceInputs::default();
+        for expected in 0u32..100 {
+            assert_eq!(inputs.tick, expected);
+            inputs.tick = inputs.tick.wrapping_add(1);
+        }
+    }
+
+    #[test]
+    fn inputs_with_all_fields_populated() {
+        let inputs = DeviceInputs {
+            tick: 999,
+            buttons: [0xAA; 16],
+            hat: 3,
+            steering: Some(32768),
+            throttle: Some(1000),
+            brake: Some(2000),
+            clutch_left: Some(300),
+            clutch_right: Some(400),
+            clutch_combined: Some(350),
+            clutch_left_button: Some(true),
+            clutch_right_button: Some(false),
+            handbrake: Some(500),
+            rotaries: [10, 20, 30, 40, 50, 60, 70, 80],
+        };
+        assert_eq!(inputs.tick, 999);
+        assert_eq!(inputs.hat, 3);
+        assert_eq!(inputs.steering, Some(32768));
+        assert_eq!(inputs.throttle, Some(1000));
+        assert_eq!(inputs.brake, Some(2000));
+        assert_eq!(inputs.clutch_left, Some(300));
+        assert_eq!(inputs.clutch_right, Some(400));
+        assert_eq!(inputs.clutch_combined, Some(350));
+        assert_eq!(inputs.clutch_left_button, Some(true));
+        assert_eq!(inputs.clutch_right_button, Some(false));
+        assert_eq!(inputs.handbrake, Some(500));
+        assert_eq!(inputs.rotary(0), 10);
+        assert_eq!(inputs.rotary(7), 80);
+    }
+
+    #[test]
+    fn partial_struct_update_preserves_unset_fields() {
+        let base = DeviceInputs::new().with_steering(50000).with_pedals(100, 200, 300);
+        let updated = DeviceInputs {
+            handbrake: Some(999),
+            ..base
+        };
+        assert_eq!(updated.steering, Some(50000));
+        assert_eq!(updated.throttle, Some(100));
+        assert_eq!(updated.handbrake, Some(999));
+    }
+}
+
+// ── Capability flags: fault flags and button bitmask patterns ─────────────
+
+mod capability_flags {
+    use super::*;
+
+    #[test]
+    fn fault_flags_individual_bits() {
+        for bit in 0u8..8 {
+            let td = TelemetryData {
+                wheel_angle_deg: 0.0,
+                wheel_speed_rad_s: 0.0,
+                temperature_c: 0,
+                fault_flags: 1 << bit,
+                hands_on: false,
+            };
+            assert_ne!(td.fault_flags & (1 << bit), 0, "bit {bit} not set");
+            for other in 0u8..8 {
+                if other != bit {
+                    assert_eq!(
+                        td.fault_flags & (1 << other),
+                        0,
+                        "bit {other} unexpectedly set when only {bit} should be"
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn fault_flags_no_faults() {
+        let td = TelemetryData {
+            wheel_angle_deg: 0.0,
+            wheel_speed_rad_s: 0.0,
+            temperature_c: 0,
+            fault_flags: 0,
+            hands_on: true,
+        };
+        assert_eq!(td.fault_flags, 0);
+    }
+
+    #[test]
+    fn button_bitmask_all_set() {
+        let inputs = DeviceInputs::new().with_buttons([0xFF; 16]);
+        for i in 0..16 {
+            assert!(inputs.button(i), "button {i} should be set");
+        }
+    }
+
+    #[test]
+    fn button_bitmask_all_clear() {
+        let inputs = DeviceInputs::new().with_buttons([0x00; 16]);
+        for i in 0..16 {
+            assert!(!inputs.button(i), "button {i} should be clear");
+        }
+    }
+
+    #[test]
+    fn button_bitmask_alternating() {
+        // Set even-indexed buttons
+        let mut inputs = DeviceInputs::default();
+        for i in (0..16).step_by(2) {
+            inputs.set_button(i, true);
+        }
+        for i in 0..16 {
+            if i % 2 == 0 {
+                assert!(inputs.button(i), "even button {i} should be set");
+            } else {
+                assert!(!inputs.button(i), "odd button {i} should be clear");
+            }
+        }
+    }
+}
+
+// ── Combined input states ─────────────────────────────────────────────────
+
+mod combined_states {
+    use super::*;
+
+    #[test]
+    fn simultaneous_buttons_hat_pedals() {
+        let mut inputs = DeviceInputs::new()
+            .with_steering(32768)
+            .with_pedals(u16::MAX, u16::MAX, 0)
+            .with_handbrake(0)
+            .with_hat(4); // Down
+
+        inputs.set_button(0, true);
+        inputs.set_button(15, true);
+
+        assert!(inputs.button(0));
+        assert!(inputs.button(15));
+        assert_eq!(inputs.hat_direction(), HatDirection::Down);
+        assert_eq!(inputs.steering, Some(32768));
+        assert_eq!(inputs.throttle, Some(u16::MAX));
+        assert_eq!(inputs.brake, Some(u16::MAX));
+        assert_eq!(inputs.clutch_combined, Some(0));
+        assert_eq!(inputs.handbrake, Some(0));
+    }
+
+    #[test]
+    fn full_lock_left_with_full_throttle() {
+        let inputs = DeviceInputs::new()
+            .with_steering(0) // full left
+            .with_pedals(u16::MAX, 0, 0);
+        assert_eq!(inputs.steering, Some(0));
+        assert_eq!(inputs.throttle, Some(u16::MAX));
+        assert_eq!(inputs.brake, Some(0));
+    }
+
+    #[test]
+    fn full_lock_right_with_full_brake() {
+        let inputs = DeviceInputs::new()
+            .with_steering(u16::MAX)
+            .with_pedals(0, u16::MAX, 0);
+        assert_eq!(inputs.steering, Some(u16::MAX));
+        assert_eq!(inputs.brake, Some(u16::MAX));
+    }
+}
+
+// ── TelemetryData: extreme values ─────────────────────────────────────────
+
+mod telemetry_extremes {
+    use super::*;
+
+    #[test]
+    fn extreme_wheel_angle() {
+        let td = TelemetryData {
+            wheel_angle_deg: -900.0, // 2.5 turns left
+            wheel_speed_rad_s: 0.0,
+            temperature_c: 0,
+            fault_flags: 0,
+            hands_on: true,
+        };
+        assert!((td.wheel_angle_deg - (-900.0)).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn extreme_wheel_speed() {
+        let td = TelemetryData {
+            wheel_angle_deg: 0.0,
+            wheel_speed_rad_s: f32::MAX,
+            temperature_c: 0,
+            fault_flags: 0,
+            hands_on: false,
+        };
+        assert_eq!(td.wheel_speed_rad_s, f32::MAX);
+    }
+
+    #[test]
+    fn zero_telemetry() {
+        let td = TelemetryData {
+            wheel_angle_deg: 0.0,
+            wheel_speed_rad_s: 0.0,
+            temperature_c: 0,
+            fault_flags: 0,
+            hands_on: false,
+        };
+        assert!(td.wheel_angle_deg.abs() < f32::EPSILON);
+        assert!(td.wheel_speed_rad_s.abs() < f32::EPSILON);
+        assert_eq!(td.temperature_c, 0);
+        assert_eq!(td.fault_flags, 0);
+        assert!(!td.hands_on);
+    }
+
+    #[test]
+    fn negative_wheel_speed() {
+        let td = TelemetryData {
+            wheel_angle_deg: 0.0,
+            wheel_speed_rad_s: -50.0,
+            temperature_c: 0,
+            fault_flags: 0,
+            hands_on: false,
+        };
+        assert!(td.wheel_speed_rad_s < 0.0);
+    }
+
+    #[test]
+    fn hands_on_toggle() {
+        let on = TelemetryData {
+            wheel_angle_deg: 0.0,
+            wheel_speed_rad_s: 0.0,
+            temperature_c: 0,
+            fault_flags: 0,
+            hands_on: true,
+        };
+        let off = TelemetryData {
+            wheel_angle_deg: 0.0,
+            wheel_speed_rad_s: 0.0,
+            temperature_c: 0,
+            fault_flags: 0,
+            hands_on: false,
+        };
+        assert!(on.hands_on);
+        assert!(!off.hands_on);
+    }
+}
+
+// ── HatDirection: exhaustive equality ─────────────────────────────────────
+
+mod hat_direction_equality {
+    use super::*;
+
+    #[test]
+    fn all_pairs_are_distinct() {
+        let dirs = [
+            HatDirection::Up,
+            HatDirection::UpRight,
+            HatDirection::Right,
+            HatDirection::DownRight,
+            HatDirection::Down,
+            HatDirection::DownLeft,
+            HatDirection::Left,
+            HatDirection::UpLeft,
+            HatDirection::Neutral,
+        ];
+        for (i, a) in dirs.iter().enumerate() {
+            for (j, b) in dirs.iter().enumerate() {
+                if i == j {
+                    assert_eq!(a, b);
+                } else {
+                    assert_ne!(a, b, "{a:?} should != {b:?}");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn clone_preserves_equality() {
+        let dirs = [
+            HatDirection::Up,
+            HatDirection::UpRight,
+            HatDirection::Right,
+            HatDirection::DownRight,
+            HatDirection::Down,
+            HatDirection::DownLeft,
+            HatDirection::Left,
+            HatDirection::UpLeft,
+            HatDirection::Neutral,
+        ];
+        for &d in &dirs {
+            #[allow(clippy::clone_on_copy)]
+            let cloned = d.clone();
+            assert_eq!(d, cloned);
+        }
+    }
+}

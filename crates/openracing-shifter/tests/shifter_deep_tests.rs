@@ -526,3 +526,313 @@ proptest! {
         }
     }
 }
+
+// ── Gear position encoding: systematic from_raw coverage ──────────────────
+
+mod gear_position_encoding {
+    use super::*;
+
+    #[test]
+    fn from_raw_all_256_values_never_panic() {
+        for raw in 0u8..=255 {
+            let pos = GearPosition::from_raw(raw);
+            // Every value must produce a valid GearPosition
+            let _gear = pos.gear;
+            let _neutral = pos.is_neutral;
+            let _reverse = pos.is_reverse;
+        }
+    }
+
+    #[test]
+    fn from_raw_valid_range_1_to_7_are_forward_gears() {
+        for raw in 1u8..=7 {
+            let pos = GearPosition::from_raw(raw);
+            assert_eq!(pos.gear, raw as i32);
+            assert!(!pos.is_neutral, "gear {raw} should not be neutral");
+            assert!(!pos.is_reverse, "gear {raw} should not be reverse");
+        }
+    }
+
+    #[test]
+    fn from_raw_8_through_254_all_neutral() {
+        for raw in 8u8..=254 {
+            let pos = GearPosition::from_raw(raw);
+            assert!(pos.is_neutral, "raw {raw} should map to neutral");
+            assert_eq!(pos.gear, 0);
+        }
+    }
+
+    #[test]
+    fn gear_position_new_encodes_flags_correctly() {
+        // Positive gears: not neutral, not reverse
+        for g in 1..=10 {
+            let pos = GearPosition::new(g);
+            assert!(!pos.is_neutral);
+            assert!(!pos.is_reverse);
+            assert_eq!(pos.gear, g);
+        }
+        // Zero: neutral, not reverse
+        let zero = GearPosition::new(0);
+        assert!(zero.is_neutral);
+        assert!(!zero.is_reverse);
+
+        // Negative: not neutral, is reverse
+        for g in [-1, -2, -10, i32::MIN] {
+            let pos = GearPosition::new(g);
+            assert!(!pos.is_neutral);
+            assert!(pos.is_reverse);
+        }
+    }
+
+    #[test]
+    fn gear_position_serde_all_special_values() -> Result<(), Box<dyn std::error::Error>> {
+        let positions = [
+            GearPosition::neutral(),
+            GearPosition::reverse(),
+            GearPosition::new(0),
+            GearPosition::new(1),
+            GearPosition::new(7),
+            GearPosition::new(-1),
+            GearPosition::new(-100),
+            GearPosition::from_raw(0),
+            GearPosition::from_raw(7),
+            GearPosition::from_raw(0xFF),
+        ];
+        for pos in &positions {
+            let json = serde_json::to_string(pos).map_err(|e| e.to_string())?;
+            let back: GearPosition = serde_json::from_str(&json).map_err(|e| e.to_string())?;
+            assert_eq!(*pos, back, "serde roundtrip failed for gear={}", pos.gear);
+        }
+        Ok(())
+    }
+}
+
+// ── Multi-gate patterns: different H-pattern layouts ──────────────────────
+
+mod multi_gate_patterns {
+    use super::*;
+
+    #[test]
+    fn four_speed_plus_reverse_pattern() {
+        // 4+R: gears 1-4, reverse at -1, everything else neutral
+        let valid_gears = [1, 2, 3, 4];
+        for &g in &valid_gears {
+            let pos = GearPosition::from_raw(g);
+            assert_eq!(pos.gear, g as i32);
+            assert!(!pos.is_neutral);
+        }
+        let rev = GearPosition::reverse();
+        assert!(rev.is_reverse);
+    }
+
+    #[test]
+    fn five_speed_pattern() {
+        for g in 1u8..=5 {
+            let pos = GearPosition::from_raw(g);
+            assert_eq!(pos.gear, g as i32);
+        }
+    }
+
+    #[test]
+    fn six_speed_pattern() {
+        for g in 1u8..=6 {
+            let pos = GearPosition::from_raw(g);
+            assert_eq!(pos.gear, g as i32);
+        }
+    }
+
+    #[test]
+    fn seven_speed_pattern() {
+        for g in 1u8..=7 {
+            let pos = GearPosition::from_raw(g);
+            assert_eq!(pos.gear, g as i32);
+        }
+    }
+
+    #[test]
+    fn h_pattern_caps_reflect_6_gears() {
+        let caps = ShifterCapabilities::h_pattern();
+        assert_eq!(caps.max_gears, 6);
+        assert!(caps.has_clutch);
+    }
+
+    #[test]
+    fn sequential_caps_reflect_8_gears() {
+        let caps = ShifterCapabilities::sequential();
+        assert_eq!(caps.max_gears, MAX_GEARS);
+        assert!(!caps.has_clutch);
+    }
+
+    #[test]
+    fn gate_transitions_neutral_to_gear_to_neutral() -> Result<(), Box<dyn std::error::Error>> {
+        // Simulate H-pattern: neutral → 1st → neutral → 2nd
+        let neutral_data = [0x00, 0x00, 0x00, 0x00];
+        let gear1_data = [0x00, 0x00, 0x01, 0x00];
+        let gear2_data = [0x00, 0x00, 0x02, 0x00];
+
+        let n1 = ShifterInput::parse_gamepad(&neutral_data).map_err(|e| e.to_string())?;
+        assert!(n1.gear.is_neutral);
+
+        let g1 = ShifterInput::parse_gamepad(&gear1_data).map_err(|e| e.to_string())?;
+        assert_eq!(g1.gear(), 1);
+
+        let n2 = ShifterInput::parse_gamepad(&neutral_data).map_err(|e| e.to_string())?;
+        assert!(n2.gear.is_neutral);
+
+        let g2 = ShifterInput::parse_gamepad(&gear2_data).map_err(|e| e.to_string())?;
+        assert_eq!(g2.gear(), 2);
+        Ok(())
+    }
+}
+
+// ── SequentialWithReverse type ─────────────────────────────────────────────
+
+mod sequential_with_reverse {
+    use super::*;
+
+    #[test]
+    fn type_variant_exists_and_distinct() {
+        assert_ne!(ShifterType::SequentialWithReverse, ShifterType::Sequential);
+        assert_ne!(ShifterType::SequentialWithReverse, ShifterType::HPattern);
+    }
+
+    #[test]
+    fn serde_roundtrip() -> Result<(), Box<dyn std::error::Error>> {
+        let t = ShifterType::SequentialWithReverse;
+        let json = serde_json::to_string(&t).map_err(|e| e.to_string())?;
+        let back: ShifterType = serde_json::from_str(&json).map_err(|e| e.to_string())?;
+        assert_eq!(t, back);
+        Ok(())
+    }
+
+    #[test]
+    fn capabilities_can_be_built_with_reverse() {
+        let caps = ShifterCapabilities {
+            shifter_type: ShifterType::SequentialWithReverse,
+            max_gears: 7,
+            has_clutch: false,
+            has_paddle_shifters: true,
+        };
+        assert_eq!(caps.shifter_type, ShifterType::SequentialWithReverse);
+        assert_eq!(caps.max_gears, 7);
+    }
+
+    #[test]
+    fn capabilities_serde_roundtrip() -> Result<(), Box<dyn std::error::Error>> {
+        let caps = ShifterCapabilities {
+            shifter_type: ShifterType::SequentialWithReverse,
+            max_gears: 7,
+            has_clutch: false,
+            has_paddle_shifters: true,
+        };
+        let json = serde_json::to_string(&caps).map_err(|e| e.to_string())?;
+        let back: ShifterCapabilities =
+            serde_json::from_str(&json).map_err(|e| e.to_string())?;
+        assert_eq!(caps, back);
+        Ok(())
+    }
+}
+
+// ── Clutch parsing edge cases ─────────────────────────────────────────────
+
+mod clutch_parsing {
+    use super::*;
+
+    #[test]
+    fn clutch_min_value() -> Result<(), Box<dyn std::error::Error>> {
+        let data = [0x00, 0x00, 0x01, 0x00, 0x00, 0x00];
+        let input = ShifterInput::parse_gamepad(&data).map_err(|e| e.to_string())?;
+        assert_eq!(input.clutch, Some(0));
+        Ok(())
+    }
+
+    #[test]
+    fn clutch_max_value() -> Result<(), Box<dyn std::error::Error>> {
+        let data = [0x00, 0x00, 0x01, 0x00, 0xFF, 0xFF];
+        let input = ShifterInput::parse_gamepad(&data).map_err(|e| e.to_string())?;
+        assert_eq!(input.clutch, Some(u16::MAX));
+        Ok(())
+    }
+
+    #[test]
+    fn clutch_mid_value() -> Result<(), Box<dyn std::error::Error>> {
+        // 0x8000 = 32768
+        let data = [0x00, 0x00, 0x03, 0x00, 0x00, 0x80];
+        let input = ShifterInput::parse_gamepad(&data).map_err(|e| e.to_string())?;
+        assert_eq!(input.clutch, Some(0x8000));
+        Ok(())
+    }
+
+    #[test]
+    fn clutch_little_endian_encoding() -> Result<(), Box<dyn std::error::Error>> {
+        let data = [0x00, 0x00, 0x01, 0x00, 0xAB, 0xCD];
+        let input = ShifterInput::parse_gamepad(&data).map_err(|e| e.to_string())?;
+        assert_eq!(input.clutch, Some(0xCDAB));
+        Ok(())
+    }
+
+    #[test]
+    fn combined_gear_paddles_clutch() -> Result<(), Box<dyn std::error::Error>> {
+        // gear=5, both paddles, clutch=0x1234
+        let data = [0x00, 0x00, 0x05, 0x30, 0x34, 0x12];
+        let input = ShifterInput::parse_gamepad(&data).map_err(|e| e.to_string())?;
+        assert_eq!(input.gear(), 5);
+        assert!(input.paddle_up);
+        assert!(input.paddle_down);
+        assert_eq!(input.clutch, Some(0x1234));
+        assert!(input.is_shifting());
+        Ok(())
+    }
+}
+
+// ── Neutral detection: comprehensive scenarios ────────────────────────────
+
+mod neutral_detection {
+    use super::*;
+
+    #[test]
+    fn neutral_from_multiple_raw_sources() {
+        // All these should produce neutral
+        let neutral_raws: Vec<u8> = {
+            let mut v = vec![0u8, 0xFF];
+            v.extend(8u8..=254);
+            v
+        };
+        for raw in neutral_raws {
+            let pos = GearPosition::from_raw(raw);
+            assert!(
+                pos.is_neutral,
+                "raw {raw} should be neutral but gear={}",
+                pos.gear
+            );
+        }
+    }
+
+    #[test]
+    fn neutral_gear_constant_is_zero() {
+        assert_eq!(NEUTRAL_GEAR, 0);
+        assert!(GearPosition::new(NEUTRAL_GEAR).is_neutral);
+    }
+
+    #[test]
+    fn neutral_is_not_reverse() {
+        let neutral = GearPosition::neutral();
+        assert!(!neutral.is_reverse);
+    }
+
+    #[test]
+    fn default_shifter_input_is_neutral() {
+        let input = ShifterInput::default();
+        assert!(input.gear.is_neutral);
+        assert_eq!(input.gear(), NEUTRAL_GEAR);
+    }
+
+    #[test]
+    fn parse_gamepad_0xff_gives_neutral() -> Result<(), Box<dyn std::error::Error>> {
+        let data = [0x00, 0x00, 0xFF, 0x00];
+        let input = ShifterInput::parse_gamepad(&data).map_err(|e| e.to_string())?;
+        assert!(input.gear.is_neutral);
+        assert_eq!(input.gear(), 0);
+        Ok(())
+    }
+}

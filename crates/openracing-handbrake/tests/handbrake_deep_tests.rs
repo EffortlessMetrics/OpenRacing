@@ -518,3 +518,343 @@ proptest! {
         }
     }
 }
+
+// ── Position encoding: byte-level layout ───────────────────────────────────
+
+mod position_encoding {
+    use super::*;
+
+    #[test]
+    fn little_endian_byte_order_low_byte_only() -> Result<(), Box<dyn std::error::Error>> {
+        let data = [0x00, 0x00, 0xAB, 0x00];
+        let input = HandbrakeInput::parse_gamepad(&data).map_err(|e| e.to_string())?;
+        assert_eq!(input.raw_value, 0x00AB);
+        Ok(())
+    }
+
+    #[test]
+    fn little_endian_byte_order_high_byte_only() -> Result<(), Box<dyn std::error::Error>> {
+        let data = [0x00, 0x00, 0x00, 0xCD];
+        let input = HandbrakeInput::parse_gamepad(&data).map_err(|e| e.to_string())?;
+        assert_eq!(input.raw_value, 0xCD00);
+        Ok(())
+    }
+
+    #[test]
+    fn little_endian_combined() -> Result<(), Box<dyn std::error::Error>> {
+        let data = [0x00, 0x00, 0x34, 0x12];
+        let input = HandbrakeInput::parse_gamepad(&data).map_err(|e| e.to_string())?;
+        assert_eq!(input.raw_value, 0x1234);
+        Ok(())
+    }
+
+    #[test]
+    fn leading_bytes_ignored() -> Result<(), Box<dyn std::error::Error>> {
+        let data = [0xFF, 0xEE, 0x10, 0x20];
+        let input = HandbrakeInput::parse_gamepad(&data).map_err(|e| e.to_string())?;
+        assert_eq!(input.raw_value, 0x2010);
+        Ok(())
+    }
+
+    #[test]
+    fn position_encoding_sweep_powers_of_two() -> Result<(), Box<dyn std::error::Error>> {
+        let expected_values: Vec<u16> = (0..16).map(|bit| 1u16 << bit).collect();
+        for &val in &expected_values {
+            let lo = (val & 0xFF) as u8;
+            let hi = (val >> 8) as u8;
+            let data = [0x00, 0x00, lo, hi];
+            let input = HandbrakeInput::parse_gamepad(&data).map_err(|e| e.to_string())?;
+            assert_eq!(input.raw_value, val, "failed for value {val:#06X}");
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn trailing_bytes_ignored() -> Result<(), Box<dyn std::error::Error>> {
+        let data = [0x00, 0x00, 0x50, 0x00, 0xFF, 0xFF, 0xFF, 0xFF];
+        let input = HandbrakeInput::parse_gamepad(&data).map_err(|e| e.to_string())?;
+        assert_eq!(input.raw_value, 0x0050);
+        Ok(())
+    }
+}
+
+// ── Calibration workflow: multi-point ──────────────────────────────────────
+
+mod calibration_workflow {
+    use super::*;
+
+    #[test]
+    fn full_calibration_workflow_sample_apply_normalize() {
+        let mut cal = HandbrakeCalibration::new();
+        // Simulate user sweeping handbrake from rest to fully pulled
+        let sweep = [50, 100, 200, 500, 1000, 3000, 5000, 8000, 9500];
+        for &v in &sweep {
+            cal.sample(v);
+        }
+        assert_eq!(cal.min, 50);
+        assert_eq!(cal.max, 9500);
+
+        let mut input = HandbrakeInput {
+            raw_value: 4775,
+            is_engaged: true,
+            calibration_min: 0,
+            calibration_max: MAX_ANALOG_VALUE,
+        };
+        cal.apply(&mut input);
+        // (4775 - 50) / (9500 - 50) = 4725 / 9450 = 0.5
+        assert!((input.normalized() - 0.5).abs() < 0.001);
+    }
+
+    #[test]
+    fn calibration_with_reversed_min_max_order() {
+        let mut cal = HandbrakeCalibration::new();
+        // Samples arrive largest first, then smallest
+        cal.sample(9000);
+        cal.sample(1000);
+        assert_eq!(cal.min, 1000);
+        assert_eq!(cal.max, 9000);
+    }
+
+    #[test]
+    fn recalibration_overwrites_previous() {
+        let mut input = HandbrakeInput {
+            raw_value: 5000,
+            is_engaged: true,
+            calibration_min: 0,
+            calibration_max: MAX_ANALOG_VALUE,
+        };
+        let n1 = input.normalized();
+
+        input.calibrate(4000, 6000);
+        let n2 = input.normalized();
+
+        input.calibrate(0, 10000);
+        let n3 = input.normalized();
+
+        // n2 should be 0.5 (centered in narrow range)
+        assert!((n2 - 0.5).abs() < 0.01);
+        // n3 should be same as 5000/10000 = 0.5
+        assert!((n3 - 0.5).abs() < 0.01);
+        // n1 is 5000/65535 ≈ 0.076
+        assert!(n1 < 0.1);
+    }
+
+    #[test]
+    fn calibration_center_can_be_set_manually() {
+        let mut cal = HandbrakeCalibration::new();
+        cal.center = Some(5000);
+        assert_eq!(cal.center, Some(5000));
+    }
+}
+
+// ── Axis mapping: normalized output across ranges ─────────────────────────
+
+mod axis_mapping {
+    use super::*;
+
+    #[test]
+    fn normalized_linear_sweep_monotonic() {
+        let mut prev = -1.0f32;
+        for raw in (0..=MAX_ANALOG_VALUE).step_by(1000) {
+            let input = HandbrakeInput {
+                raw_value: raw,
+                is_engaged: raw > 100,
+                calibration_min: 0,
+                calibration_max: MAX_ANALOG_VALUE,
+            };
+            let n = input.normalized();
+            assert!(n >= prev, "not monotonic at raw={raw}: {n} < {prev}");
+            prev = n;
+        }
+    }
+
+    #[test]
+    fn normalized_quarter_points() {
+        let range = 40000u16;
+        let base = 10000u16;
+        for (frac_num, frac_den) in [(0, 4), (1, 4), (2, 4), (3, 4), (4, 4)] {
+            let raw = base + (range as u32 * frac_num as u32 / frac_den as u32) as u16;
+            let input = HandbrakeInput {
+                raw_value: raw,
+                is_engaged: true,
+                calibration_min: base,
+                calibration_max: base + range,
+            };
+            let expected = frac_num as f32 / frac_den as f32;
+            assert!(
+                (input.normalized() - expected).abs() < 0.01,
+                "raw={raw}, expected={expected}, got={}",
+                input.normalized()
+            );
+        }
+    }
+
+    #[test]
+    fn narrow_range_axis_mapping() {
+        // 1-unit range: only min and max produce distinct outputs
+        let at_min = HandbrakeInput {
+            raw_value: 1000,
+            is_engaged: true,
+            calibration_min: 1000,
+            calibration_max: 1001,
+        };
+        let at_max = HandbrakeInput {
+            raw_value: 1001,
+            is_engaged: true,
+            calibration_min: 1000,
+            calibration_max: 1001,
+        };
+        assert!(at_min.normalized().abs() < f32::EPSILON);
+        assert!((at_max.normalized() - 1.0).abs() < f32::EPSILON);
+    }
+}
+
+// ── Deadzone: fine-grained threshold behavior ─────────────────────────────
+
+mod deadzone_fine {
+    use super::*;
+
+    #[test]
+    fn engagement_exactly_at_100_not_engaged() -> Result<(), Box<dyn std::error::Error>> {
+        let data = [0x00, 0x00, 100, 0x00];
+        let input = HandbrakeInput::parse_gamepad(&data).map_err(|e| e.to_string())?;
+        assert_eq!(input.raw_value, 100);
+        assert!(!input.is_engaged);
+        Ok(())
+    }
+
+    #[test]
+    fn engagement_at_101_engaged() -> Result<(), Box<dyn std::error::Error>> {
+        let data = [0x00, 0x00, 101, 0x00];
+        let input = HandbrakeInput::parse_gamepad(&data).map_err(|e| e.to_string())?;
+        assert_eq!(input.raw_value, 101);
+        assert!(input.is_engaged);
+        Ok(())
+    }
+
+    #[test]
+    fn near_zero_values_produce_near_zero_normalized() {
+        for raw in [0u16, 1, 5, 10, 50] {
+            let input = HandbrakeInput {
+                raw_value: raw,
+                is_engaged: false,
+                calibration_min: 0,
+                calibration_max: MAX_ANALOG_VALUE,
+            };
+            assert!(
+                input.normalized() < 0.01,
+                "raw={raw} should produce near-zero normalized, got {}",
+                input.normalized()
+            );
+        }
+    }
+
+    #[test]
+    fn calibrated_deadzone_below_min_clamps() {
+        let input = HandbrakeInput {
+            raw_value: 500,
+            is_engaged: false,
+            calibration_min: 500,
+            calibration_max: 9000,
+        };
+        assert!(input.normalized().abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn calibrated_deadzone_one_above_min() {
+        let input = HandbrakeInput {
+            raw_value: 501,
+            is_engaged: true,
+            calibration_min: 500,
+            calibration_max: 9000,
+        };
+        let n = input.normalized();
+        // (501 - 500) / (9000 - 500) = 1 / 8500 ≈ 0.000118
+        assert!(n > 0.0);
+        assert!(n < 0.001);
+    }
+}
+
+// ── All handbrake types: variant-specific behavior ────────────────────────
+
+mod handbrake_type_variants {
+    use super::*;
+
+    #[test]
+    fn digital_type_construction() {
+        let caps = HandbrakeCapabilities {
+            handbrake_type: HandbrakeType::Digital,
+            max_load_kg: None,
+            has_hall_effect_sensor: false,
+            supports_calibration: false,
+        };
+        assert_eq!(caps.handbrake_type, HandbrakeType::Digital);
+        assert!(!caps.supports_calibration);
+    }
+
+    #[test]
+    fn digital_type_serde_roundtrip() -> Result<(), Box<dyn std::error::Error>> {
+        let caps = HandbrakeCapabilities {
+            handbrake_type: HandbrakeType::Digital,
+            max_load_kg: None,
+            has_hall_effect_sensor: false,
+            supports_calibration: false,
+        };
+        let json = serde_json::to_string(&caps).map_err(|e| e.to_string())?;
+        let back: HandbrakeCapabilities =
+            serde_json::from_str(&json).map_err(|e| e.to_string())?;
+        assert_eq!(caps, back);
+        Ok(())
+    }
+
+    #[test]
+    fn each_constructor_type_matches_enum() {
+        assert_eq!(
+            HandbrakeCapabilities::analog().handbrake_type,
+            HandbrakeType::Analog
+        );
+        assert_eq!(
+            HandbrakeCapabilities::load_cell(1.0).handbrake_type,
+            HandbrakeType::LoadCell
+        );
+        assert_eq!(
+            HandbrakeCapabilities::hall_effect().handbrake_type,
+            HandbrakeType::HallEffect
+        );
+    }
+
+    #[test]
+    fn load_cell_with_large_load() {
+        let caps = HandbrakeCapabilities::load_cell(500.0);
+        assert_eq!(caps.max_load_kg, Some(500.0));
+    }
+
+    #[test]
+    fn hall_effect_sensor_flag_only_on_hall_effect() {
+        assert!(HandbrakeCapabilities::hall_effect().has_hall_effect_sensor);
+        assert!(!HandbrakeCapabilities::analog().has_hall_effect_sensor);
+        assert!(!HandbrakeCapabilities::load_cell(10.0).has_hall_effect_sensor);
+    }
+
+    #[test]
+    fn only_load_cell_has_max_load() {
+        assert!(HandbrakeCapabilities::analog().max_load_kg.is_none());
+        assert!(HandbrakeCapabilities::hall_effect().max_load_kg.is_none());
+        assert!(HandbrakeCapabilities::load_cell(10.0).max_load_kg.is_some());
+    }
+
+    #[test]
+    fn handbrake_type_debug_contains_variant_name() {
+        assert!(format!("{:?}", HandbrakeType::Analog).contains("Analog"));
+        assert!(format!("{:?}", HandbrakeType::Digital).contains("Digital"));
+        assert!(format!("{:?}", HandbrakeType::LoadCell).contains("LoadCell"));
+        assert!(format!("{:?}", HandbrakeType::HallEffect).contains("HallEffect"));
+    }
+
+    #[test]
+    fn default_capabilities_matches_analog() {
+        let default = HandbrakeCapabilities::default();
+        let analog = HandbrakeCapabilities::analog();
+        assert_eq!(default, analog);
+    }
+}
