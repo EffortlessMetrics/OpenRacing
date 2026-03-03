@@ -2,23 +2,26 @@
 
 **Branch:** `feat/wave15-rc-hardening`
 **Generated:** 2026-03-04
-**Commit:** HEAD (wave 41 complete)
+**Commit:** HEAD (wave 43 complete)
 
 ## Build & CI Status
 
 | Check | Status |
 |-------|--------|
 | `cargo clippy --all-targets --all-features -- -D warnings` | ✅ Clean |
+| `cargo fmt --all -- --check` | ✅ Verified (wave 43) |
 | `cargo test --all-features --workspace` | ✅ All passing |
-| `cargo deny check` | ✅ Passing |
+| `cargo deny check` | ✅ Verified (wave 43) |
+| ADR validation (`validate_adr.py`) | ✅ Verified (wave 43) |
 | CI governance workflow | ✅ Fixed |
+| Workspace-hack sync | ✅ Verified (wave 43) |
 
 ## Test Summary
 
 | Metric | Count |
 |--------|------:|
-| **Total tests** | **21,043+** |
-| **Test files** | **658** |
+| **Total tests** | **21,374+** |
+| **Test files** | **662** |
 | Unit tests | 15,000+ |
 | Snapshot tests | 1,327 |
 | Property tests (proptest) | 2,300+ |
@@ -95,6 +98,7 @@
   with 820+ proptest cases exercising encoding round-trips, ID mappings, and safety invariants.
 - **56 telemetry adapter modules** with snapshot regression tests across
   multiple schema versions (v2–v9).
+- **61 game telemetry adapters** with full test coverage — game support matrix verified (wave 43).
 - **CLI, schemas, plugins, and engine** all have dedicated test suites.
 - **Fuzz testing** covers 104 targets spanning all protocol parsers and telemetry decoders.
 - **Safety-critical paths** (FMEA, watchdog, hardware watchdog) have dedicated test suites
@@ -152,6 +156,10 @@
 - **Schemas + IPC protocol deep tests**: 173 tests — schema validation (97) + IPC protocol (76) (wave 41).
 - **Compat + firmware update deep tests**: 111 tests — migration compatibility (40) + firmware update process (71) (wave 41).
 - **Capture IDs + test helpers deep tests**: 194 tests — capture ID lookup (45) + test helper utilities (149) (wave 41).
+- **CI gate verification**: `cargo fmt`, `cargo deny`, ADR validation all verified passing (wave 43).
+- **Game support matrix**: 61 telemetry adapters all with test coverage (wave 43).
+- **Udev rules expansion**: +75 rules validated, cross-reference tooling added (wave 43).
+- **Example plugin tests**: 51 lifecycle tests covering loading, sandboxing, error recovery (wave 43).
 
 ## PID Verification Status
 

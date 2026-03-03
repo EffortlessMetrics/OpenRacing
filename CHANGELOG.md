@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **17,696+ tests** across the workspace (unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, doc-tests, trybuild, BDD, protocol-verification, concurrency-stress, performance-validation) — 0 failures, 44 ignored
 - **18,645+ tests** across the workspace (unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, doc-tests, trybuild, BDD, protocol-verification, concurrency-stress, performance-validation) — 0 failures, 44 ignored
 - **21,043+ tests** across the workspace (unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, doc-tests, trybuild, BDD, protocol-verification, concurrency-stress, performance-validation) — 0 failures, 44 ignored
+- **21,374+ tests** across the workspace (unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, doc-tests, trybuild, BDD, protocol-verification, concurrency-stress, performance-validation) — 0 failures, 44 ignored
 - **96 fuzz targets** covering all HID protocols and game telemetry adapters (AMS2 target added)
 - **100+ fuzz targets** covering all HID protocols, game telemetry adapters, and new wave 24 targets
 - **104 fuzz targets** covering all HID protocols, game telemetry adapters, and wave 31 targets (telemetry packet, profile, calibration, filter pipeline)
@@ -150,6 +151,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Schemas (97) + IPC protocol (76) deep tests: schema validation, IPC protocol encoding/decoding
   - Compat (40) + firmware update (71) deep tests: migration compatibility, firmware update process
   - Capture IDs (45) + test helpers (149) deep tests: capture ID lookup, shared test helper utilities
+- **Wave 43 — CI gate verification, game support matrix, packaging, example plugins** (21,043 → 21,374+ tests):
+  - CI gate verification: `cargo fmt`, `cargo deny`, ADR validation all passing
+  - Workspace-hack crate sync verified
+  - Game support matrix expanded to 61 telemetry adapters with full test coverage
+  - Udev rules expansion: +75 rules for new device support in `packaging/linux/99-racing-wheel-suite.rules`
+  - Example plugin tests (51 tests): lifecycle, loading, sandboxing, error recovery
+  - Documentation alignment fixes across ADRs and developer guides
 - **Web-verified VID/PIDs** for Thrustmaster, Logitech, Fanatec, Simucube, Moza, AccuForce, VRS, and OpenFFBoard — source citations added from linux-steering-wheels, kernel drivers (`hid-lg4ff`, `hid-fanatecff`, `simagic-ff`), pid.codes, and vendor documentation
 - **Safety interlock comprehensive test suite**: behavior tests for interlock state machine, watchdog timeout scenarios, and FMEA fault-injection coverage
 - **Protocol verification wave 16**: 6 vendors re-audited (VRS, Heusinkveld, Cube Controls, Cammus, Leo Bodnar, AccuForce) — PID accuracy and torque specs cross-checked against USB captures and vendor documentation

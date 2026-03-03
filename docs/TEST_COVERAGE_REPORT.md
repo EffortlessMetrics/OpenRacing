@@ -2,7 +2,7 @@
 
 **Branch:** `feat/wave15-rc-hardening`
 **Generated:** 2026-03-04
-**Waves completed:** 15–41
+**Waves completed:** 15–43
 
 ---
 
@@ -10,11 +10,11 @@
 
 | Metric | Count |
 |--------|------:|
-| **Total tests** | **21,043+** |
+| **Total tests** | **21,374+** |
 | Failed | 0 |
 | Ignored | 44 |
 | Test binaries | 640+ |
-| Test files (`crates/**/tests/**/*.rs`) | 658 |
+| Test files (`crates/**/tests/**/*.rs`) | 662 |
 | Crates with test files | 79 / 82 |
 
 ---
@@ -43,13 +43,13 @@
 
 | Crate / Category | Tests | Key crates |
 |------------------|------:|------------|
-| Telemetry | 4,460+ | `telemetry-adapters` (2,080+), `telemetry-core` (492+), `telemetry-config` (293+), `telemetry-orchestrator` (127), `telemetry-contracts` (125), `telemetry-config-writers` (48+), `telemetry-streams` (52+) — extended verification for 9 adapters (wave 34), core/integration/rate-limiter deep (wave 37), adapter re-verification (wave 40), config/streams deep (wave 40) |
+| Telemetry | 4,530+ | `telemetry-adapters` (2,150+), `telemetry-core` (492+), `telemetry-config` (293+), `telemetry-orchestrator` (127), `telemetry-contracts` (125), `telemetry-config-writers` (48+), `telemetry-streams` (52+) — extended verification for 9 adapters (wave 34), core/integration/rate-limiter deep (wave 37), adapter re-verification (wave 40), config/streams deep (wave 40), 61 adapters verified (wave 43) |
 | HID Protocols | 4,127+ | `hid-thrustmaster-protocol` (480+), `hid-fanatec-protocol` (370+), `hid-simagic-protocol` (292+), `hid-logitech-protocol` (270+), `hid-moza-protocol` (314+), `hid-vrs-protocol` (217+), `hid-cammus-protocol` (188+), `hid-ffbeast-protocol` (136+), `hid-openffboard-protocol` (153+), `simucube-protocol` (310+), `simplemotion-v2` (79+), `hbp` (43+), `moza-wheelbase-report` (59+), and more — ALL 14 crates cross-verified, Simagic deep (wave 38) |
 | Engine | 1,640+ | `racing-wheel-engine` — RT pipeline, filters, HID dispatch, safety, device/game, hot-swap, FFB pipeline E2E, HID common deep (wave 36), safety + device management deep (wave 41) |
 | Integration tests | 888+ | `integration-tests` — E2E device pipelines, RC validation, golden packets, full-stack E2E, concurrency stress (23), performance validation (12), plugin + telemetry E2E + device protocol (wave 40) |
 | Service + CLI | 901+ | `racing-wheel-service` (500+), `wheelctl` (440+) — daemon, IPC, lifecycle, CLI E2E, diagnostics deep (wave 35), service lifecycle + IPC deep (wave 41) |
 | Schemas | 657+ | `racing-wheel-schemas` — JSON schema validation, migration, profile inheritance, evolution, domain type proptests (wave 36), schema validation deep (wave 41) |
-| Plugins | 925+ | `racing-wheel-plugins` (394+), `openracing-wasm-runtime` (232+), `openracing-native-plugin` (217+), `openracing-plugin-abi` (263+) — WASM deep (wave 38), native plugin + ABI deep (wave 39) |
+| Plugins | 976+ | `racing-wheel-plugins` (394+), `openracing-wasm-runtime` (232+), `openracing-native-plugin` (217+), `openracing-plugin-abi` (263+) — WASM deep (wave 38), native plugin + ABI deep (wave 39), example plugin tests (51) (wave 43) |
 | Errors | 339 | `openracing-errors` — exhaustive error variant coverage |
 | Compat + Config | 312+ | `compat` — deep migration + validation tests (wave 33), migration deep (wave 41) |
 | Profile | 475+ | `openracing-profile` (269+), `openracing-profile-repository` (94+) — inheritance, validation, comprehensive system tests (wave 35), profile + repo deep (wave 40) |
@@ -186,6 +186,17 @@ ALL 14 HID crates cross-verified against community sources:
 | Compat + firmware update deep | 111 | Migration compatibility (40) + firmware update process (71) |
 | Capture IDs + test helpers deep | 194 | Capture ID lookup (45) + test helper utilities (149) |
 
+## Wave 43 Test Additions
+
+| Commit | Tests | Description |
+|--------|------:|-------------|
+| CI gate verification | — | `cargo fmt`, `cargo deny`, ADR validation all verified passing |
+| Workspace-hack sync | — | Workspace-hack crate verified in sync |
+| Game support matrix | ~70 | 61 telemetry adapters verified with test coverage (5 new adapters) |
+| Udev rules expansion | — | +75 udev rules for new device support |
+| Example plugin tests | 51 | Plugin lifecycle, loading, sandboxing, error recovery |
+| Docs alignment fixes | — | ADR and developer guide alignment |
+
 ---
 
-*Source: `cargo test --workspace --all-features --exclude racing-wheel-ui` · waves 15–41 complete*
+*Source: `cargo test --workspace --all-features --exclude racing-wheel-ui` · waves 15–43 complete*
