@@ -2,7 +2,7 @@
 
 **Branch:** `feat/wave15-rc-hardening`
 **Generated:** 2026-03-04
-**Commit:** HEAD (wave 46 complete)
+**Commit:** HEAD (wave 48 complete)
 
 ## Build & CI Status
 
@@ -20,7 +20,7 @@
 
 | Metric | Count |
 |--------|------:|
-| **Total tests** | **22,326+** |
+| **Total tests** | **22,915+** |
 | **Test files** | **662** |
 | Unit tests | 15,800+ |
 | Snapshot tests | 1,327 |
@@ -62,13 +62,13 @@
 | Telemetry | 3,500+ | `telemetry-adapters`, `telemetry-core`, `telemetry-config`, `telemetry-orchestrator`, `telemetry-contracts`, `telemetry-config-writers`, `telemetry-streams` — extended verification for 9 adapters (wave 34), core/integration/rate-limiter deep (wave 37), full adapter re-verification + config/streams deep (waves 40-41), adapter validation (wave 45) |
 | Engine | 1,670+ | `engine` (RT pipeline, filters, HID, safety, device/game tests, FFB, calibration, pipeline deep, HID common deep — wave 36, safety + device management deep — wave 41, RT no-allocation enforcement — wave 44) |
 | Protocols | 3,800+ | `hid-*-protocol`, `simplemotion-v2`, `hbp`, `moza-wheelbase-report` — all 17 HID protocol crates with deep tests, SMV2 verification (wave 36), HBP + Moza WR deep (wave 37), Simagic verification (wave 38), roundtrip proptests across 9 crates (wave 44) |
-| Plugins | 860+ | `plugins`, `openracing-wasm-runtime`, `openracing-native-plugin`, `openracing-plugin-abi` — WASM deep (wave 38), native plugin + ABI deep (wave 39) |
+| Plugins | 976+ | `plugins`, `openracing-wasm-runtime`, `openracing-native-plugin`, `openracing-plugin-abi` — WASM deep (wave 38), native plugin + ABI deep (wave 39), WASM runtime budget + sandbox + host function tests (wave 48) |
 | Service | 740+ | `service` (daemon, IPC, crypto, firmware updates, lifecycle tests, diagnostics deep — wave 35, lifecycle + IPC deep — wave 41, service lifecycle — wave 45) |
 | Schemas | 720+ | `schemas` (JSON schema validation, migration, profile inheritance, evolution, domain type proptests — wave 36, validation deep — wave 41, IPC schema compat — wave 44) |
 | Integration tests | 500+ | `integration-tests` (E2E device pipelines, RC validation, golden packets, full-stack E2E, concurrency stress, performance validation, plugin + telemetry E2E + device protocol — wave 40) |
 | Safety | 680+ | `openracing-fmea`, `openracing-watchdog`, `openracing-hardware-watchdog`, soak tests (10K+ ticks), crypto + FMEA deep (wave 39), watchdog deep (wave 39), fault injection expansion (wave 44) |
-| Profile | 475+ | `openracing-profile`, `openracing-profile-repository` — inheritance, validation, comprehensive system tests (wave 35), profile + repo deep (wave 40) |
-| Filters | 335+ | `openracing-filters` — snapshot + property tests, SM-V2 deep, filters deep (wave 39) |
+| Profile | 532+ | `openracing-profile`, `openracing-profile-repository` — inheritance, validation, comprehensive system tests (wave 35), profile + repo deep (wave 40), CRUD + validation + inheritance tests (wave 48) |
+| Filters | 436+ | `openracing-filters` — snapshot + property tests, SM-V2 deep, filters deep (wave 39), frequency response + proptest coverage (wave 47) |
 | Capture | 330+ | `hid-capture` — device capture tooling, fingerprinting, classification (wave 34), diagnostic + SRP + capture deep (wave 38), capture IDs (wave 41) |
 | Curves | 169+ | `openracing-curves` — LUT fidelity, interpolation, bezier, fitting, property tests (wave 35) |
 | Calibration | 290+ | `openracing-calibration` — workflows, recalibration, validation, migration (wave 35), calibration deep (wave 41), calibration + FFB edge cases (wave 46) |
@@ -175,6 +175,15 @@
 - **Crypto + signing verification**: 47 tests for Ed25519 signing, key management, signature validation (wave 46).
 - **CLI deep expanded**: 68 tests for extended subcommand coverage, argument parsing, output formatting, error reporting (wave 46).
 - **9 new fuzz targets** (113 total): replay parsing, diagnostic export, calibration input, FFB commands, crypto payloads, CLI argument parsing (wave 46).
+- **Compat deep tests**: 23 tests covering migration compatibility, version negotiation, legacy API validation (wave 47).
+- **Filter/pipeline deep tests**: 101 tests with frequency response + proptest coverage, filter chain orchestration (wave 47).
+- **Input maps + button box tests**: 83 tests covering binding compilation, button matrix, rotary encoders, LED mappings (wave 47).
+- **Telemetry recorder/core tests**: 73 tests covering session recording, playback, core telemetry pipeline validation (wave 47).
+- **Profile management tests**: 57 tests covering CRUD operations, validation rules, inheritance chains (wave 48).
+- **Scheduler timing tests**: 69 tests covering deadline accuracy, priority scheduling, timing edge cases (wave 48).
+- **HID capture + vendor tests**: 77 tests covering capture session management, vendor-specific protocol handling (wave 48).
+- **WASM runtime tests**: 58 tests covering budget enforcement, sandbox isolation, host function interface (wave 48).
+- **Firmware update tests**: 48 tests covering full state machine + rollback scenarios + update validation (wave 48).
 
 ## PID Verification Status
 

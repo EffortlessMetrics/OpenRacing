@@ -6,14 +6,16 @@ One-screen execution plan for OpenRacing. Updated alongside the branch `feat/wav
 
 ## NOW (actively in flight)
 
-- **PR #22 — Wave 15 RC hardening**: waves 22-46 complete — golden packets, safety soak, plugin security, schema evolution, compile-fail tests, doc-tests, telemetry deep, protocol deep, trybuild, BDD scenarios, protocol verification, hot-swap, FFB pipeline E2E, concurrency stress, performance validation, capture tooling, profile/diagnostics deep, core infrastructure deep, input/peripherals deep, WASM/native plugin deep, safety/engine deep, full telemetry adapter re-verification, CI gate verification, game support matrix, udev expansion, example plugin tests, RT enforcement, fault injection, protocol roundtrip proptests, IPC schema compat, service lifecycle, cross-platform, device discovery, replay/diagnostics, calibration/FFB, crypto/signing, CLI deep all landed
-- **Test suite at 22,326+**: unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, safety-soak, doc-tests, trybuild, BDD, protocol-verification, concurrency-stress, performance-validation
+- **PR #22 — Wave 15 RC hardening**: waves 22-48 complete — golden packets, safety soak, plugin security, schema evolution, compile-fail tests, doc-tests, telemetry deep, protocol deep, trybuild, BDD scenarios, protocol verification, hot-swap, FFB pipeline E2E, concurrency stress, performance validation, capture tooling, profile/diagnostics deep, core infrastructure deep, input/peripherals deep, WASM/native plugin deep, safety/engine deep, full telemetry adapter re-verification, CI gate verification, game support matrix, udev expansion, example plugin tests, RT enforcement, fault injection, protocol roundtrip proptests, IPC schema compat, service lifecycle, cross-platform, device discovery, replay/diagnostics, calibration/FFB, crypto/signing, CLI deep, compat deep, filter/pipeline deep, input maps, telemetry recorder, profile management, scheduler timing, HID capture, WASM runtime, firmware update all landed
+- **Test suite at 22,915+**: unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, safety-soak, doc-tests, trybuild, BDD, protocol-verification, concurrency-stress, performance-validation
 - **113 fuzz targets**: all HID protocols, game telemetry adapters, replay, diagnostics, calibration, FFB, crypto, CLI
 - **Protocol verification complete**: ALL 14 HID crates cross-verified against community sources (kernel drivers, pid.codes, vendor docs)
 
 **Recently completed (this branch):**
+- ✅ Wave 48: Profile management (57), scheduler timing (69), HID capture + vendor (77), WASM runtime (58), firmware update (48)
+- ✅ Wave 47: Compat deep (23), filter/pipeline deep (101), input maps + button box (83), telemetry recorder/core (73)
 - ✅ Wave 46: Replay + diagnostics (73), calibration + FFB (91), crypto + signing (47), CLI deep (68), 9 new fuzz targets (113 total)
-- ✅ Wave 45: Service lifecycle (87), cross-platform (60), telemetry adapter validation (119), error handling (86), device discovery (84)
+- ✅ Wave 45:Service lifecycle (87), cross-platform (60), telemetry adapter validation (119), error handling (86), device discovery (84)
 - ✅ Wave 44: RT no-allocation enforcement (36), safety fault injection (74), protocol roundtrip proptests (104), IPC schema compat (64)
 - ✅ Wave 43: CI gate verification (fmt, deny, ADR), workspace-hack sync, game support matrix (61 adapters), udev rules expansion (+75 rules), example plugin tests (51 tests), docs alignment fixes
 - ✅ Wave 41: FFB (107) + calibration (84) deep tests, service lifecycle (37) + IPC (37) deep tests, engine safety (76) + device management (53) deep, schemas (97) + IPC protocol (76) deep, compat (40) + firmware update (71) deep, capture IDs (45) + test helpers (149)
@@ -55,11 +57,13 @@ One-screen execution plan for OpenRacing. Updated alongside the branch `feat/wav
 - ✅ Wave 43 CI verification + game support + packaging + example plugins: 21,043 → 21,374+ tests passing across all crates
 - ✅ Wave 44 RT enforcement + fault injection + protocol roundtrip + IPC compat: 21,374 → 21,652+ tests passing across all crates
 - ✅ Wave 45 service lifecycle + cross-platform + telemetry + error handling + device discovery: 21,652 → 22,088+ tests passing across all crates
+- ✅ Wave 47 compat deep + filter/pipeline deep + input maps + telemetry recorder: 22,326 → 22,606+ tests passing across all crates
+- ✅ Wave 48 profile management + scheduler timing + HID capture + WASM runtime + firmware update: 22,606 → 22,915+ tests passing across all crates
 - ✅ Waves 46 replay/diagnostics + calibration/FFB + crypto/signing + CLI deep + 9 fuzz targets: 22,088 → 22,326+ tests passing across all crates
 
 ## NEXT (queued, ready to start)
 
-- **Wave 47+ hardening**: macOS IOKit HID support, packaging hardening (deb/rpm/flatpak), adaptive RT scheduling
+- **Wave 49+ hardening**: E2E workflows, snapshot expansion, soak tests, macOS IOKit HID support, packaging hardening (deb/rpm/flatpak), adaptive RT scheduling
 - **Merge PR #22** after CI green → cut v1.0.0-rc.2 tag
 - **Line-level code coverage**: integrate `llvm-cov` or `cargo-tarpaulin` into CI to identify uncovered branches
 - **macOS CI runner** in GitHub Actions matrix (F-053)
@@ -88,7 +92,7 @@ One-screen execution plan for OpenRacing. Updated alongside the branch `feat/wav
 |--------|-------|
 | Supported devices | ~90+ VID/PID pairs across 16+ vendors |
 | Supported games | 61 telemetry adapter modules |
-| Test count | 22,326+ across 640+ test binaries (unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, doc-tests, trybuild, BDD, protocol-verification, concurrency-stress, performance-validation) |
+| Test count | 22,915+ across 640+ test binaries (unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, doc-tests, trybuild, BDD, protocol-verification, concurrency-stress, performance-validation) |
 | Fuzz targets | 113 across all HID protocols, game adapters, replay, diagnostics, calibration, FFB, crypto, CLI |
 | Protocol crates | 17 HID vendor protocol microcrates |
 | Snapshot tests | 1,327 snapshot files across 52 snapshot directories |

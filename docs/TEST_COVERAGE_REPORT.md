@@ -2,7 +2,7 @@
 
 **Branch:** `feat/wave15-rc-hardening`
 **Generated:** 2026-03-04
-**Waves completed:** 15–46
+**Waves completed:** 15–48
 
 ---
 
@@ -10,7 +10,7 @@
 
 | Metric | Count |
 |--------|------:|
-| **Total tests** | **22,326+** |
+| **Total tests** | **22,915+** |
 | Failed | 0 |
 | Ignored | 44 |
 | Test binaries | 640+ |
@@ -49,24 +49,24 @@
 | Integration tests | 888+ | `integration-tests` — E2E device pipelines, RC validation, golden packets, full-stack E2E, concurrency stress (23), performance validation (12), plugin + telemetry E2E + device protocol (wave 40) |
 | Service + CLI | 1,056+ | `racing-wheel-service` (587+), `wheelctl` (508+) — daemon, IPC, lifecycle, CLI E2E, diagnostics deep (wave 35), service lifecycle + IPC deep (wave 41), service lifecycle (wave 45), CLI deep (wave 46) |
 | Schemas | 721+ | `racing-wheel-schemas` — JSON schema validation, migration, profile inheritance, evolution, domain type proptests (wave 36), schema validation deep (wave 41), IPC schema compat (wave 44) |
-| Plugins | 976+ | `racing-wheel-plugins` (394+), `openracing-wasm-runtime` (232+), `openracing-native-plugin` (217+), `openracing-plugin-abi` (263+) — WASM deep (wave 38), native plugin + ABI deep (wave 39), example plugin tests (51) (wave 43) |
+| Plugins | 1,034+ | `racing-wheel-plugins` (394+), `openracing-wasm-runtime` (290+), `openracing-native-plugin` (217+), `openracing-plugin-abi` (263+) — WASM deep (wave 38), native plugin + ABI deep (wave 39), example plugin tests (51) (wave 43), WASM runtime budget + sandbox + host function (wave 48) |
 | Errors | 425 | `openracing-errors` — exhaustive error variant coverage, error handling deep (wave 45) |
-| Compat + Config | 312+ | `compat` — deep migration + validation tests (wave 33), migration deep (wave 41) |
-| Profile | 475+ | `openracing-profile` (269+), `openracing-profile-repository` (94+) — inheritance, validation, comprehensive system tests (wave 35), profile + repo deep (wave 40) |
-| Filters | 334+ | `openracing-filters` — snapshot + property tests, SM-V2 deep, filters deep (wave 39) |
+| Compat + Config | 335+ | `compat` — deep migration + validation tests (wave 33), migration deep (wave 41), compat deep (wave 47) |
+| Profile | 532+ | `openracing-profile` (326+), `openracing-profile-repository` (94+) — inheritance, validation, comprehensive system tests (wave 35), profile + repo deep (wave 40), CRUD + validation + inheritance (wave 48) |
+| Filters | 435+ | `openracing-filters` — snapshot + property tests, SM-V2 deep, filters deep (wave 39), frequency response + proptest coverage (wave 47) |
 | Safety | 674+ | `openracing-fmea` (371+), `openracing-watchdog` (58+), `openracing-hardware-watchdog` (286+) — fault injection, property tests, 23 safety invariants (wave 30), crypto + FMEA deep (wave 39), watchdog deep (wave 39), fault injection expansion (wave 44) |
 | IPC | 261+ | `openracing-ipc` — message serialization, snapshot round-trips, codec proptests (wave 36), IPC protocol deep (wave 41) |
 | FFB + Calibration | 656+ | `openracing-ffb` (366+), `openracing-calibration` (290+) — force output, profile application, workflows, migration, serde proptests (wave 36), FFB + calibration deep (wave 41), calibration + FFB precision (wave 46) |
 | Curves | 169+ | `openracing-curves` — LUT fidelity, interpolation, bezier, fitting, monotonicity, stability (wave 35) |
-| Firmware | 230+ | `openracing-firmware-update` — state machine, rollback, validation, firmware update deep (wave 41) |
-| Capture | 379+ | `hid-capture` — device capture tooling, fingerprinting, classification (wave 34), diagnostic + SRP + capture deep (wave 38), capture IDs (wave 41) |
-| Pipeline | 179+ | `openracing-pipeline` — filter chains, edge cases, proptests (wave 36), pipeline deep (wave 39) |
+| Firmware | 278+ | `openracing-firmware-update` — state machine, rollback, validation, firmware update deep (wave 41), full state machine + rollback tests (wave 48) |
+| Capture | 456+ | `hid-capture` — device capture tooling, fingerprinting, classification (wave 34), diagnostic + SRP + capture deep (wave 38), capture IDs (wave 41), HID capture + vendor protocol handling (wave 48) |
+| Pipeline | 279+ | `openracing-pipeline` — filter chains, edge cases, proptests (wave 36), pipeline deep (wave 39), frequency response + proptest (wave 47) |
 | Tracing | 120+ | `openracing-tracing` — drop rate, emission verification, spans, formats, snapshots (wave 35) |
-| Scheduler | 189+ | `openracing-scheduler` — priority inversion, deadline handling, RT setup, PLL, jitter metrics, adaptive scheduling (wave 36) |
+| Scheduler | 258+ | `openracing-scheduler` — priority inversion, deadline handling, RT setup, PLL, jitter metrics, adaptive scheduling (wave 36), timing accuracy + edge cases (wave 48) |
 | Diagnostic | 404+ | `openracing-diagnostic` — insta snapshots, diagnostics deep (wave 35), diagnostic + SRP deep (wave 38) |
 | Atomic | 198+ | `openracing-atomic` — concurrent stress, ordering guarantees, counters, snapshots, streaming stats (wave 36) |
 | Crypto | 178+ | `openracing-crypto` — signing property tests, crypto deep (wave 39), crypto + signing verification (wave 46) |
-| Other utilities | 1,240+ | `openracing-shifter` (178+), `openracing-handbrake` (73+), `openracing-device-types` (75+), `input-maps` (67+), `openracing-ks` (83+), `openracing-capture-ids` (45+), `openracing-test-helpers` (149+), `openracing-support` (25+), `compat`, `changelog`, etc. — peripherals deep (wave 37), test helpers (wave 41), device discovery (wave 45), replay + diagnostics (wave 46) |
+| Other utilities | 1,396+ | `openracing-shifter` (178+), `openracing-handbrake` (73+), `openracing-device-types` (75+), `input-maps` (150+), `openracing-ks` (83+), `openracing-capture-ids` (45+), `openracing-test-helpers` (149+), `openracing-support` (25+), `compat`, `changelog`, etc. — peripherals deep (wave 37), test helpers (wave 41), device discovery (wave 45), replay + diagnostics (wave 46), input maps + button box (wave 47), telemetry recorder/core (wave 47) |
 
 ---
 
@@ -217,6 +217,20 @@ ALL 14 HID crates cross-verified against community sources:
 | CLI deep | 68 | Extended subcommand coverage, argument parsing, output formatting, error reporting |
 | Fuzz targets | +9 | Replay parsing, diagnostic export, calibration input, FFB commands, crypto payloads, CLI argument parsing (113 total) |
 
+## Wave 47-48 Test Additions
+
+| Commit | Tests | Description |
+|--------|------:|-------------|
+| Compat deep | 23 | Migration compatibility, version negotiation, legacy API validation |
+| Filter/pipeline deep | 101 | Frequency response, proptest coverage, filter chain orchestration |
+| Input maps + button box | 83 | Binding compilation, button matrix, rotary encoders, LED mappings |
+| Telemetry recorder/core | 73 | Session recording, playback, core telemetry pipeline validation |
+| Profile management | 57 | CRUD operations, validation rules, inheritance chains |
+| Scheduler timing | 69 | Deadline accuracy, priority scheduling, timing edge cases |
+| HID capture + vendor | 77 | Capture session management, vendor-specific protocol handling |
+| WASM runtime | 58 | Budget enforcement, sandbox isolation, host function interface |
+| Firmware update | 48 | Full state machine coverage, rollback scenarios, update validation |
+
 ---
 
-*Source: `cargo test --workspace --all-features --exclude racing-wheel-ui` · waves 15–46 complete*
+*Source: `cargo test --workspace --all-features --exclude racing-wheel-ui` · waves 15–48 complete*

@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **21,043+ tests** across the workspace (unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, doc-tests, trybuild, BDD, protocol-verification, concurrency-stress, performance-validation) — 0 failures, 44 ignored
 - **21,374+ tests** across the workspace (unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, doc-tests, trybuild, BDD, protocol-verification, concurrency-stress, performance-validation) — 0 failures, 44 ignored
 - **22,326+ tests** across the workspace (unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, doc-tests, trybuild, BDD, protocol-verification, concurrency-stress, performance-validation) — 0 failures, 44 ignored
+- **22,915+ tests** across the workspace (unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, doc-tests, trybuild, BDD, protocol-verification, concurrency-stress, performance-validation) — 0 failures, 44 ignored
 - **96 fuzz targets** covering all HID protocols and game telemetry adapters (AMS2 target added)
 - **100+ fuzz targets** covering all HID protocols, game telemetry adapters, and new wave 24 targets
 - **104 fuzz targets** covering all HID protocols, game telemetry adapters, and wave 31 targets (telemetry packet, profile, calibration, filter pipeline)
@@ -177,6 +178,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Crypto + signing tests (47 tests): Ed25519 signing verification, key management, signature validation
   - CLI deep tests (68 tests): extended subcommand coverage, argument parsing, output formatting, error reporting
   - 9 new fuzz targets (113 total): replay parsing, diagnostic export, calibration input, FFB commands, crypto payloads, CLI argument parsing
+- **Wave 47 — compat deep, filter/pipeline deep, input maps + button box, telemetry recorder/core** (22,326 → 22,606+ tests):
+  - Compat deep tests (23 tests): migration compatibility, version negotiation, legacy API validation
+  - Filter/pipeline deep tests (101 tests): frequency response, proptest coverage, filter chain orchestration
+  - Input maps + button box tests (83 tests): binding compilation, button matrix, rotary encoders, LED mappings
+  - Telemetry recorder/core tests (73 tests): session recording, playback, core telemetry pipeline validation
+- **Wave 48 — profile management, scheduler timing, HID capture + vendor, WASM runtime, firmware update** (22,606 → 22,915+ tests):
+  - Profile management tests (57 tests): CRUD operations, validation rules, inheritance chains
+  - Scheduler timing tests (69 tests): deadline accuracy, priority scheduling, timing edge cases
+  - HID capture + vendor tests (77 tests): capture session management, vendor-specific protocol handling
+  - WASM runtime tests (58 tests): budget enforcement, sandbox isolation, host function interface
+  - Firmware update tests (48 tests): full state machine coverage, rollback scenarios, update validation
 - **Web-verified VID/PIDs** for Thrustmaster, Logitech, Fanatec, Simucube, Moza, AccuForce, VRS, and OpenFFBoard — source citations added from linux-steering-wheels, kernel drivers (`hid-lg4ff`, `hid-fanatecff`, `simagic-ff`), pid.codes, and vendor documentation
 - **Safety interlock comprehensive test suite**: behavior tests for interlock state machine, watchdog timeout scenarios, and FMEA fault-injection coverage
 - **Protocol verification wave 16**: 6 vendors re-audited (VRS, Heusinkveld, Cube Controls, Cammus, Leo Bodnar, AccuForce) — PID accuracy and torque specs cross-checked against USB captures and vendor documentation
