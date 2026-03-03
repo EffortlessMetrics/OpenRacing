@@ -45,7 +45,10 @@ openracing-calibration = { path = "../crates/openracing-calibration" }
 openracing-pipeline = { path = "../crates/openracing-pipeline" }
 openracing-profile = { path = "../crates/openracing-profile" }
 racing-wheel-schemas = { path = "../crates/schemas" }
+racing-wheel-telemetry-recorder = { path = "../crates/telemetry-recorder" }
+prost = "0.14.3"
 serde_json = "1"
+serde_yaml = { package = "serde_yaml_ng", version = "0.10.0" }
 
 # Fuzzing requires nightly and release-like optimizations.
 [[bin]]
@@ -669,6 +672,60 @@ doc = false
 [[bin]]
 name = "fuzz_filter_pipeline"
 path = "fuzz_targets/fuzz_filter_pipeline.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_fanatec_command"
+path = "fuzz_targets/fuzz_fanatec_command.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_logitech_report"
+path = "fuzz_targets/fuzz_logitech_report.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_thrustmaster_packet"
+path = "fuzz_targets/fuzz_thrustmaster_packet.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_simucube_frame"
+path = "fuzz_targets/fuzz_simucube_frame.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_config_parse"
+path = "fuzz_targets/fuzz_config_parse.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_replay_format"
+path = "fuzz_targets/fuzz_replay_format.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_telemetry_f1"
+path = "fuzz_targets/fuzz_telemetry_f1.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_telemetry_acc"
+path = "fuzz_targets/fuzz_telemetry_acc.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_proto_decode"
+path = "fuzz_targets/fuzz_proto_decode.rs"
 test = false
 doc = false
 
