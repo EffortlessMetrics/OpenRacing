@@ -17,8 +17,8 @@
 
 | Metric | Count |
 |--------|------:|
-| **Total tests** | **8,055** |
-| **Test binaries** | **297** |
+| **Total tests** | **9,155** |
+| **Test binaries** | **357** |
 | Unit tests | 6,200+ |
 | Snapshot tests | 850+ |
 | Property tests (proptest) | 780+ |
@@ -32,7 +32,7 @@
 | Type | Files | Notes |
 |------|------:|-------|
 | Proptest files | 100+ | Property-based testing across all 17 protocol & engine crates |
-| Snapshot test files | 47+ | `insta` snapshots for protocol encoding & telemetry |
+| Snapshot test files | 934 | `insta` snapshots for protocol encoding & telemetry (37 directories) |
 | Integration test files | 34 | `crates/integration-tests/tests/*.rs` |
 | Fuzz targets | 84 | `fuzz/fuzz_targets/` — covers all protocols & telemetry parsers |
 | Benchmark suites | 1 | `benches/` — RT timing benchmarks |
