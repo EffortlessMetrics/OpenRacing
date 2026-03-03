@@ -1271,3 +1271,1019 @@ mod update_journal {
         Ok(())
     }
 }
+
+// ===========================================================================
+// 8. State machine transitions via FfbBlocker
+// ===========================================================================
+
+mod state_machine_transitions {
+    use super::*;
+
+    #[tokio::test]
+    async fn idle_to_verifying_on_begin_update() -> TestResult {
+        let blocker = FfbBlocker::new();
+        assert_eq!(blocker.get_state().await, UpdateState::Idle);
+
+        blocker.begin_update("dev-1").await?;
+        assert_eq!(blocker.get_state().await, UpdateState::Verifying);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn walk_through_full_lifecycle() -> TestResult {
+        let blocker = FfbBlocker::new();
+
+        // Idle → begin → Verifying
+        blocker.begin_update("dev-1").await?;
+        assert_eq!(blocker.get_state().await, UpdateState::Verifying);
+
+        // Verifying → Downloading
+        blocker
+            .set_state(UpdateState::Downloading { progress: 0 })
+            .await;
+        assert_eq!(
+            blocker.get_state().await,
+            UpdateState::Downloading { progress: 0 }
+        );
+
+        // Downloading progress
+        blocker
+            .set_state(UpdateState::Downloading { progress: 50 })
+            .await;
+        assert_eq!(
+            blocker.get_state().await,
+            UpdateState::Downloading { progress: 50 }
+        );
+
+        // Downloading → Flashing
+        blocker
+            .set_state(UpdateState::Flashing { progress: 0 })
+            .await;
+        assert_eq!(
+            blocker.get_state().await,
+            UpdateState::Flashing { progress: 0 }
+        );
+
+        // Flashing → Rebooting
+        blocker.set_state(UpdateState::Rebooting).await;
+        assert_eq!(blocker.get_state().await, UpdateState::Rebooting);
+
+        // Rebooting → Complete
+        blocker.set_state(UpdateState::Complete).await;
+        assert_eq!(blocker.get_state().await, UpdateState::Complete);
+
+        // end_update resets to Idle
+        blocker.end_update().await;
+        assert_eq!(blocker.get_state().await, UpdateState::Idle);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn transition_to_failed_recoverable() -> TestResult {
+        let blocker = FfbBlocker::new();
+        blocker.begin_update("dev-1").await?;
+
+        blocker
+            .set_state(UpdateState::Flashing { progress: 30 })
+            .await;
+
+        let failed = UpdateState::Failed {
+            error: "write error".to_string(),
+            recoverable: true,
+        };
+        blocker.set_state(failed.clone()).await;
+        assert_eq!(blocker.get_state().await, failed);
+        assert!(!blocker.get_state().await.is_in_progress());
+
+        blocker.end_update().await;
+        assert_eq!(blocker.get_state().await, UpdateState::Idle);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn transition_to_failed_unrecoverable() -> TestResult {
+        let blocker = FfbBlocker::new();
+        blocker.begin_update("dev-1").await?;
+
+        let failed = UpdateState::Failed {
+            error: "hardware fault".to_string(),
+            recoverable: false,
+        };
+        blocker.set_state(failed.clone()).await;
+        assert_eq!(blocker.get_state().await, failed);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn ffb_blocked_during_active_states() -> TestResult {
+        let blocker = FfbBlocker::new();
+        assert!(!blocker.is_ffb_blocked());
+        assert!(blocker.try_ffb_operation().is_ok());
+
+        blocker.begin_update("dev-1").await?;
+        assert!(blocker.is_ffb_blocked());
+        assert!(blocker.try_ffb_operation().is_err());
+
+        blocker.end_update().await;
+        assert!(!blocker.is_ffb_blocked());
+        assert!(blocker.try_ffb_operation().is_ok());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn concurrent_update_prevention() -> TestResult {
+        let blocker = FfbBlocker::new();
+        blocker.begin_update("dev-1").await?;
+
+        let result = blocker.begin_update("dev-2").await;
+        assert!(result.is_err());
+        let err = result.err().ok_or("expected error")?;
+        assert!(
+            matches!(err, FirmwareUpdateError::UpdateInProgress(_)),
+            "expected UpdateInProgress, got {:?}",
+            err
+        );
+
+        blocker.end_update().await;
+        // After ending, a new update should succeed
+        let result2 = blocker.begin_update("dev-2").await;
+        assert!(result2.is_ok());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn updating_device_tracked() -> TestResult {
+        let blocker = FfbBlocker::new();
+        assert!(blocker.get_updating_device().await.is_none());
+
+        blocker.begin_update("wheel-42").await?;
+        assert_eq!(
+            blocker.get_updating_device().await.as_deref(),
+            Some("wheel-42")
+        );
+
+        blocker.end_update().await;
+        assert!(blocker.get_updating_device().await.is_none());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn downloading_progress_increments() -> TestResult {
+        let blocker = FfbBlocker::new();
+        blocker.begin_update("dev-1").await?;
+
+        for pct in [0u8, 10, 25, 50, 75, 100] {
+            blocker
+                .set_state(UpdateState::Downloading { progress: pct })
+                .await;
+            let state = blocker.get_state().await;
+            assert_eq!(state, UpdateState::Downloading { progress: pct });
+            assert!(state.is_in_progress());
+        }
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn flashing_progress_increments() -> TestResult {
+        let blocker = FfbBlocker::new();
+        blocker.begin_update("dev-1").await?;
+
+        for pct in [0u8, 25, 50, 99, 100] {
+            blocker
+                .set_state(UpdateState::Flashing { progress: pct })
+                .await;
+            let state = blocker.get_state().await;
+            assert_eq!(state, UpdateState::Flashing { progress: pct });
+            assert!(state.should_block_ffb());
+        }
+        Ok(())
+    }
+}
+
+// ===========================================================================
+// 9. Rollback manager operations
+// ===========================================================================
+
+mod rollback_operations {
+    use super::*;
+
+    #[tokio::test]
+    async fn create_and_list_backup() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        let backup_dir = dir.path().join("backups");
+        let install_dir = dir.path().join("install");
+        tokio::fs::create_dir_all(&backup_dir).await?;
+        tokio::fs::create_dir_all(&install_dir).await?;
+
+        tokio::fs::write(install_dir.join("firmware.bin"), b"original fw data").await?;
+
+        let mgr = RollbackManager::new(backup_dir, install_dir);
+        mgr.create_backup(
+            "bk-001",
+            semver::Version::new(1, 0, 0),
+            semver::Version::new(2, 0, 0),
+            &[PathBuf::from("firmware.bin")],
+        )
+        .await?;
+
+        let backups = mgr.get_backup_info().await?;
+        assert_eq!(backups.len(), 1);
+        assert_eq!(backups[0].metadata.backup_id, "bk-001");
+        assert!(backups[0].valid);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn rollback_restores_original_content() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        let backup_dir = dir.path().join("backups");
+        let install_dir = dir.path().join("install");
+        tokio::fs::create_dir_all(&backup_dir).await?;
+        tokio::fs::create_dir_all(&install_dir).await?;
+
+        let original_content = b"original firmware v1.0";
+        tokio::fs::write(install_dir.join("fw.bin"), original_content).await?;
+
+        let mgr = RollbackManager::new(backup_dir, install_dir.clone());
+        mgr.create_backup(
+            "bk-rollback",
+            semver::Version::new(1, 0, 0),
+            semver::Version::new(2, 0, 0),
+            &[PathBuf::from("fw.bin")],
+        )
+        .await?;
+
+        // Simulate a failed update by overwriting the file
+        tokio::fs::write(install_dir.join("fw.bin"), b"broken firmware v2.0").await?;
+
+        // Rollback should restore original
+        mgr.rollback_to("bk-rollback").await?;
+        let restored = tokio::fs::read(install_dir.join("fw.bin")).await?;
+        assert_eq!(restored.as_slice(), original_content);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn rollback_to_nonexistent_backup_fails() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        let backup_dir = dir.path().join("backups");
+        let install_dir = dir.path().join("install");
+        tokio::fs::create_dir_all(&backup_dir).await?;
+        tokio::fs::create_dir_all(&install_dir).await?;
+
+        let mgr = RollbackManager::new(backup_dir, install_dir);
+        let result = mgr.rollback_to("nonexistent").await;
+        assert!(result.is_err());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn latest_backup_returns_most_recent() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        let backup_dir = dir.path().join("backups");
+        let install_dir = dir.path().join("install");
+        tokio::fs::create_dir_all(&backup_dir).await?;
+        tokio::fs::create_dir_all(&install_dir).await?;
+
+        tokio::fs::write(install_dir.join("fw.bin"), b"data").await?;
+
+        let mgr = RollbackManager::new(backup_dir, install_dir);
+        mgr.create_backup(
+            "bk-old",
+            semver::Version::new(1, 0, 0),
+            semver::Version::new(1, 1, 0),
+            &[PathBuf::from("fw.bin")],
+        )
+        .await?;
+
+        // Small delay to ensure different timestamps
+        tokio::time::sleep(Duration::from_millis(50)).await;
+
+        mgr.create_backup(
+            "bk-new",
+            semver::Version::new(1, 1, 0),
+            semver::Version::new(2, 0, 0),
+            &[PathBuf::from("fw.bin")],
+        )
+        .await?;
+
+        let latest = mgr.get_latest_backup().await?;
+        assert!(latest.is_some());
+        let latest = latest.ok_or("no latest backup")?;
+        assert_eq!(latest.backup_id, "bk-new");
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn empty_backup_dir_returns_no_backups() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        let backup_dir = dir.path().join("backups");
+        let install_dir = dir.path().join("install");
+        tokio::fs::create_dir_all(&backup_dir).await?;
+        tokio::fs::create_dir_all(&install_dir).await?;
+
+        let mgr = RollbackManager::new(backup_dir, install_dir);
+        let backups = mgr.get_backup_info().await?;
+        assert!(backups.is_empty());
+
+        let latest = mgr.get_latest_backup().await?;
+        assert!(latest.is_none());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn backup_preserves_version_metadata() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        let backup_dir = dir.path().join("backups");
+        let install_dir = dir.path().join("install");
+        tokio::fs::create_dir_all(&backup_dir).await?;
+        tokio::fs::create_dir_all(&install_dir).await?;
+
+        tokio::fs::write(install_dir.join("fw.bin"), b"data").await?;
+
+        let mgr = RollbackManager::new(backup_dir, install_dir);
+        mgr.create_backup(
+            "bk-meta",
+            semver::Version::new(3, 1, 4),
+            semver::Version::new(3, 2, 0),
+            &[PathBuf::from("fw.bin")],
+        )
+        .await?;
+
+        let backups = mgr.get_backup_info().await?;
+        assert_eq!(backups.len(), 1);
+        assert_eq!(
+            backups[0].metadata.original_version,
+            semver::Version::new(3, 1, 4)
+        );
+        assert_eq!(
+            backups[0].metadata.target_version,
+            semver::Version::new(3, 2, 0)
+        );
+        assert_eq!(backups[0].metadata.files, vec![PathBuf::from("fw.bin")]);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn rollback_with_multiple_files() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        let backup_dir = dir.path().join("backups");
+        let install_dir = dir.path().join("install");
+        tokio::fs::create_dir_all(&backup_dir).await?;
+        tokio::fs::create_dir_all(&install_dir).await?;
+
+        tokio::fs::write(install_dir.join("fw.bin"), b"firmware-v1").await?;
+        tokio::fs::write(install_dir.join("config.dat"), b"config-v1").await?;
+
+        let mgr = RollbackManager::new(backup_dir, install_dir.clone());
+        mgr.create_backup(
+            "bk-multi",
+            semver::Version::new(1, 0, 0),
+            semver::Version::new(2, 0, 0),
+            &[PathBuf::from("fw.bin"), PathBuf::from("config.dat")],
+        )
+        .await?;
+
+        // Overwrite both files
+        tokio::fs::write(install_dir.join("fw.bin"), b"firmware-v2").await?;
+        tokio::fs::write(install_dir.join("config.dat"), b"config-v2").await?;
+
+        mgr.rollback_to("bk-multi").await?;
+
+        let fw = tokio::fs::read(install_dir.join("fw.bin")).await?;
+        let cfg = tokio::fs::read(install_dir.join("config.dat")).await?;
+        assert_eq!(fw.as_slice(), b"firmware-v1");
+        assert_eq!(cfg.as_slice(), b"config-v1");
+        Ok(())
+    }
+}
+
+// ===========================================================================
+// 10. Power failure recovery simulation
+// ===========================================================================
+
+mod power_failure_recovery {
+    use super::*;
+
+    #[tokio::test]
+    async fn resume_after_interrupted_backup() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        let backup_dir = dir.path().join("backups");
+        let install_dir = dir.path().join("install");
+        tokio::fs::create_dir_all(&backup_dir).await?;
+        tokio::fs::create_dir_all(&install_dir).await?;
+
+        tokio::fs::write(install_dir.join("fw.bin"), b"original").await?;
+
+        let mgr = RollbackManager::new(backup_dir.clone(), install_dir.clone());
+        mgr.create_backup(
+            "bk-checkpoint",
+            semver::Version::new(1, 0, 0),
+            semver::Version::new(2, 0, 0),
+            &[PathBuf::from("fw.bin")],
+        )
+        .await?;
+
+        // Simulate power failure during update: file is partially written
+        tokio::fs::write(install_dir.join("fw.bin"), b"partial").await?;
+
+        // On recovery, reload the rollback manager and recover from checkpoint
+        let mgr2 = RollbackManager::new(backup_dir, install_dir.clone());
+        let latest = mgr2.get_latest_backup().await?;
+        assert!(latest.is_some(), "backup must survive simulated power loss");
+
+        // Restore from the checkpoint
+        mgr2.rollback_to("bk-checkpoint").await?;
+        let restored = tokio::fs::read(install_dir.join("fw.bin")).await?;
+        assert_eq!(restored.as_slice(), b"original");
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn state_resets_to_idle_after_recovery() -> TestResult {
+        let blocker = FfbBlocker::new();
+        blocker.begin_update("dev-1").await?;
+
+        blocker
+            .set_state(UpdateState::Flashing { progress: 42 })
+            .await;
+        assert!(blocker.is_ffb_blocked());
+
+        // Simulate recovery: end_update resets everything
+        blocker.end_update().await;
+        assert_eq!(blocker.get_state().await, UpdateState::Idle);
+        assert!(!blocker.is_ffb_blocked());
+        assert!(blocker.get_updating_device().await.is_none());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn backup_integrity_verified_on_recovery() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        let backup_dir = dir.path().join("backups");
+        let install_dir = dir.path().join("install");
+        tokio::fs::create_dir_all(&backup_dir).await?;
+        tokio::fs::create_dir_all(&install_dir).await?;
+
+        tokio::fs::write(install_dir.join("fw.bin"), b"firmware data").await?;
+
+        let mgr = RollbackManager::new(backup_dir.clone(), install_dir.clone());
+        mgr.create_backup(
+            "bk-verify",
+            semver::Version::new(1, 0, 0),
+            semver::Version::new(2, 0, 0),
+            &[PathBuf::from("fw.bin")],
+        )
+        .await?;
+
+        // Verify backup is intact
+        let backups = mgr.get_backup_info().await?;
+        assert_eq!(backups.len(), 1);
+        assert!(backups[0].valid, "backup should be valid after creation");
+        assert!(backups[0].size_bytes > 0, "backup should have content");
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn ffb_blocker_survives_rapid_begin_end_cycles() -> TestResult {
+        let blocker = FfbBlocker::new();
+
+        for i in 0..10 {
+            let dev = format!("dev-{}", i);
+            blocker.begin_update(&dev).await?;
+            assert!(blocker.is_ffb_blocked());
+            assert_eq!(blocker.get_updating_device().await.as_deref(), Some(dev.as_str()));
+
+            blocker
+                .set_state(UpdateState::Flashing { progress: 50 })
+                .await;
+            blocker.set_state(UpdateState::Complete).await;
+            blocker.end_update().await;
+
+            assert!(!blocker.is_ffb_blocked());
+            assert_eq!(blocker.get_state().await, UpdateState::Idle);
+        }
+        Ok(())
+    }
+}
+
+// ===========================================================================
+// 11. A/B partition selection
+// ===========================================================================
+
+mod ab_partition_selection {
+    use super::*;
+
+    #[test]
+    fn active_a_targets_b() {
+        let active = Partition::A;
+        let target = active.other();
+        assert_eq!(target, Partition::B);
+    }
+
+    #[test]
+    fn active_b_targets_a() {
+        let active = Partition::B;
+        let target = active.other();
+        assert_eq!(target, Partition::A);
+    }
+
+    #[test]
+    fn inactive_healthy_partition_accepts_update() {
+        let info = PartitionInfo {
+            partition: Partition::B,
+            active: false,
+            bootable: false,
+            version: None,
+            size_bytes: 0,
+            hash: None,
+            updated_at: None,
+            health: PartitionHealth::Healthy,
+        };
+        assert!(info.can_update());
+    }
+
+    #[test]
+    fn inactive_degraded_partition_accepts_update() {
+        let info = PartitionInfo {
+            partition: Partition::B,
+            active: false,
+            bootable: false,
+            version: None,
+            size_bytes: 0,
+            hash: None,
+            updated_at: None,
+            health: PartitionHealth::Degraded {
+                reason: "wear leveling".to_string(),
+            },
+        };
+        assert!(info.can_update());
+    }
+
+    #[test]
+    fn inactive_unknown_partition_accepts_update() {
+        let info = PartitionInfo {
+            partition: Partition::B,
+            active: false,
+            bootable: false,
+            version: None,
+            size_bytes: 0,
+            hash: None,
+            updated_at: None,
+            health: PartitionHealth::Unknown,
+        };
+        assert!(info.can_update());
+    }
+
+    #[test]
+    fn corrupted_partition_rejects_update() {
+        // Note: can_update checks for Corrupted with empty reason string
+        let info = PartitionInfo {
+            partition: Partition::B,
+            active: false,
+            bootable: false,
+            version: None,
+            size_bytes: 0,
+            hash: None,
+            updated_at: None,
+            health: PartitionHealth::Corrupted {
+                reason: String::new(),
+            },
+        };
+        assert!(!info.can_update());
+    }
+
+    #[test]
+    fn active_partition_always_rejects_update() {
+        for health in [
+            PartitionHealth::Healthy,
+            PartitionHealth::Unknown,
+            PartitionHealth::Degraded {
+                reason: "test".to_string(),
+            },
+        ] {
+            let info = PartitionInfo {
+                partition: Partition::A,
+                active: true,
+                bootable: true,
+                version: Some(semver::Version::new(1, 0, 0)),
+                size_bytes: 1024,
+                hash: None,
+                updated_at: None,
+                health,
+            };
+            assert!(
+                !info.can_update(),
+                "active partition should reject updates regardless of health"
+            );
+        }
+    }
+
+    #[test]
+    fn partition_with_existing_version_can_update_if_inactive() {
+        let info = PartitionInfo {
+            partition: Partition::B,
+            active: false,
+            bootable: true,
+            version: Some(semver::Version::new(1, 0, 0)),
+            size_bytes: 65536,
+            hash: Some("abc123".to_string()),
+            updated_at: Some(chrono::Utc::now()),
+            health: PartitionHealth::Healthy,
+        };
+        assert!(info.can_update());
+    }
+}
+
+// ===========================================================================
+// 12. Update progress reporting
+// ===========================================================================
+
+mod progress_reporting {
+    use super::*;
+
+    #[test]
+    fn progress_fields_round_trip_serde() -> TestResult {
+        let progress = UpdateProgress {
+            phase: UpdatePhase::Transferring,
+            progress_percent: 42,
+            bytes_transferred: 2048,
+            total_bytes: 4096,
+            transfer_rate_bps: 1024,
+            eta_seconds: Some(2),
+            status_message: "Transferring data".to_string(),
+            warnings: vec!["slow link".to_string()],
+        };
+        let json = serde_json::to_string(&progress)?;
+        let decoded: UpdateProgress = serde_json::from_str(&json)?;
+        assert_eq!(decoded.progress_percent, 42);
+        assert_eq!(decoded.bytes_transferred, 2048);
+        assert_eq!(decoded.total_bytes, 4096);
+        assert_eq!(decoded.transfer_rate_bps, 1024);
+        assert_eq!(decoded.eta_seconds, Some(2));
+        assert_eq!(decoded.status_message, "Transferring data");
+        assert_eq!(decoded.warnings.len(), 1);
+        Ok(())
+    }
+
+    #[test]
+    fn all_phases_serializable() -> TestResult {
+        let phases = vec![
+            UpdatePhase::Initializing,
+            UpdatePhase::Verifying,
+            UpdatePhase::Preparing,
+            UpdatePhase::Transferring,
+            UpdatePhase::Validating,
+            UpdatePhase::Activating,
+            UpdatePhase::HealthCheck,
+            UpdatePhase::Completed,
+            UpdatePhase::RollingBack,
+            UpdatePhase::Failed,
+        ];
+        for phase in phases {
+            let progress = UpdateProgress {
+                phase,
+                progress_percent: 0,
+                bytes_transferred: 0,
+                total_bytes: 0,
+                transfer_rate_bps: 0,
+                eta_seconds: None,
+                status_message: String::new(),
+                warnings: Vec::new(),
+            };
+            let json = serde_json::to_string(&progress)?;
+            let _decoded: UpdateProgress = serde_json::from_str(&json)?;
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn progress_with_zero_bytes_valid() -> TestResult {
+        let progress = UpdateProgress {
+            phase: UpdatePhase::Initializing,
+            progress_percent: 0,
+            bytes_transferred: 0,
+            total_bytes: 0,
+            transfer_rate_bps: 0,
+            eta_seconds: None,
+            status_message: "Starting".to_string(),
+            warnings: Vec::new(),
+        };
+        let json = serde_json::to_string(&progress)?;
+        let decoded: UpdateProgress = serde_json::from_str(&json)?;
+        assert_eq!(decoded.progress_percent, 0);
+        assert_eq!(decoded.total_bytes, 0);
+        Ok(())
+    }
+
+    #[test]
+    fn progress_at_completion() -> TestResult {
+        let progress = UpdateProgress {
+            phase: UpdatePhase::Completed,
+            progress_percent: 100,
+            bytes_transferred: 65536,
+            total_bytes: 65536,
+            transfer_rate_bps: 0,
+            eta_seconds: Some(0),
+            status_message: "Firmware update completed successfully".to_string(),
+            warnings: Vec::new(),
+        };
+        assert_eq!(progress.progress_percent, 100);
+        assert_eq!(progress.bytes_transferred, progress.total_bytes);
+        let json = serde_json::to_string(&progress)?;
+        let decoded: UpdateProgress = serde_json::from_str(&json)?;
+        assert_eq!(decoded.eta_seconds, Some(0));
+        Ok(())
+    }
+
+    #[test]
+    fn progress_with_multiple_warnings() -> TestResult {
+        let progress = UpdateProgress {
+            phase: UpdatePhase::Transferring,
+            progress_percent: 80,
+            bytes_transferred: 8192,
+            total_bytes: 10240,
+            transfer_rate_bps: 512,
+            eta_seconds: Some(4),
+            status_message: "Transfer in progress".to_string(),
+            warnings: vec![
+                "battery low".to_string(),
+                "slow transfer rate".to_string(),
+                "retry count: 3".to_string(),
+            ],
+        };
+        let json = serde_json::to_string(&progress)?;
+        let decoded: UpdateProgress = serde_json::from_str(&json)?;
+        assert_eq!(decoded.warnings.len(), 3);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn manager_subscribe_progress_channel() -> TestResult {
+        let mgr = FirmwareUpdateManager::new(StagedRolloutConfig::default());
+        let mut rx = mgr.subscribe_progress();
+
+        // No updates active — channel should be empty (try_recv fails)
+        assert!(rx.try_recv().is_err());
+        Ok(())
+    }
+}
+
+// ===========================================================================
+// 13. Update cancellation
+// ===========================================================================
+
+mod update_cancellation {
+    use super::*;
+
+    #[tokio::test]
+    async fn cancel_nonexistent_update_fails() -> TestResult {
+        let mgr = FirmwareUpdateManager::new(StagedRolloutConfig::default());
+        let result = mgr.cancel_update("no-such-device").await;
+        assert!(result.is_err());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn no_active_updates_initially() -> TestResult {
+        let mgr = FirmwareUpdateManager::new(StagedRolloutConfig::default());
+        let active = mgr.get_active_updates().await;
+        assert!(active.is_empty());
+        assert!(!mgr.is_update_in_progress().await);
+        Ok(())
+    }
+
+    #[test]
+    fn update_result_cancelled_fields() -> TestResult {
+        let result = UpdateResult {
+            device_id: "dev-cancel".to_string(),
+            success: false,
+            old_version: Some(semver::Version::new(1, 0, 0)),
+            new_version: None,
+            updated_partition: None,
+            rollback_performed: false,
+            duration: Duration::from_secs(5),
+            error: Some("Update cancelled by user".to_string()),
+            partition_states: Vec::new(),
+        };
+        assert!(!result.success);
+        assert!(result.error.as_deref().is_some_and(|e| e.contains("cancelled")));
+
+        let json = serde_json::to_string(&result)?;
+        let decoded: UpdateResult = serde_json::from_str(&json)?;
+        assert_eq!(decoded.device_id, "dev-cancel");
+        assert!(!decoded.success);
+        Ok(())
+    }
+}
+
+// ===========================================================================
+// 14. Firmware version comparison
+// ===========================================================================
+
+mod firmware_version_comparison {
+    use super::*;
+
+    #[test]
+    fn semver_ordering() {
+        let v1 = semver::Version::new(1, 0, 0);
+        let v1_1 = semver::Version::new(1, 1, 0);
+        let v2 = semver::Version::new(2, 0, 0);
+
+        assert!(v1 < v1_1);
+        assert!(v1_1 < v2);
+        assert!(v1 < v2);
+    }
+
+    #[test]
+    fn semver_patch_ordering() {
+        let v1_0_0 = semver::Version::new(1, 0, 0);
+        let v1_0_1 = semver::Version::new(1, 0, 1);
+        let v1_0_10 = semver::Version::new(1, 0, 10);
+
+        assert!(v1_0_0 < v1_0_1);
+        assert!(v1_0_1 < v1_0_10);
+    }
+
+    #[test]
+    fn firmware_image_version_comparison() {
+        let img1 = test_image(&[1, 2, 3]);
+        let img2 = FirmwareImage {
+            version: semver::Version::new(3, 0, 0),
+            ..test_image(&[4, 5, 6])
+        };
+        assert!(img1.version < img2.version);
+    }
+
+    #[test]
+    fn bundle_upgrade_from_older_allowed() -> TestResult {
+        let data = vec![0x01; 8];
+        let hash = openracing_crypto::utils::compute_sha256_hex(&data);
+        let image = FirmwareImage {
+            device_model: "wheel".to_string(),
+            version: semver::Version::new(3, 0, 0),
+            min_hardware_version: None,
+            max_hardware_version: None,
+            data,
+            hash,
+            size_bytes: 8,
+            build_timestamp: chrono::Utc::now(),
+            release_notes: None,
+            signature: None,
+        };
+        let metadata = BundleMetadata {
+            rollback_version: Some(semver::Version::new(2, 0, 0)),
+            ..BundleMetadata::default()
+        };
+        let bundle = FirmwareBundle::new(&image, metadata, CompressionType::None)?;
+
+        assert!(bundle.allows_upgrade_from(&semver::Version::new(2, 0, 0)));
+        assert!(bundle.allows_upgrade_from(&semver::Version::new(2, 5, 0)));
+        assert!(bundle.allows_upgrade_from(&semver::Version::new(3, 0, 0)));
+        assert!(!bundle.allows_upgrade_from(&semver::Version::new(1, 9, 9)));
+        Ok(())
+    }
+
+    #[test]
+    fn hardware_version_multi_component() -> Result<(), HardwareVersionError> {
+        let v1 = HardwareVersion::parse("1.2.3")?;
+        let v2 = HardwareVersion::parse("1.2.4")?;
+        let v3 = HardwareVersion::parse("1.3.0")?;
+
+        assert!(v1 < v2);
+        assert!(v2 < v3);
+        assert!(v1 < v3);
+        Ok(())
+    }
+
+    #[test]
+    fn hardware_version_single_component() -> Result<(), HardwareVersionError> {
+        let v1 = HardwareVersion::parse("5")?;
+        let v2 = HardwareVersion::parse("10")?;
+        assert!(v1 < v2);
+
+        assert_eq!(v1.components(), &[5]);
+        assert_eq!(v2.components(), &[10]);
+        Ok(())
+    }
+}
+
+// ===========================================================================
+// 15. Firmware compatibility checking (extended)
+// ===========================================================================
+
+mod compatibility_extended {
+    use super::*;
+
+    #[test]
+    fn bundle_no_hw_constraints_compatible_with_anything() -> TestResult {
+        let data = vec![0x01; 8];
+        let hash = openracing_crypto::utils::compute_sha256_hex(&data);
+        let image = FirmwareImage {
+            device_model: "wheel".to_string(),
+            version: semver::Version::new(1, 0, 0),
+            min_hardware_version: None,
+            max_hardware_version: None,
+            data,
+            hash,
+            size_bytes: 8,
+            build_timestamp: chrono::Utc::now(),
+            release_notes: None,
+            signature: None,
+        };
+        let bundle = FirmwareBundle::new(&image, BundleMetadata::default(), CompressionType::None)?;
+
+        assert!(bundle.is_compatible_with_hardware("0.1"));
+        assert!(bundle.is_compatible_with_hardware("1.0"));
+        assert!(bundle.is_compatible_with_hardware("99.99"));
+        Ok(())
+    }
+
+    #[test]
+    fn bundle_only_min_hw_version() -> TestResult {
+        let data = vec![0x01; 8];
+        let hash = openracing_crypto::utils::compute_sha256_hex(&data);
+        let image = FirmwareImage {
+            device_model: "wheel".to_string(),
+            version: semver::Version::new(1, 0, 0),
+            min_hardware_version: Some("3.0".to_string()),
+            max_hardware_version: None,
+            data,
+            hash,
+            size_bytes: 8,
+            build_timestamp: chrono::Utc::now(),
+            release_notes: None,
+            signature: None,
+        };
+        let bundle = FirmwareBundle::new(&image, BundleMetadata::default(), CompressionType::None)?;
+
+        assert!(!bundle.is_compatible_with_hardware("2.9"));
+        assert!(bundle.is_compatible_with_hardware("3.0"));
+        assert!(bundle.is_compatible_with_hardware("100.0"));
+        Ok(())
+    }
+
+    #[test]
+    fn bundle_only_max_hw_version() -> TestResult {
+        let data = vec![0x01; 8];
+        let hash = openracing_crypto::utils::compute_sha256_hex(&data);
+        let image = FirmwareImage {
+            device_model: "wheel".to_string(),
+            version: semver::Version::new(1, 0, 0),
+            min_hardware_version: None,
+            max_hardware_version: Some("5.0".to_string()),
+            data,
+            hash,
+            size_bytes: 8,
+            build_timestamp: chrono::Utc::now(),
+            release_notes: None,
+            signature: None,
+        };
+        let bundle = FirmwareBundle::new(&image, BundleMetadata::default(), CompressionType::None)?;
+
+        assert!(bundle.is_compatible_with_hardware("0.1"));
+        assert!(bundle.is_compatible_with_hardware("5.0"));
+        assert!(!bundle.is_compatible_with_hardware("5.1"));
+        Ok(())
+    }
+
+    #[test]
+    fn bundle_header_fields_from_image() -> TestResult {
+        let data = vec![0xAA; 64];
+        let hash = openracing_crypto::utils::compute_sha256_hex(&data);
+        let image = FirmwareImage {
+            device_model: "pro-wheel-gt".to_string(),
+            version: semver::Version::new(4, 2, 1),
+            min_hardware_version: Some("2.0".to_string()),
+            max_hardware_version: Some("8.0".to_string()),
+            data: data.clone(),
+            hash,
+            size_bytes: 64,
+            build_timestamp: chrono::Utc::now(),
+            release_notes: Some("Performance fixes".to_string()),
+            signature: None,
+        };
+        let bundle = FirmwareBundle::new(&image, BundleMetadata::default(), CompressionType::None)?;
+
+        assert_eq!(bundle.header.device_model, "pro-wheel-gt");
+        assert_eq!(bundle.header.firmware_version, semver::Version::new(4, 2, 1));
+        assert_eq!(bundle.header.min_hw_version.as_deref(), Some("2.0"));
+        assert_eq!(bundle.header.max_hw_version.as_deref(), Some("8.0"));
+        assert_eq!(bundle.header.uncompressed_size, 64);
+        assert!(!bundle.header.payload_hash.is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn extract_image_preserves_data() -> TestResult {
+        let data = vec![0xDE, 0xAD, 0xBE, 0xEF, 0x42];
+        let bundle = make_bundle(&data, CompressionType::Gzip)?;
+        let extracted = bundle.extract_image()?;
+
+        assert_eq!(extracted.data, data);
+        assert_eq!(extracted.device_model, "test-wheel");
+        assert_eq!(extracted.version, semver::Version::new(2, 0, 0));
+        assert_eq!(extracted.size_bytes, data.len() as u64);
+        Ok(())
+    }
+}
