@@ -59,17 +59,4 @@ delta_ahead_s: 0
 delta_behind_s: 0
 fuel_percent: 0
 engine_temp_c: 0
-extended:
-  brake:
-    type: Float
-    value: 0
-  fuel_level:
-    type: Float
-    value: 0
-  lap_count:
-    type: Integer
-    value: 0
-  throttle:
-    type: Float
-    value: 0
 sequence: 0

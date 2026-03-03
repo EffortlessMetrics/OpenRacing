@@ -225,26 +225,126 @@ impl AMS2Adapter {
         // AMS2 provides steering force in the range of approximately -1.0 to 1.0
         let ffb_scalar = data.steering.clamp(-1.0, 1.0);
 
-        NormalizedTelemetry::builder()
+        // Fuel percentage: fuel_level / fuel_capacity, guarded against zero capacity.
+        let fuel_percent = if data.fuel_capacity > 0.0 {
+            (data.fuel_level / data.fuel_capacity).clamp(0.0, 1.0)
+        } else {
+            0.0
+        };
+
+        // G-forces from local_acceleration (m/s²).
+        // pCars2/AMS2 SDK: X=right, Y=up, Z=forward (right-hand coordinate system).
+        // NormalizedTelemetry: lateral positive=right, longitudinal positive=forward, vertical positive=up.
+        let lateral_g = data.local_acceleration[0] / G_ACCEL;
+        let longitudinal_g = data.local_acceleration[2] / G_ACCEL;
+        let vertical_g = data.local_acceleration[1] / G_ACCEL;
+
+        // Tire temperatures: f32 °C → u8 clamped 0–255.
+        let tire_temps_c = [
+            f32_temp_to_u8(data.tyre_temp[0]),
+            f32_temp_to_u8(data.tyre_temp[1]),
+            f32_temp_to_u8(data.tyre_temp[2]),
+            f32_temp_to_u8(data.tyre_temp[3]),
+        ];
+
+        // Tire pressures: air_pressure is in kPa per pCars2 SDK → convert to PSI.
+        let tire_pressures_psi = [
+            kpa_to_psi(data.air_pressure[0]),
+            kpa_to_psi(data.air_pressure[1]),
+            kpa_to_psi(data.air_pressure[2]),
+            kpa_to_psi(data.air_pressure[3]),
+        ];
+
+        let mut builder = NormalizedTelemetry::builder()
             .ffb_scalar(ffb_scalar)
             .rpm(data.rpm)
+            .max_rpm(data.max_rpm)
             .speed_ms(data.speed)
+            .throttle(data.throttle)
+            .brake(data.brake)
+            .clutch(data.clutch)
+            .steering_angle(data.steering)
             .slip_ratio(slip_ratio)
             .gear(data.gear)
+            .lateral_g(lateral_g)
+            .longitudinal_g(longitudinal_g)
+            .vertical_g(vertical_g)
+            .fuel_percent(fuel_percent)
             .car_id(car_id)
             .track_id(track_id)
-            .flags(flags)
-            .extended(
-                "fuel_level".to_string(),
+            .flags(flags);
+
+        if data.num_gears > 0 {
+            builder = builder.num_gears(data.num_gears as u8);
+        }
+        // water_temp_celsius is the primary engine temperature in pCars2/AMS2.
+        if data.water_temp_celsius > 0.0 {
+            builder = builder.engine_temp_c(data.water_temp_celsius);
+        }
+        if data.laps_completed > 0 {
+            builder = builder.lap(data.laps_completed.min(u16::MAX as u32) as u16);
+        }
+        if data.current_time > 0.0 {
+            builder = builder.current_lap_time_s(data.current_time);
+        }
+        if data.best_lap_time > 0.0 {
+            builder = builder.best_lap_time_s(data.best_lap_time);
+        }
+        if data.last_lap_time > 0.0 {
+            builder = builder.last_lap_time_s(data.last_lap_time);
+        }
+        if data.split_time_ahead > 0.0 {
+            builder = builder.delta_ahead_s(data.split_time_ahead);
+        }
+        if data.split_time_behind > 0.0 {
+            builder = builder.delta_behind_s(data.split_time_behind);
+        }
+        if tire_temps_c.iter().any(|&t| t > 0) {
+            builder = builder.tire_temps_c(tire_temps_c);
+        }
+        if tire_pressures_psi.iter().any(|&p| p > 0.0) {
+            builder = builder.tire_pressures_psi(tire_pressures_psi);
+        }
+
+        // Extended fields: raw values useful for pit-strategy and diagnostics tools.
+        if data.fuel_level > 0.0 {
+            builder = builder.extended(
+                "fuel_level_l".to_string(),
                 TelemetryValue::Float(data.fuel_level),
-            )
-            .extended(
-                "lap_count".to_string(),
-                TelemetryValue::Integer(data.laps_completed as i32),
-            )
-            .extended("throttle".to_string(), TelemetryValue::Float(data.throttle))
-            .extended("brake".to_string(), TelemetryValue::Float(data.brake))
-            .build()
+            );
+        }
+        if data.fuel_capacity > 0.0 {
+            builder = builder.extended(
+                "fuel_capacity_l".to_string(),
+                TelemetryValue::Float(data.fuel_capacity),
+            );
+        }
+        if data.oil_temp_celsius > 0.0 {
+            builder = builder.extended(
+                "oil_temp_c".to_string(),
+                TelemetryValue::Float(data.oil_temp_celsius),
+            );
+        }
+        if data.oil_pressure_kpa > 0.0 {
+            builder = builder.extended(
+                "oil_pressure_kpa".to_string(),
+                TelemetryValue::Float(data.oil_pressure_kpa),
+            );
+        }
+        if data.water_pressure_kpa > 0.0 {
+            builder = builder.extended(
+                "water_pressure_kpa".to_string(),
+                TelemetryValue::Float(data.water_pressure_kpa),
+            );
+        }
+        if data.boost_pressure > 0.0 {
+            builder = builder.extended(
+                "boost_pressure".to_string(),
+                TelemetryValue::Float(data.boost_pressure),
+            );
+        }
+
+        builder.build()
     }
 }
 
@@ -340,6 +440,19 @@ impl TelemetryAdapter for AMS2Adapter {
     async fn is_game_running(&self) -> Result<bool> {
         Ok(self.check_ams2_running().await)
     }
+}
+
+/// Gravity in m/s² for converting local acceleration to G-forces.
+const G_ACCEL: f32 = 9.80665;
+
+/// Convert an f32 temperature (°C) to u8, clamped to 0–255. Returns 0 for negative/NaN.
+fn f32_temp_to_u8(value: f32) -> u8 {
+    if value >= 0.0 { (value.min(255.0)) as u8 } else { 0 }
+}
+
+/// Convert kPa to PSI (1 kPa ≈ 0.14504 PSI). Returns 0.0 for non-positive values.
+fn kpa_to_psi(kpa: f32) -> f32 {
+    if kpa > 0.0 { kpa * 0.14503774 } else { 0.0 }
 }
 
 /// Extract null-terminated string from byte array
@@ -706,14 +819,27 @@ mod tests {
 
         let data = AMS2SharedMemory {
             rpm: 12000.0,
+            max_rpm: 15000.0,
             speed: 80.0, // m/s
             gear: 5,
+            num_gears: 7,
             steering: 0.35,
             throttle: 0.9,
             brake: 0.1,
+            clutch: 0.05,
             fuel_level: 35.0,
             fuel_capacity: 100.0,
             laps_completed: 5,
+            water_temp_celsius: 95.0,
+            oil_temp_celsius: 110.0,
+            current_time: 62.5,
+            best_lap_time: 60.1,
+            last_lap_time: 61.3,
+            split_time_ahead: 1.2,
+            split_time_behind: 0.8,
+            local_acceleration: [G_ACCEL, G_ACCEL, 0.3 * G_ACCEL],
+            tyre_temp: [90.0, 92.0, 88.0, 91.0],
+            air_pressure: [170.0, 172.0, 168.0, 171.0],
             highest_flag: HighestFlag::Green as u32,
             pit_mode: PitMode::None as u32,
             tc_setting: 3,
@@ -727,9 +853,18 @@ mod tests {
         let normalized = adapter.normalize_ams2_data(&data);
 
         assert_eq!(normalized.rpm, 12000.0);
+        assert_eq!(normalized.max_rpm, 15000.0);
         assert_eq!(normalized.speed_ms, 80.0);
         assert_eq!(normalized.gear, 5);
+        assert_eq!(normalized.num_gears, 7);
         assert_eq!(normalized.ffb_scalar, 0.35);
+        assert!((normalized.throttle - 0.9).abs() < 0.001);
+        assert!((normalized.brake - 0.1).abs() < 0.001);
+        assert!((normalized.clutch - 0.05).abs() < 0.001);
+        assert!((normalized.steering_angle - 0.35).abs() < 0.001);
+        assert!((normalized.fuel_percent - 0.35).abs() < 0.001);
+        assert!((normalized.engine_temp_c - 95.0).abs() < 0.1);
+        assert_eq!(normalized.lap, 5);
         assert_eq!(normalized.car_id, Some("formula_ultimate".to_string()));
         assert_eq!(normalized.track_id, Some("interlagos".to_string()));
         assert!(normalized.flags.green_flag);
@@ -737,10 +872,27 @@ mod tests {
         assert!(normalized.flags.traction_control);
         assert!(normalized.flags.abs_active);
 
-        // Check extended data
-        assert!(normalized.extended.contains_key("throttle"));
-        assert!(normalized.extended.contains_key("brake"));
-        assert!(normalized.extended.contains_key("fuel_level"));
+        // G-forces: 1G lateral, 1G vertical, 0.3G longitudinal
+        assert!((normalized.lateral_g - 1.0).abs() < 0.01);
+        assert!((normalized.vertical_g - 1.0).abs() < 0.01);
+        assert!((normalized.longitudinal_g - 0.3).abs() < 0.01);
+
+        // Timing
+        assert!((normalized.current_lap_time_s - 62.5).abs() < 0.01);
+        assert!((normalized.best_lap_time_s - 60.1).abs() < 0.01);
+        assert!((normalized.last_lap_time_s - 61.3).abs() < 0.01);
+        assert!((normalized.delta_ahead_s - 1.2).abs() < 0.01);
+        assert!((normalized.delta_behind_s - 0.8).abs() < 0.01);
+
+        // Tire temps: 90, 92, 88, 91 °C
+        assert_eq!(normalized.tire_temps_c, [90, 92, 88, 91]);
+        // Tire pressures: 170 kPa ≈ 24.66 PSI
+        assert!((normalized.tire_pressures_psi[0] - 24.66).abs() < 0.1);
+        assert!(normalized.tire_pressures_psi[1] > 0.0);
+
+        // Extended diagnostics
+        assert!(normalized.extended.contains_key("oil_temp_c"));
+        assert!(normalized.extended.contains_key("fuel_level_l"));
         Ok(())
     }
 
@@ -961,25 +1113,33 @@ mod tests {
 
         let normalized = adapter.normalize_ams2_data(&data);
 
-        // Check fuel level
-        if let Some(TelemetryValue::Float(fuel)) = normalized.extended.get("fuel_level") {
+        // First-class fields
+        assert!((normalized.throttle - 0.85).abs() < 0.001);
+        assert!((normalized.brake - 0.15).abs() < 0.001);
+        assert!((normalized.fuel_percent - 0.455).abs() < 0.001);
+        assert_eq!(normalized.lap, 12);
+        assert!((normalized.current_lap_time_s - 85.5).abs() < 0.01);
+        assert!((normalized.last_lap_time_s - 82.3).abs() < 0.01);
+        assert!((normalized.best_lap_time_s - 80.1).abs() < 0.01);
+        assert!((normalized.engine_temp_c - 95.0).abs() < 0.1);
+
+        // Extended diagnostics
+        if let Some(TelemetryValue::Float(fuel)) = normalized.extended.get("fuel_level_l") {
             assert_eq!(*fuel, 45.5);
         } else {
-            return Err("Expected fuel_level to be a float".into());
+            return Err("Expected fuel_level_l to be a float".into());
         }
 
-        // Check lap count
-        if let Some(TelemetryValue::Integer(laps)) = normalized.extended.get("lap_count") {
-            assert_eq!(*laps, 12);
+        if let Some(TelemetryValue::Float(oil_temp)) = normalized.extended.get("oil_temp_c") {
+            assert_eq!(*oil_temp, 110.0);
         } else {
-            return Err("Expected lap_count to be an integer".into());
+            return Err("Expected oil_temp_c to be a float".into());
         }
 
-        // Check throttle
-        if let Some(TelemetryValue::Float(throttle)) = normalized.extended.get("throttle") {
-            assert_eq!(*throttle, 0.85);
+        if let Some(TelemetryValue::Float(boost)) = normalized.extended.get("boost_pressure") {
+            assert_eq!(*boost, 1.2);
         } else {
-            return Err("Expected throttle to be a float".into());
+            return Err("Expected boost_pressure to be a float".into());
         }
 
         Ok(())
