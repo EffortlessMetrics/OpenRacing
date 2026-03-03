@@ -135,6 +135,25 @@ impl AxisCalibration {
 ///
 /// Holds the per-axis calibration data for an entire device (steering wheel,
 /// pedal set, etc.) along with a human-readable name and schema version.
+///
+/// # Examples
+///
+/// ```
+/// use openracing_calibration::{DeviceCalibration, AxisCalibration};
+///
+/// let mut device = DeviceCalibration::new("Fanatec CSL DD", 3);
+/// assert_eq!(device.axes.len(), 3);
+/// assert_eq!(device.name, "Fanatec CSL DD");
+/// assert_eq!(device.version, 1);
+///
+/// // Configure individual axes
+/// if let Some(steering) = device.axis(0) {
+///     *steering = AxisCalibration::new(0, 65535).with_center(32768);
+/// }
+///
+/// // Out-of-bounds access returns None
+/// assert!(device.axis(10).is_none());
+/// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeviceCalibration {
     /// Human-readable device name (e.g., `"Fanatec CSL DD"`).

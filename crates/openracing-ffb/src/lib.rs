@@ -2,6 +2,48 @@
 //!
 //! This crate provides standardized force feedback effect definitions
 //! that can be used across different wheel protocols.
+//!
+//! # Effect Composition
+//!
+//! ```
+//! use openracing_ffb::{ConstantEffect, SpringEffect, DamperEffect, FfbGain};
+//!
+//! // Combine effects for realistic force feedback
+//! let constant = ConstantEffect::new(500);
+//! let spring = SpringEffect::new(800);
+//! let damper = DamperEffect::new(300);
+//!
+//! // Apply a global gain to scale all effects
+//! let gain = FfbGain::new(0.7);
+//! let scaled_constant = constant.apply_gain(gain.combined());
+//!
+//! // Combine spring and damper at a given wheel position and velocity
+//! let position: i16 = 100;
+//! let velocity: i16 = 50;
+//! let spring_force = spring.calculate(position);
+//! let damper_force = damper.calculate(velocity);
+//! let total = (spring_force as i32 + damper_force as i32)
+//!     .clamp(i16::MIN as i32, i16::MAX as i32) as i16;
+//!
+//! assert_ne!(total, 0);
+//! ```
+//!
+//! # Torque Calculation
+//!
+//! ```
+//! use openracing_ffb::{ConstantEffect, FfbGain};
+//!
+//! let effect = ConstantEffect::new(10000);
+//!
+//! // Full gain preserves magnitude
+//! assert_eq!(effect.apply_gain(1.0), 10000);
+//!
+//! // Half gain halves the torque
+//! assert_eq!(effect.apply_gain(0.5), 5000);
+//!
+//! // Zero gain silences the effect
+//! assert_eq!(effect.apply_gain(0.0), 0);
+//! ```
 
 #![deny(unsafe_op_in_unsafe_fn)]
 #![deny(clippy::unwrap_used)]

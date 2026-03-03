@@ -5,6 +5,22 @@ use prost::Message;
 use crate::error::{IpcError, IpcResult};
 
 /// Message codec for encoding and decoding IPC messages
+///
+/// # Examples
+///
+/// ```
+/// use openracing_ipc::MessageCodec;
+///
+/// // Default codec with 16 MB limit
+/// let codec = MessageCodec::new();
+/// assert!(codec.is_valid_size(1024));
+/// assert!(!codec.is_valid_size(0));
+///
+/// // Custom size limit
+/// let small_codec = MessageCodec::with_max_size(1024);
+/// assert!(small_codec.is_valid_size(512));
+/// assert!(!small_codec.is_valid_size(2048));
+/// ```
 #[derive(Debug, Clone, Copy)]
 pub struct MessageCodec {
     /// Maximum message size in bytes
@@ -115,6 +131,34 @@ impl MessageDecoder for MessageCodec {
 }
 
 /// Wire message header
+///
+/// # Examples
+///
+/// ```
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// use openracing_ipc::prelude::*;
+///
+/// // Create a header for a device message
+/// let mut header = MessageHeader::new(message_types::DEVICE, 256, 1);
+/// assert_eq!(header.message_type, message_types::DEVICE);
+///
+/// // Set flags
+/// header.set_flag(message_flags::COMPRESSED);
+/// assert!(header.has_flag(message_flags::COMPRESSED));
+/// assert!(!header.has_flag(message_flags::REQUIRES_ACK));
+///
+/// // Encode/decode round-trip
+/// let bytes = header.encode();
+/// assert_eq!(bytes.len(), MessageHeader::SIZE);
+///
+/// let decoded = MessageHeader::decode(&bytes)?;
+/// assert_eq!(decoded.message_type, message_types::DEVICE);
+/// assert_eq!(decoded.payload_len, 256);
+/// assert_eq!(decoded.sequence, 1);
+/// assert!(decoded.has_flag(message_flags::COMPRESSED));
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Debug, Clone, Copy)]
 pub struct MessageHeader {
     /// Message type identifier

@@ -174,12 +174,38 @@ impl Pipeline {
     }
 
     /// Get the configuration hash for this pipeline
+    ///
+    /// The hash changes when the pipeline configuration changes, enabling
+    /// efficient change detection.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_pipeline::Pipeline;
+    ///
+    /// let p1 = Pipeline::new();
+    /// let p2 = Pipeline::with_hash(0xCAFE);
+    ///
+    /// assert_eq!(p1.config_hash(), 0);
+    /// assert_eq!(p2.config_hash(), 0xCAFE);
+    /// assert_ne!(p1.config_hash(), p2.config_hash());
+    /// ```
     #[must_use]
     pub fn config_hash(&self) -> u64 {
         self.config_hash
     }
 
     /// Check if pipeline is empty
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_pipeline::Pipeline;
+    ///
+    /// let pipeline = Pipeline::new();
+    /// assert!(pipeline.is_empty());
+    /// assert_eq!(pipeline.node_count(), 0);
+    /// ```
     #[must_use]
     pub fn is_empty(&self) -> bool {
         self.nodes.is_empty()

@@ -104,6 +104,25 @@ impl Default for PedalCalibrator {
 ///
 /// Equivalent to creating a [`PedalCalibrator`], feeding all samples, and calling
 /// [`calibrate`](PedalCalibrator::calibrate).
+///
+/// # Examples
+///
+/// ```
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// use openracing_calibration::create_pedal_calibration;
+///
+/// let axes = create_pedal_calibration(
+///     &[0, 32768, 65535],  // throttle samples
+///     &[0, 65535],          // brake samples
+///     &[0, 65535],          // clutch samples
+/// )?;
+///
+/// assert_eq!(axes.len(), 3);
+/// assert_eq!(axes[0].min, 0);
+/// assert_eq!(axes[0].max, 65535);
+/// # Ok(())
+/// # }
+/// ```
 pub fn create_pedal_calibration(
     throttle: &[u16],
     brake: &[u16],
