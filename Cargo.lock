@@ -5822,6 +5822,8 @@ name = "racing-wheel-ks"
 version = "0.1.0"
 dependencies = [
  "proptest",
+ "serde",
+ "serde_json",
  "workspace-hack",
 ]
 
