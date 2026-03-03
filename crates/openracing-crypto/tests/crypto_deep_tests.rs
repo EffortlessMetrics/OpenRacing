@@ -769,3 +769,409 @@ fn all_content_types_signable() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
+
+// ===========================================================================
+// 15. Deterministic key derivation from known seed
+// ===========================================================================
+
+#[test]
+fn deterministic_key_from_fixed_seed() -> Result<(), Box<dyn std::error::Error>> {
+    // A fixed 32-byte seed always produces the same public key and signatures
+    let seed: [u8; 32] = [
+        0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E,
+        0x0F, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1C,
+        0x1D, 0x1E, 0x1F, 0x20,
+    ];
+
+    let kp1 = KeyPair::from_bytes(&seed, "fixed-1".to_string())?;
+    let kp2 = KeyPair::from_bytes(&seed, "fixed-2".to_string())?;
+
+    // Same seed produces same public key
+    assert!(kp1.public_key.ct_eq(&kp2.public_key));
+    assert_eq!(kp1.fingerprint(), kp2.fingerprint());
+
+    // Same seed produces same signatures for same message
+    let data = b"deterministic test message";
+    let sig1 = Ed25519Signer::sign(data, &kp1.signing_key)?;
+    let sig2 = Ed25519Signer::sign(data, &kp2.signing_key)?;
+    assert!(sig1.ct_eq(&sig2));
+
+    Ok(())
+}
+
+#[test]
+fn known_seed_signature_is_verifiable() -> Result<(), Box<dyn std::error::Error>> {
+    // Pin a seed and verify the produced signature is valid and stable
+    let seed: [u8; 32] = [0xAA; 32];
+    let kp = KeyPair::from_bytes(&seed, "pinned".to_string())?;
+    let data = b"pinned seed test";
+
+    let sig = Ed25519Signer::sign(data, &kp.signing_key)?;
+    assert!(Ed25519Verifier::verify(data, &sig, &kp.public_key)?);
+
+    // Record the signature as base64 and verify it round-trips
+    let b64 = sig.to_base64();
+    let restored = Signature::from_base64(&b64)?;
+    assert!(restored.ct_eq(&sig));
+    assert!(Ed25519Verifier::verify(data, &restored, &kp.public_key)?);
+
+    Ok(())
+}
+
+#[test]
+fn known_seed_different_data_produces_different_signatures() -> Result<(), Box<dyn std::error::Error>>
+{
+    let seed: [u8; 32] = [0xBB; 32];
+    let kp = KeyPair::from_bytes(&seed, "diff-msg".to_string())?;
+
+    let sig_a = Ed25519Signer::sign(b"message A", &kp.signing_key)?;
+    let sig_b = Ed25519Signer::sign(b"message B", &kp.signing_key)?;
+
+    assert!(!sig_a.ct_eq(&sig_b));
+    assert!(Ed25519Verifier::verify(b"message A", &sig_a, &kp.public_key)?);
+    assert!(Ed25519Verifier::verify(b"message B", &sig_b, &kp.public_key)?);
+    assert!(!Ed25519Verifier::verify(b"message B", &sig_a, &kp.public_key)?);
+
+    Ok(())
+}
+
+#[test]
+fn different_seeds_produce_different_keys() -> Result<(), Box<dyn std::error::Error>> {
+    let seed_a = [0x01u8; 32];
+    let seed_b = [0x02u8; 32];
+
+    let kp_a = KeyPair::from_bytes(&seed_a, "a".to_string())?;
+    let kp_b = KeyPair::from_bytes(&seed_b, "b".to_string())?;
+
+    assert!(!kp_a.public_key.ct_eq(&kp_b.public_key));
+    assert_ne!(kp_a.fingerprint(), kp_b.fingerprint());
+
+    Ok(())
+}
+
+// ===========================================================================
+// 16. Key serialization formats (hex, base64, raw bytes, DER-like)
+// ===========================================================================
+
+#[test]
+fn public_key_hex_roundtrip() -> Result<(), Box<dyn std::error::Error>> {
+    let kp = gen_keypair()?;
+    let hex_str = hex::encode(kp.public_key.key_bytes);
+    let decoded: Vec<u8> = hex::decode(&hex_str)?;
+
+    assert_eq!(decoded.len(), 32);
+    let mut arr = [0u8; 32];
+    arr.copy_from_slice(&decoded);
+    let restored = PublicKey::from_bytes(arr, "hex-restored".to_string());
+    assert!(restored.ct_eq(&kp.public_key));
+
+    Ok(())
+}
+
+#[test]
+fn signing_key_hex_roundtrip() -> Result<(), Box<dyn std::error::Error>> {
+    let kp = gen_keypair()?;
+    let hex_str = hex::encode(kp.signing_key_bytes());
+    let decoded: Vec<u8> = hex::decode(&hex_str)?;
+
+    let mut arr = [0u8; 32];
+    arr.copy_from_slice(&decoded);
+    let restored = KeyPair::from_bytes(&arr, "hex-sk".to_string())?;
+    assert!(restored.public_key.ct_eq(&kp.public_key));
+
+    Ok(())
+}
+
+#[test]
+fn public_key_base64_roundtrip() -> Result<(), Box<dyn std::error::Error>> {
+    let kp = gen_keypair()?;
+    let b64 = utils::encode_base64(&kp.public_key.key_bytes);
+    let decoded = utils::decode_base64(&b64)?;
+
+    assert_eq!(decoded.len(), 32);
+    let mut arr = [0u8; 32];
+    arr.copy_from_slice(&decoded);
+    let restored = PublicKey::from_bytes(arr, "b64-restored".to_string());
+    assert!(restored.ct_eq(&kp.public_key));
+
+    Ok(())
+}
+
+#[test]
+fn signing_key_raw_bytes_roundtrip() -> Result<(), Box<dyn std::error::Error>> {
+    let kp = gen_keypair()?;
+    let raw = kp.signing_key_bytes();
+    let restored = KeyPair::from_bytes(&raw, "raw-roundtrip".to_string())?;
+
+    let data = b"raw roundtrip test";
+    let sig1 = Ed25519Signer::sign(data, &kp.signing_key)?;
+    let sig2 = Ed25519Signer::sign(data, &restored.signing_key)?;
+    assert!(sig1.ct_eq(&sig2));
+
+    Ok(())
+}
+
+#[test]
+fn public_key_json_serialization_roundtrip() -> Result<(), Box<dyn std::error::Error>> {
+    let kp = gen_keypair()?;
+    let json = serde_json::to_string(&kp.public_key)?;
+    let deserialized: PublicKey = serde_json::from_str(&json)?;
+
+    assert!(deserialized.ct_eq(&kp.public_key));
+    assert_eq!(deserialized.identifier, kp.public_key.identifier);
+    assert_eq!(deserialized.comment, kp.public_key.comment);
+
+    Ok(())
+}
+
+#[test]
+fn public_key_der_like_raw_extraction() -> Result<(), Box<dyn std::error::Error>> {
+    // Ed25519 public keys are exactly 32 raw bytes; verify we can wrap/unwrap
+    let kp = gen_keypair()?;
+    let raw: &[u8; 32] = &kp.public_key.key_bytes;
+
+    // Simulate DER-like wrapping: ASN.1 prefix for Ed25519 public key (12-byte header)
+    let mut der_like = Vec::with_capacity(44);
+    let asn1_prefix: [u8; 12] = [
+        0x30, 0x2a, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70, 0x03, 0x21, 0x00,
+    ];
+    der_like.extend_from_slice(&asn1_prefix);
+    der_like.extend_from_slice(raw);
+
+    // Extract key bytes back
+    let extracted = &der_like[12..];
+    assert_eq!(extracted.len(), 32);
+    let mut arr = [0u8; 32];
+    arr.copy_from_slice(extracted);
+    let restored = PublicKey::from_bytes(arr, "der-extracted".to_string());
+    assert!(restored.ct_eq(&kp.public_key));
+
+    Ok(())
+}
+
+// ===========================================================================
+// 17. Batch verification
+// ===========================================================================
+
+#[test]
+fn batch_verify_multiple_messages_same_key() -> Result<(), Box<dyn std::error::Error>> {
+    let kp = gen_keypair()?;
+    let messages: Vec<&[u8]> = vec![b"msg1", b"msg2", b"msg3", b"msg4", b"msg5"];
+
+    let signatures: Vec<Signature> = messages
+        .iter()
+        .map(|m| Ed25519Signer::sign(m, &kp.signing_key))
+        .collect::<Result<Vec<_>, _>>()?;
+
+    for (msg, sig) in messages.iter().zip(signatures.iter()) {
+        assert!(
+            Ed25519Verifier::verify(msg, sig, &kp.public_key)?,
+            "Batch item verification failed"
+        );
+    }
+
+    Ok(())
+}
+
+#[test]
+fn batch_verify_multiple_keys() -> Result<(), Box<dyn std::error::Error>> {
+    let data = b"shared data for batch";
+    let mut pairs: Vec<(KeyPair, Signature)> = Vec::new();
+
+    for _ in 0..5 {
+        let kp = gen_keypair()?;
+        let sig = Ed25519Signer::sign(data, &kp.signing_key)?;
+        pairs.push((kp, sig));
+    }
+
+    for (kp, sig) in &pairs {
+        assert!(
+            Ed25519Verifier::verify(data, sig, &kp.public_key)?,
+            "Batch verification with different keys failed"
+        );
+    }
+
+    Ok(())
+}
+
+#[test]
+fn batch_verify_detects_single_bad_signature() -> Result<(), Box<dyn std::error::Error>> {
+    let kp = gen_keypair()?;
+    let messages: Vec<&[u8]> = vec![b"a", b"b", b"c", b"d"];
+
+    let mut signatures: Vec<Signature> = messages
+        .iter()
+        .map(|m| Ed25519Signer::sign(m, &kp.signing_key))
+        .collect::<Result<Vec<_>, _>>()?;
+
+    // Corrupt the third signature
+    let mut bad_bytes = signatures[2].signature_bytes;
+    bad_bytes[0] ^= 0xFF;
+    signatures[2] = Signature::from_bytes(bad_bytes);
+
+    let results: Vec<bool> = messages
+        .iter()
+        .zip(signatures.iter())
+        .map(|(m, s)| Ed25519Verifier::verify(m, s, &kp.public_key))
+        .collect::<Result<Vec<_>, _>>()?;
+
+    assert!(results[0]);
+    assert!(results[1]);
+    assert!(!results[2], "Corrupted signature must fail");
+    assert!(results[3]);
+
+    Ok(())
+}
+
+// ===========================================================================
+// 18. Payload size variants
+// ===========================================================================
+
+#[test]
+fn sign_one_byte_payload() -> Result<(), Box<dyn std::error::Error>> {
+    let kp = gen_keypair()?;
+    let data = [0x42u8];
+    let sig = Ed25519Signer::sign(&data, &kp.signing_key)?;
+    assert!(Ed25519Verifier::verify(&data, &sig, &kp.public_key)?);
+    Ok(())
+}
+
+#[test]
+fn sign_various_payload_sizes() -> Result<(), Box<dyn std::error::Error>> {
+    let kp = gen_keypair()?;
+    let sizes = [
+        0, 1, 2, 15, 16, 31, 32, 63, 64, 127, 128, 255, 256, 1023, 1024, 4096, 65536,
+    ];
+
+    for &size in &sizes {
+        let data = vec![0xABu8; size];
+        let sig = Ed25519Signer::sign(&data, &kp.signing_key)?;
+        assert!(
+            Ed25519Verifier::verify(&data, &sig, &kp.public_key)?,
+            "Verification failed for payload size {}",
+            size
+        );
+    }
+
+    Ok(())
+}
+
+// ===========================================================================
+// 19. Key rotation workflow
+// ===========================================================================
+
+#[test]
+fn key_rotation_resign_with_new_key() -> Result<(), Box<dyn std::error::Error>> {
+    let old_kp = gen_keypair()?;
+    let new_kp = gen_keypair()?;
+    let data = b"content to re-sign after key rotation";
+
+    // Sign with old key
+    let old_sig = Ed25519Signer::sign(data, &old_kp.signing_key)?;
+    assert!(Ed25519Verifier::verify(data, &old_sig, &old_kp.public_key)?);
+
+    // Rotate: sign same content with new key
+    let new_sig = Ed25519Signer::sign(data, &new_kp.signing_key)?;
+    assert!(Ed25519Verifier::verify(data, &new_sig, &new_kp.public_key)?);
+
+    // Old signature must NOT verify with new key
+    assert!(!Ed25519Verifier::verify(data, &old_sig, &new_kp.public_key)?);
+    // New signature must NOT verify with old key
+    assert!(!Ed25519Verifier::verify(data, &new_sig, &old_kp.public_key)?);
+
+    Ok(())
+}
+
+#[test]
+fn key_rotation_trust_store_workflow() -> Result<(), Box<dyn std::error::Error>> {
+    let old_kp = gen_keypair()?;
+    let new_kp = gen_keypair()?;
+    let data = b"key rotation trust store test";
+
+    let mut store = TrustStore::new_in_memory();
+    store.add_key(old_kp.public_key.clone(), TrustLevel::Trusted, None)?;
+    store.add_key(new_kp.public_key.clone(), TrustLevel::Trusted, None)?;
+
+    // Both keys in trust store
+    assert_eq!(
+        store.get_trust_level(&old_kp.fingerprint()),
+        TrustLevel::Trusted
+    );
+    assert_eq!(
+        store.get_trust_level(&new_kp.fingerprint()),
+        TrustLevel::Trusted
+    );
+
+    // Revoke old key
+    store.update_trust_level(
+        &old_kp.fingerprint(),
+        TrustLevel::Distrusted,
+        Some("Key rotated".to_string()),
+    )?;
+
+    assert_eq!(
+        store.get_trust_level(&old_kp.fingerprint()),
+        TrustLevel::Distrusted
+    );
+    assert_eq!(
+        store.get_trust_level(&new_kp.fingerprint()),
+        TrustLevel::Trusted
+    );
+
+    // Verify with new key via trust store
+    let verifier = Ed25519Verifier::new(store);
+    let new_sig = Ed25519Signer::sign(data, &new_kp.signing_key)?;
+    assert!(verifier.verify_with_trust_store(data, &new_sig, &new_kp.fingerprint())?);
+
+    // Old key in trust store but distrusted — signature still cryptographically
+    // valid but the trust level is Distrusted (checked at policy layer)
+    let old_sig = Ed25519Signer::sign(data, &old_kp.signing_key)?;
+    let old_valid = verifier.verify_with_trust_store(data, &old_sig, &old_kp.fingerprint())?;
+    assert!(
+        old_valid,
+        "Crypto verification passes; policy layer checks trust"
+    );
+    assert_eq!(
+        verifier
+            .trust_store()
+            .get_trust_level(&old_kp.fingerprint()),
+        TrustLevel::Distrusted
+    );
+
+    Ok(())
+}
+
+#[test]
+fn key_rotation_metadata_resign() -> Result<(), Box<dyn std::error::Error>> {
+    let old_kp = gen_keypair()?;
+    let new_kp = gen_keypair()?;
+    let data = b"plugin binary content";
+
+    let old_meta = Ed25519Signer::sign_with_metadata(
+        data,
+        &old_kp,
+        "OldSigner",
+        ContentType::Plugin,
+        Some("original signature".to_string()),
+    )?;
+
+    let new_meta = Ed25519Signer::sign_with_metadata(
+        data,
+        &new_kp,
+        "NewSigner",
+        ContentType::Plugin,
+        Some("re-signed after rotation".to_string()),
+    )?;
+
+    assert_ne!(old_meta.key_fingerprint, new_meta.key_fingerprint);
+    assert_ne!(old_meta.signature, new_meta.signature);
+    assert_eq!(new_meta.signer, "NewSigner");
+
+    // Both signatures verify with their respective keys
+    let old_sig = Signature::from_base64(&old_meta.signature)?;
+    let new_sig = Signature::from_base64(&new_meta.signature)?;
+    assert!(Ed25519Verifier::verify(data, &old_sig, &old_kp.public_key)?);
+    assert!(Ed25519Verifier::verify(data, &new_sig, &new_kp.public_key)?);
+
+    Ok(())
+}
