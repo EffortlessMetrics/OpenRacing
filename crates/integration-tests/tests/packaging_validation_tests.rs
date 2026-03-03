@@ -18,9 +18,10 @@ fn repo_root() -> PathBuf {
 /// Parse all VID/PID pairs from the udev rules file (hidraw section only).
 /// Returns `(vid_pid_pairs, vendor_wide_vids)`.
 fn parse_udev_rules(content: &str) -> (HashSet<(String, String)>, HashSet<String>) {
-    let vid_pid_re =
-        regex::Regex::new(r#"ATTRS\{idVendor\}=="([0-9a-fA-F]{4})".*?ATTRS\{idProduct\}=="([0-9a-fA-F]{4})""#)
-            .expect("regex");
+    let vid_pid_re = regex::Regex::new(
+        r#"ATTRS\{idVendor\}=="([0-9a-fA-F]{4})".*?ATTRS\{idProduct\}=="([0-9a-fA-F]{4})""#,
+    )
+    .expect("regex");
     let hidraw_vid_re =
         regex::Regex::new(r#"SUBSYSTEM=="hidraw".*ATTRS\{idVendor\}=="([0-9a-fA-F]{4})""#)
             .expect("regex");

@@ -851,7 +851,10 @@ async fn hotplug_get_all_devices_after_enumerate() -> Result<(), BoxErr> {
     let _devices = svc.device_service().enumerate_devices().await?;
 
     let all = svc.device_service().get_all_devices().await?;
-    assert!(!all.is_empty(), "should have managed devices after enumerate");
+    assert!(
+        !all.is_empty(),
+        "should have managed devices after enumerate"
+    );
     Ok(())
 }
 
@@ -904,7 +907,10 @@ async fn telemetry_device_telemetry_none_when_no_data() -> Result<(), BoxErr> {
 
     let did = &devices[0].id;
     let tel = svc.device_service().get_device_telemetry(did).await?;
-    assert!(tel.is_none(), "no telemetry data expected for virtual device");
+    assert!(
+        tel.is_none(),
+        "no telemetry data expected for virtual device"
+    );
     Ok(())
 }
 
@@ -944,8 +950,8 @@ async fn concurrent_service_operations_from_clones() -> Result<(), BoxErr> {
             let did: DeviceId = format!("conc-dev-{i}")
                 .parse()
                 .map_err(|e| -> BoxErr { format!("bad id: {e}").into() })?;
-            let t = TorqueNm::new(10.0)
-                .map_err(|e| -> BoxErr { format!("bad torque: {e}").into() })?;
+            let t =
+                TorqueNm::new(10.0).map_err(|e| -> BoxErr { format!("bad torque: {e}").into() })?;
             svc_clone
                 .safety_service()
                 .register_device(did, t)
@@ -1040,7 +1046,10 @@ async fn recovery_safety_after_fault_then_clear() -> Result<(), BoxErr> {
         .report_fault(&did, FaultType::ThermalLimit, FaultSeverity::Fatal)
         .await?;
     let state = svc.safety_service().get_safety_state(&did).await?;
-    assert!(matches!(state.interlock_state, InterlockState::Faulted { .. }));
+    assert!(matches!(
+        state.interlock_state,
+        InterlockState::Faulted { .. }
+    ));
 
     // Clear and resume
     svc.safety_service()
@@ -1096,7 +1105,10 @@ async fn cleanup_temp_dir_profiles_persisted() -> Result<(), BoxErr> {
     let entries: Vec<_> = std::fs::read_dir(&profiles_dir)?
         .filter_map(|e| e.ok())
         .collect();
-    assert!(!entries.is_empty(), "profile files should persist after drop");
+    assert!(
+        !entries.is_empty(),
+        "profile files should persist after drop"
+    );
     Ok(())
 }
 

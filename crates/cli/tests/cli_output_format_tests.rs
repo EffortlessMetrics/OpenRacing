@@ -97,9 +97,7 @@ mod json_output {
 
     #[test]
     fn safety_status_json_is_valid() -> TestResult {
-        let output = wheelctl()?
-            .args(["--json", "safety", "status"])
-            .output()?;
+        let output = wheelctl()?.args(["--json", "safety", "status"]).output()?;
         assert!(output.status.success());
         let v: Value = serde_json::from_slice(&output.stdout)?;
         assert_eq!(v["success"], Value::Bool(true));
@@ -108,9 +106,7 @@ mod json_output {
 
     #[test]
     fn game_status_json_is_valid() -> TestResult {
-        let output = wheelctl()?
-            .args(["--json", "game", "status"])
-            .output()?;
+        let output = wheelctl()?.args(["--json", "game", "status"]).output()?;
         assert!(output.status.success());
         let v: Value = serde_json::from_slice(&output.stdout)?;
         assert_eq!(v["success"], Value::Bool(true));
@@ -120,9 +116,7 @@ mod json_output {
     #[test]
     fn json_flag_position_after_subcommand_is_accepted() -> TestResult {
         // --json is a global flag, so it should work in any position
-        let output = wheelctl()?
-            .args(["device", "--json", "list"])
-            .output()?;
+        let output = wheelctl()?.args(["device", "--json", "list"]).output()?;
         assert!(
             output.status.success(),
             "global --json flag should be accepted after subcommand"
@@ -168,7 +162,10 @@ mod human_output {
         let output = wheelctl()?.args(["game", "list"]).output()?;
         assert!(output.status.success());
         let stdout = String::from_utf8_lossy(&output.stdout);
-        assert!(!stdout.is_empty(), "game list human output should not be empty");
+        assert!(
+            !stdout.is_empty(),
+            "game list human output should not be empty"
+        );
         Ok(())
     }
 }

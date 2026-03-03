@@ -237,10 +237,7 @@ mod vid_pid_filtering {
             make_capture_file("0x0EB7", "0x0006", 3),
             make_capture_file("0x046D", "0xC24F", 7),
         ];
-        let logitech_files: Vec<_> = files
-            .iter()
-            .filter(|f| f.vendor_id == "0x046D")
-            .collect();
+        let logitech_files: Vec<_> = files.iter().filter(|f| f.vendor_id == "0x046D").collect();
         assert_eq!(logitech_files.len(), 2);
         Ok(())
     }
@@ -268,10 +265,7 @@ mod vid_pid_filtering {
             make_capture_file("0x046D", "0xC266", 5),
             make_capture_file("0x0EB7", "0x0006", 3),
         ];
-        let no_match: Vec<_> = files
-            .iter()
-            .filter(|f| f.vendor_id == "0x9999")
-            .collect();
+        let no_match: Vec<_> = files.iter().filter(|f| f.vendor_id == "0x9999").collect();
         assert!(no_match.is_empty());
     }
 
@@ -527,10 +521,7 @@ mod multi_device_capture {
         assert_eq!(g29.vendor_id, g923.vendor_id);
         assert_ne!(g29.product_id, g923.product_id);
         let all = [g29, g923];
-        let g923_only: Vec<_> = all
-            .iter()
-            .filter(|f| f.product_id == "0xC266")
-            .collect();
+        let g923_only: Vec<_> = all.iter().filter(|f| f.product_id == "0xC266").collect();
         assert_eq!(g923_only.len(), 1);
         Ok(())
     }

@@ -3,12 +3,12 @@
 //! Covers BU0836 encoder input parsing, load cell pedal reports,
 //! and FFB joystick output.
 
+use racing_wheel_hid_leo_bodnar_protocol::ids::{PID_LC_PEDALS, PID_PEDALS};
 use racing_wheel_hid_leo_bodnar_protocol::{
-    HID_PID_USAGE_PAGE, LeoBodnarDevice, MAX_REPORT_BYTES, PID_BU0836A, PID_BU0836_16BIT,
+    HID_PID_USAGE_PAGE, LeoBodnarDevice, MAX_REPORT_BYTES, PID_BU0836_16BIT, PID_BU0836A,
     PID_BU0836X, PID_FFB_JOYSTICK, PID_WHEEL_INTERFACE, VENDOR_ID, WHEEL_DEFAULT_MAX_TORQUE_NM,
     WHEEL_ENCODER_CPR, is_leo_bodnar, is_leo_bodnar_device, is_leo_bodnar_ffb_pid,
 };
-use racing_wheel_hid_leo_bodnar_protocol::ids::{PID_LC_PEDALS, PID_PEDALS};
 
 // ─── BU0836 encoder input parsing ───────────────────────────────────────────
 
@@ -43,10 +43,7 @@ fn bu0836_variants_no_ffb_support() {
         LeoBodnarDevice::Bu0836_16bit,
     ];
     for device in &bu_devices {
-        assert!(
-            !device.supports_ffb(),
-            "{device:?} should not support FFB"
-        );
+        assert!(!device.supports_ffb(), "{device:?} should not support FFB");
     }
 }
 

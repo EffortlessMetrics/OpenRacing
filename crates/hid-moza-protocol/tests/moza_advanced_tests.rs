@@ -2,10 +2,10 @@
 //! wheelbase report fields, torque encoding, and setting commands.
 
 use racing_wheel_hid_moza_protocol::{
-    DeviceSignature, FfbMode, MozaDeviceCategory, MozaDirectTorqueEncoder, MozaEsCompatibility,
-    MozaHatDirection, MozaInputState, MozaModel, MozaProtocol, MozaTopologyHint, MOZA_VENDOR_ID,
-    REPORT_LEN, SignatureVerdict, identify_device, is_wheelbase_product, product_ids, rim_ids,
-    report_ids, verify_signature,
+    DeviceSignature, FfbMode, MOZA_VENDOR_ID, MozaDeviceCategory, MozaDirectTorqueEncoder,
+    MozaEsCompatibility, MozaHatDirection, MozaInputState, MozaModel, MozaProtocol,
+    MozaTopologyHint, REPORT_LEN, SignatureVerdict, identify_device, is_wheelbase_product,
+    product_ids, report_ids, rim_ids, verify_signature,
 };
 
 use proptest::prelude::*;
@@ -228,14 +228,8 @@ fn test_model_from_pid_all_wheelbases() -> Result<(), Box<dyn std::error::Error>
     assert_eq!(MozaModel::from_pid(product_ids::R9_V2), MozaModel::R9);
     assert_eq!(MozaModel::from_pid(product_ids::R12_V1), MozaModel::R12);
     assert_eq!(MozaModel::from_pid(product_ids::R12_V2), MozaModel::R12);
-    assert_eq!(
-        MozaModel::from_pid(product_ids::R16_R21_V1),
-        MozaModel::R16
-    );
-    assert_eq!(
-        MozaModel::from_pid(product_ids::R16_R21_V2),
-        MozaModel::R16
-    );
+    assert_eq!(MozaModel::from_pid(product_ids::R16_R21_V1), MozaModel::R16);
+    assert_eq!(MozaModel::from_pid(product_ids::R16_R21_V2), MozaModel::R16);
     assert_eq!(
         MozaModel::from_pid(product_ids::SR_P_PEDALS),
         MozaModel::SrpPedals
@@ -448,12 +442,8 @@ fn test_protocol_ffb_mode_direct() -> Result<(), Box<dyn std::error::Error>> {
 fn test_protocol_is_v2_hardware() -> Result<(), Box<dyn std::error::Error>> {
     let v1 = MozaProtocol::new(product_ids::R5_V1);
     let v2 = MozaProtocol::new(product_ids::R5_V2);
-    assert!(
-        !racing_wheel_hid_moza_protocol::writer::VendorProtocol::is_v2_hardware(&v1)
-    );
-    assert!(
-        racing_wheel_hid_moza_protocol::writer::VendorProtocol::is_v2_hardware(&v2)
-    );
+    assert!(!racing_wheel_hid_moza_protocol::writer::VendorProtocol::is_v2_hardware(&v1));
+    assert!(racing_wheel_hid_moza_protocol::writer::VendorProtocol::is_v2_hardware(&v2));
     Ok(())
 }
 

@@ -2,13 +2,12 @@
 //! LED/display/rumble commands, pedal reports, QR rim detection, and proptest roundtrips.
 
 use racing_wheel_hid_fanatec_protocol::{
-    CONSTANT_FORCE_REPORT_LEN, FanatecConstantForceEncoder, FanatecModel,
-    FanatecPedalModel, FanatecRimId, MAX_ROTATION_DEGREES, MIN_ROTATION_DEGREES,
-    build_display_report, build_kernel_range_sequence, build_led_report,
-    build_mode_switch_report, build_rotation_range_report, build_rumble_report,
-    build_set_gain_report, build_stop_all_report, fix_report_values, is_pedal_product,
-    is_wheelbase_product, led_commands, parse_extended_report, parse_pedal_report,
-    parse_standard_report, product_ids, rim_ids,
+    CONSTANT_FORCE_REPORT_LEN, FanatecConstantForceEncoder, FanatecModel, FanatecPedalModel,
+    FanatecRimId, MAX_ROTATION_DEGREES, MIN_ROTATION_DEGREES, build_display_report,
+    build_kernel_range_sequence, build_led_report, build_mode_switch_report,
+    build_rotation_range_report, build_rumble_report, build_set_gain_report, build_stop_all_report,
+    fix_report_values, is_pedal_product, is_wheelbase_product, led_commands, parse_extended_report,
+    parse_pedal_report, parse_standard_report, product_ids, rim_ids,
 };
 
 use proptest::prelude::*;
@@ -146,17 +145,41 @@ fn test_all_wheelbase_pids_recognized() -> Result<(), Box<dyn std::error::Error>
 #[test]
 fn test_all_pedal_pids_recognized() -> Result<(), Box<dyn std::error::Error>> {
     let pedal_pids = [
-        (product_ids::CLUBSPORT_PEDALS_V1_V2, FanatecPedalModel::ClubSportV1V2, 2),
-        (product_ids::CLUBSPORT_PEDALS_V3, FanatecPedalModel::ClubSportV3, 3),
-        (product_ids::CSL_ELITE_PEDALS, FanatecPedalModel::CslElitePedals, 2),
-        (product_ids::CSL_PEDALS_LC, FanatecPedalModel::CslPedalsLc, 3),
-        (product_ids::CSL_PEDALS_V2, FanatecPedalModel::CslPedalsV2, 3),
+        (
+            product_ids::CLUBSPORT_PEDALS_V1_V2,
+            FanatecPedalModel::ClubSportV1V2,
+            2,
+        ),
+        (
+            product_ids::CLUBSPORT_PEDALS_V3,
+            FanatecPedalModel::ClubSportV3,
+            3,
+        ),
+        (
+            product_ids::CSL_ELITE_PEDALS,
+            FanatecPedalModel::CslElitePedals,
+            2,
+        ),
+        (
+            product_ids::CSL_PEDALS_LC,
+            FanatecPedalModel::CslPedalsLc,
+            3,
+        ),
+        (
+            product_ids::CSL_PEDALS_V2,
+            FanatecPedalModel::CslPedalsV2,
+            3,
+        ),
     ];
     for (pid, expected_model, expected_axes) in pedal_pids {
         assert!(is_pedal_product(pid), "PID 0x{pid:04X} must be a pedal");
         let model = FanatecPedalModel::from_product_id(pid);
         assert_eq!(model, expected_model, "PID 0x{pid:04X} model mismatch");
-        assert_eq!(model.axis_count(), expected_axes, "PID 0x{pid:04X} axis count");
+        assert_eq!(
+            model.axis_count(),
+            expected_axes,
+            "PID 0x{pid:04X} axis count"
+        );
     }
     Ok(())
 }

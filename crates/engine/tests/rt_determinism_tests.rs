@@ -146,8 +146,8 @@ fn det_04_safety_fault_report_bounded_time() {
 // ===========================================================================
 
 #[tokio::test]
-async fn det_05_pipeline_node_count_is_fixed_after_compile(
-) -> Result<(), Box<dyn std::error::Error>> {
+async fn det_05_pipeline_node_count_is_fixed_after_compile()
+-> Result<(), Box<dyn std::error::Error>> {
     let compiler = PipelineCompiler::new();
     let compiled = compiler.compile_pipeline(full_config()?).await?;
     let mut pipeline = compiled.pipeline;
@@ -308,8 +308,8 @@ async fn det_12_empty_pipeline_deterministic() -> Result<(), Box<dyn std::error:
 }
 
 #[tokio::test]
-async fn det_13_pipeline_process_is_idempotent_per_input(
-) -> Result<(), Box<dyn std::error::Error>> {
+async fn det_13_pipeline_process_is_idempotent_per_input() -> Result<(), Box<dyn std::error::Error>>
+{
     // For stateless-equivalent filters, same input sequence → same output sequence
     let compiler = PipelineCompiler::new();
     let compiled = compiler.compile_pipeline(default_config()).await?;

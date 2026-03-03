@@ -2,11 +2,11 @@
 //! firmware/device identity, settings, telemetry parsing, and proptest boundaries.
 
 use racing_wheel_hid_vrs_protocol::{
-    ids::report_ids, parse_input_report, product_ids, CONSTANT_FORCE_REPORT_LEN,
-    DAMPER_REPORT_LEN, FRICTION_REPORT_LEN, SPRING_REPORT_LEN, VrsConstantForceEncoder,
-    VrsDamperEncoder, VrsDeviceIdentity, VrsFfbEffectType, VrsFrictionEncoder, VrsPedalAxesRaw,
-    VrsSpringEncoder, build_device_gain, build_ffb_enable, build_rotation_range, identify_device,
-    is_wheelbase_product,
+    CONSTANT_FORCE_REPORT_LEN, DAMPER_REPORT_LEN, FRICTION_REPORT_LEN, SPRING_REPORT_LEN,
+    VrsConstantForceEncoder, VrsDamperEncoder, VrsDeviceIdentity, VrsFfbEffectType,
+    VrsFrictionEncoder, VrsPedalAxesRaw, VrsSpringEncoder, build_device_gain, build_ffb_enable,
+    build_rotation_range, identify_device, ids::report_ids, is_wheelbase_product,
+    parse_input_report, product_ids,
 };
 
 // ── Torque encoding/decoding roundtrip ───────────────────────────────────────
@@ -273,7 +273,10 @@ fn rotation_range_roundtrip_common_values() {
         let r = build_rotation_range(degrees);
         assert_eq!(r[0], report_ids::SET_REPORT);
         let decoded = u16::from_le_bytes([r[2], r[3]]);
-        assert_eq!(decoded, degrees, "Rotation range roundtrip failed for {degrees}°");
+        assert_eq!(
+            decoded, degrees,
+            "Rotation range roundtrip failed for {degrees}°"
+        );
     }
 }
 

@@ -3,19 +3,15 @@
 //! Covers PID recognition for all models, torque encoding at various rated
 //! torques, FFB effect commands, LED control, and proptest verification.
 
+use racing_wheel_hid_simagic_protocol::types::{QuickReleaseStatus, SimagicGear};
 use racing_wheel_hid_simagic_protocol::{
-    SimagicModel, SimagicDeviceCategory, SimagicFfbEffectType,
-    SimagicConstantForceEncoder, SimagicSpringEncoder, SimagicDamperEncoder,
-    SimagicFrictionEncoder,
-    identify_device, is_wheelbase_product,
-    build_rotation_range, build_device_gain, build_led_report,
-    build_sine_effect, build_square_effect, build_triangle_effect,
-    product_ids, SIMAGIC_VENDOR_ID,
-    CONSTANT_FORCE_REPORT_LEN, SPRING_REPORT_LEN, DAMPER_REPORT_LEN,
-    FRICTION_REPORT_LEN,
-    SimagicInputState,
+    CONSTANT_FORCE_REPORT_LEN, DAMPER_REPORT_LEN, FRICTION_REPORT_LEN, SIMAGIC_VENDOR_ID,
+    SPRING_REPORT_LEN, SimagicConstantForceEncoder, SimagicDamperEncoder, SimagicDeviceCategory,
+    SimagicFfbEffectType, SimagicFrictionEncoder, SimagicInputState, SimagicModel,
+    SimagicSpringEncoder, build_device_gain, build_led_report, build_rotation_range,
+    build_sine_effect, build_square_effect, build_triangle_effect, identify_device,
+    is_wheelbase_product, product_ids,
 };
-use racing_wheel_hid_simagic_protocol::types::{SimagicGear, QuickReleaseStatus};
 
 // ─── PID recognition ─────────────────────────────────────────────────────
 
@@ -72,12 +68,24 @@ fn test_neo_mini_recognition() {
 
 #[test]
 fn test_model_from_pid_all_wheelbases() {
-    assert_eq!(SimagicModel::from_pid(product_ids::EVO_SPORT), SimagicModel::EvoSport);
+    assert_eq!(
+        SimagicModel::from_pid(product_ids::EVO_SPORT),
+        SimagicModel::EvoSport
+    );
     assert_eq!(SimagicModel::from_pid(product_ids::EVO), SimagicModel::Evo);
-    assert_eq!(SimagicModel::from_pid(product_ids::EVO_PRO), SimagicModel::EvoPro);
-    assert_eq!(SimagicModel::from_pid(product_ids::ALPHA_EVO), SimagicModel::AlphaEvo);
+    assert_eq!(
+        SimagicModel::from_pid(product_ids::EVO_PRO),
+        SimagicModel::EvoPro
+    );
+    assert_eq!(
+        SimagicModel::from_pid(product_ids::ALPHA_EVO),
+        SimagicModel::AlphaEvo
+    );
     assert_eq!(SimagicModel::from_pid(product_ids::NEO), SimagicModel::Neo);
-    assert_eq!(SimagicModel::from_pid(product_ids::NEO_MINI), SimagicModel::NeoMini);
+    assert_eq!(
+        SimagicModel::from_pid(product_ids::NEO_MINI),
+        SimagicModel::NeoMini
+    );
 }
 
 #[test]
@@ -265,11 +273,11 @@ fn test_square_effect_duty_cycle_clamped() {
 
 #[test]
 fn test_sine_frequency_clamped() {
-    let low = build_sine_effect(100, 0.01, 0);  // below 0.1
+    let low = build_sine_effect(100, 0.01, 0); // below 0.1
     let high = build_sine_effect(100, 100.0, 0); // above 20
     let freq_low = u16::from_le_bytes([low[4], low[5]]);
     let freq_high = u16::from_le_bytes([high[4], high[5]]);
-    assert_eq!(freq_low, 10);   // 0.1 * 100
+    assert_eq!(freq_low, 10); // 0.1 * 100
     assert_eq!(freq_high, 2000); // 20.0 * 100
 }
 
@@ -361,10 +369,19 @@ fn test_gear_from_raw_all_values() {
 
 #[test]
 fn test_quick_release_from_raw() {
-    assert_eq!(QuickReleaseStatus::from_raw(0), QuickReleaseStatus::Attached);
-    assert_eq!(QuickReleaseStatus::from_raw(1), QuickReleaseStatus::Detached);
+    assert_eq!(
+        QuickReleaseStatus::from_raw(0),
+        QuickReleaseStatus::Attached
+    );
+    assert_eq!(
+        QuickReleaseStatus::from_raw(1),
+        QuickReleaseStatus::Detached
+    );
     assert_eq!(QuickReleaseStatus::from_raw(2), QuickReleaseStatus::Unknown);
-    assert_eq!(QuickReleaseStatus::from_raw(255), QuickReleaseStatus::Unknown);
+    assert_eq!(
+        QuickReleaseStatus::from_raw(255),
+        QuickReleaseStatus::Unknown
+    );
 }
 
 // ─── Input state helpers ─────────────────────────────────────────────────

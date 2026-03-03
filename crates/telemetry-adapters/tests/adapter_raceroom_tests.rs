@@ -63,7 +63,14 @@ fn write_i32(data: &mut [u8], offset: usize, value: i32) {
     data[offset..offset + 4].copy_from_slice(&value.to_le_bytes());
 }
 
-fn make_r3e_memory(rpm: f32, speed: f32, steering: f32, throttle: f32, brake: f32, gear: i32) -> Vec<u8> {
+fn make_r3e_memory(
+    rpm: f32,
+    speed: f32,
+    steering: f32,
+    throttle: f32,
+    brake: f32,
+    gear: i32,
+) -> Vec<u8> {
     let mut data = vec![0u8; R3E_VIEW_SIZE];
     write_i32(&mut data, OFF_VERSION_MAJOR, R3E_VERSION_MAJOR);
     write_i32(&mut data, OFF_GAME_PAUSED, 0);
@@ -145,7 +152,10 @@ fn raceroom_paused_returns_default_telemetry() -> TestResult {
     let mut data = make_r3e_memory(5000.0, 50.0, 0.0, 0.5, 0.0, 3);
     write_i32(&mut data, OFF_GAME_PAUSED, 1);
     let result = adapter.normalize(&data)?;
-    assert_eq!(result.rpm, 0.0, "paused game should return default telemetry");
+    assert_eq!(
+        result.rpm, 0.0,
+        "paused game should return default telemetry"
+    );
     Ok(())
 }
 
@@ -311,7 +321,10 @@ fn raceroom_steering_clamped() -> TestResult {
     // Override steering to out-of-range value
     write_f32(&mut data, OFF_STEER_INPUT, 2.5);
     let result = adapter.normalize(&data)?;
-    assert!((result.steering_angle - 1.0).abs() < 0.01, "steering should be clamped to 1.0");
+    assert!(
+        (result.steering_angle - 1.0).abs() < 0.01,
+        "steering should be clamped to 1.0"
+    );
     Ok(())
 }
 

@@ -15,8 +15,7 @@ use openracing_errors::{
 use racing_wheel_engine::pipeline::PipelineError;
 use racing_wheel_engine::rt::Frame;
 use racing_wheel_engine::safety::{
-    FaultType, SafetyService, SafetyState, WatchdogError,
-    SoftwareWatchdog, HardwareWatchdog,
+    FaultType, HardwareWatchdog, SafetyService, SafetyState, SoftwareWatchdog, WatchdogError,
 };
 use std::time::Duration;
 
@@ -97,7 +96,10 @@ fn rt_pipeline_fault_is_error_severity() {
 #[test]
 fn frame_defaults_to_safe_values() {
     let frame = Frame::default();
-    assert!(frame.ffb_in.abs() < f32::EPSILON, "default ffb_in should be 0");
+    assert!(
+        frame.ffb_in.abs() < f32::EPSILON,
+        "default ffb_in should be 0"
+    );
     assert!(
         frame.torque_out.abs() < f32::EPSILON,
         "default torque_out should be 0"
@@ -174,9 +176,9 @@ fn collect_multiple_error_types_in_vec() {
 #[test]
 fn error_severity_filtering() {
     let errors: Vec<OpenRacingError> = vec![
-        RTError::TimingViolation.into(),       // Warning
-        RTError::DeviceDisconnected.into(),    // Critical
-        OpenRacingError::config("bad"),        // Error
+        RTError::TimingViolation.into(),         // Warning
+        RTError::DeviceDisconnected.into(),      // Critical
+        OpenRacingError::config("bad"),          // Error
         DeviceError::timeout("dev", 100).into(), // Warning
     ];
     let critical_count = errors

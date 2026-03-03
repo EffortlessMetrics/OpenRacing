@@ -6,9 +6,8 @@
 
 use prost::Message;
 use racing_wheel_schemas::config::{
-    BumpstopConfig as ConfigBumpstopConfig,
-    FilterConfig as ConfigFilterConfig, HandsOffConfig as ConfigHandsOffConfig,
-    ProfileValidator,
+    BumpstopConfig as ConfigBumpstopConfig, FilterConfig as ConfigFilterConfig,
+    HandsOffConfig as ConfigHandsOffConfig, ProfileValidator,
 };
 use racing_wheel_schemas::generated::wheel::v1 as proto;
 
@@ -379,10 +378,7 @@ fn json_schema_valid_full_profile() -> TestResult {
 
     let validator = ProfileValidator::new()?;
     let profile = validator.validate_json(&json)?;
-    assert_eq!(
-        profile.scope.game.as_deref(),
-        Some("ACC")
-    );
+    assert_eq!(profile.scope.game.as_deref(), Some("ACC"));
     Ok(())
 }
 

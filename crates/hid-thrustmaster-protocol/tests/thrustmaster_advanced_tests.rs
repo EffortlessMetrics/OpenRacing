@@ -5,20 +5,14 @@
 //! roundtrip verification.
 
 use racing_wheel_hid_thrustmaster_protocol::{
-    Model, ProtocolFamily, THRUSTMASTER_VENDOR_ID,
-    ThrustmasterConstantForceEncoder, ThrustmasterProtocol, ThrustmasterInitState,
-    build_damper_effect, build_device_gain, build_friction_effect, build_set_range_report,
-    build_spring_effect, build_actuator_enable,
-    build_kernel_range_command, build_kernel_gain_command,
-    build_kernel_open_command, build_kernel_close_command,
-    build_kernel_autocenter_commands,
-    identify_device, is_wheel_product, is_pedal_product,
-    parse_input_report,
-    T150EffectType, encode_range_t150, encode_gain_t150,
-    encode_play_effect_t150, encode_stop_effect_t150,
-    product_ids, init_protocol,
-    EFFECT_REPORT_LEN,
-    ThrustmasterDeviceCategory,
+    EFFECT_REPORT_LEN, Model, ProtocolFamily, T150EffectType, THRUSTMASTER_VENDOR_ID,
+    ThrustmasterConstantForceEncoder, ThrustmasterDeviceCategory, ThrustmasterInitState,
+    ThrustmasterProtocol, build_actuator_enable, build_damper_effect, build_device_gain,
+    build_friction_effect, build_kernel_autocenter_commands, build_kernel_close_command,
+    build_kernel_gain_command, build_kernel_open_command, build_kernel_range_command,
+    build_set_range_report, build_spring_effect, encode_gain_t150, encode_play_effect_t150,
+    encode_range_t150, encode_stop_effect_t150, identify_device, init_protocol, is_pedal_product,
+    is_wheel_product, parse_input_report, product_ids,
 };
 
 // ─── PID recognition ─────────────────────────────────────────────────────
@@ -34,7 +28,10 @@ fn test_t300rs_recognition() {
 
 #[test]
 fn test_t300rs_ps4_recognition() {
-    assert_eq!(Model::from_product_id(product_ids::T300_RS_PS4), Model::T300RSPS4);
+    assert_eq!(
+        Model::from_product_id(product_ids::T300_RS_PS4),
+        Model::T300RSPS4
+    );
     assert_eq!(Model::T300RSPS4.protocol_family(), ProtocolFamily::T300);
 }
 
@@ -48,15 +45,24 @@ fn test_t500rs_recognition() {
 
 #[test]
 fn test_tx_racing_recognition() {
-    assert_eq!(Model::from_product_id(product_ids::TX_RACING), Model::TXRacing);
-    assert_eq!(Model::from_product_id(product_ids::TX_RACING_ORIG), Model::TXRacing);
+    assert_eq!(
+        Model::from_product_id(product_ids::TX_RACING),
+        Model::TXRacing
+    );
+    assert_eq!(
+        Model::from_product_id(product_ids::TX_RACING_ORIG),
+        Model::TXRacing
+    );
     assert_eq!(Model::TXRacing.protocol_family(), ProtocolFamily::T300);
     assert!(Model::TXRacing.supports_ffb());
 }
 
 #[test]
 fn test_tgt_ii_recognition() {
-    assert_eq!(Model::from_product_id(product_ids::T_GT_II_GT), Model::TGTII);
+    assert_eq!(
+        Model::from_product_id(product_ids::T_GT_II_GT),
+        Model::TGTII
+    );
     assert_eq!(Model::TGTII.name(), "Thrustmaster T-GT II");
     assert_eq!(Model::TGTII.protocol_family(), ProtocolFamily::T300);
     assert!((Model::TGTII.max_torque_nm() - 6.0).abs() < f32::EPSILON);
@@ -79,7 +85,10 @@ fn test_t818_recognition() {
 
 #[test]
 fn test_tspc_racer_recognition() {
-    assert_eq!(Model::from_product_id(product_ids::TS_PC_RACER), Model::TSPCRacer);
+    assert_eq!(
+        Model::from_product_id(product_ids::TS_PC_RACER),
+        Model::TSPCRacer
+    );
     assert_eq!(Model::TSPCRacer.protocol_family(), ProtocolFamily::T300);
     assert!((Model::TSPCRacer.max_torque_nm() - 6.0).abs() < f32::EPSILON);
 }
@@ -103,18 +112,36 @@ fn test_t150_tmx_recognition() {
 #[test]
 fn test_t80_no_ffb() {
     assert_eq!(Model::from_product_id(product_ids::T80), Model::T80);
-    assert_eq!(Model::from_product_id(product_ids::T80_FERRARI_488), Model::T80);
+    assert_eq!(
+        Model::from_product_id(product_ids::T80_FERRARI_488),
+        Model::T80
+    );
     assert!(!Model::T80.supports_ffb());
     assert!((Model::T80.max_torque_nm() - 0.0).abs() < f32::EPSILON);
 }
 
 #[test]
 fn test_legacy_wheel_recognition() {
-    assert_eq!(Model::from_product_id(product_ids::NASCAR_PRO_FF2), Model::NascarProFF2);
-    assert_eq!(Model::from_product_id(product_ids::FGT_RUMBLE_FORCE), Model::FGTRumbleForce);
-    assert_eq!(Model::from_product_id(product_ids::RGT_FF_CLUTCH), Model::RGTFF);
-    assert_eq!(Model::from_product_id(product_ids::FGT_FORCE_FEEDBACK), Model::FGTForceFeedback);
-    assert_eq!(Model::from_product_id(product_ids::F430_FORCE_FEEDBACK), Model::F430ForceFeedback);
+    assert_eq!(
+        Model::from_product_id(product_ids::NASCAR_PRO_FF2),
+        Model::NascarProFF2
+    );
+    assert_eq!(
+        Model::from_product_id(product_ids::FGT_RUMBLE_FORCE),
+        Model::FGTRumbleForce
+    );
+    assert_eq!(
+        Model::from_product_id(product_ids::RGT_FF_CLUTCH),
+        Model::RGTFF
+    );
+    assert_eq!(
+        Model::from_product_id(product_ids::FGT_FORCE_FEEDBACK),
+        Model::FGTForceFeedback
+    );
+    assert_eq!(
+        Model::from_product_id(product_ids::F430_FORCE_FEEDBACK),
+        Model::F430ForceFeedback
+    );
     // All legacy wheels share same torque
     assert!((Model::NascarProFF2.max_torque_nm() - 1.5).abs() < f32::EPSILON);
 }

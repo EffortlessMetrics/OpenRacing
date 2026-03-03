@@ -4,8 +4,8 @@
 //! and validates state persistence invariants.
 
 use racing_wheel_engine::safety::{
-    ButtonCombo, FaultType, InterlockAck, SafetyInterlockState, SafetyInterlockSystem, SafetyService,
-    SafetyState, SoftwareWatchdog, WatchdogTimeoutHandler,
+    ButtonCombo, FaultType, InterlockAck, SafetyInterlockState, SafetyInterlockSystem,
+    SafetyService, SafetyState, SoftwareWatchdog, WatchdogTimeoutHandler,
 };
 use std::time::{Duration, Instant};
 
@@ -49,7 +49,10 @@ fn transition_safe_to_challenge() -> Result<(), String> {
 
     let challenge = svc.request_high_torque("dev-a")?;
     assert!(challenge.challenge_token != 0);
-    assert!(matches!(svc.state(), SafetyState::HighTorqueChallenge { .. }));
+    assert!(matches!(
+        svc.state(),
+        SafetyState::HighTorqueChallenge { .. }
+    ));
     Ok(())
 }
 
@@ -64,7 +67,10 @@ fn transition_challenge_to_awaiting_ack() -> Result<(), String> {
     let token = challenge.challenge_token;
 
     svc.provide_ui_consent(token)?;
-    assert!(matches!(svc.state(), SafetyState::AwaitingPhysicalAck { .. }));
+    assert!(matches!(
+        svc.state(),
+        SafetyState::AwaitingPhysicalAck { .. }
+    ));
     Ok(())
 }
 
@@ -190,7 +196,10 @@ fn invalid_consent_wrong_token() -> Result<(), String> {
     let result = svc.provide_ui_consent(0xDEAD_BEEF);
     assert!(result.is_err(), "Wrong token must be rejected");
     // State unchanged
-    assert!(matches!(svc.state(), SafetyState::HighTorqueChallenge { .. }));
+    assert!(matches!(
+        svc.state(),
+        SafetyState::HighTorqueChallenge { .. }
+    ));
     Ok(())
 }
 
@@ -204,7 +213,10 @@ fn invalid_combo_start_wrong_token() -> Result<(), String> {
     let c = svc.request_high_torque("dev-j")?;
     svc.provide_ui_consent(c.challenge_token)?;
     let result = svc.report_combo_start(0xCAFE);
-    assert!(result.is_err(), "Wrong token for combo start must be rejected");
+    assert!(
+        result.is_err(),
+        "Wrong token for combo start must be rejected"
+    );
     Ok(())
 }
 
@@ -262,7 +274,10 @@ fn invalid_clear_fault_before_cooldown() {
 fn invalid_disable_high_torque_from_safe() {
     let mut svc = new_service();
     let result = svc.disable_high_torque("dev-l");
-    assert!(result.is_err(), "disable_high_torque from SafeTorque must fail");
+    assert!(
+        result.is_err(),
+        "disable_high_torque from SafeTorque must fail"
+    );
 }
 
 // ===========================================================================
@@ -273,7 +288,10 @@ fn invalid_disable_high_torque_from_safe() {
 fn invalid_cancel_challenge_from_safe() {
     let mut svc = new_service();
     let result = svc.cancel_challenge();
-    assert!(result.is_err(), "cancel_challenge from SafeTorque must fail");
+    assert!(
+        result.is_err(),
+        "cancel_challenge from SafeTorque must fail"
+    );
 }
 
 // ===========================================================================
@@ -284,7 +302,10 @@ fn invalid_cancel_challenge_from_safe() {
 fn torque_limit_safe_state() {
     let svc = new_service();
     let clamped = svc.clamp_torque_nm(10.0);
-    assert!(clamped <= 5.0, "Safe torque must not exceed 5 Nm, got {clamped}");
+    assert!(
+        clamped <= 5.0,
+        "Safe torque must not exceed 5 Nm, got {clamped}"
+    );
 }
 
 #[test]
@@ -292,7 +313,10 @@ fn torque_limit_high_torque_state() -> Result<(), String> {
     let mut svc = new_service();
     activate_high_torque(&mut svc, "dev-m")?;
     let clamped = svc.clamp_torque_nm(20.0);
-    assert!((clamped - 20.0).abs() < f32::EPSILON, "High torque should allow 20 Nm, got {clamped}");
+    assert!(
+        (clamped - 20.0).abs() < f32::EPSILON,
+        "High torque should allow 20 Nm, got {clamped}"
+    );
     Ok(())
 }
 
@@ -354,7 +378,10 @@ fn interlock_normal_to_emergency_stop() {
     let _ = sys.process_tick(5.0);
 
     let result = sys.emergency_stop();
-    assert!(matches!(result.state, SafetyInterlockState::EmergencyStop { .. }));
+    assert!(matches!(
+        result.state,
+        SafetyInterlockState::EmergencyStop { .. }
+    ));
     assert!(result.torque_command.abs() < f32::EPSILON);
 }
 
@@ -365,11 +392,17 @@ fn interlock_emergency_stop_is_irreversible() {
     let _ = sys.process_tick(5.0);
 
     let estop = sys.emergency_stop();
-    assert!(matches!(estop.state, SafetyInterlockState::EmergencyStop { .. }));
+    assert!(matches!(
+        estop.state,
+        SafetyInterlockState::EmergencyStop { .. }
+    ));
     std::thread::sleep(Duration::from_millis(120));
 
     let clear_result = sys.clear_fault();
-    assert!(clear_result.is_err(), "Emergency stop must not be clearable");
+    assert!(
+        clear_result.is_err(),
+        "Emergency stop must not be clearable"
+    );
 
     sys.report_communication();
     let tick = sys.process_tick(5.0);
@@ -407,7 +440,13 @@ fn round_trip_fault_clear_refault() -> Result<(), String> {
     let mut svc = new_service();
 
     svc.report_fault(FaultType::UsbStall);
-    assert!(matches!(svc.state(), SafetyState::Faulted { fault: FaultType::UsbStall, .. }));
+    assert!(matches!(
+        svc.state(),
+        SafetyState::Faulted {
+            fault: FaultType::UsbStall,
+            ..
+        }
+    ));
 
     std::thread::sleep(Duration::from_millis(110));
     svc.clear_fault()?;
@@ -415,7 +454,13 @@ fn round_trip_fault_clear_refault() -> Result<(), String> {
 
     // Same fault again
     svc.report_fault(FaultType::UsbStall);
-    assert!(matches!(svc.state(), SafetyState::Faulted { fault: FaultType::UsbStall, .. }));
+    assert!(matches!(
+        svc.state(),
+        SafetyState::Faulted {
+            fault: FaultType::UsbStall,
+            ..
+        }
+    ));
     assert!(svc.clamp_torque_nm(5.0).abs() < f32::EPSILON);
     Ok(())
 }

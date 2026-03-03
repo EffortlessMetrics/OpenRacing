@@ -6,7 +6,7 @@
 //! detection, command dispatching, and FFB configuration validation.
 
 use racing_wheel_engine::hid::vendor::{
-    get_vendor_protocol, get_vendor_protocol_with_hid_pid_fallback, FfbConfig,
+    FfbConfig, get_vendor_protocol, get_vendor_protocol_with_hid_pid_fallback,
 };
 
 type R = Result<(), Box<dyn std::error::Error>>;
@@ -46,17 +46,11 @@ impl RecordingWriter {
 }
 
 impl racing_wheel_engine::hid::vendor::DeviceWriter for RecordingWriter {
-    fn write_output_report(
-        &mut self,
-        data: &[u8],
-    ) -> Result<usize, Box<dyn std::error::Error>> {
+    fn write_output_report(&mut self, data: &[u8]) -> Result<usize, Box<dyn std::error::Error>> {
         self.output_reports.push(data.to_vec());
         Ok(data.len())
     }
-    fn write_feature_report(
-        &mut self,
-        data: &[u8],
-    ) -> Result<usize, Box<dyn std::error::Error>> {
+    fn write_feature_report(&mut self, data: &[u8]) -> Result<usize, Box<dyn std::error::Error>> {
         self.feature_reports.push(data.to_vec());
         Ok(data.len())
     }
@@ -129,11 +123,7 @@ mod vendor_detection {
 
     #[test]
     fn detect_05_simagic_evo_devices() {
-        let pids = [
-            (0x0500, "EVO Sport"),
-            (0x0502, "EVO Pro"),
-            (0x0700, "NEO"),
-        ];
+        let pids = [(0x0500, "EVO Sport"), (0x0502, "EVO Pro"), (0x0700, "NEO")];
         for (pid, label) in pids {
             assert_dispatches(0x3670, pid, &format!("Simagic {label}"));
         }
@@ -200,7 +190,10 @@ mod vendor_detection {
     fn detect_15_stm_vid_simagic_fallback() {
         // STM VID 0x0483 with non-VRS, non-Cube Controls PID falls to Simagic
         let handler = get_vendor_protocol(0x0483, 0x0001);
-        assert!(handler.is_some(), "STM VID with generic PID should fall through to Simagic");
+        assert!(
+            handler.is_some(),
+            "STM VID with generic PID should fall through to Simagic"
+        );
     }
 }
 
@@ -213,8 +206,7 @@ mod vendor_initialization {
 
     #[test]
     fn init_01_fanatec_sends_init_reports() -> R {
-        let protocol = get_vendor_protocol(0x0EB7, 0x0006)
-            .ok_or("Fanatec DD1 handler expected")?;
+        let protocol = get_vendor_protocol(0x0EB7, 0x0006).ok_or("Fanatec DD1 handler expected")?;
         let mut writer = RecordingWriter::new();
         protocol.initialize_device(&mut writer)?;
         // Fanatec init sends mode-switch handshake reports
@@ -225,8 +217,8 @@ mod vendor_initialization {
 
     #[test]
     fn init_02_logitech_sends_native_mode_switch() -> R {
-        let protocol = get_vendor_protocol(0x046D, 0xC266)
-            .ok_or("Logitech G923 handler expected")?;
+        let protocol =
+            get_vendor_protocol(0x046D, 0xC266).ok_or("Logitech G923 handler expected")?;
         let mut writer = RecordingWriter::new();
         protocol.initialize_device(&mut writer)?;
         let total = writer.output_reports.len() + writer.feature_reports.len();
@@ -246,8 +238,8 @@ mod vendor_initialization {
 
     #[test]
     fn init_04_asetek_is_plug_and_play() -> R {
-        let protocol = get_vendor_protocol(0x2433, 0xF300)
-            .ok_or("Asetek Invicta handler expected")?;
+        let protocol =
+            get_vendor_protocol(0x2433, 0xF300).ok_or("Asetek Invicta handler expected")?;
         let mut writer = RecordingWriter::new();
         protocol.initialize_device(&mut writer)?;
         // Asetek: plug-and-play, no init required
@@ -419,8 +411,7 @@ mod command_dispatching {
 
     #[test]
     fn cmd_01_fanatec_init_and_shutdown() -> R {
-        let protocol = get_vendor_protocol(0x0EB7, 0x0006)
-            .ok_or("Fanatec handler expected")?;
+        let protocol = get_vendor_protocol(0x0EB7, 0x0006).ok_or("Fanatec handler expected")?;
         let mut writer = RecordingWriter::new();
         protocol.initialize_device(&mut writer)?;
         let init_count = writer.output_reports.len() + writer.feature_reports.len();
@@ -436,8 +427,7 @@ mod command_dispatching {
 
     #[test]
     fn cmd_02_logitech_init_and_shutdown() -> R {
-        let protocol = get_vendor_protocol(0x046D, 0xC266)
-            .ok_or("Logitech handler expected")?;
+        let protocol = get_vendor_protocol(0x046D, 0xC266).ok_or("Logitech handler expected")?;
         let mut writer = RecordingWriter::new();
         protocol.initialize_device(&mut writer)?;
         protocol.shutdown_device(&mut writer)?;
@@ -446,8 +436,8 @@ mod command_dispatching {
 
     #[test]
     fn cmd_03_thrustmaster_init_and_shutdown() -> R {
-        let protocol = get_vendor_protocol(0x044F, 0xB66E)
-            .ok_or("Thrustmaster handler expected")?;
+        let protocol =
+            get_vendor_protocol(0x044F, 0xB66E).ok_or("Thrustmaster handler expected")?;
         let mut writer = RecordingWriter::new();
         protocol.initialize_device(&mut writer)?;
         protocol.shutdown_device(&mut writer)?;
@@ -456,8 +446,7 @@ mod command_dispatching {
 
     #[test]
     fn cmd_04_moza_init_and_shutdown() -> R {
-        let protocol = get_vendor_protocol(0x346E, 0x0010)
-            .ok_or("Moza handler expected")?;
+        let protocol = get_vendor_protocol(0x346E, 0x0010).ok_or("Moza handler expected")?;
         let mut writer = RecordingWriter::new();
         protocol.initialize_device(&mut writer)?;
         protocol.shutdown_device(&mut writer)?;

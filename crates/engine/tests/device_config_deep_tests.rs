@@ -347,39 +347,17 @@ fn default_filter_curve_is_linear() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn device_capabilities_ffb_detection() -> Result<(), Box<dyn std::error::Error>> {
     // Device with PID support
-    let caps_pid = DeviceCapabilities::new(
-        true,
-        false,
-        false,
-        false,
-        TorqueNm::new(10.0)?,
-        4096,
-        4000,
-    );
+    let caps_pid =
+        DeviceCapabilities::new(true, false, false, false, TorqueNm::new(10.0)?, 4096, 4000);
     assert!(caps_pid.supports_ffb());
 
     // Device with raw torque
-    let caps_raw = DeviceCapabilities::new(
-        false,
-        true,
-        false,
-        false,
-        TorqueNm::new(25.0)?,
-        10000,
-        1000,
-    );
+    let caps_raw =
+        DeviceCapabilities::new(false, true, false, false, TorqueNm::new(25.0)?, 10000, 1000);
     assert!(caps_raw.supports_ffb());
 
     // Input-only device (pedals/shifter)
-    let caps_none = DeviceCapabilities::new(
-        false,
-        false,
-        false,
-        false,
-        TorqueNm::new(0.0)?,
-        0,
-        0,
-    );
+    let caps_none = DeviceCapabilities::new(false, false, false, false, TorqueNm::new(0.0)?, 0, 0);
     assert!(!caps_none.supports_ffb());
     Ok(())
 }

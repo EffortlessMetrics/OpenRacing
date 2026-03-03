@@ -3,8 +3,8 @@
 
 use hid_button_box_protocol::{
     ButtonBoxCapabilities, ButtonBoxError, ButtonBoxInputReport, ButtonBoxResult, ButtonBoxType,
-    HatDirection, RotaryEncoderState, MAX_AXES, MAX_BUTTONS, PRODUCT_ID_BUTTON_BOX,
-    REPORT_SIZE_GAMEPAD, VENDOR_ID_GENERIC,
+    HatDirection, MAX_AXES, MAX_BUTTONS, PRODUCT_ID_BUTTON_BOX, REPORT_SIZE_GAMEPAD,
+    RotaryEncoderState, VENDOR_ID_GENERIC,
 };
 
 type R = Result<(), Box<dyn std::error::Error>>;
@@ -117,7 +117,10 @@ fn parse_gamepad_too_short_report_fails() {
     let result = ButtonBoxInputReport::parse_gamepad(&data);
     assert!(matches!(
         result,
-        Err(ButtonBoxError::InvalidReportSize { expected: 8, actual: 4 })
+        Err(ButtonBoxError::InvalidReportSize {
+            expected: 8,
+            actual: 4
+        })
     ));
 }
 
@@ -127,7 +130,10 @@ fn parse_extended_too_short_report_fails() {
     let result = ButtonBoxInputReport::parse_extended(&data);
     assert!(matches!(
         result,
-        Err(ButtonBoxError::InvalidReportSize { expected: 12, actual: 6 })
+        Err(ButtonBoxError::InvalidReportSize {
+            expected: 12,
+            actual: 6
+        })
     ));
 }
 

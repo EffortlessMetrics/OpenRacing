@@ -189,11 +189,7 @@ fn cammus_vid_dispatches_known_pids() -> Result<(), Box<dyn std::error::Error>> 
 
 #[test]
 fn ffbeast_vid_dispatches_known_pids() -> Result<(), Box<dyn std::error::Error>> {
-    let pids: &[(u16, &str)] = &[
-        (0x58F9, "Joystick"),
-        (0x5968, "Rudder"),
-        (0x59D7, "Wheel"),
-    ];
+    let pids: &[(u16, &str)] = &[(0x58F9, "Joystick"), (0x5968, "Rudder"), (0x59D7, "Wheel")];
     for &(pid, label) in pids {
         assert!(
             get_vendor_protocol(0x045B, pid).is_some(),
@@ -274,8 +270,7 @@ fn capabilities_report_parses_full_featured_device() -> Result<(), Box<dyn std::
     data[7..9].copy_from_slice(&10000u16.to_le_bytes()); // encoder CPR
     data[9] = 250; // min_report_period_us
 
-    let report =
-        DeviceCapabilitiesReport::from_bytes(&data).ok_or("capabilities parse failed")?;
+    let report = DeviceCapabilitiesReport::from_bytes(&data).ok_or("capabilities parse failed")?;
     let caps = report.to_device_capabilities();
 
     assert!(caps.supports_pid);
@@ -389,7 +384,12 @@ async fn enumerate_full_rig_all_peripherals() -> Result<(), Box<dyn std::error::
     let mut port = VirtualHidPort::new();
 
     let peripherals = [
-        "wheel", "pedals", "shifter", "handbrake", "button-box", "display",
+        "wheel",
+        "pedals",
+        "shifter",
+        "handbrake",
+        "button-box",
+        "display",
     ];
     for name in &peripherals {
         port.add_device(make_device(name)?)?;
@@ -511,8 +511,8 @@ fn hid_device_info_to_device_info_for_unknown_device() -> Result<(), Box<dyn std
 }
 
 #[test]
-fn hid_device_info_generates_fallback_name_when_product_missing(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn hid_device_info_generates_fallback_name_when_product_missing()
+-> Result<(), Box<dyn std::error::Error>> {
     let dev_id: DeviceId = "unnamed-dev".parse()?;
     let info = HidDeviceInfo {
         device_id: dev_id,

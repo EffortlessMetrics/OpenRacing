@@ -32,7 +32,10 @@ fn protobuf_duration_wire_format_is_stable() -> Result<(), BoxErr> {
 
     // Re-encode should produce identical bytes
     let encoded2 = MessageEncoder::encode(&codec, &msg)?;
-    assert_eq!(encoded, encoded2, "Protobuf encoding should be deterministic");
+    assert_eq!(
+        encoded, encoded2,
+        "Protobuf encoding should be deterministic"
+    );
     Ok(())
 }
 
@@ -232,10 +235,7 @@ fn all_known_message_types_are_distinct() {
 
     let mut seen = std::collections::HashSet::new();
     for &t in &types {
-        assert!(
-            seen.insert(t),
-            "Message type 0x{t:04X} is duplicated"
-        );
+        assert!(seen.insert(t), "Message type 0x{t:04X} is duplicated");
     }
 }
 

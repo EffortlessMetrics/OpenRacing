@@ -258,8 +258,7 @@ async fn service_config_profile_crud_during_session() -> anyhow::Result<()> {
     assert!(profile.is_some());
 
     // Update
-    let mut updated = profile
-        .ok_or_else(|| anyhow::anyhow!("profile not found"))?;
+    let mut updated = profile.ok_or_else(|| anyhow::anyhow!("profile not found"))?;
     updated.metadata.name = "Updated Profile".to_string();
     profile_service.update_profile(updated).await?;
 
@@ -325,9 +324,7 @@ async fn service_config_active_profile_tracking() -> anyhow::Result<()> {
     assert!(active.is_none());
 
     // Set active
-    profile_service
-        .set_active_profile(&device_id, &pid)
-        .await?;
+    profile_service.set_active_profile(&device_id, &pid).await?;
     let active = profile_service.get_active_profile(&device_id).await?;
     assert!(active.is_some());
 
@@ -584,10 +581,7 @@ fn service_support_bundle_with_profiles() -> anyhow::Result<()> {
     let tmp = TempDir::new()?;
     let profile_dir = tmp.path().join("profiles");
     std::fs::create_dir_all(&profile_dir)?;
-    std::fs::write(
-        profile_dir.join("test_profile.json"),
-        r#"{"name": "test"}"#,
-    )?;
+    std::fs::write(profile_dir.join("test_profile.json"), r#"{"name": "test"}"#)?;
 
     let config = SupportBundleConfig {
         include_logs: false,

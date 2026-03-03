@@ -169,11 +169,7 @@ fn test_fuel_refill_between_invocations() -> Result<(), Box<dyn std::error::Erro
     // Call many times – each call should refill fuel.
     for i in 0..20 {
         let result = runtime.process(&id, i as f32, 0.001);
-        assert!(
-            result.is_ok(),
-            "Call {} should succeed with fuel refill",
-            i
-        );
+        assert!(result.is_ok(), "Call {} should succeed with fuel refill", i);
     }
     Ok(())
 }
@@ -311,7 +307,10 @@ fn test_crash_vs_fuel_exhaustion_distinction() -> Result<(), Box<dyn std::error:
     let err_trap = runtime.process(&id_trap, 0.5, 0.001);
     assert!(err_trap.is_err());
     let e_trap = err_trap.err().ok_or("expected error")?;
-    assert!(e_trap.is_crash(), "Unreachable should be a crash, not budget violation");
+    assert!(
+        e_trap.is_crash(),
+        "Unreachable should be a crash, not budget violation"
+    );
 
     // Fuel exhaustion from loop
     let loop_wasm = wat_loop(100_000_000)?;

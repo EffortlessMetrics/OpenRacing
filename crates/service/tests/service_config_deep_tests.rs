@@ -29,14 +29,20 @@ fn config_validation_invalid_schema_version() -> Result<(), BoxErr> {
     let result = config.validate();
     assert!(result.is_err(), "invalid schema version should fail");
     let msg = format!("{}", result.as_ref().err().ok_or("expected error")?);
-    assert!(msg.contains("schema version"), "error should mention schema");
+    assert!(
+        msg.contains("schema version"),
+        "error should mention schema"
+    );
     Ok(())
 }
 
 #[test]
 fn config_validation_zero_tick_rate() -> Result<(), BoxErr> {
     let config = SystemConfig {
-        engine: EngineConfig { tick_rate_hz: 0, ..EngineConfig::default() },
+        engine: EngineConfig {
+            tick_rate_hz: 0,
+            ..EngineConfig::default()
+        },
         ..SystemConfig::default()
     };
     let result = config.validate();
@@ -47,7 +53,10 @@ fn config_validation_zero_tick_rate() -> Result<(), BoxErr> {
 #[test]
 fn config_validation_excessive_tick_rate() -> Result<(), BoxErr> {
     let config = SystemConfig {
-        engine: EngineConfig { tick_rate_hz: 20000, ..EngineConfig::default() },
+        engine: EngineConfig {
+            tick_rate_hz: 20000,
+            ..EngineConfig::default()
+        },
         ..SystemConfig::default()
     };
     let result = config.validate();
@@ -58,7 +67,10 @@ fn config_validation_excessive_tick_rate() -> Result<(), BoxErr> {
 #[test]
 fn config_validation_max_jitter_too_high() -> Result<(), BoxErr> {
     let config = SystemConfig {
-        engine: EngineConfig { max_jitter_us: 5000, ..EngineConfig::default() },
+        engine: EngineConfig {
+            max_jitter_us: 5000,
+            ..EngineConfig::default()
+        },
         ..SystemConfig::default()
     };
     let result = config.validate();
@@ -69,7 +81,10 @@ fn config_validation_max_jitter_too_high() -> Result<(), BoxErr> {
 #[test]
 fn config_validation_negative_safe_torque() -> Result<(), BoxErr> {
     let config = SystemConfig {
-        safety: SafetyConfig { default_safe_torque_nm: -1.0, ..SafetyConfig::default() },
+        safety: SafetyConfig {
+            default_safe_torque_nm: -1.0,
+            ..SafetyConfig::default()
+        },
         ..SystemConfig::default()
     };
     let result = config.validate();
@@ -95,7 +110,10 @@ fn config_validation_safe_torque_exceeds_max() -> Result<(), BoxErr> {
 #[test]
 fn config_validation_max_torque_above_limit() -> Result<(), BoxErr> {
     let config = SystemConfig {
-        safety: SafetyConfig { max_torque_nm: 100.0, ..SafetyConfig::default() },
+        safety: SafetyConfig {
+            max_torque_nm: 100.0,
+            ..SafetyConfig::default()
+        },
         ..SystemConfig::default()
     };
     let result = config.validate();
@@ -106,7 +124,10 @@ fn config_validation_max_torque_above_limit() -> Result<(), BoxErr> {
 #[test]
 fn config_validation_zero_fault_response_timeout() -> Result<(), BoxErr> {
     let config = SystemConfig {
-        safety: SafetyConfig { fault_response_timeout_ms: 0, ..SafetyConfig::default() },
+        safety: SafetyConfig {
+            fault_response_timeout_ms: 0,
+            ..SafetyConfig::default()
+        },
         ..SystemConfig::default()
     };
     let result = config.validate();
@@ -117,7 +138,10 @@ fn config_validation_zero_fault_response_timeout() -> Result<(), BoxErr> {
 #[test]
 fn config_validation_zero_max_connections() -> Result<(), BoxErr> {
     let config = SystemConfig {
-        ipc: IpcConfig { max_connections: 0, ..IpcConfig::default() },
+        ipc: IpcConfig {
+            max_connections: 0,
+            ..IpcConfig::default()
+        },
         ..SystemConfig::default()
     };
     let result = config.validate();
@@ -128,7 +152,10 @@ fn config_validation_zero_max_connections() -> Result<(), BoxErr> {
 #[test]
 fn config_validation_excessive_max_connections() -> Result<(), BoxErr> {
     let config = SystemConfig {
-        ipc: IpcConfig { max_connections: 5000, ..IpcConfig::default() },
+        ipc: IpcConfig {
+            max_connections: 5000,
+            ..IpcConfig::default()
+        },
         ..SystemConfig::default()
     };
     let result = config.validate();
@@ -145,7 +172,10 @@ fn config_validation_tracing_sample_rate_out_of_range() -> Result<(), BoxErr> {
         },
         ..SystemConfig::default()
     };
-    assert!(config_hi.validate().is_err(), "sample rate >1.0 should fail");
+    assert!(
+        config_hi.validate().is_err(),
+        "sample rate >1.0 should fail"
+    );
 
     let config_lo = SystemConfig {
         observability: ObservabilityConfig {
@@ -154,7 +184,10 @@ fn config_validation_tracing_sample_rate_out_of_range() -> Result<(), BoxErr> {
         },
         ..SystemConfig::default()
     };
-    assert!(config_lo.validate().is_err(), "negative sample rate should fail");
+    assert!(
+        config_lo.validate().is_err(),
+        "negative sample rate should fail"
+    );
     Ok(())
 }
 
@@ -162,20 +195,32 @@ fn config_validation_tracing_sample_rate_out_of_range() -> Result<(), BoxErr> {
 fn config_validation_boundary_values_pass() -> Result<(), BoxErr> {
     // Boundary: tick_rate at exact limits
     SystemConfig {
-        engine: EngineConfig { tick_rate_hz: 1, ..EngineConfig::default() },
+        engine: EngineConfig {
+            tick_rate_hz: 1,
+            ..EngineConfig::default()
+        },
         ..SystemConfig::default()
-    }.validate()?;
+    }
+    .validate()?;
 
     SystemConfig {
-        engine: EngineConfig { tick_rate_hz: 10000, ..EngineConfig::default() },
+        engine: EngineConfig {
+            tick_rate_hz: 10000,
+            ..EngineConfig::default()
+        },
         ..SystemConfig::default()
-    }.validate()?;
+    }
+    .validate()?;
 
     // Boundary: jitter exactly 1000
     SystemConfig {
-        engine: EngineConfig { max_jitter_us: 1000, ..EngineConfig::default() },
+        engine: EngineConfig {
+            max_jitter_us: 1000,
+            ..EngineConfig::default()
+        },
         ..SystemConfig::default()
-    }.validate()?;
+    }
+    .validate()?;
 
     // Boundary: tracing rate at 0.0 and 1.0
     SystemConfig {
@@ -184,7 +229,8 @@ fn config_validation_boundary_values_pass() -> Result<(), BoxErr> {
             ..ObservabilityConfig::default()
         },
         ..SystemConfig::default()
-    }.validate()?;
+    }
+    .validate()?;
 
     SystemConfig {
         observability: ObservabilityConfig {
@@ -192,7 +238,8 @@ fn config_validation_boundary_values_pass() -> Result<(), BoxErr> {
             ..ObservabilityConfig::default()
         },
         ..SystemConfig::default()
-    }.validate()?;
+    }
+    .validate()?;
     Ok(())
 }
 
@@ -353,14 +400,8 @@ fn config_json_roundtrip_preserves_all_fields() -> Result<(), BoxErr> {
         parsed.safety.default_safe_torque_nm,
         original.safety.default_safe_torque_nm
     );
-    assert_eq!(
-        parsed.ipc.max_connections,
-        original.ipc.max_connections
-    );
-    assert_eq!(
-        parsed.service.service_name,
-        original.service.service_name
-    );
+    assert_eq!(parsed.ipc.max_connections, original.ipc.max_connections);
+    assert_eq!(parsed.service.service_name, original.service.service_name);
     assert_eq!(
         parsed.observability.health_stream_hz,
         original.observability.health_stream_hz
@@ -379,8 +420,14 @@ async fn config_save_and_load_from_path() -> Result<(), BoxErr> {
     let path = tmp.path().join("system.json");
 
     let config = SystemConfig {
-        engine: EngineConfig { tick_rate_hz: 500, ..EngineConfig::default() },
-        safety: SafetyConfig { max_torque_nm: 20.0, ..SafetyConfig::default() },
+        engine: EngineConfig {
+            tick_rate_hz: 500,
+            ..EngineConfig::default()
+        },
+        safety: SafetyConfig {
+            max_torque_nm: 20.0,
+            ..SafetyConfig::default()
+        },
         ..SystemConfig::default()
     };
     config.save_to_path(&path).await?;

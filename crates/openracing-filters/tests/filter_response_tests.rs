@@ -3,8 +3,8 @@
 //! Covers notch, lowpass, reconstruction (EMA), slew rate, damper, friction,
 //! inertia, bumpstop, curve, response curve, and hands-off filters.
 
-use openracing_filters::prelude::*;
 use openracing_filters::Frame;
+use openracing_filters::prelude::*;
 use proptest::prelude::*;
 use std::f32::consts::PI;
 
@@ -28,7 +28,13 @@ fn biquad_peak(state: &mut NotchState, freq_hz: f32, sr: f32, warmup: usize, n: 
 }
 
 /// Measure steady-state peak amplitude of EMA (reconstruction) on a sine wave.
-fn ema_peak(state: &mut ReconstructionState, freq_hz: f32, sr: f32, warmup: usize, n: usize) -> f32 {
+fn ema_peak(
+    state: &mut ReconstructionState,
+    freq_hz: f32,
+    sr: f32,
+    warmup: usize,
+    n: usize,
+) -> f32 {
     let mut peak = 0.0f32;
     for i in 0..(warmup + n) {
         let t = i as f32 / sr;
@@ -67,7 +73,11 @@ fn biquad_phase_lag(state: &mut NotchState, freq_hz: f32, sr: f32) -> f32 {
             if last_in <= 0.0 && input > 0.0 && in_cross.is_none() {
                 in_cross = Some(i as f32);
             }
-            if in_cross.is_some() && last_out <= 0.0 && frame.torque_out > 0.0 && out_cross.is_none() {
+            if in_cross.is_some()
+                && last_out <= 0.0
+                && frame.torque_out > 0.0
+                && out_cross.is_none()
+            {
                 out_cross = Some(i as f32);
             }
         }
@@ -96,7 +106,10 @@ fn notch_deep_null_at_center() {
     let mut state = NotchState::new(center, 5.0, -20.0, sr);
     let amp = biquad_peak(&mut state, center, sr, 1000, 4000);
     // Notch should heavily attenuate center frequency
-    assert!(amp < 0.15, "notch center amp should be near zero, got {amp}");
+    assert!(
+        amp < 0.15,
+        "notch center amp should be near zero, got {amp}"
+    );
 }
 
 #[test]
@@ -123,7 +136,10 @@ fn notch_passband_gain_near_unity_far_from_center() {
     let center = 200.0;
     let mut state = NotchState::new(center, 2.0, -6.0, sr);
     let amp = biquad_peak(&mut state, 10.0, sr, 500, 2000);
-    assert!(amp > 0.85, "far-from-center gain should be near 1.0, got {amp}");
+    assert!(
+        amp > 0.85,
+        "far-from-center gain should be near 1.0, got {amp}"
+    );
 }
 
 #[test]
@@ -170,7 +186,10 @@ fn lowpass_nyquist_heavily_attenuated() {
     let mut state = NotchState::lowpass(50.0, 0.707, sr);
     // Nyquist = 500 Hz; but close to Nyquist = 450 Hz
     let amp = biquad_peak(&mut state, 450.0, sr, 500, 2000);
-    assert!(amp < 0.1, "lowpass near-Nyquist should be very low, got {amp}");
+    assert!(
+        amp < 0.1,
+        "lowpass near-Nyquist should be very low, got {amp}"
+    );
 }
 
 #[test]
@@ -520,7 +539,10 @@ fn ema_gain_at_nyquist_is_minimal() {
     let mut state = ReconstructionState::new(6);
     // Nyquist frequency = 500 Hz
     let amp = ema_peak(&mut state, 490.0, sr, 500, 2000);
-    assert!(amp < 0.15, "EMA at near-Nyquist should be very low, got {amp}");
+    assert!(
+        amp < 0.15,
+        "EMA at near-Nyquist should be very low, got {amp}"
+    );
 }
 
 #[test]

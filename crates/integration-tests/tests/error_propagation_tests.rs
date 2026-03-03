@@ -10,8 +10,8 @@
 //! - Cross-layer error category preservation
 
 use openracing_errors::{
-    DeviceError, ErrorCategory, ErrorSeverity, OpenRacingError, ProfileError,
-    RTError, ResultExt, ValidationError,
+    DeviceError, ErrorCategory, ErrorSeverity, OpenRacingError, ProfileError, RTError, ResultExt,
+    ValidationError,
 };
 use racing_wheel_engine::safety::{FaultType, SafetyService};
 use std::time::Duration;
@@ -21,12 +21,7 @@ use std::time::Duration;
 // ---------------------------------------------------------------------------
 
 fn create_test_safety_service() -> SafetyService {
-    SafetyService::with_timeouts(
-        5.0,
-        25.0,
-        Duration::from_secs(3),
-        Duration::from_secs(2),
-    )
+    SafetyService::with_timeouts(5.0, 25.0, Duration::from_secs(3), Duration::from_secs(2))
 }
 
 /// Simulate a function that propagates device errors through the engine layer.
@@ -48,10 +43,7 @@ fn cli_format_error(err: &OpenRacingError) -> String {
 }
 
 /// Simulate a retryable operation with fallback.
-fn retryable_device_read(
-    attempts: &mut u32,
-    succeed_on: u32,
-) -> Result<Vec<u8>, OpenRacingError> {
+fn retryable_device_read(attempts: &mut u32, succeed_on: u32) -> Result<Vec<u8>, OpenRacingError> {
     *attempts += 1;
     if *attempts < succeed_on {
         Err(DeviceError::timeout("moza-r9", 100).into())
@@ -227,10 +219,7 @@ fn retry_on_timeout_succeeds_eventually() {
 #[test]
 fn non_retryable_error_aborts_immediately() {
     let err = DeviceError::not_found("nonexistent");
-    assert!(
-        !err.is_retryable(),
-        "NotFound should not be retryable"
-    );
+    assert!(!err.is_retryable(), "NotFound should not be retryable");
 }
 
 #[test]
@@ -266,7 +255,10 @@ fn graceful_degradation_on_recoverable_error() {
 fn timeout_error_contains_duration() {
     let err = DeviceError::timeout("moza-r9", 500);
     let msg = err.to_string();
-    assert!(msg.contains("500"), "Timeout message should contain duration: {msg}");
+    assert!(
+        msg.contains("500"),
+        "Timeout message should contain duration: {msg}"
+    );
 }
 
 #[test]
@@ -330,11 +322,11 @@ fn direct_from_conversion_preserves_category() {
         (RTError::TimingViolation.into(), ErrorCategory::RT),
         (DeviceError::not_found("d").into(), ErrorCategory::Device),
         (ProfileError::not_found("p").into(), ErrorCategory::Profile),
-        (ValidationError::required("f").into(), ErrorCategory::Validation),
         (
-            std::io::Error::other("x").into(),
-            ErrorCategory::IO,
+            ValidationError::required("f").into(),
+            ErrorCategory::Validation,
         ),
+        (std::io::Error::other("x").into(), ErrorCategory::IO),
     ];
     for (err, expected_cat) in &errors_and_categories {
         assert_eq!(

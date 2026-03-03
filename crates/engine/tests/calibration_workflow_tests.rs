@@ -2,8 +2,8 @@
 //! persistence, interpolation, noisy data, pedals, and wheel center detection.
 
 use openracing_calibration::{
-    calibrate_joystick_axis, create_pedal_calibration, AxisCalibration, CalibrationPoint,
-    DeviceCalibration, JoystickCalibrator, PedalCalibrator,
+    AxisCalibration, CalibrationPoint, DeviceCalibration, JoystickCalibrator, PedalCalibrator,
+    calibrate_joystick_axis, create_pedal_calibration,
 };
 
 // ---------------------------------------------------------------------------
@@ -364,12 +364,7 @@ fn cal_25_wheel_no_center_when_far_from_half() -> Result<(), Box<dyn std::error:
 #[test]
 fn cal_26_wheel_center_first_matching_sample() -> Result<(), Box<dyn std::error::Error>> {
     // Multiple samples near 0.5 — first match is used
-    let axis = calibrate_joystick_axis(&[
-        (0, 0.0),
-        (30000, 0.46),
-        (33000, 0.50),
-        (65535, 1.0),
-    ])?;
+    let axis = calibrate_joystick_axis(&[(0, 0.0), (30000, 0.46), (33000, 0.50), (65535, 1.0)])?;
     // First sample within ±0.1 of 0.5 is (30000, 0.46)
     assert_eq!(axis.center, Some(30000));
     Ok(())

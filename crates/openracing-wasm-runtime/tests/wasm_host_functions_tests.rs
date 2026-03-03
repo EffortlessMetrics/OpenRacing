@@ -5,7 +5,7 @@
 //! consistency.
 
 use openracing_plugin_abi::{
-    TelemetryFrame, HOST_MODULE, capability_str, host_function, log_level, return_code,
+    HOST_MODULE, TelemetryFrame, capability_str, host_function, log_level, return_code,
     wasm_export, wasm_optional_export,
 };
 use openracing_wasm_runtime::WasmRuntime;
@@ -168,7 +168,10 @@ fn test_get_timestamp_returns_positive_value() -> Result<(), Box<dyn std::error:
     runtime.load_plugin_from_bytes(id, &wasm, vec![])?;
     let result = runtime.process(&id, 0.0, 0.001)?;
     // Timestamp should be >= 0 (microseconds since plugin start)
-    assert!(result >= 0.0, "Timestamp should be non-negative, got {result}");
+    assert!(
+        result >= 0.0,
+        "Timestamp should be non-negative, got {result}"
+    );
     Ok(())
 }
 
@@ -181,7 +184,10 @@ fn test_timestamp_increases_between_calls() -> Result<(), Box<dyn std::error::Er
     runtime.load_plugin_from_bytes(id, &wasm, vec![])?;
     let t1 = runtime.process(&id, 0.0, 0.001)?;
     let t2 = runtime.process(&id, 0.0, 0.001)?;
-    assert!(t2 >= t1, "Second timestamp ({t2}) should be >= first ({t1})");
+    assert!(
+        t2 >= t1,
+        "Second timestamp ({t2}) should be >= first ({t1})"
+    );
     Ok(())
 }
 
@@ -293,7 +299,10 @@ fn test_get_telemetry_with_invalid_ptr_returns_error() -> Result<(), Box<dyn std
     runtime.load_plugin_from_bytes(id, &wasm, vec!["read_telemetry".to_string()])?;
     let result = runtime.process(&id, 0.0, 0.001)?;
     // INVALID_ARG = -2
-    assert!(result < 0.0, "Invalid telemetry pointer should return error code");
+    assert!(
+        result < 0.0,
+        "Invalid telemetry pointer should return error code"
+    );
     Ok(())
 }
 

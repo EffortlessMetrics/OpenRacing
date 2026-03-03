@@ -24,7 +24,12 @@ fn json_output_contains_metadata_object() -> TestResult {
     let mut recorder = TelemetryRecorder::new(path.clone())?;
 
     recorder.start_recording("format_test".to_string());
-    let frame = TelemetryFrame::new(NormalizedTelemetry::builder().rpm(3000.0).build(), 100, 0, 32);
+    let frame = TelemetryFrame::new(
+        NormalizedTelemetry::builder().rpm(3000.0).build(),
+        100,
+        0,
+        32,
+    );
     recorder.record_frame(frame);
     let _recording = recorder.stop_recording(Some("format check".to_string()))?;
 
@@ -32,8 +37,14 @@ fn json_output_contains_metadata_object() -> TestResult {
     std::fs::File::open(&path)?.read_to_string(&mut contents)?;
 
     let parsed: serde_json::Value = serde_json::from_str(&contents)?;
-    assert!(parsed.get("metadata").is_some(), "top-level 'metadata' key missing");
-    assert!(parsed.get("frames").is_some(), "top-level 'frames' key missing");
+    assert!(
+        parsed.get("metadata").is_some(),
+        "top-level 'metadata' key missing"
+    );
+    assert!(
+        parsed.get("frames").is_some(),
+        "top-level 'frames' key missing"
+    );
     Ok(())
 }
 
@@ -67,7 +78,12 @@ fn json_frames_array_matches_metadata_frame_count() -> TestResult {
 
     recorder.start_recording("count_test".to_string());
     for i in 0..5 {
-        let frame = TelemetryFrame::new(NormalizedTelemetry::builder().rpm(1000.0).build(), i * 1000, i, 16);
+        let frame = TelemetryFrame::new(
+            NormalizedTelemetry::builder().rpm(1000.0).build(),
+            i * 1000,
+            i,
+            16,
+        );
         recorder.record_frame(frame);
     }
     let _recording = recorder.stop_recording(None)?;
@@ -76,8 +92,13 @@ fn json_frames_array_matches_metadata_frame_count() -> TestResult {
     std::fs::File::open(&path)?.read_to_string(&mut contents)?;
     let parsed: serde_json::Value = serde_json::from_str(&contents)?;
 
-    let frame_count = parsed["metadata"]["frame_count"].as_u64().ok_or("missing frame_count")?;
-    let frames_len = parsed["frames"].as_array().ok_or("missing frames array")?.len() as u64;
+    let frame_count = parsed["metadata"]["frame_count"]
+        .as_u64()
+        .ok_or("missing frame_count")?;
+    let frames_len = parsed["frames"]
+        .as_array()
+        .ok_or("missing frames array")?
+        .len() as u64;
     assert_eq!(frame_count, frames_len);
     Ok(())
 }
@@ -101,7 +122,10 @@ fn json_frame_data_preserves_telemetry_values() -> TestResult {
     let _recording = recorder.stop_recording(None)?;
 
     let loaded = TelemetryRecorder::load_recording(&path)?;
-    let f = loaded.frames.first().ok_or("no frames in loaded recording")?;
+    let f = loaded
+        .frames
+        .first()
+        .ok_or("no frames in loaded recording")?;
     assert!((f.data.rpm - 7500.0).abs() < f32::EPSILON);
     assert!((f.data.speed_ms - 42.0).abs() < f32::EPSILON);
     assert_eq!(f.data.gear, 5);
@@ -114,7 +138,8 @@ fn json_frame_data_preserves_telemetry_values() -> TestResult {
 
 #[test]
 fn serde_json_bytes_roundtrip_preserves_recording() -> TestResult {
-    let recording = TestFixtureGenerator::generate_racing_session("serde_bytes".to_string(), 0.5, 20.0);
+    let recording =
+        TestFixtureGenerator::generate_racing_session("serde_bytes".to_string(), 0.5, 20.0);
     let bytes = serde_json::to_vec(&recording)?;
     let restored: TelemetryRecording = serde_json::from_slice(&bytes)?;
 
@@ -135,7 +160,12 @@ fn recording_file_size_grows_with_frame_count() -> TestResult {
     let mut rec_small = TelemetryRecorder::new(small_path.clone())?;
     rec_small.start_recording("small".to_string());
     for i in 0..2 {
-        rec_small.record_frame(TelemetryFrame::new(NormalizedTelemetry::default(), i * 1000, i, 16));
+        rec_small.record_frame(TelemetryFrame::new(
+            NormalizedTelemetry::default(),
+            i * 1000,
+            i,
+            16,
+        ));
     }
     let _s = rec_small.stop_recording(None)?;
 
@@ -143,13 +173,21 @@ fn recording_file_size_grows_with_frame_count() -> TestResult {
     let mut rec_large = TelemetryRecorder::new(large_path.clone())?;
     rec_large.start_recording("large".to_string());
     for i in 0..200 {
-        rec_large.record_frame(TelemetryFrame::new(NormalizedTelemetry::default(), i * 1000, i, 16));
+        rec_large.record_frame(TelemetryFrame::new(
+            NormalizedTelemetry::default(),
+            i * 1000,
+            i,
+            16,
+        ));
     }
     let _l = rec_large.stop_recording(None)?;
 
     let small_size = std::fs::metadata(&small_path)?.len();
     let large_size = std::fs::metadata(&large_path)?.len();
-    assert!(large_size > small_size, "more frames should produce a bigger file");
+    assert!(
+        large_size > small_size,
+        "more frames should produce a bigger file"
+    );
     Ok(())
 }
 
@@ -162,7 +200,12 @@ fn overwrite_with_fewer_frames_shrinks_file() -> TestResult {
     let mut rec = TelemetryRecorder::new(path.clone())?;
     rec.start_recording("big".to_string());
     for i in 0..100 {
-        rec.record_frame(TelemetryFrame::new(NormalizedTelemetry::default(), i * 1000, i, 16));
+        rec.record_frame(TelemetryFrame::new(
+            NormalizedTelemetry::default(),
+            i * 1000,
+            i,
+            16,
+        ));
     }
     let _first = rec.stop_recording(None)?;
     let big_size = std::fs::metadata(&path)?.len();
@@ -170,7 +213,12 @@ fn overwrite_with_fewer_frames_shrinks_file() -> TestResult {
     // Second recording: fewer frames, same file path
     let mut rec2 = TelemetryRecorder::new(path.clone())?;
     rec2.start_recording("small".to_string());
-    rec2.record_frame(TelemetryFrame::new(NormalizedTelemetry::default(), 0, 0, 16));
+    rec2.record_frame(TelemetryFrame::new(
+        NormalizedTelemetry::default(),
+        0,
+        0,
+        16,
+    ));
     let _second = rec2.stop_recording(None)?;
     let small_size = std::fs::metadata(&path)?.len();
 
@@ -190,7 +238,12 @@ fn separate_output_paths_simulate_rotation() -> TestResult {
         rec.start_recording(format!("seg_{segment}"));
         for i in 0..limit_frames {
             let ts = (segment as u64 * limit_frames + i) * 1_000_000;
-            rec.record_frame(TelemetryFrame::new(NormalizedTelemetry::default(), ts, segment as u64 * limit_frames + i, 16));
+            rec.record_frame(TelemetryFrame::new(
+                NormalizedTelemetry::default(),
+                ts,
+                segment as u64 * limit_frames + i,
+                16,
+            ));
         }
         let recording = rec.stop_recording(None)?;
         all_frames_total += recording.frames.len();
@@ -217,7 +270,9 @@ fn concurrent_sources_write_distinct_game_ids() -> TestResult {
                 rec.start_recording(game.clone());
                 for i in 0..5 {
                     rec.record_frame(TelemetryFrame::new(
-                        NormalizedTelemetry::builder().rpm((idx as f32 + 1.0) * 1000.0).build(),
+                        NormalizedTelemetry::builder()
+                            .rpm((idx as f32 + 1.0) * 1000.0)
+                            .build(),
                         i * 1000,
                         i,
                         16,
@@ -249,7 +304,12 @@ fn concurrent_recorders_no_file_corruption() -> TestResult {
                 let mut rec = TelemetryRecorder::new(p.clone())?;
                 rec.start_recording(format!("corr_{idx}"));
                 for i in 0..20 {
-                    rec.record_frame(TelemetryFrame::new(NormalizedTelemetry::default(), i * 1000, i, 16));
+                    rec.record_frame(TelemetryFrame::new(
+                        NormalizedTelemetry::default(),
+                        i * 1000,
+                        i,
+                        16,
+                    ));
                 }
                 let _r = rec.stop_recording(None)?;
                 // Verify file is valid JSON
@@ -304,7 +364,12 @@ fn recording_with_duplicate_timestamps_accepted() -> TestResult {
 
     let ts = 1_000_000u64;
     for i in 0..3 {
-        rec.record_frame(TelemetryFrame::new(NormalizedTelemetry::default(), ts, i, 16));
+        rec.record_frame(TelemetryFrame::new(
+            NormalizedTelemetry::default(),
+            ts,
+            i,
+            16,
+        ));
     }
     let recording = rec.stop_recording(None)?;
     assert_eq!(recording.frames.len(), 3);
@@ -319,9 +384,24 @@ fn recording_with_out_of_order_timestamps() -> TestResult {
     let mut rec = TelemetryRecorder::new(path)?;
     rec.start_recording("ooo_test".to_string());
 
-    rec.record_frame(TelemetryFrame::new(NormalizedTelemetry::default(), 3_000_000, 0, 16));
-    rec.record_frame(TelemetryFrame::new(NormalizedTelemetry::default(), 1_000_000, 1, 16));
-    rec.record_frame(TelemetryFrame::new(NormalizedTelemetry::default(), 2_000_000, 2, 16));
+    rec.record_frame(TelemetryFrame::new(
+        NormalizedTelemetry::default(),
+        3_000_000,
+        0,
+        16,
+    ));
+    rec.record_frame(TelemetryFrame::new(
+        NormalizedTelemetry::default(),
+        1_000_000,
+        1,
+        16,
+    ));
+    rec.record_frame(TelemetryFrame::new(
+        NormalizedTelemetry::default(),
+        2_000_000,
+        2,
+        16,
+    ));
 
     let recording = rec.stop_recording(None)?;
     // Frames should be in insertion order (recorder doesn't sort)
@@ -338,8 +418,18 @@ fn recording_preserves_zero_timestamp_frames() -> TestResult {
     let mut rec = TelemetryRecorder::new(path)?;
     rec.start_recording("zero_ts".to_string());
 
-    rec.record_frame(TelemetryFrame::new(NormalizedTelemetry::default(), 0, 0, 16));
-    rec.record_frame(TelemetryFrame::new(NormalizedTelemetry::default(), 0, 1, 16));
+    rec.record_frame(TelemetryFrame::new(
+        NormalizedTelemetry::default(),
+        0,
+        0,
+        16,
+    ));
+    rec.record_frame(TelemetryFrame::new(
+        NormalizedTelemetry::default(),
+        0,
+        1,
+        16,
+    ));
 
     let recording = rec.stop_recording(None)?;
     assert_eq!(recording.frames.len(), 2);
@@ -372,7 +462,12 @@ fn metadata_inherits_car_id_from_first_frame_with_it() -> TestResult {
     rec.start_recording("car_test".to_string());
 
     // First frame: no car_id
-    rec.record_frame(TelemetryFrame::new(NormalizedTelemetry::default(), 0, 0, 16));
+    rec.record_frame(TelemetryFrame::new(
+        NormalizedTelemetry::default(),
+        0,
+        0,
+        16,
+    ));
     // Second frame: has car_id
     rec.record_frame(TelemetryFrame::new(
         NormalizedTelemetry::builder().car_id("porsche-911").build(),
@@ -393,16 +488,26 @@ fn metadata_inherits_track_id_from_first_frame_with_it() -> TestResult {
     let mut rec = TelemetryRecorder::new(path)?;
     rec.start_recording("track_test".to_string());
 
-    rec.record_frame(TelemetryFrame::new(NormalizedTelemetry::default(), 0, 0, 16));
     rec.record_frame(TelemetryFrame::new(
-        NormalizedTelemetry::builder().track_id("spa-francorchamps").build(),
+        NormalizedTelemetry::default(),
+        0,
+        0,
+        16,
+    ));
+    rec.record_frame(TelemetryFrame::new(
+        NormalizedTelemetry::builder()
+            .track_id("spa-francorchamps")
+            .build(),
         1000,
         1,
         32,
     ));
 
     let recording = rec.stop_recording(None)?;
-    assert_eq!(recording.metadata.track_id.as_deref(), Some("spa-francorchamps"));
+    assert_eq!(
+        recording.metadata.track_id.as_deref(),
+        Some("spa-francorchamps")
+    );
     Ok(())
 }
 
@@ -416,7 +521,10 @@ fn metadata_timestamp_is_unix_epoch_seconds() -> TestResult {
 
     // Timestamp should be a reasonable Unix epoch value (after year 2020)
     let year_2020 = 1_577_836_800u64;
-    assert!(recording.metadata.timestamp >= year_2020, "timestamp should be after 2020");
+    assert!(
+        recording.metadata.timestamp >= year_2020,
+        "timestamp should be after 2020"
+    );
     Ok(())
 }
 
@@ -426,7 +534,8 @@ fn metadata_timestamp_is_unix_epoch_seconds() -> TestResult {
 
 #[test]
 fn playback_progress_monotonically_increases() -> TestResult {
-    let recording = TestFixtureGenerator::generate_racing_session("play_test".to_string(), 0.1, 100.0);
+    let recording =
+        TestFixtureGenerator::generate_racing_session("play_test".to_string(), 0.1, 100.0);
     let total = recording.frames.len();
     let mut player = TelemetryPlayer::new(recording);
     player.set_playback_speed(10.0); // fast forward
@@ -451,7 +560,8 @@ fn playback_progress_monotonically_increases() -> TestResult {
 
 #[test]
 fn playback_finished_after_all_frames_consumed() -> TestResult {
-    let recording = TestFixtureGenerator::generate_racing_session("fin_test".to_string(), 0.05, 10.0);
+    let recording =
+        TestFixtureGenerator::generate_racing_session("fin_test".to_string(), 0.05, 10.0);
     let mut player = TelemetryPlayer::new(recording);
     player.set_playback_speed(10.0);
     player.start_playback();
@@ -489,7 +599,8 @@ fn playback_speed_negative_clamps_to_minimum() -> TestResult {
 
 #[test]
 fn playback_reset_mid_stream_restarts_from_beginning() -> TestResult {
-    let recording = TestFixtureGenerator::generate_racing_session("reset_mid".to_string(), 0.1, 100.0);
+    let recording =
+        TestFixtureGenerator::generate_racing_session("reset_mid".to_string(), 0.1, 100.0);
     let mut player = TelemetryPlayer::new(recording);
     player.set_playback_speed(10.0);
     player.start_playback();
@@ -539,7 +650,10 @@ fn fixture_acceleration_scenario_end_speed_greater_than_start() -> TestResult {
     let rec = TestFixtureGenerator::generate_test_scenario(TestScenario::Acceleration, 2.0, 60.0);
     let first_speed = rec.frames.first().ok_or("empty")?.data.speed_ms;
     let last_speed = rec.frames.last().ok_or("empty")?.data.speed_ms;
-    assert!(last_speed > first_speed, "acceleration should increase speed");
+    assert!(
+        last_speed > first_speed,
+        "acceleration should increase speed"
+    );
     Ok(())
 }
 
@@ -647,7 +761,10 @@ fn recording_preserves_extended_telemetry_values() -> TestResult {
     assert_eq!(ext.get("boost_psi"), Some(&TelemetryValue::Float(14.7)));
     assert_eq!(ext.get("lap_valid"), Some(&TelemetryValue::Boolean(true)));
     assert_eq!(ext.get("sector"), Some(&TelemetryValue::Integer(2)));
-    assert_eq!(ext.get("compound"), Some(&TelemetryValue::String("soft".to_string())));
+    assert_eq!(
+        ext.get("compound"),
+        Some(&TelemetryValue::String("soft".to_string()))
+    );
     Ok(())
 }
 

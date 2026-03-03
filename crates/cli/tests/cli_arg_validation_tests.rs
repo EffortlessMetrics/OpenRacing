@@ -87,9 +87,7 @@ mod missing_required_args {
             .args(["profile", "show"])
             .assert()
             .failure()
-            .stderr(
-                predicate::str::contains("<PROFILE>").or(predicate::str::contains("required")),
-            );
+            .stderr(predicate::str::contains("<PROFILE>").or(predicate::str::contains("required")));
         Ok(())
     }
 
@@ -129,9 +127,7 @@ mod missing_required_args {
             .args(["profile", "export"])
             .assert()
             .failure()
-            .stderr(
-                predicate::str::contains("<PROFILE>").or(predicate::str::contains("required")),
-            );
+            .stderr(predicate::str::contains("<PROFILE>").or(predicate::str::contains("required")));
         Ok(())
     }
 
@@ -265,9 +261,7 @@ mod missing_required_args {
             .args(["completion"])
             .assert()
             .failure()
-            .stderr(
-                predicate::str::contains("<SHELL>").or(predicate::str::contains("required")),
-            );
+            .stderr(predicate::str::contains("<SHELL>").or(predicate::str::contains("required")));
         Ok(())
     }
 }
@@ -382,7 +376,14 @@ mod help_text_presence {
         let output = wheelctl()?.arg("--help").output()?;
         let stdout = String::from_utf8_lossy(&output.stdout);
         for sub in &[
-            "device", "profile", "plugin", "diag", "game", "telemetry", "safety", "completion",
+            "device",
+            "profile",
+            "plugin",
+            "diag",
+            "game",
+            "telemetry",
+            "safety",
+            "completion",
             "health",
         ] {
             assert!(

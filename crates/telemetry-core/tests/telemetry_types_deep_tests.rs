@@ -4,8 +4,8 @@
 
 use racing_wheel_telemetry_core::{
     ConnectionState, ConnectionStateEvent, DisconnectionConfig, DisconnectionTracker,
-    GameTelemetry, GameTelemetrySnapshot, NormalizedTelemetry, TelemetryError,
-    TelemetryFrame, TelemetryValue,
+    GameTelemetry, GameTelemetrySnapshot, NormalizedTelemetry, TelemetryError, TelemetryFrame,
+    TelemetryValue,
     rate_limiter::{AdaptiveRateLimiter, RateLimiter, RateLimiterStats},
 };
 use std::time::{Duration, Instant};
@@ -23,7 +23,10 @@ fn speed_mps_to_kmh_conversion() -> TestResult {
         ..Default::default()
     };
     let kmh = t.speed_kmh();
-    assert!((kmh - 36.0).abs() < 0.01, "10 m/s should be ~36 km/h, got {kmh}");
+    assert!(
+        (kmh - 36.0).abs() < 0.01,
+        "10 m/s should be ~36 km/h, got {kmh}"
+    );
     Ok(())
 }
 
@@ -34,7 +37,10 @@ fn speed_mps_to_mph_conversion() -> TestResult {
         ..Default::default()
     };
     let mph = t.speed_mph();
-    assert!((mph - 22.37).abs() < 0.01, "10 m/s should be ~22.37 mph, got {mph}");
+    assert!(
+        (mph - 22.37).abs() < 0.01,
+        "10 m/s should be ~22.37 mph, got {mph}"
+    );
     Ok(())
 }
 
@@ -51,7 +57,10 @@ fn normalized_speed_kmh_matches_game_telemetry() -> TestResult {
     let speed_mps = 27.78; // ~100 km/h
     let t = NormalizedTelemetry::builder().speed_ms(speed_mps).build();
     let kmh = t.speed_kmh();
-    assert!((kmh - 100.008).abs() < 0.1, "27.78 m/s ≈ 100 km/h, got {kmh}");
+    assert!(
+        (kmh - 100.008).abs() < 0.1,
+        "27.78 m/s ≈ 100 km/h, got {kmh}"
+    );
     Ok(())
 }
 
@@ -75,7 +84,11 @@ fn tire_temps_celsius_to_fahrenheit() -> TestResult {
         .build();
 
     // Manual °C→°F: F = C * 9/5 + 32
-    let expected_f: Vec<f32> = t.tire_temps_c.iter().map(|&c| c as f32 * 9.0 / 5.0 + 32.0).collect();
+    let expected_f: Vec<f32> = t
+        .tire_temps_c
+        .iter()
+        .map(|&c| c as f32 * 9.0 / 5.0 + 32.0)
+        .collect();
     assert!((expected_f[0] - 176.0).abs() < 0.01, "80°C = 176°F");
     assert!((expected_f[1] - 185.0).abs() < 0.01, "85°C = 185°F");
     assert!((expected_f[2] - 172.4).abs() < 0.01, "78°C = 172.4°F");
@@ -85,7 +98,9 @@ fn tire_temps_celsius_to_fahrenheit() -> TestResult {
 
 #[test]
 fn tire_temps_zero_celsius() -> TestResult {
-    let t = NormalizedTelemetry::builder().tire_temps_c([0, 0, 0, 0]).build();
+    let t = NormalizedTelemetry::builder()
+        .tire_temps_c([0, 0, 0, 0])
+        .build();
     assert!(t.tire_temps_c.iter().all(|&c| c == 0));
     Ok(())
 }
@@ -133,7 +148,10 @@ fn total_g_negative_components() -> TestResult {
         longitudinal_g: -4.0,
         ..Default::default()
     };
-    assert!((t.total_g() - 5.0).abs() < 0.001, "magnitude should be positive");
+    assert!(
+        (t.total_g() - 5.0).abs() < 0.001,
+        "magnitude should be positive"
+    );
     Ok(())
 }
 
@@ -229,7 +247,11 @@ fn snapshot_timestamp_ns_resolution() -> TestResult {
     let snap = GameTelemetrySnapshot::from_telemetry(&t, epoch);
 
     // Should be at least 5ms = 5_000_000 ns
-    assert!(snap.timestamp_ns >= 4_000_000, "snapshot timestamp_ns too low: {}", snap.timestamp_ns);
+    assert!(
+        snap.timestamp_ns >= 4_000_000,
+        "snapshot timestamp_ns too low: {}",
+        snap.timestamp_ns
+    );
     Ok(())
 }
 
@@ -239,7 +261,10 @@ fn snapshot_same_epoch_yields_small_timestamp() -> TestResult {
     let t = GameTelemetry::default();
     let snap = GameTelemetrySnapshot::from_telemetry(&t, epoch);
     // Should be very small (sub-millisecond)
-    assert!(snap.timestamp_ns < 10_000_000, "same-instant snapshot should be <10ms");
+    assert!(
+        snap.timestamp_ns < 10_000_000,
+        "same-instant snapshot should be <10ms"
+    );
     Ok(())
 }
 
@@ -536,7 +561,10 @@ fn tracker_max_reconnect_attempts_prevents_reconnect() -> TestResult {
 
     // Error state: should not reconnect after max attempts
     tracker.mark_error("test failure".to_string());
-    assert!(!tracker.should_reconnect(), "should not reconnect after max attempts");
+    assert!(
+        !tracker.should_reconnect(),
+        "should not reconnect after max attempts"
+    );
     Ok(())
 }
 
@@ -584,7 +612,10 @@ fn connection_state_event_is_disconnection_logic() -> TestResult {
 fn telemetry_error_timeout_display_includes_ms() -> TestResult {
     let err = TelemetryError::Timeout { timeout_ms: 5000 };
     let msg = format!("{err}");
-    assert!(msg.contains("5000"), "timeout display should include ms value");
+    assert!(
+        msg.contains("5000"),
+        "timeout display should include ms value"
+    );
     Ok(())
 }
 
@@ -606,7 +637,10 @@ fn telemetry_error_invalid_data_display_includes_reason() -> TestResult {
 fn frame_from_telemetry_has_nonzero_timestamp() -> TestResult {
     let data = NormalizedTelemetry::builder().rpm(5000.0).build();
     let frame = TelemetryFrame::from_telemetry(data, 42, 128);
-    assert!(frame.timestamp_ns > 0, "from_telemetry should set current time");
+    assert!(
+        frame.timestamp_ns > 0,
+        "from_telemetry should set current time"
+    );
     assert_eq!(frame.sequence, 42);
     assert_eq!(frame.raw_size, 128);
     Ok(())

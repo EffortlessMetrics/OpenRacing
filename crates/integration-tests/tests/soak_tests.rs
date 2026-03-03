@@ -17,12 +17,12 @@ use openracing_fmea::{FaultType, FmeaMatrix, FmeaSystem, SoftStopController};
 use openracing_pipeline::Pipeline;
 use openracing_profile::{WheelProfile, WheelSettings};
 use openracing_watchdog::{SystemComponent, WatchdogConfig, WatchdogSystem};
+use racing_wheel_engine::JitterMetrics;
 use racing_wheel_engine::safety::{
     SafetyInterlockState, SafetyInterlockSystem, SafetyService, SoftwareWatchdog,
 };
-use racing_wheel_engine::JitterMetrics;
 use racing_wheel_schemas::prelude::NormalizedTelemetry;
-use racing_wheel_telemetry_recorder::{TestFixtureGenerator, TestScenario, TelemetryPlayer};
+use racing_wheel_telemetry_recorder::{TelemetryPlayer, TestFixtureGenerator, TestScenario};
 
 type BoxErr = Box<dyn std::error::Error + Send + Sync>;
 
@@ -243,10 +243,7 @@ fn soak_jitter_metrics_stability_over_many_ticks() -> Result<()> {
 
     // p99 should be reasonable — all values well below 250 µs
     let p99 = metrics.p99_jitter_ns();
-    assert!(
-        p99 <= 250_000,
-        "p99 jitter {p99}ns exceeds 250µs"
-    );
+    assert!(p99 <= 250_000, "p99 jitter {p99}ns exceeds 250µs");
 
     Ok(())
 }
@@ -423,11 +420,8 @@ fn soak_watchdog_heartbeat_sustained() -> Result<(), BoxErr> {
 
 #[test]
 fn soak_telemetry_playback_full_fixture() -> Result<()> {
-    let recording = TestFixtureGenerator::generate_racing_session(
-        "soak_playback".to_string(),
-        60.0,
-        60.0,
-    );
+    let recording =
+        TestFixtureGenerator::generate_racing_session("soak_playback".to_string(), 60.0, 60.0);
     assert_eq!(recording.frames.len(), 3600);
 
     let mut player = TelemetryPlayer::new(recording);
@@ -538,8 +532,7 @@ fn soak_multi_device_pipeline_10k() -> Result<()> {
 
 #[test]
 fn soak_profile_switching_many_iterations() -> Result<()> {
-    let _initial = WheelProfile::new("default", "dev-0")
-        .with_settings(WheelSettings::default());
+    let _initial = WheelProfile::new("default", "dev-0").with_settings(WheelSettings::default());
     let mut active;
 
     for i in 0u32..10_000 {
@@ -552,8 +545,7 @@ fn soak_profile_switching_many_iterations() -> Result<()> {
 
         assert_eq!(active.name, name, "iteration {i}: name mismatch");
         assert!(
-            active.settings.ffb.overall_gain >= 0.0
-                && active.settings.ffb.overall_gain <= 1.0,
+            active.settings.ffb.overall_gain >= 0.0 && active.settings.ffb.overall_gain <= 1.0,
             "iteration {i}: gain out of range: {}",
             active.settings.ffb.overall_gain
         );
@@ -639,22 +631,17 @@ fn soak_jitter_metrics_reset_cycles() -> Result<()> {
         }
 
         assert_eq!(
-            metrics.total_ticks,
-            1_000,
+            metrics.total_ticks, 1_000,
             "cycle {cycle}: total_ticks mismatch"
         );
 
         let p99 = metrics.p99_jitter_ns();
-        assert!(
-            p99 > 0,
-            "cycle {cycle}: p99 should be positive"
-        );
+        assert!(p99 > 0, "cycle {cycle}: p99 should be positive");
 
         // Verify fresh metrics start clean
         let fresh = JitterMetrics::new();
         assert_eq!(
-            fresh.total_ticks,
-            0,
+            fresh.total_ticks, 0,
             "cycle {cycle}: fresh metrics not zeroed"
         );
     }
@@ -677,8 +664,7 @@ fn soak_telemetry_all_scenarios_sequential() -> Result<()> {
 
     for round in 0u32..100 {
         for (idx, &scenario) in scenarios.iter().enumerate() {
-            let recording =
-                TestFixtureGenerator::generate_test_scenario(scenario, 2.0, 60.0);
+            let recording = TestFixtureGenerator::generate_test_scenario(scenario, 2.0, 60.0);
 
             assert_eq!(
                 recording.frames.len(),
@@ -722,10 +708,8 @@ fn soak_concurrent_profile_reads_under_writes() -> Result<(), BoxErr> {
                     if tid % 3 == 0 {
                         let name = format!("soak-profile-{tid}-{i}");
                         let mut settings = WheelSettings::default();
-                        settings.ffb.overall_gain =
-                            (i as f32 / ITERATIONS as f32).clamp(0.0, 1.0);
-                        let new_prof =
-                            WheelProfile::new(&name, "dev-0").with_settings(settings);
+                        settings.ffb.overall_gain = (i as f32 / ITERATIONS as f32).clamp(0.0, 1.0);
+                        let new_prof = WheelProfile::new(&name, "dev-0").with_settings(settings);
                         let mut p = profile.write().map_err(|e| format!("write: {e}"))?;
                         *p = new_prof;
                     } else {

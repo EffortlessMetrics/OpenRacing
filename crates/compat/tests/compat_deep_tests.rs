@@ -1006,7 +1006,10 @@ fn partial_migration_only_ffb_gain() -> TestResult {
     let v: serde_json::Value = serde_json::from_str(&migrated)?;
 
     let base = v.get("base").ok_or("missing base")?;
-    let gain = base.get("ffbGain").and_then(|x| x.as_f64()).ok_or("missing ffbGain")?;
+    let gain = base
+        .get("ffbGain")
+        .and_then(|x| x.as_f64())
+        .ok_or("missing ffbGain")?;
     assert!((gain - 0.3).abs() < f64::EPSILON);
     assert!(base.get("dorDeg").is_some());
     assert!(base.get("torqueCapNm").is_some());

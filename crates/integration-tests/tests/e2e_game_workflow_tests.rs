@@ -646,7 +646,10 @@ async fn game_multi_three_sequential_sessions() -> anyhow::Result<()> {
 async fn game_service_lists_supported_games() -> anyhow::Result<()> {
     let service = GameService::new().await?;
     let supported = service.get_supported_games().await;
-    assert!(!supported.is_empty(), "must have at least one supported game");
+    assert!(
+        !supported.is_empty(),
+        "must have at least one supported game"
+    );
 
     let stable = service.get_stable_games().await;
     // Stable games should be a subset
@@ -667,13 +670,8 @@ async fn game_service_active_game_lifecycle() -> anyhow::Result<()> {
 
     assert!(service.get_active_game().await.is_none());
 
-    service
-        .set_active_game(Some("iracing".to_string()))
-        .await?;
-    assert_eq!(
-        service.get_active_game().await.as_deref(),
-        Some("iracing")
-    );
+    service.set_active_game(Some("iracing".to_string())).await?;
+    assert_eq!(service.get_active_game().await.as_deref(), Some("iracing"));
 
     service.set_active_game(None).await?;
     assert!(service.get_active_game().await.is_none());

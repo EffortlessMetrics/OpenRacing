@@ -153,9 +153,7 @@ fn display_all_validation_error_variants() {
             expected: "i32".into(),
             actual: "string".into(),
         },
-        ValidationError::NumericOverflow {
-            field: "f".into(),
-        },
+        ValidationError::NumericOverflow { field: "f".into() },
         ValidationError::custom("custom msg"),
     ];
     for variant in &variants {

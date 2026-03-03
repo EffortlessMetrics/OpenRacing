@@ -219,7 +219,10 @@ fn test_check_read_telemetry_denied() -> Result<(), Box<dyn std::error::Error>> 
     runtime.load_plugin_from_bytes(id, &wasm, vec![])?;
     let result = runtime.process(&id, 0.0, 0.001)?;
     // check_capability returns PERMISSION_DENIED (-3) when not granted
-    assert!(result < 0.0, "Expected negative return code for denied capability");
+    assert!(
+        result < 0.0,
+        "Expected negative return code for denied capability"
+    );
     Ok(())
 }
 
@@ -278,8 +281,8 @@ fn test_unknown_capability_returns_invalid_arg() -> Result<(), Box<dyn std::erro
 // ---------------------------------------------------------------------------
 
 #[test]
-fn test_get_telemetry_without_capability_returns_permission_denied(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn test_get_telemetry_without_capability_returns_permission_denied()
+-> Result<(), Box<dyn std::error::Error>> {
     let wasm = wat_get_telemetry()?;
     let mut runtime = WasmRuntime::new()?;
     let id = Uuid::new_v4();

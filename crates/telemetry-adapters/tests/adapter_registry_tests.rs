@@ -114,7 +114,14 @@ fn registry_codemasters_family_present() -> TestResult {
     let factories = adapter_factories();
     let ids: HashSet<&str> = factories.iter().map(|(id, _)| *id).collect();
 
-    let codemasters = ["f1", "f1_25", "dirt_rally_2", "dirt5", "grid_legends", "grid_2019"];
+    let codemasters = [
+        "f1",
+        "f1_25",
+        "dirt_rally_2",
+        "dirt5",
+        "grid_legends",
+        "grid_2019",
+    ];
     for game in &codemasters {
         assert!(
             ids.contains(game),

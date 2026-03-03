@@ -73,7 +73,10 @@ fn regression_iracing_legacy_profile() -> TestResult {
     let v: serde_json::Value = serde_json::from_str(&migrated)?;
 
     let base = v.get("base").ok_or("missing base")?;
-    let gain = base.get("ffbGain").and_then(|x| x.as_f64()).ok_or("missing ffbGain")?;
+    let gain = base
+        .get("ffbGain")
+        .and_then(|x| x.as_f64())
+        .ok_or("missing ffbGain")?;
     assert!((gain - 0.55).abs() < f64::EPSILON, "ffbGain mismatch");
     assert_eq!(base.get("dorDeg").and_then(|x| x.as_u64()), Some(900));
     let torque = base
@@ -153,7 +156,10 @@ fn regression_max_dor_direct_drive_profile() -> TestResult {
 fn regression_empty_json_detected_as_legacy() -> TestResult {
     let mgr = make_manager()?;
     let version = mgr.detect_version("{}")?;
-    assert_eq!(version.major, 0, "empty JSON should be detected as legacy v0");
+    assert_eq!(
+        version.major, 0,
+        "empty JSON should be detected as legacy v0"
+    );
     Ok(())
 }
 
@@ -217,7 +223,10 @@ fn regression_mixed_legacy_and_v1_fields() -> TestResult {
         "ffb_gain": 0.5
     }"#;
     let version = mgr.detect_version(mixed)?;
-    assert_eq!(version.major, 1, "schema field should take precedence over legacy fields");
+    assert_eq!(
+        version.major, 1,
+        "schema field should take precedence over legacy fields"
+    );
     Ok(())
 }
 
@@ -259,10 +268,7 @@ fn regression_v1_json_round_trip_exact() -> TestResult {
     assert_eq!(profile.dor_deg(), reparsed.dor_deg());
     assert_eq!(profile.torque_cap_nm(), reparsed.torque_cap_nm());
     assert_eq!(profile.game(), reparsed.game());
-    assert_eq!(
-        profile.schema_version.major,
-        reparsed.schema_version.major
-    );
+    assert_eq!(profile.schema_version.major, reparsed.schema_version.major);
     Ok(())
 }
 
@@ -278,7 +284,10 @@ fn regression_migrated_legacy_matches_handcrafted_v1_structure() -> TestResult {
     assert!(v.is_object());
     assert!(v.get("schema").and_then(|s| s.as_str()).is_some());
     assert!(v.get("scope").and_then(|s| s.as_object()).is_some());
-    let base = v.get("base").and_then(|b| b.as_object()).ok_or("base must be object")?;
+    let base = v
+        .get("base")
+        .and_then(|b| b.as_object())
+        .ok_or("base must be object")?;
     assert!(base.get("filters").and_then(|f| f.as_object()).is_some());
     Ok(())
 }

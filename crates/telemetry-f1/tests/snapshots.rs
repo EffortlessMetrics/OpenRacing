@@ -4,7 +4,9 @@
 //! crate: adapter metadata, normalized telemetry builder, and frame creation.
 
 use insta::assert_debug_snapshot;
-use racing_wheel_telemetry_f1::{F1NativeAdapter, NormalizedTelemetry, TelemetryAdapter, TelemetryFrame};
+use racing_wheel_telemetry_f1::{
+    F1NativeAdapter, NormalizedTelemetry, TelemetryAdapter, TelemetryFrame,
+};
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 

@@ -5,8 +5,7 @@
 
 use hid_heusinkveld_protocol::{
     HeusinkveldError, HeusinkveldInputReport, HeusinkveldModel, HeusinkveldResult,
-    MAX_LOAD_CELL_VALUE, PedalCapabilities, PedalModel, PedalStatus, REPORT_SIZE_INPUT,
-    VENDOR_ID,
+    MAX_LOAD_CELL_VALUE, PedalCapabilities, PedalModel, PedalStatus, REPORT_SIZE_INPUT, VENDOR_ID,
 };
 
 // ─── Helper ──────────────────────────────────────────────────────────────────
@@ -81,7 +80,9 @@ fn parse_axes_midpoint_values() -> HeusinkveldResult<()> {
 #[test]
 fn load_cell_normalized_monotonic_over_range() {
     // Normalized output must be monotonically non-decreasing as raw value increases.
-    let steps: Vec<u16> = (0..=10).map(|i| (MAX_LOAD_CELL_VALUE as u32 * i / 10) as u16).collect();
+    let steps: Vec<u16> = (0..=10)
+        .map(|i| (MAX_LOAD_CELL_VALUE as u32 * i / 10) as u16)
+        .collect();
     let mut prev = 0.0_f32;
     for &raw_val in &steps {
         let report = HeusinkveldInputReport {
@@ -89,7 +90,10 @@ fn load_cell_normalized_monotonic_over_range() {
             ..Default::default()
         };
         let norm = report.throttle_normalized();
-        assert!(norm >= prev, "normalized must be monotonic: {norm} < {prev}");
+        assert!(
+            norm >= prev,
+            "normalized must be monotonic: {norm} < {prev}"
+        );
         prev = norm;
     }
 }

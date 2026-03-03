@@ -5,18 +5,14 @@
 //! compatibility, firmware update sequence, and proptest command roundtrip.
 
 use hid_simucube_protocol::{
-    SimucubeModel, SimucubeError, SimucubeOutputReport, EffectType,
-    SimucubeHidReport, SimucubeInputReport,
-    WheelModel, WheelCapabilities, DeviceStatus,
-    simucube_model_from_info, is_simucube_device,
-    VENDOR_ID,
-    SIMUCUBE_VENDOR_ID, SIMUCUBE_1_PID, SIMUCUBE_2_SPORT_PID,
-    SIMUCUBE_2_PRO_PID, SIMUCUBE_2_ULTIMATE_PID,
-    SIMUCUBE_ACTIVE_PEDAL_PID, SIMUCUBE_WIRELESS_WHEEL_PID,
-    SIMUCUBE_2_BOOTLOADER_PID, SIMUCUBE_1_BOOTLOADER_PID,
-    MAX_TORQUE_NM, MAX_TORQUE_SPORT, MAX_TORQUE_PRO, MAX_TORQUE_ULTIMATE,
-    REPORT_SIZE_OUTPUT, ANGLE_SENSOR_MAX, ANGLE_SENSOR_BITS,
-    HID_JOYSTICK_REPORT_MIN_BYTES, HID_BUTTON_BYTES, HID_ADDITIONAL_AXES,
+    ANGLE_SENSOR_BITS, ANGLE_SENSOR_MAX, DeviceStatus, EffectType, HID_ADDITIONAL_AXES,
+    HID_BUTTON_BYTES, HID_JOYSTICK_REPORT_MIN_BYTES, MAX_TORQUE_NM, MAX_TORQUE_PRO,
+    MAX_TORQUE_SPORT, MAX_TORQUE_ULTIMATE, REPORT_SIZE_OUTPUT, SIMUCUBE_1_BOOTLOADER_PID,
+    SIMUCUBE_1_PID, SIMUCUBE_2_BOOTLOADER_PID, SIMUCUBE_2_PRO_PID, SIMUCUBE_2_SPORT_PID,
+    SIMUCUBE_2_ULTIMATE_PID, SIMUCUBE_ACTIVE_PEDAL_PID, SIMUCUBE_VENDOR_ID,
+    SIMUCUBE_WIRELESS_WHEEL_PID, SimucubeError, SimucubeHidReport, SimucubeInputReport,
+    SimucubeModel, SimucubeOutputReport, VENDOR_ID, WheelCapabilities, WheelModel,
+    is_simucube_device, simucube_model_from_info,
 };
 
 // ─── PID recognition ─────────────────────────────────────────────────────
@@ -230,10 +226,18 @@ fn test_no_wireless_wheel_when_short_report() {
 #[test]
 fn test_bootloader_pids_not_normal_models() {
     let s2_bl = SimucubeModel::from_product_id(SIMUCUBE_2_BOOTLOADER_PID);
-    assert_eq!(s2_bl, SimucubeModel::Unknown, "SC2 bootloader PID should be Unknown model");
+    assert_eq!(
+        s2_bl,
+        SimucubeModel::Unknown,
+        "SC2 bootloader PID should be Unknown model"
+    );
 
     let s1_bl = SimucubeModel::from_product_id(SIMUCUBE_1_BOOTLOADER_PID);
-    assert_eq!(s1_bl, SimucubeModel::Unknown, "SC1 bootloader PID should be Unknown model");
+    assert_eq!(
+        s1_bl,
+        SimucubeModel::Unknown,
+        "SC1 bootloader PID should be Unknown model"
+    );
 }
 
 #[test]
@@ -296,10 +300,17 @@ fn test_effect_type_discriminants() {
 #[test]
 fn test_output_report_with_all_effect_types() -> Result<(), SimucubeError> {
     let effects = [
-        EffectType::None, EffectType::Constant, EffectType::Ramp,
-        EffectType::Square, EffectType::Sine, EffectType::Triangle,
-        EffectType::SawtoothUp, EffectType::SawtoothDown,
-        EffectType::Spring, EffectType::Damper, EffectType::Friction,
+        EffectType::None,
+        EffectType::Constant,
+        EffectType::Ramp,
+        EffectType::Square,
+        EffectType::Sine,
+        EffectType::Triangle,
+        EffectType::SawtoothUp,
+        EffectType::SawtoothDown,
+        EffectType::Spring,
+        EffectType::Damper,
+        EffectType::Friction,
     ];
     for effect in effects {
         let report = SimucubeOutputReport::new(0).with_effect(effect, 500);
@@ -319,17 +330,30 @@ fn test_hid_report_parse_too_short_rejected() {
     let result = SimucubeHidReport::parse(&data);
     assert!(matches!(
         result,
-        Err(SimucubeError::InvalidReportSize { expected: 32, actual: 31 })
+        Err(SimucubeError::InvalidReportSize {
+            expected: 32,
+            actual: 31
+        })
     ));
 }
 
 #[test]
 fn test_hid_report_steering_normalized_endpoints() -> Result<(), SimucubeError> {
-    let data_min = make_hid_report(0x0000, 0x8000, [0; HID_ADDITIONAL_AXES], [0; HID_BUTTON_BYTES]);
+    let data_min = make_hid_report(
+        0x0000,
+        0x8000,
+        [0; HID_ADDITIONAL_AXES],
+        [0; HID_BUTTON_BYTES],
+    );
     let report_min = SimucubeHidReport::parse(&data_min)?;
     assert!((report_min.steering_normalized() - 0.0).abs() < 0.001);
 
-    let data_max = make_hid_report(0xFFFF, 0x8000, [0; HID_ADDITIONAL_AXES], [0; HID_BUTTON_BYTES]);
+    let data_max = make_hid_report(
+        0xFFFF,
+        0x8000,
+        [0; HID_ADDITIONAL_AXES],
+        [0; HID_BUTTON_BYTES],
+    );
     let report_max = SimucubeHidReport::parse(&data_max)?;
     assert!((report_max.steering_normalized() - 1.0).abs() < 0.001);
     Ok(())

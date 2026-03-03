@@ -44,7 +44,17 @@ fn build_car_update(
     laps: u16,
     car_location: u8,
 ) -> Vec<u8> {
-    build_car_update_ext(car_index, gear_raw, speed_kmh, position, laps, car_location, 91_000, 92_000, 45_000)
+    build_car_update_ext(
+        car_index,
+        gear_raw,
+        speed_kmh,
+        position,
+        laps,
+        car_location,
+        91_000,
+        92_000,
+        45_000,
+    )
 }
 
 #[allow(clippy::too_many_arguments)]

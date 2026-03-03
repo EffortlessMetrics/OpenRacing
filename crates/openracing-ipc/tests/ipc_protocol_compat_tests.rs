@@ -85,8 +85,16 @@ async fn negotiate_features_compatible_client() -> TestResult {
         .await?;
 
     assert!(result.compatible);
-    assert!(result.enabled_features.contains(&"device_management".to_string()));
-    assert!(result.enabled_features.contains(&"safety_control".to_string()));
+    assert!(
+        result
+            .enabled_features
+            .contains(&"device_management".to_string())
+    );
+    assert!(
+        result
+            .enabled_features
+            .contains(&"safety_control".to_string())
+    );
     assert!(!result.server_version.is_empty());
 
     server.stop().await?;
@@ -120,9 +128,21 @@ async fn feature_discovery_returns_server_features() -> TestResult {
     let result = server.negotiate_features("1.0.0", &[]).await?;
 
     assert!(!result.supported_features.is_empty());
-    assert!(result.supported_features.contains(&"device_management".to_string()));
-    assert!(result.supported_features.contains(&"profile_management".to_string()));
-    assert!(result.supported_features.contains(&"health_monitoring".to_string()));
+    assert!(
+        result
+            .supported_features
+            .contains(&"device_management".to_string())
+    );
+    assert!(
+        result
+            .supported_features
+            .contains(&"profile_management".to_string())
+    );
+    assert!(
+        result
+            .supported_features
+            .contains(&"health_monitoring".to_string())
+    );
     // No client features requested => none enabled
     assert!(result.enabled_features.is_empty());
 
@@ -140,7 +160,11 @@ async fn feature_discovery_unknown_feature_not_enabled() -> TestResult {
         .await?;
 
     assert!(result.compatible);
-    assert!(!result.enabled_features.contains(&"quantum_teleportation".to_string()));
+    assert!(
+        !result
+            .enabled_features
+            .contains(&"quantum_teleportation".to_string())
+    );
 
     server.stop().await?;
     Ok(())
@@ -291,7 +315,10 @@ fn error_fatal_classification() {
 #[test]
 fn error_convenience_constructors() {
     let timeout_err = IpcError::timeout(3000);
-    assert!(matches!(timeout_err, IpcError::Timeout { timeout_ms: 3000 }));
+    assert!(matches!(
+        timeout_err,
+        IpcError::Timeout { timeout_ms: 3000 }
+    ));
 
     let limit_err = IpcError::connection_limit(50);
     assert!(matches!(

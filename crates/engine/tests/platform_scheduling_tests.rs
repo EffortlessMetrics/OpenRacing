@@ -5,8 +5,7 @@
 //! and priority inheritance mutex behavior across platforms.
 
 use racing_wheel_engine::{
-    AbsoluteScheduler, AdaptiveSchedulingConfig, JitterMetrics, PLL,
-    RTSetup,
+    AbsoluteScheduler, AdaptiveSchedulingConfig, JitterMetrics, PLL, RTSetup,
 };
 use std::time::Duration;
 
@@ -61,11 +60,7 @@ fn rt_setup_cpu_affinity_bitmask_multi_core() -> Result<(), Box<dyn std::error::
         ..RTSetup::default()
     };
     let mask = setup.cpu_affinity.ok_or("affinity should be set")?;
-    assert_eq!(
-        mask.count_ones(),
-        4,
-        "four cores should have four bits set"
-    );
+    assert_eq!(mask.count_ones(), 4, "four cores should have four bits set");
     Ok(())
 }
 
@@ -216,7 +211,11 @@ fn scheduler_reset_clears_all_state() -> Result<(), Box<dyn std::error::Error>> 
 
     // Reset
     sched.reset();
-    assert_eq!(sched.tick_count(), 0, "tick count should be zero after reset");
+    assert_eq!(
+        sched.tick_count(),
+        0,
+        "tick count should be zero after reset"
+    );
     assert!(
         sched.phase_error_ns().abs() < f64::EPSILON,
         "phase error should be zero after reset"
@@ -251,9 +250,7 @@ fn parking_lot_mutex_does_not_block_indefinitely() -> Result<(), Box<dyn std::er
         *guard += 1;
     });
 
-    handle
-        .join()
-        .map_err(|_| "mutex thread panicked")?;
+    handle.join().map_err(|_| "mutex thread panicked")?;
 
     let val = *data.lock();
     assert_eq!(val, 1, "mutex should allow sequential access");
@@ -299,10 +296,7 @@ fn crossbeam_channel_bounded_for_rt_command_queue() -> Result<(), Box<dyn std::e
 
     // Channel is full — try_send should fail
     let result = tx.try_send(99);
-    assert!(
-        result.is_err(),
-        "bounded channel should reject when full"
-    );
+    assert!(result.is_err(), "bounded channel should reject when full");
 
     // Drain all messages
     for expected in 0..16 {
@@ -390,10 +384,7 @@ fn jitter_metrics_p99_with_many_samples() -> Result<(), Box<dyn std::error::Erro
 
     let p99 = metrics.p99_jitter_ns();
     // p99 of 100 samples: the 99th percentile should be the high value
-    assert!(
-        p99 >= 10_000,
-        "p99 should be at least the baseline: {p99}"
-    );
+    assert!(p99 >= 10_000, "p99 should be at least the baseline: {p99}");
     Ok(())
 }
 

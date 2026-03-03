@@ -8,9 +8,7 @@
 
 use uuid::Uuid;
 
-use openracing_wasm_runtime::{
-    HotReloader, PreservedPluginState, ResourceLimits, WasmRuntime,
-};
+use openracing_wasm_runtime::{HotReloader, PreservedPluginState, ResourceLimits, WasmRuntime};
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -172,7 +170,10 @@ fn wasm_example_hot_reload_changes_behavior() -> Result<(), Box<dyn std::error::
     // Load passthrough first
     runtime.load_plugin_from_bytes(id, &pass_wasm, vec![])?;
     let output_v1 = runtime.process(&id, 4.0, 0.001)?;
-    assert!((output_v1 - 4.0).abs() < f32::EPSILON, "v1 should passthrough");
+    assert!(
+        (output_v1 - 4.0).abs() < f32::EPSILON,
+        "v1 should passthrough"
+    );
 
     // Hot-reload with doubler
     runtime.reload_plugin(&id, &double_wasm, vec![])?;
@@ -214,7 +215,10 @@ fn wasm_example_hot_reload_invalid_keeps_old() -> Result<(), Box<dyn std::error:
 
     // Old plugin should still work
     let output = runtime.process(&id, 2.0, 0.001)?;
-    assert!((output - 2.0).abs() < f32::EPSILON, "old plugin should still work");
+    assert!(
+        (output - 2.0).abs() < f32::EPSILON,
+        "old plugin should still work"
+    );
     Ok(())
 }
 
@@ -282,7 +286,10 @@ fn wasm_example_disabled_info_available_after_trap() -> Result<(), Box<dyn std::
     let _ = runtime.process(&id, 1.0, 0.001);
 
     let info = runtime.get_plugin_disabled_info(&id)?;
-    assert!(info.is_some(), "disabled info should be available after trap");
+    assert!(
+        info.is_some(),
+        "disabled info should be available after trap"
+    );
     Ok(())
 }
 

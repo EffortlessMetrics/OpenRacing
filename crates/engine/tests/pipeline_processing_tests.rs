@@ -359,7 +359,11 @@ fn hot_reconfig_swap_changes_hash() -> Result<(), TestError> {
     let new_pipeline = compile(full_config()?)?;
     pipeline.swap_at_tick_boundary(new_pipeline);
 
-    assert_ne!(pipeline.config_hash(), hash_before, "hash should change after swap");
+    assert_ne!(
+        pipeline.config_hash(),
+        hash_before,
+        "hash should change after swap"
+    );
     Ok(())
 }
 

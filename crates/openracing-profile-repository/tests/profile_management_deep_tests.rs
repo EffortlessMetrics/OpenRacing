@@ -4,8 +4,8 @@
 //! search and filtering, export/import round-trips, concurrent access,
 //! and profile versioning.
 
-use openracing_profile_repository::prelude::*;
 use openracing_profile_repository::ProfileSigner;
+use openracing_profile_repository::prelude::*;
 use racing_wheel_schemas::prelude::{Degrees, Gain, TorqueNm};
 use tempfile::TempDir;
 
@@ -31,9 +31,18 @@ async fn setup_repo() -> Result<(ProfileRepository, TempDir), Box<dyn std::error
     Ok((repo, tmp))
 }
 
-fn make_profile(id: &str, name: &str, scope: ProfileScope) -> Result<Profile, Box<dyn std::error::Error>> {
+fn make_profile(
+    id: &str,
+    name: &str,
+    scope: ProfileScope,
+) -> Result<Profile, Box<dyn std::error::Error>> {
     let profile_id = pid(id)?;
-    Ok(Profile::new(profile_id, scope, BaseSettings::default(), name.to_string()))
+    Ok(Profile::new(
+        profile_id,
+        scope,
+        BaseSettings::default(),
+        name.to_string(),
+    ))
 }
 
 fn make_global(id: &str) -> Result<Profile, Box<dyn std::error::Error>> {
@@ -41,7 +50,11 @@ fn make_global(id: &str) -> Result<Profile, Box<dyn std::error::Error>> {
 }
 
 fn make_game(id: &str, game: &str) -> Result<Profile, Box<dyn std::error::Error>> {
-    make_profile(id, &format!("Game {id}"), ProfileScope::for_game(game.to_string()))
+    make_profile(
+        id,
+        &format!("Game {id}"),
+        ProfileScope::for_game(game.to_string()),
+    )
 }
 
 fn make_car(id: &str, game: &str, car: &str) -> Result<Profile, Box<dyn std::error::Error>> {
@@ -479,14 +492,16 @@ mod concurrent_access {
         for i in 0..10 {
             let repo_clone = Arc::clone(&repo);
             handles.push(tokio::spawn(async move {
-                let p = make_global(&format!("conc_save_{i}")).map_err(|e| anyhow::anyhow!("{e}"))?;
+                let p =
+                    make_global(&format!("conc_save_{i}")).map_err(|e| anyhow::anyhow!("{e}"))?;
                 repo_clone.save_profile(&p, None).await?;
                 Ok::<_, anyhow::Error>(())
             }));
         }
 
         for h in handles {
-            h.await?.map_err(|e| -> Box<dyn std::error::Error> { e.into() })?;
+            h.await?
+                .map_err(|e| -> Box<dyn std::error::Error> { e.into() })?;
         }
 
         let profiles = repo.list_profiles().await?;
@@ -512,7 +527,9 @@ mod concurrent_access {
         }
 
         for h in handles {
-            let found = h.await?.map_err(|e| -> Box<dyn std::error::Error> { e.into() })?;
+            let found = h
+                .await?
+                .map_err(|e| -> Box<dyn std::error::Error> { e.into() })?;
             assert!(found);
         }
         Ok(())
@@ -549,7 +566,8 @@ mod concurrent_access {
         }
 
         for h in handles {
-            h.await?.map_err(|e| -> Box<dyn std::error::Error> { e.into() })?;
+            h.await?
+                .map_err(|e| -> Box<dyn std::error::Error> { e.into() })?;
         }
 
         let profiles = repo.list_profiles().await?;

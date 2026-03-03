@@ -1,9 +1,7 @@
 //! Deep tests for Wreckfest (and related) telemetry adapters.
 
 use racing_wheel_telemetry_adapters::wreckfest::parse_wreckfest_packet;
-use racing_wheel_telemetry_adapters::{
-    BeamNGAdapter, WreckfestAdapter, TelemetryAdapter,
-};
+use racing_wheel_telemetry_adapters::{BeamNGAdapter, TelemetryAdapter, WreckfestAdapter};
 use std::time::Duration;
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
@@ -32,8 +30,7 @@ fn make_wreckfest_packet(
     data[OFF_RPM..OFF_RPM + 4].copy_from_slice(&rpm.to_le_bytes());
     data[OFF_GEAR] = gear;
     data[OFF_LATERAL_G..OFF_LATERAL_G + 4].copy_from_slice(&lateral_g.to_le_bytes());
-    data[OFF_LONGITUDINAL_G..OFF_LONGITUDINAL_G + 4]
-        .copy_from_slice(&longitudinal_g.to_le_bytes());
+    data[OFF_LONGITUDINAL_G..OFF_LONGITUDINAL_G + 4].copy_from_slice(&longitudinal_g.to_le_bytes());
     data
 }
 

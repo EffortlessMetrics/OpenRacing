@@ -8,16 +8,14 @@
 use tempfile::TempDir;
 use uuid::Uuid;
 
+use openracing_crypto::TrustLevel;
 use openracing_crypto::ed25519::{Ed25519Signer, KeyPair};
 use openracing_crypto::trust_store::TrustStore;
 use openracing_crypto::verification::ContentType;
-use openracing_crypto::TrustLevel;
 
 use openracing_native_plugin::{
-    AbiCheckResult, CURRENT_ABI_VERSION, NativePluginConfig, NativePluginHost,
-    PluginFrame, SpscChannel,
-    SignatureVerificationConfig, SignatureVerifier,
-    check_abi_compatibility,
+    AbiCheckResult, CURRENT_ABI_VERSION, NativePluginConfig, NativePluginHost, PluginFrame,
+    SignatureVerificationConfig, SignatureVerifier, SpscChannel, check_abi_compatibility,
 };
 
 // ===================================================================
@@ -111,7 +109,10 @@ fn native_example_permissive_allows_unsigned() -> Result<(), Box<dyn std::error:
     let result = verifier.verify(&plugin_path)?;
     assert!(!result.is_signed);
     assert!(result.verified, "permissive must allow unsigned plugins");
-    assert!(!result.warnings.is_empty(), "should include unsigned warning");
+    assert!(
+        !result.warnings.is_empty(),
+        "should include unsigned warning"
+    );
     Ok(())
 }
 
@@ -273,6 +274,9 @@ async fn native_example_strict_host_rejects_unsigned() -> Result<(), Box<dyn std
         )
         .await;
 
-    assert!(result.is_err(), "strict host must reject unsigned native plugin");
+    assert!(
+        result.is_err(),
+        "strict host must reject unsigned native plugin"
+    );
     Ok(())
 }

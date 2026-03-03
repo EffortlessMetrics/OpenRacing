@@ -7,12 +7,12 @@
 #![allow(clippy::redundant_closure)]
 
 use openracing_scheduler::{
-    AbsoluteScheduler, AdaptiveSchedulingConfig, AdaptiveSchedulingState, JitterMetrics, PLL,
-    RTError, RTSetup, PERIOD_1KHZ_NS,
+    AbsoluteScheduler, AdaptiveSchedulingConfig, AdaptiveSchedulingState, JitterMetrics,
+    PERIOD_1KHZ_NS, PLL, RTError, RTSetup,
 };
 use proptest::prelude::*;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -44,7 +44,10 @@ fn pll_converges_with_exact_target() -> Result<(), Box<dyn std::error::Error>> {
     for _ in 0..500 {
         let _ = pll.update(PERIOD_1KHZ_NS);
     }
-    assert!(pll.is_stable(), "PLL should be stable with exact target input");
+    assert!(
+        pll.is_stable(),
+        "PLL should be stable with exact target input"
+    );
     let avg = pll.average_phase_error_ns();
     assert!(
         avg.abs() < 100.0,
@@ -111,10 +114,7 @@ fn pll_custom_gains_converge() -> Result<(), Box<dyn std::error::Error>> {
         for _ in 0..500 {
             let _ = pll.update(PERIOD_1KHZ_NS);
         }
-        assert!(
-            pll.is_stable(),
-            "PLL with kp={kp} ki={ki} should be stable"
-        );
+        assert!(pll.is_stable(), "PLL with kp={kp} ki={ki} should be stable");
     }
     Ok(())
 }
@@ -542,23 +542,24 @@ fn independent_schedulers_different_rates() -> Result<(), Box<dyn std::error::Er
     let handles: Vec<_> = periods
         .iter()
         .map(|&period| {
-            thread::spawn(move || -> Result<(u64, u64), Box<dyn std::error::Error + Send + Sync>> {
-                let mut sched = AbsoluteScheduler::with_period(period);
-                sched
-                    .apply_rt_setup(&RTSetup::minimal())
-                    .map_err(|e| -> Box<dyn std::error::Error + Send + Sync> { Box::new(e) })?;
-                let mut ok = 0u64;
-                for _ in 0..ticks_each {
-                    match sched.wait_for_tick() {
-                        Ok(_) | Err(RTError::TimingViolation) => ok += 1,
-                        Err(e) => {
-                            return Err(Box::new(e)
-                                as Box<dyn std::error::Error + Send + Sync>)
+            thread::spawn(
+                move || -> Result<(u64, u64), Box<dyn std::error::Error + Send + Sync>> {
+                    let mut sched = AbsoluteScheduler::with_period(period);
+                    sched
+                        .apply_rt_setup(&RTSetup::minimal())
+                        .map_err(|e| -> Box<dyn std::error::Error + Send + Sync> { Box::new(e) })?;
+                    let mut ok = 0u64;
+                    for _ in 0..ticks_each {
+                        match sched.wait_for_tick() {
+                            Ok(_) | Err(RTError::TimingViolation) => ok += 1,
+                            Err(e) => {
+                                return Err(Box::new(e) as Box<dyn std::error::Error + Send + Sync>);
+                            }
                         }
                     }
-                }
-                Ok((period, ok))
-            })
+                    Ok((period, ok))
+                },
+            )
         })
         .collect();
 

@@ -5,8 +5,8 @@
 //! concurrent faults are handled, and timing requirements are met.
 
 use racing_wheel_engine::safety::{
-    ButtonCombo, FaultType, InterlockAck, SafetyInterlockState, SafetyInterlockSystem, SafetyService,
-    SafetyState, SoftwareWatchdog, WatchdogTimeoutHandler,
+    ButtonCombo, FaultType, InterlockAck, SafetyInterlockState, SafetyInterlockSystem,
+    SafetyService, SafetyState, SoftwareWatchdog, WatchdogTimeoutHandler,
 };
 use std::time::{Duration, Instant};
 
@@ -66,42 +66,78 @@ fn activate_high_torque(svc: &mut SafetyService, device: &str) -> Result<u32, St
 fn fault_usb_stall_transitions_to_faulted() {
     let mut svc = new_service();
     svc.report_fault(FaultType::UsbStall);
-    assert!(matches!(svc.state(), SafetyState::Faulted { fault: FaultType::UsbStall, .. }));
+    assert!(matches!(
+        svc.state(),
+        SafetyState::Faulted {
+            fault: FaultType::UsbStall,
+            ..
+        }
+    ));
 }
 
 #[test]
 fn fault_encoder_nan_transitions_to_faulted() {
     let mut svc = new_service();
     svc.report_fault(FaultType::EncoderNaN);
-    assert!(matches!(svc.state(), SafetyState::Faulted { fault: FaultType::EncoderNaN, .. }));
+    assert!(matches!(
+        svc.state(),
+        SafetyState::Faulted {
+            fault: FaultType::EncoderNaN,
+            ..
+        }
+    ));
 }
 
 #[test]
 fn fault_thermal_limit_transitions_to_faulted() {
     let mut svc = new_service();
     svc.report_fault(FaultType::ThermalLimit);
-    assert!(matches!(svc.state(), SafetyState::Faulted { fault: FaultType::ThermalLimit, .. }));
+    assert!(matches!(
+        svc.state(),
+        SafetyState::Faulted {
+            fault: FaultType::ThermalLimit,
+            ..
+        }
+    ));
 }
 
 #[test]
 fn fault_overcurrent_transitions_to_faulted() {
     let mut svc = new_service();
     svc.report_fault(FaultType::Overcurrent);
-    assert!(matches!(svc.state(), SafetyState::Faulted { fault: FaultType::Overcurrent, .. }));
+    assert!(matches!(
+        svc.state(),
+        SafetyState::Faulted {
+            fault: FaultType::Overcurrent,
+            ..
+        }
+    ));
 }
 
 #[test]
 fn fault_plugin_overrun_transitions_to_faulted() {
     let mut svc = new_service();
     svc.report_fault(FaultType::PluginOverrun);
-    assert!(matches!(svc.state(), SafetyState::Faulted { fault: FaultType::PluginOverrun, .. }));
+    assert!(matches!(
+        svc.state(),
+        SafetyState::Faulted {
+            fault: FaultType::PluginOverrun,
+            ..
+        }
+    ));
 }
 
 #[test]
 fn fault_timing_violation_transitions_to_faulted() {
     let mut svc = new_service();
     svc.report_fault(FaultType::TimingViolation);
-    assert!(matches!(svc.state(), SafetyState::Faulted { fault: FaultType::TimingViolation, .. }));
+    assert!(matches!(
+        svc.state(),
+        SafetyState::Faulted {
+            fault: FaultType::TimingViolation,
+            ..
+        }
+    ));
 }
 
 #[test]
@@ -110,7 +146,10 @@ fn fault_safety_interlock_violation_transitions_to_faulted() {
     svc.report_fault(FaultType::SafetyInterlockViolation);
     assert!(matches!(
         svc.state(),
-        SafetyState::Faulted { fault: FaultType::SafetyInterlockViolation, .. }
+        SafetyState::Faulted {
+            fault: FaultType::SafetyInterlockViolation,
+            ..
+        }
     ));
 }
 
@@ -118,14 +157,26 @@ fn fault_safety_interlock_violation_transitions_to_faulted() {
 fn fault_hands_off_timeout_transitions_to_faulted() {
     let mut svc = new_service();
     svc.report_fault(FaultType::HandsOffTimeout);
-    assert!(matches!(svc.state(), SafetyState::Faulted { fault: FaultType::HandsOffTimeout, .. }));
+    assert!(matches!(
+        svc.state(),
+        SafetyState::Faulted {
+            fault: FaultType::HandsOffTimeout,
+            ..
+        }
+    ));
 }
 
 #[test]
 fn fault_pipeline_fault_transitions_to_faulted() {
     let mut svc = new_service();
     svc.report_fault(FaultType::PipelineFault);
-    assert!(matches!(svc.state(), SafetyState::Faulted { fault: FaultType::PipelineFault, .. }));
+    assert!(matches!(
+        svc.state(),
+        SafetyState::Faulted {
+            fault: FaultType::PipelineFault,
+            ..
+        }
+    ));
 }
 
 // ===========================================================================
@@ -163,7 +214,13 @@ fn escalation_minor_to_major_to_critical() -> Result<(), String> {
 
     // Minor: plugin overrun
     svc.report_fault(FaultType::PluginOverrun);
-    assert!(matches!(svc.state(), SafetyState::Faulted { fault: FaultType::PluginOverrun, .. }));
+    assert!(matches!(
+        svc.state(),
+        SafetyState::Faulted {
+            fault: FaultType::PluginOverrun,
+            ..
+        }
+    ));
     assert!(svc.clamp_torque_nm(10.0).abs() < f32::EPSILON);
 
     // Wait then clear
@@ -173,14 +230,26 @@ fn escalation_minor_to_major_to_critical() -> Result<(), String> {
 
     // Major: thermal limit
     svc.report_fault(FaultType::ThermalLimit);
-    assert!(matches!(svc.state(), SafetyState::Faulted { fault: FaultType::ThermalLimit, .. }));
+    assert!(matches!(
+        svc.state(),
+        SafetyState::Faulted {
+            fault: FaultType::ThermalLimit,
+            ..
+        }
+    ));
 
     std::thread::sleep(Duration::from_millis(110));
     svc.clear_fault()?;
 
     // Critical: overcurrent
     svc.report_fault(FaultType::Overcurrent);
-    assert!(matches!(svc.state(), SafetyState::Faulted { fault: FaultType::Overcurrent, .. }));
+    assert!(matches!(
+        svc.state(),
+        SafetyState::Faulted {
+            fault: FaultType::Overcurrent,
+            ..
+        }
+    ));
     assert!(svc.clamp_torque_nm(25.0).abs() < f32::EPSILON);
 
     Ok(())
@@ -194,10 +263,19 @@ fn fault_during_high_torque_immediately_drops_torque() -> Result<(), String> {
 
     // High torque active → fault
     svc.report_fault(FaultType::Overcurrent);
-    assert!(matches!(svc.state(), SafetyState::Faulted { fault: FaultType::Overcurrent, .. }));
+    assert!(matches!(
+        svc.state(),
+        SafetyState::Faulted {
+            fault: FaultType::Overcurrent,
+            ..
+        }
+    ));
 
     let clamped = svc.clamp_torque_nm(25.0);
-    assert!(clamped.abs() < f32::EPSILON, "Torque must be zero after fault in high-torque mode");
+    assert!(
+        clamped.abs() < f32::EPSILON,
+        "Torque must be zero after fault in high-torque mode"
+    );
     Ok(())
 }
 
@@ -241,7 +319,10 @@ fn watchdog_timeout_handler_zeros_torque() {
 fn watchdog_timeout_handler_response_within_budget() {
     let mut handler = WatchdogTimeoutHandler::new();
     let resp = handler.handle_timeout(10.0);
-    assert!(resp.within_budget, "Timeout response must be within 1ms budget");
+    assert!(
+        resp.within_budget,
+        "Timeout response must be within 1ms budget"
+    );
     assert!(resp.response_time < Duration::from_millis(1));
 }
 
@@ -255,7 +336,13 @@ fn concurrent_faults_last_wins_in_service() {
     svc.report_fault(FaultType::UsbStall);
     svc.report_fault(FaultType::Overcurrent);
     // Last fault reported should be current
-    assert!(matches!(svc.state(), SafetyState::Faulted { fault: FaultType::Overcurrent, .. }));
+    assert!(matches!(
+        svc.state(),
+        SafetyState::Faulted {
+            fault: FaultType::Overcurrent,
+            ..
+        }
+    ));
     assert!(svc.clamp_torque_nm(10.0).abs() < f32::EPSILON);
 }
 
@@ -308,7 +395,10 @@ fn recovery_after_transient_usb_stall() -> Result<(), String> {
 
     // Torque restored to safe limit
     let clamped = svc.clamp_torque_nm(3.0);
-    assert!((clamped - 3.0).abs() < f32::EPSILON, "Torque should be restored after clearing");
+    assert!(
+        (clamped - 3.0).abs() < f32::EPSILON,
+        "Torque should be restored after clearing"
+    );
     Ok(())
 }
 
@@ -318,7 +408,10 @@ fn clear_fault_too_early_is_rejected() {
     svc.report_fault(FaultType::EncoderNaN);
     // Attempt immediate clear (< 100ms)
     let result = svc.clear_fault();
-    assert!(result.is_err(), "clear_fault must fail before 100ms cooldown");
+    assert!(
+        result.is_err(),
+        "clear_fault must fail before 100ms cooldown"
+    );
     assert!(matches!(svc.state(), SafetyState::Faulted { .. }));
 }
 
@@ -326,7 +419,10 @@ fn clear_fault_too_early_is_rejected() {
 fn clear_fault_when_not_faulted_is_rejected() {
     let mut svc = new_service();
     let result = svc.clear_fault();
-    assert!(result.is_err(), "clear_fault must fail when not in Faulted state");
+    assert!(
+        result.is_err(),
+        "clear_fault must fail when not in Faulted state"
+    );
 }
 
 #[test]
@@ -368,9 +464,13 @@ fn interlock_challenge_token_mismatch_rejected() -> Result<(), String> {
 
 #[test]
 fn interlock_challenge_expires_returns_to_safe() -> Result<(), String> {
-    let mut svc = SafetyService::with_timeouts(5.0, 25.0, Duration::from_secs(3), Duration::from_secs(2));
+    let mut svc =
+        SafetyService::with_timeouts(5.0, 25.0, Duration::from_secs(3), Duration::from_secs(2));
     let _challenge = svc.request_high_torque("dev-expire")?;
-    assert!(matches!(svc.state(), SafetyState::HighTorqueChallenge { .. }));
+    assert!(matches!(
+        svc.state(),
+        SafetyState::HighTorqueChallenge { .. }
+    ));
 
     // Check expiry behavior (challenge has 30s timeout, we just verify the mechanism)
     let expired = svc.check_challenge_expiry();
@@ -395,7 +495,10 @@ fn interlock_confirm_with_short_hold_rejected() -> Result<(), String> {
         timestamp: Instant::now(),
     };
     let result = svc.confirm_high_torque("dev-short", ack);
-    assert!(result.is_err(), "Confirmation without sufficient hold must be rejected");
+    assert!(
+        result.is_err(),
+        "Confirmation without sufficient hold must be rejected"
+    );
     Ok(())
 }
 
@@ -406,7 +509,10 @@ fn interlock_full_flow_succeeds() -> Result<(), String> {
     assert!(matches!(svc.state(), SafetyState::HighTorqueActive { .. }));
     // Verify high torque limits apply
     let clamped = svc.clamp_torque_nm(20.0);
-    assert!((clamped - 20.0).abs() < f32::EPSILON, "High torque should allow 20 Nm");
+    assert!(
+        (clamped - 20.0).abs() < f32::EPSILON,
+        "High torque should allow 20 Nm"
+    );
     Ok(())
 }
 
@@ -414,7 +520,10 @@ fn interlock_full_flow_succeeds() -> Result<(), String> {
 fn interlock_cancel_challenge_returns_safe() -> Result<(), String> {
     let mut svc = new_service();
     let _challenge = svc.request_high_torque("dev-cancel")?;
-    assert!(matches!(svc.state(), SafetyState::HighTorqueChallenge { .. }));
+    assert!(matches!(
+        svc.state(),
+        SafetyState::HighTorqueChallenge { .. }
+    ));
     svc.cancel_challenge()?;
     assert!(matches!(svc.state(), SafetyState::SafeTorque));
     Ok(())
@@ -490,7 +599,10 @@ fn emergency_stop_response_time() {
         elapsed < Duration::from_millis(10),
         "Emergency stop took {elapsed:?}, must be < 10ms"
     );
-    assert!(matches!(result.state, SafetyInterlockState::EmergencyStop { .. }));
+    assert!(matches!(
+        result.state,
+        SafetyInterlockState::EmergencyStop { .. }
+    ));
 }
 
 // ===========================================================================
@@ -507,7 +619,10 @@ fn interlock_system_logs_faults() {
     let _ = sys.process_tick(5.0);
 
     let log = sys.fault_log();
-    assert!(!log.is_empty(), "Fault log must contain entries after a fault");
+    assert!(
+        !log.is_empty(),
+        "Fault log must contain entries after a fault"
+    );
 
     let entry = &log[0];
     assert_eq!(entry.fault_type, FaultType::EncoderNaN);
@@ -538,7 +653,11 @@ fn multiple_faults_all_logged() {
     let _ = sys.process_tick(5.0);
 
     let log = sys.fault_log();
-    assert!(log.len() >= 2, "Expected at least 2 log entries, got {}", log.len());
+    assert!(
+        log.len() >= 2,
+        "Expected at least 2 log entries, got {}",
+        log.len()
+    );
 }
 
 // ===========================================================================
@@ -574,7 +693,13 @@ fn fault_during_fault_recovery_re_enters_faulted() -> Result<(), String> {
 
     // Immediately fault again
     svc.report_fault(FaultType::Overcurrent);
-    assert!(matches!(svc.state(), SafetyState::Faulted { fault: FaultType::Overcurrent, .. }));
+    assert!(matches!(
+        svc.state(),
+        SafetyState::Faulted {
+            fault: FaultType::Overcurrent,
+            ..
+        }
+    ));
     assert!(svc.clamp_torque_nm(5.0).abs() < f32::EPSILON);
     Ok(())
 }
@@ -590,11 +715,17 @@ fn emergency_stop_cannot_be_cleared() {
     let _ = sys.process_tick(5.0);
 
     let estop = sys.emergency_stop();
-    assert!(matches!(estop.state, SafetyInterlockState::EmergencyStop { .. }));
+    assert!(matches!(
+        estop.state,
+        SafetyInterlockState::EmergencyStop { .. }
+    ));
     std::thread::sleep(Duration::from_millis(120));
 
     let result = sys.clear_fault();
-    assert!(result.is_err(), "EmergencyStop must not be clearable via clear_fault");
+    assert!(
+        result.is_err(),
+        "EmergencyStop must not be clearable via clear_fault"
+    );
     // Verify stays in emergency stop or at least torque is zero
     sys.report_communication();
     let tick = sys.process_tick(5.0);
@@ -610,7 +741,10 @@ fn emergency_stop_torque_stays_zero() {
     let _ = sys.process_tick(10.0);
 
     let estop = sys.emergency_stop();
-    assert!(matches!(estop.state, SafetyInterlockState::EmergencyStop { .. }));
+    assert!(matches!(
+        estop.state,
+        SafetyInterlockState::EmergencyStop { .. }
+    ));
 
     // Multiple ticks should all yield zero
     for _ in 0..10 {
@@ -690,7 +824,10 @@ fn neg_infinity_torque_request_clamped_to_zero() {
 fn fault_from_challenge_state() -> Result<(), String> {
     let mut svc = new_service();
     let _challenge = svc.request_high_torque("dev-ch")?;
-    assert!(matches!(svc.state(), SafetyState::HighTorqueChallenge { .. }));
+    assert!(matches!(
+        svc.state(),
+        SafetyState::HighTorqueChallenge { .. }
+    ));
 
     svc.report_fault(FaultType::Overcurrent);
     assert!(matches!(svc.state(), SafetyState::Faulted { .. }));
@@ -703,7 +840,10 @@ fn fault_from_awaiting_ack_state() -> Result<(), String> {
     let mut svc = new_service();
     let challenge = svc.request_high_torque("dev-awk")?;
     svc.provide_ui_consent(challenge.challenge_token)?;
-    assert!(matches!(svc.state(), SafetyState::AwaitingPhysicalAck { .. }));
+    assert!(matches!(
+        svc.state(),
+        SafetyState::AwaitingPhysicalAck { .. }
+    ));
 
     svc.report_fault(FaultType::ThermalLimit);
     assert!(matches!(svc.state(), SafetyState::Faulted { .. }));

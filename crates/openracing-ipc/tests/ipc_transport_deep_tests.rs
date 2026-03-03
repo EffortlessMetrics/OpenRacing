@@ -276,7 +276,10 @@ fn transport_type_default_matches_platform_default() -> Result<(), BoxErr> {
     let default_transport = TransportType::default();
     let platform_transport = TransportType::platform_default();
     // Both should produce the same description
-    assert_eq!(default_transport.description(), platform_transport.description());
+    assert_eq!(
+        default_transport.description(),
+        platform_transport.description()
+    );
     Ok(())
 }
 
@@ -822,8 +825,16 @@ async fn feature_negotiation_compatible_client() -> Result<(), BoxErr> {
         .await?;
 
     assert!(result.compatible);
-    assert!(result.enabled_features.contains(&"device_management".to_string()));
-    assert!(result.enabled_features.contains(&"safety_control".to_string()));
+    assert!(
+        result
+            .enabled_features
+            .contains(&"device_management".to_string())
+    );
+    assert!(
+        result
+            .enabled_features
+            .contains(&"safety_control".to_string())
+    );
     assert_eq!(result.server_version, PROTOCOL_VERSION);
     assert_eq!(result.min_client_version, MIN_CLIENT_VERSION);
 
@@ -862,8 +873,16 @@ async fn feature_negotiation_unknown_features_filtered() -> Result<(), BoxErr> {
         .await?;
 
     assert!(result.compatible);
-    assert!(result.enabled_features.contains(&"device_management".to_string()));
-    assert!(!result.enabled_features.contains(&"nonexistent_feature".to_string()));
+    assert!(
+        result
+            .enabled_features
+            .contains(&"device_management".to_string())
+    );
+    assert!(
+        !result
+            .enabled_features
+            .contains(&"nonexistent_feature".to_string())
+    );
 
     server.stop().await?;
     Ok(())

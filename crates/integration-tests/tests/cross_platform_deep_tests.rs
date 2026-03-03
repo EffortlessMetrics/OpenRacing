@@ -62,7 +62,10 @@ fn path_components_are_consistent_across_join() -> Result<(), Box<dyn std::error
     let base = PathBuf::from("wheel");
     let full = base.join("plugins").join("native");
 
-    let components: Vec<_> = full.components().map(|c| c.as_os_str().to_owned()).collect();
+    let components: Vec<_> = full
+        .components()
+        .map(|c| c.as_os_str().to_owned())
+        .collect();
     assert_eq!(components.len(), 3);
 
     assert_eq!(components[0], "wheel");
@@ -90,8 +93,8 @@ fn empty_path_join_preserves_base() -> Result<(), Box<dyn std::error::Error>> {
 #[cfg(windows)]
 #[test]
 fn windows_localappdata_is_set() -> Result<(), Box<dyn std::error::Error>> {
-    let localappdata = std::env::var("LOCALAPPDATA")
-        .map_err(|e| format!("LOCALAPPDATA not set: {e}"))?;
+    let localappdata =
+        std::env::var("LOCALAPPDATA").map_err(|e| format!("LOCALAPPDATA not set: {e}"))?;
     let path = Path::new(&localappdata);
     assert!(
         path.is_absolute(),
@@ -107,8 +110,8 @@ fn windows_localappdata_is_set() -> Result<(), Box<dyn std::error::Error>> {
 #[cfg(windows)]
 #[test]
 fn windows_config_path_under_appdata() -> Result<(), Box<dyn std::error::Error>> {
-    let localappdata = std::env::var("LOCALAPPDATA")
-        .map_err(|e| format!("LOCALAPPDATA not set: {e}"))?;
+    let localappdata =
+        std::env::var("LOCALAPPDATA").map_err(|e| format!("LOCALAPPDATA not set: {e}"))?;
     let config_path = PathBuf::from(&localappdata)
         .join("wheel")
         .join("system.json");
@@ -130,12 +133,9 @@ fn unix_xdg_config_home_fallback() -> Result<(), Box<dyn std::error::Error>> {
     let home = std::env::var("HOME").map_err(|e| format!("HOME not set: {e}"))?;
 
     // XDG_CONFIG_HOME defaults to $HOME/.config
-    let xdg_config = std::env::var("XDG_CONFIG_HOME")
-        .unwrap_or_else(|_| format!("{home}/.config"));
+    let xdg_config = std::env::var("XDG_CONFIG_HOME").unwrap_or_else(|_| format!("{home}/.config"));
 
-    let config_path = PathBuf::from(&xdg_config)
-        .join("wheel")
-        .join("system.json");
+    let config_path = PathBuf::from(&xdg_config).join("wheel").join("system.json");
 
     assert!(
         config_path.is_absolute(),
@@ -180,10 +180,7 @@ fn system_config_round_trip_preserves_fields() -> Result<(), Box<dyn std::error:
     let deserialized: SystemConfig = serde_json::from_str(&json)?;
 
     assert_eq!(config.schema_version, deserialized.schema_version);
-    assert_eq!(
-        config.engine.tick_rate_hz,
-        deserialized.engine.tick_rate_hz
-    );
+    assert_eq!(config.engine.tick_rate_hz, deserialized.engine.tick_rate_hz);
     assert_eq!(
         config.safety.max_torque_nm, deserialized.safety.max_torque_nm,
         "safety config should round-trip"
@@ -246,11 +243,7 @@ fn unix_socket_permission_constant_excludes_others() -> Result<(), Box<dyn std::
 #[test]
 fn windows_temp_dir_is_writable() -> Result<(), Box<dyn std::error::Error>> {
     let tmp = std::env::temp_dir();
-    assert!(
-        tmp.is_dir(),
-        "temp dir should exist: {}",
-        tmp.display()
-    );
+    assert!(tmp.is_dir(), "temp dir should exist: {}", tmp.display());
     let test_file = tmp.join("openracing_perm_test.tmp");
     std::fs::write(&test_file, b"test")?;
     let content = std::fs::read(&test_file)?;
@@ -472,10 +465,7 @@ fn exclusive_file_write_via_tempfile_is_atomic() -> Result<(), Box<dyn std::erro
         content.contains("version"),
         "file content should survive atomic rename"
     );
-    assert!(
-        !tmp_path.exists(),
-        "temp file should be gone after rename"
-    );
+    assert!(!tmp_path.exists(), "temp file should be gone after rename");
     Ok(())
 }
 
@@ -494,9 +484,7 @@ fn concurrent_read_does_not_block() -> Result<(), Box<dyn std::error::Error>> {
         .collect();
 
     for handle in handles {
-        let result = handle
-            .join()
-            .map_err(|_| "thread panicked")?;
+        let result = handle.join().map_err(|_| "thread panicked")?;
         let content = result?;
         assert!(content.contains("shared"));
     }
@@ -510,9 +498,7 @@ fn concurrent_read_does_not_block() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn log_file_naming_includes_rotation_index() -> Result<(), Box<dyn std::error::Error>> {
     let base = "wheeld.log";
-    let rotated_names: Vec<String> = (1..=5)
-        .map(|i| format!("{base}.{i}"))
-        .collect();
+    let rotated_names: Vec<String> = (1..=5).map(|i| format!("{base}.{i}")).collect();
 
     for name in &rotated_names {
         assert!(
@@ -595,8 +581,8 @@ fn linux_systemd_user_service_path() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn windows_sc_exe_is_accessible() -> Result<(), Box<dyn std::error::Error>> {
     // sc.exe is the standard Windows service control manager
-    let system_root = std::env::var("SystemRoot")
-        .map_err(|e| format!("SystemRoot not set: {e}"))?;
+    let system_root =
+        std::env::var("SystemRoot").map_err(|e| format!("SystemRoot not set: {e}"))?;
     let sc = PathBuf::from(&system_root).join("System32").join("sc.exe");
     assert!(
         sc.exists(),
@@ -641,11 +627,7 @@ fn system_config_save_to_temp_and_reload() -> Result<(), Box<dyn std::error::Err
 #[test]
 fn temp_dir_is_writable_on_all_platforms() -> Result<(), Box<dyn std::error::Error>> {
     let tmp = std::env::temp_dir();
-    assert!(
-        tmp.is_dir(),
-        "temp dir must exist: {}",
-        tmp.display()
-    );
+    assert!(tmp.is_dir(), "temp dir must exist: {}", tmp.display());
     let probe = tmp.join("openracing_probe.tmp");
     std::fs::write(&probe, b"probe")?;
     std::fs::remove_file(&probe)?;
@@ -667,10 +649,7 @@ fn path_max_length_sanity() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn system_config_engine_defaults_are_sane() -> Result<(), Box<dyn std::error::Error>> {
     let config = SystemConfig::default();
-    assert!(
-        config.engine.tick_rate_hz > 0,
-        "tick rate must be positive"
-    );
+    assert!(config.engine.tick_rate_hz > 0, "tick rate must be positive");
     assert!(
         config.engine.max_jitter_us > 0,
         "max jitter must be positive"

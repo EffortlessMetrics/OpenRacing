@@ -59,10 +59,7 @@ fn base_map() -> DeviceInputMap {
 fn compile_button_map_standalone_usb_device() -> R {
     let mut map = base_map();
     map.transport = DeviceTransportHint::StandaloneUsb;
-    map.buttons = vec![
-        button("paddle_l", 11, 0x01),
-        button("paddle_r", 11, 0x02),
-    ];
+    map.buttons = vec![button("paddle_l", 11, 0x01), button("paddle_r", 11, 0x02)];
     map.clutch = Some(ClutchBinding {
         combined: None,
         left: None,
@@ -276,8 +273,11 @@ fn compile_two_rotaries_binds_both_slots() -> R {
 fn compile_eight_rotaries_fills_all_encoder_slots() -> R {
     let mut map = base_map();
     for i in 0..8 {
-        map.rotaries
-            .push(rotary(&format!("enc_{i}"), (10 + i * 2) as u16, RotaryModeHint::Knob));
+        map.rotaries.push(rotary(
+            &format!("enc_{i}"),
+            (10 + i * 2) as u16,
+            RotaryModeHint::Knob,
+        ));
     }
 
     let ks = compile_ks_map(&map).ok_or("expected ks map")?;
@@ -553,7 +553,8 @@ fn validation_accepts_clutch_only_map() {
 #[test]
 fn compile_returns_none_when_no_ks_relevant_bindings() {
     let mut map = base_map();
-    map.axes.push(axis("throttle", 3, AxisDataType::U16Le, false));
+    map.axes
+        .push(axis("throttle", 3, AxisDataType::U16Le, false));
     map.buttons.push(button("btn", 5, 0x01));
     assert!(compile_ks_map(&map).is_none());
 }
@@ -563,7 +564,8 @@ fn compile_returns_none_when_no_ks_relevant_bindings() {
 #[test]
 fn json_round_trip_minimal_map() -> R {
     let mut map = base_map();
-    map.axes.push(axis("throttle", 3, AxisDataType::U16Le, false));
+    map.axes
+        .push(axis("throttle", 3, AxisDataType::U16Le, false));
 
     let json = serde_json::to_string(&map)?;
     let rt: DeviceInputMap = serde_json::from_str(&json)?;
@@ -585,10 +587,7 @@ fn json_round_trip_with_clutch_and_joystick() -> R {
         joystick: Some(JsBinding {
             mode_hint: JsModeHint::Buttons,
             axis: None,
-            buttons: vec![
-                button("js_up", 5, 0x10),
-                button("js_down", 5, 0x20),
-            ],
+            buttons: vec![button("js_up", 5, 0x10), button("js_down", 5, 0x20)],
         }),
         ..base_map()
     };

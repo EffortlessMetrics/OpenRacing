@@ -1,8 +1,8 @@
 //! Deep tests for the Project CARS 2 / Project CARS 3 telemetry adapter.
 
 use racing_wheel_telemetry_adapters::pcars2::{
-    merge_timing_fields, parse_pcars2_packet, parse_pcars2_timings_packet, pcars2_packet_type,
-    PACKET_TYPE_TIMINGS,
+    PACKET_TYPE_TIMINGS, merge_timing_fields, parse_pcars2_packet, parse_pcars2_timings_packet,
+    pcars2_packet_type,
 };
 use racing_wheel_telemetry_adapters::{NormalizedTelemetry, PCars2Adapter, TelemetryAdapter};
 use std::time::Duration;
@@ -197,7 +197,8 @@ fn pcars2_timings_invalid_times_default_to_zero() -> TestResult {
 
 #[test]
 fn pcars2_merge_timing_preserves_telemetry_fields() -> TestResult {
-    let mut telemetry = parse_pcars2_packet(&make_pcars2_packet(0.0, 0.7, 0.0, 45.0, 5000.0, 8000.0, 3))?;
+    let mut telemetry =
+        parse_pcars2_packet(&make_pcars2_packet(0.0, 0.7, 0.0, 45.0, 5000.0, 8000.0, 3))?;
     let timing_data = make_timings_packet(1, &[(2, 6, 61.0, 62.0, 20.0)]);
     let timing = parse_pcars2_timings_packet(&timing_data, 0)?;
     merge_timing_fields(&mut telemetry, &timing);
@@ -224,8 +225,14 @@ fn pcars2_merge_timing_does_not_overwrite_with_defaults() -> TestResult {
     let timing = NormalizedTelemetry::default();
     merge_timing_fields(&mut telemetry, &timing);
 
-    assert_eq!(telemetry.position, 5, "should keep original position when timing has 0");
-    assert_eq!(telemetry.lap, 10, "should keep original lap when timing has 0");
+    assert_eq!(
+        telemetry.position, 5,
+        "should keep original position when timing has 0"
+    );
+    assert_eq!(
+        telemetry.lap, 10,
+        "should keep original lap when timing has 0"
+    );
     assert!((telemetry.best_lap_time_s - 55.0).abs() < 0.01);
     Ok(())
 }

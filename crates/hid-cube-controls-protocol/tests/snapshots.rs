@@ -68,8 +68,5 @@ fn snapshot_vendor_id_shared_stm32() {
 fn snapshot_model_equality() {
     let a = CubeControlsModel::from_product_id(CUBE_CONTROLS_GT_PRO_PID);
     let b = CubeControlsModel::GtPro;
-    assert_debug_snapshot!(format!(
-        "from_pid={a:?}, literal={b:?}, equal={}",
-        a == b
-    ));
+    assert_debug_snapshot!(format!("from_pid={a:?}, literal={b:?}, equal={}", a == b));
 }

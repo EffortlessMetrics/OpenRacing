@@ -3,8 +3,8 @@
 
 use openracing_ffb::{
     ConstantEffect, DamperEffect, EffectParams, EffectType, FfbDirection, FfbGain, FrictionEffect,
-    SineEffect, SpringEffect, MAX_DAMPER_COEFFICIENT, MAX_EFFECT_DURATION_MS,
-    MAX_FRICTION_COEFFICIENT, MAX_GAIN, MAX_SPRING_COEFFICIENT, MIN_GAIN,
+    MAX_DAMPER_COEFFICIENT, MAX_EFFECT_DURATION_MS, MAX_FRICTION_COEFFICIENT, MAX_GAIN,
+    MAX_SPRING_COEFFICIENT, MIN_GAIN, SineEffect, SpringEffect,
 };
 
 // ---------------------------------------------------------------------------
@@ -51,7 +51,10 @@ fn ffb_04_spring_with_deadband() {
     assert_eq!(spring.calculate(0), 0, "at center");
     assert_eq!(spring.calculate(50), 0, "inside deadband");
     assert_eq!(spring.calculate(-99), 0, "inside negative deadband");
-    assert!(spring.calculate(200) > 0, "outside deadband should produce force");
+    assert!(
+        spring.calculate(200) > 0,
+        "outside deadband should produce force"
+    );
     assert!(spring.calculate(-200) < 0, "outside negative deadband");
 }
 
@@ -72,7 +75,10 @@ fn ffb_06_spring_negative_coefficient() {
     let spring = SpringEffect::new(-1000);
     // Negative coefficient inverts the force direction
     let force = spring.calculate(100);
-    assert!(force < 0, "negative coeff at positive pos should give negative force");
+    assert!(
+        force < 0,
+        "negative coeff at positive pos should give negative force"
+    );
 }
 
 #[test]
@@ -144,14 +150,20 @@ fn ffb_12_damper_extreme_inputs() {
 fn ffb_13_friction_opposes_positive_velocity() {
     let friction = FrictionEffect::new(100);
     let force = friction.calculate(100);
-    assert!(force < 0, "friction should oppose positive velocity, got {force}");
+    assert!(
+        force < 0,
+        "friction should oppose positive velocity, got {force}"
+    );
 }
 
 #[test]
 fn ffb_14_friction_opposes_negative_velocity() {
     let friction = FrictionEffect::new(100);
     let force = friction.calculate(-100);
-    assert!(force > 0, "friction should oppose negative velocity, got {force}");
+    assert!(
+        force > 0,
+        "friction should oppose negative velocity, got {force}"
+    );
 }
 
 #[test]
@@ -248,7 +260,10 @@ fn ffb_25_sine_periodicity() {
     let s0 = sine.calculate(0);
     let s1 = sine.calculate(period_ms);
     let diff = (s0 as i32 - s1 as i32).abs();
-    assert!(diff <= 1, "sine should repeat after one period, diff={diff}");
+    assert!(
+        diff <= 1,
+        "sine should repeat after one period, diff={diff}"
+    );
 }
 
 #[test]
@@ -569,10 +584,22 @@ fn ffb_55_spring_deadband_boundary_produces_force() {
     let mut spring = SpringEffect::new(1000);
     spring.deadband = 100;
     // The check is `diff.abs() < deadband` (strict), so at the boundary force IS produced
-    assert_ne!(spring.calculate(100), 0, "at boundary force should be produced");
-    assert_ne!(spring.calculate(-100), 0, "at negative boundary force should be produced");
+    assert_ne!(
+        spring.calculate(100),
+        0,
+        "at boundary force should be produced"
+    );
+    assert_ne!(
+        spring.calculate(-100),
+        0,
+        "at negative boundary force should be produced"
+    );
     // Just inside deadband should still be zero
-    assert_eq!(spring.calculate(99), 0, "just inside deadband should be zero");
+    assert_eq!(
+        spring.calculate(99),
+        0,
+        "just inside deadband should be zero"
+    );
 }
 
 #[test]

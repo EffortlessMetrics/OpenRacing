@@ -142,7 +142,10 @@ mod health_check {
 
         let cpu = hw.get("cpu_info").ok_or("missing cpu_info")?;
         assert_eq!(cpu.get("core_count").and_then(|v| v.as_u64()), Some(8));
-        assert_eq!(cpu.get("frequency_mhz").and_then(|v| v.as_u64()), Some(3600));
+        assert_eq!(
+            cpu.get("frequency_mhz").and_then(|v| v.as_u64()),
+            Some(3600)
+        );
 
         let mem = hw.get("memory_info").ok_or("missing memory_info")?;
         assert_eq!(mem.get("total_mb").and_then(|v| v.as_u64()), Some(32768));
@@ -209,20 +212,14 @@ mod health_check {
             .and_then(|v| v.as_array())
             .ok_or("missing disk_info")?;
         assert_eq!(disks.len(), 1);
-        assert_eq!(
-            disks[0].get("name").and_then(|v| v.as_str()),
-            Some("sda")
-        );
+        assert_eq!(disks[0].get("name").and_then(|v| v.as_str()), Some("sda"));
 
         let nets = hw
             .get("network_info")
             .and_then(|v| v.as_array())
             .ok_or("missing network_info")?;
         assert_eq!(nets.len(), 1);
-        assert_eq!(
-            nets[0].get("name").and_then(|v| v.as_str()),
-            Some("eth0")
-        );
+        assert_eq!(nets[0].get("name").and_then(|v| v.as_str()), Some("eth0"));
         Ok(())
     }
 }
@@ -517,10 +514,7 @@ mod diagnostic_stream {
 
         assert!((record.telemetry.rpm - 6000.0).abs() < 0.01);
         assert_eq!(record.telemetry.gear, 3);
-        assert_eq!(
-            record.telemetry.car_id.as_deref(),
-            Some("test_car")
-        );
+        assert_eq!(record.telemetry.car_id.as_deref(), Some("test_car"));
         assert!(record.telemetry.track_id.is_none());
 
         let next = reader.read_stream_b_record()?;
@@ -537,7 +531,10 @@ mod diagnostic_stream {
 
         // get_data serialises records to bytes and clears internal buffer
         let data = stream.get_data()?;
-        assert!(!data.is_empty(), "serialized stream C data should be non-empty");
+        assert!(
+            !data.is_empty(),
+            "serialized stream C data should be non-empty"
+        );
         assert_eq!(stream.record_count(), 0, "get_data should clear records");
         Ok(())
     }

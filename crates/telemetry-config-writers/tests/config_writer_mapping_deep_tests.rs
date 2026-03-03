@@ -102,9 +102,9 @@ mod per_game_format_output {
         let files = walkdir(temp.path())?;
         assert!(!files.is_empty(), "rfactor2 must produce output files");
         // At least one file should be JSON
-        let has_json = files.iter().any(|f| {
-            f.extension().and_then(|e| e.to_str()) == Some("json")
-        });
+        let has_json = files
+            .iter()
+            .any(|f| f.extension().and_then(|e| e.to_str()) == Some("json"));
         assert!(has_json, "rfactor2 should produce a JSON config");
         Ok(())
     }
@@ -387,7 +387,10 @@ mod edge_values {
             let writer = factory();
             let temp = tempfile::tempdir()?;
             let result = writer.write_config(temp.path(), &config);
-            assert!(result.is_ok(), "{id}: special chars in method should not error");
+            assert!(
+                result.is_ok(),
+                "{id}: special chars in method should not error"
+            );
         }
         Ok(())
     }

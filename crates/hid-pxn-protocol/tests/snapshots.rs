@@ -41,9 +41,15 @@ fn snapshot_all_products_classification() {
 #[test]
 fn snapshot_is_pxn_boundary_vids() {
     let results = [
-        ("vid_minus_one", pxn::is_pxn(pxn::VENDOR_ID - 1, pxn::PRODUCT_V10)),
+        (
+            "vid_minus_one",
+            pxn::is_pxn(pxn::VENDOR_ID - 1, pxn::PRODUCT_V10),
+        ),
         ("vid_exact", pxn::is_pxn(pxn::VENDOR_ID, pxn::PRODUCT_V10)),
-        ("vid_plus_one", pxn::is_pxn(pxn::VENDOR_ID + 1, pxn::PRODUCT_V10)),
+        (
+            "vid_plus_one",
+            pxn::is_pxn(pxn::VENDOR_ID + 1, pxn::PRODUCT_V10),
+        ),
         ("vid_zero", pxn::is_pxn(0x0000, pxn::PRODUCT_V12)),
         ("vid_max", pxn::is_pxn(0xFFFF, pxn::PRODUCT_GT987)),
     ];

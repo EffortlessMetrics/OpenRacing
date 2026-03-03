@@ -130,10 +130,7 @@ fn example_invalid_wasm_bytes_rejected() {
 
 #[test]
 fn example_capability_grant_and_deny() -> Result<(), PluginError> {
-    let checker = CapabilityChecker::new(vec![
-        Capability::ReadTelemetry,
-        Capability::ControlLeds,
-    ]);
+    let checker = CapabilityChecker::new(vec![Capability::ReadTelemetry, Capability::ControlLeds]);
 
     // Granted capabilities succeed
     checker.check_telemetry_read()?;
@@ -159,10 +156,8 @@ fn example_capability_filesystem_scope() -> Result<(), PluginError> {
 
 #[test]
 fn example_capability_enforcer_wasi_integration() -> Result<(), PluginError> {
-    let enforcer = WasmCapabilityEnforcer::new(vec![
-        Capability::ReadTelemetry,
-        Capability::ProcessDsp,
-    ]);
+    let enforcer =
+        WasmCapabilityEnforcer::new(vec![Capability::ReadTelemetry, Capability::ProcessDsp]);
     let inner = enforcer.checker();
 
     inner.check_telemetry_read()?;
@@ -185,7 +180,10 @@ fn example_fuel_exhaustion_terminates_plugin() -> Result<(), Box<dyn std::error:
     runtime.load_plugin_from_bytes(id, &wasm, vec![])?;
 
     let result = runtime.process(&id, 1.0, 0.001);
-    assert!(result.is_err(), "infinite-loop must be terminated by fuel exhaustion");
+    assert!(
+        result.is_err(),
+        "infinite-loop must be terminated by fuel exhaustion"
+    );
 
     assert!(
         runtime.is_plugin_disabled(&id)?,
@@ -378,8 +376,14 @@ fn example_two_wasm_plugins_loaded_simultaneously() -> Result<(), Box<dyn std::e
     let pass_out = runtime.process(&pass_id, 5.0, 0.001)?;
     let double_out = runtime.process(&double_id, 5.0, 0.001)?;
 
-    assert!((pass_out - 5.0).abs() < f32::EPSILON, "passthrough returns input");
-    assert!((double_out - 10.0).abs() < f32::EPSILON, "doubler returns 2x input");
+    assert!(
+        (pass_out - 5.0).abs() < f32::EPSILON,
+        "passthrough returns input"
+    );
+    assert!(
+        (double_out - 10.0).abs() < f32::EPSILON,
+        "doubler returns 2x input"
+    );
     Ok(())
 }
 

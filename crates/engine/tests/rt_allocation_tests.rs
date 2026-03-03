@@ -391,7 +391,13 @@ async fn alloc_17_extreme_inputs_no_alloc() -> Result<(), Box<dyn std::error::Er
 
     let guard = track();
     let extremes: &[f32] = &[
-        0.0, 1.0, -1.0, 0.999999, -0.999999, f32::MIN_POSITIVE, -f32::MIN_POSITIVE,
+        0.0,
+        1.0,
+        -1.0,
+        0.999999,
+        -0.999999,
+        f32::MIN_POSITIVE,
+        -f32::MIN_POSITIVE,
     ];
     for (i, &val) in extremes.iter().enumerate() {
         let mut frame = make_frame(val, i as u16 + 1);

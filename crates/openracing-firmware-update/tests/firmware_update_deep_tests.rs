@@ -1752,7 +1752,10 @@ mod power_failure_recovery {
             let dev = format!("dev-{}", i);
             blocker.begin_update(&dev).await?;
             assert!(blocker.is_ffb_blocked());
-            assert_eq!(blocker.get_updating_device().await.as_deref(), Some(dev.as_str()));
+            assert_eq!(
+                blocker.get_updating_device().await.as_deref(),
+                Some(dev.as_str())
+            );
 
             blocker
                 .set_state(UpdateState::Flashing { progress: 50 })
@@ -2067,7 +2070,12 @@ mod update_cancellation {
             partition_states: Vec::new(),
         };
         assert!(!result.success);
-        assert!(result.error.as_deref().is_some_and(|e| e.contains("cancelled")));
+        assert!(
+            result
+                .error
+                .as_deref()
+                .is_some_and(|e| e.contains("cancelled"))
+        );
 
         let json = serde_json::to_string(&result)?;
         let decoded: UpdateResult = serde_json::from_str(&json)?;
@@ -2266,7 +2274,10 @@ mod compatibility_extended {
         let bundle = FirmwareBundle::new(&image, BundleMetadata::default(), CompressionType::None)?;
 
         assert_eq!(bundle.header.device_model, "pro-wheel-gt");
-        assert_eq!(bundle.header.firmware_version, semver::Version::new(4, 2, 1));
+        assert_eq!(
+            bundle.header.firmware_version,
+            semver::Version::new(4, 2, 1)
+        );
         assert_eq!(bundle.header.min_hw_version.as_deref(), Some("2.0"));
         assert_eq!(bundle.header.max_hw_version.as_deref(), Some("8.0"));
         assert_eq!(bundle.header.uncompressed_size, 64);

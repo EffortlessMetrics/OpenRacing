@@ -131,7 +131,10 @@ mod bundle_creation {
         let temp_dir = TempDir::new()?;
         let log_dir = temp_dir.path().join("logs");
         std::fs::create_dir(&log_dir)?;
-        std::fs::write(log_dir.join("app.log"), "log data line 1\nlog data line 2\n")?;
+        std::fs::write(
+            log_dir.join("app.log"),
+            "log data line 1\nlog data line 2\n",
+        )?;
         std::fs::write(log_dir.join("error.log"), "error details\n")?;
 
         let mut bundle = SupportBundle::new(SupportBundleConfig::default());
@@ -210,10 +213,7 @@ mod pii_redaction {
                 if key.starts_with("CARGO_") || key.starts_with("RUST_") {
                     continue;
                 }
-                assert!(
-                    !upper.contains("PASSWORD"),
-                    "PASSWORD var leaked: {key}"
-                );
+                assert!(!upper.contains("PASSWORD"), "PASSWORD var leaked: {key}");
                 assert!(!upper.contains("SECRET"), "SECRET var leaked: {key}");
                 assert!(!upper.contains("TOKEN"), "TOKEN var leaked: {key}");
                 assert!(
@@ -343,7 +343,11 @@ mod compression {
 
         let names = zip_entry_names(&path)?;
         // At minimum: manifest.json, system_info.json, health_events.json
-        assert!(names.len() >= 3, "expected at least 3 entries, got {}", names.len());
+        assert!(
+            names.len() >= 3,
+            "expected at least 3 entries, got {}",
+            names.len()
+        );
         assert!(names.contains(&"manifest.json".to_string()));
         assert!(names.contains(&"system_info.json".to_string()));
         assert!(names.contains(&"health_events.json".to_string()));
@@ -401,7 +405,11 @@ mod compression {
             let mut entry = archive.by_index(i)?;
             let mut buf = Vec::new();
             entry.read_to_end(&mut buf)?;
-            assert!(!buf.is_empty(), "entry {} should not be empty", entry.name());
+            assert!(
+                !buf.is_empty(),
+                "entry {} should not be empty",
+                entry.name()
+            );
         }
         Ok(())
     }
@@ -461,7 +469,10 @@ mod size_limits {
         bundle.add_health_events(&[make_event("dev-1", "Connected")])?;
         let after = bundle.estimated_size_mb();
 
-        assert!(after > before, "estimated size should increase after adding events");
+        assert!(
+            after > before,
+            "estimated size should increase after adding events"
+        );
         Ok(())
     }
 
@@ -473,7 +484,10 @@ mod size_limits {
         bundle.add_system_info()?;
         let after = bundle.estimated_size_mb();
 
-        assert!(after > before, "estimated size should increase after adding system info");
+        assert!(
+            after > before,
+            "estimated size should increase after adding system info"
+        );
         Ok(())
     }
 
@@ -561,7 +575,10 @@ mod partial_generation {
 
         let mut bundle = SupportBundle::new(SupportBundleConfig::default());
         let result = bundle.add_recent_recordings(&nonexistent);
-        assert!(result.is_ok(), "missing recording dir should not cause error");
+        assert!(
+            result.is_ok(),
+            "missing recording dir should not cause error"
+        );
 
         let path = temp_dir.path().join("bundle.zip");
         bundle.generate(&path)?;
@@ -717,9 +734,18 @@ mod versioning {
         let manifest: serde_json::Value = serde_json::from_str(&content)?;
 
         let config = manifest.get("config").ok_or("missing config section")?;
-        assert_eq!(config.get("include_logs").and_then(|v| v.as_bool()), Some(true));
-        assert_eq!(config.get("include_profiles").and_then(|v| v.as_bool()), Some(true));
-        assert_eq!(config.get("include_system_info").and_then(|v| v.as_bool()), Some(true));
+        assert_eq!(
+            config.get("include_logs").and_then(|v| v.as_bool()),
+            Some(true)
+        );
+        assert_eq!(
+            config.get("include_profiles").and_then(|v| v.as_bool()),
+            Some(true)
+        );
+        assert_eq!(
+            config.get("include_system_info").and_then(|v| v.as_bool()),
+            Some(true)
+        );
         assert_eq!(
             config
                 .get("include_recent_recordings")
@@ -749,9 +775,7 @@ mod versioning {
 
         let contents = manifest.get("contents").ok_or("missing contents section")?;
         assert_eq!(
-            contents
-                .get("health_events_count")
-                .and_then(|v| v.as_u64()),
+            contents.get("health_events_count").and_then(|v| v.as_u64()),
             Some(2)
         );
         assert_eq!(
@@ -779,9 +803,18 @@ mod versioning {
         let manifest: serde_json::Value = serde_json::from_str(&content)?;
 
         let cfg = manifest.get("config").ok_or("missing config")?;
-        assert_eq!(cfg.get("include_logs").and_then(|v| v.as_bool()), Some(false));
-        assert_eq!(cfg.get("include_profiles").and_then(|v| v.as_bool()), Some(false));
-        assert_eq!(cfg.get("max_bundle_size_mb").and_then(|v| v.as_u64()), Some(10));
+        assert_eq!(
+            cfg.get("include_logs").and_then(|v| v.as_bool()),
+            Some(false)
+        );
+        assert_eq!(
+            cfg.get("include_profiles").and_then(|v| v.as_bool()),
+            Some(false)
+        );
+        assert_eq!(
+            cfg.get("max_bundle_size_mb").and_then(|v| v.as_u64()),
+            Some(10)
+        );
         Ok(())
     }
 

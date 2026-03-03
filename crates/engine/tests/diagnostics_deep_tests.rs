@@ -104,8 +104,7 @@ fn make_health_event(i: usize) -> HealthEvent {
 fn all_three_streams_recorded_when_enabled() {
     let tmp = TempDir::new().unwrap_or_else(|e| panic!("tmp: {e}"));
     let config = make_diag_config(&tmp);
-    let mut svc =
-        DiagnosticService::new(config).unwrap_or_else(|e| panic!("svc: {e}"));
+    let mut svc = DiagnosticService::new(config).unwrap_or_else(|e| panic!("svc: {e}"));
     let dev = parse_device_id("completeness-test");
     svc.start_recording(dev)
         .unwrap_or_else(|e| panic!("start: {e}"));
@@ -141,8 +140,7 @@ fn all_three_streams_recorded_when_enabled() {
 fn recording_without_frames_tracks_zero() {
     let tmp = TempDir::new().unwrap_or_else(|e| panic!("tmp: {e}"));
     let config = make_diag_config(&tmp);
-    let mut svc =
-        DiagnosticService::new(config).unwrap_or_else(|e| panic!("svc: {e}"));
+    let mut svc = DiagnosticService::new(config).unwrap_or_else(|e| panic!("svc: {e}"));
     let dev = parse_device_id("zero-frames");
     svc.start_recording(dev)
         .unwrap_or_else(|e| panic!("start: {e}"));
@@ -159,13 +157,15 @@ fn recording_without_frames_tracks_zero() {
 fn frame_recording_outside_active_session_is_noop() {
     let tmp = TempDir::new().unwrap_or_else(|e| panic!("tmp: {e}"));
     let config = make_diag_config(&tmp);
-    let mut svc =
-        DiagnosticService::new(config).unwrap_or_else(|e| panic!("svc: {e}"));
+    let mut svc = DiagnosticService::new(config).unwrap_or_else(|e| panic!("svc: {e}"));
 
     // No recording started
     let frame = make_frame(0);
     let result = svc.record_frame(&frame, &[0.1], &SafetyState::SafeTorque, 50);
-    assert!(result.is_ok(), "recording frame without active session should succeed (noop)");
+    assert!(
+        result.is_ok(),
+        "recording frame without active session should succeed (noop)"
+    );
     assert!(svc.get_recording_stats().is_none());
 }
 
@@ -177,10 +177,7 @@ fn frame_recording_outside_active_session_is_noop() {
 fn health_event_serializes_to_json() {
     let event = make_health_event(0);
     let json_result = serde_json::to_string(&event);
-    assert!(
-        json_result.is_ok(),
-        "HealthEvent must serialize to JSON"
-    );
+    assert!(json_result.is_ok(), "HealthEvent must serialize to JSON");
     let json = json_result.unwrap_or_else(|e| panic!("json: {e}"));
     assert!(json.contains("device_id"));
     assert!(json.contains("event_type"));
@@ -261,8 +258,7 @@ fn stats_frame_count_matches_recorded_frames() {
         enable_stream_b: true,
         enable_stream_c: true,
     };
-    let mut recorder =
-        BlackboxRecorder::new(config).unwrap_or_else(|e| panic!("new: {e}"));
+    let mut recorder = BlackboxRecorder::new(config).unwrap_or_else(|e| panic!("new: {e}"));
 
     let count = 250;
     for i in 0..count {
@@ -288,14 +284,18 @@ fn recording_speed_is_adequate_for_1khz() {
         enable_stream_b: false,
         enable_stream_c: false,
     };
-    let mut recorder =
-        BlackboxRecorder::new(config).unwrap_or_else(|e| panic!("new: {e}"));
+    let mut recorder = BlackboxRecorder::new(config).unwrap_or_else(|e| panic!("new: {e}"));
 
     let n = 1000;
     let start = Instant::now();
     for i in 0..n {
         recorder
-            .record_frame(&make_frame(i), &[0.1, 0.2, 0.3], &SafetyState::SafeTorque, 100)
+            .record_frame(
+                &make_frame(i),
+                &[0.1, 0.2, 0.3],
+                &SafetyState::SafeTorque,
+                100,
+            )
             .unwrap_or_else(|e| panic!("record: {e}"));
     }
     let elapsed = start.elapsed();
@@ -311,8 +311,7 @@ fn recording_speed_is_adequate_for_1khz() {
 fn uptime_increases_over_time() {
     let tmp = TempDir::new().unwrap_or_else(|e| panic!("tmp: {e}"));
     let config = make_diag_config(&tmp);
-    let svc =
-        DiagnosticService::new(config).unwrap_or_else(|e| panic!("svc: {e}"));
+    let svc = DiagnosticService::new(config).unwrap_or_else(|e| panic!("svc: {e}"));
 
     let t1 = svc.uptime();
     std::thread::sleep(Duration::from_millis(50));
@@ -329,8 +328,7 @@ fn uptime_increases_over_time() {
 fn health_events_drain_oldest_on_overflow() {
     let tmp = TempDir::new().unwrap_or_else(|e| panic!("tmp: {e}"));
     let config = make_diag_config(&tmp);
-    let mut svc =
-        DiagnosticService::new(config).unwrap_or_else(|e| panic!("svc: {e}"));
+    let mut svc = DiagnosticService::new(config).unwrap_or_else(|e| panic!("svc: {e}"));
 
     // Insert more than 1000 events to trigger drain
     for i in 0..1100 {
@@ -340,10 +338,7 @@ fn health_events_drain_oldest_on_overflow() {
     // After overflow, the service drains the oldest 500 when > 1000
     // So count should be between 500 and 1100 depending on drain strategy
     let recent = svc.get_recent_health_events(2000);
-    assert!(
-        recent.len() <= 1100,
-        "should not exceed total inserted"
-    );
+    assert!(recent.len() <= 1100, "should not exceed total inserted");
     // The service drains 500 when count > 1000, so the remaining should be
     // at most 1100 - 500 = 600 (plus any events inserted after the drain)
     assert!(
@@ -357,8 +352,7 @@ fn health_events_drain_oldest_on_overflow() {
 fn get_recent_events_with_limit() {
     let tmp = TempDir::new().unwrap_or_else(|e| panic!("tmp: {e}"));
     let config = make_diag_config(&tmp);
-    let mut svc =
-        DiagnosticService::new(config).unwrap_or_else(|e| panic!("svc: {e}"));
+    let mut svc = DiagnosticService::new(config).unwrap_or_else(|e| panic!("svc: {e}"));
 
     for i in 0..20 {
         svc.record_health_event(make_health_event(i));
@@ -375,8 +369,7 @@ fn get_recent_events_with_limit() {
 fn get_recent_events_from_empty_service() {
     let tmp = TempDir::new().unwrap_or_else(|e| panic!("tmp: {e}"));
     let config = make_diag_config(&tmp);
-    let svc =
-        DiagnosticService::new(config).unwrap_or_else(|e| panic!("svc: {e}"));
+    let svc = DiagnosticService::new(config).unwrap_or_else(|e| panic!("svc: {e}"));
 
     let recent = svc.get_recent_health_events(10);
     assert!(recent.is_empty());
@@ -469,8 +462,7 @@ fn support_bundle_includes_manifest() {
 
     // Read the ZIP and verify manifest exists
     let file = std::fs::File::open(&bundle_path).unwrap_or_else(|e| panic!("open: {e}"));
-    let mut archive =
-        zip::ZipArchive::new(file).unwrap_or_else(|e| panic!("zip: {e}"));
+    let mut archive = zip::ZipArchive::new(file).unwrap_or_else(|e| panic!("zip: {e}"));
     let has_manifest = (0..archive.len()).any(|i| {
         archive
             .by_index(i)
@@ -503,8 +495,7 @@ fn support_bundle_includes_health_events() {
         .unwrap_or_else(|e| panic!("gen: {e}"));
 
     let file = std::fs::File::open(&bundle_path).unwrap_or_else(|e| panic!("open: {e}"));
-    let mut archive =
-        zip::ZipArchive::new(file).unwrap_or_else(|e| panic!("zip: {e}"));
+    let mut archive = zip::ZipArchive::new(file).unwrap_or_else(|e| panic!("zip: {e}"));
     let has_events = (0..archive.len()).any(|i| {
         archive
             .by_index(i)
@@ -530,8 +521,7 @@ fn support_bundle_includes_system_info() {
         .unwrap_or_else(|e| panic!("gen: {e}"));
 
     let file = std::fs::File::open(&bundle_path).unwrap_or_else(|e| panic!("open: {e}"));
-    let mut archive =
-        zip::ZipArchive::new(file).unwrap_or_else(|e| panic!("zip: {e}"));
+    let mut archive = zip::ZipArchive::new(file).unwrap_or_else(|e| panic!("zip: {e}"));
     let has_sys = (0..archive.len()).any(|i| {
         archive
             .by_index(i)
@@ -564,10 +554,7 @@ fn support_bundle_size_limit_enforced() {
     };
 
     let result = bundle.add_health_events(&[large_event]);
-    assert!(
-        result.is_err(),
-        "exceeding size limit should fail"
-    );
+    assert!(result.is_err(), "exceeding size limit should fail");
 }
 
 #[test]
@@ -599,12 +586,9 @@ fn log_files_discovered_by_extension() {
     let log_dir = tmp.path().join("logs");
     std::fs::create_dir_all(&log_dir).unwrap_or_else(|e| panic!("mkdir: {e}"));
 
-    std::fs::write(log_dir.join("app.log"), "log content")
-        .unwrap_or_else(|e| panic!("write: {e}"));
-    std::fs::write(log_dir.join("debug.log"), "debug log")
-        .unwrap_or_else(|e| panic!("write: {e}"));
-    std::fs::write(log_dir.join("data.csv"), "not a log")
-        .unwrap_or_else(|e| panic!("write: {e}"));
+    std::fs::write(log_dir.join("app.log"), "log content").unwrap_or_else(|e| panic!("write: {e}"));
+    std::fs::write(log_dir.join("debug.log"), "debug log").unwrap_or_else(|e| panic!("write: {e}"));
+    std::fs::write(log_dir.join("data.csv"), "not a log").unwrap_or_else(|e| panic!("write: {e}"));
 
     let config = SupportBundleConfig::default();
     let mut bundle = SupportBundle::new(config);
@@ -619,8 +603,7 @@ fn log_files_discovered_by_extension() {
         .unwrap_or_else(|e| panic!("gen: {e}"));
 
     let file = std::fs::File::open(&bundle_path).unwrap_or_else(|e| panic!("open: {e}"));
-    let mut archive =
-        zip::ZipArchive::new(file).unwrap_or_else(|e| panic!("zip: {e}"));
+    let mut archive = zip::ZipArchive::new(file).unwrap_or_else(|e| panic!("zip: {e}"));
 
     let log_entries: Vec<String> = (0..archive.len())
         .filter_map(|i| {
@@ -709,8 +692,7 @@ fn disabled_stream_a_skips_frame_recording() {
         enable_stream_b: true,
         enable_stream_c: true,
     };
-    let mut recorder =
-        BlackboxRecorder::new(config).unwrap_or_else(|e| panic!("new: {e}"));
+    let mut recorder = BlackboxRecorder::new(config).unwrap_or_else(|e| panic!("new: {e}"));
 
     recorder
         .record_frame(&make_frame(0), &[0.1], &SafetyState::SafeTorque, 50)
@@ -736,8 +718,7 @@ fn disabled_stream_b_skips_telemetry() {
         enable_stream_b: false,
         enable_stream_c: true,
     };
-    let mut recorder =
-        BlackboxRecorder::new(config).unwrap_or_else(|e| panic!("new: {e}"));
+    let mut recorder = BlackboxRecorder::new(config).unwrap_or_else(|e| panic!("new: {e}"));
 
     recorder
         .record_telemetry(&make_telemetry(0))
@@ -763,8 +744,7 @@ fn disabled_stream_c_skips_health_events() {
         enable_stream_b: true,
         enable_stream_c: false,
     };
-    let mut recorder =
-        BlackboxRecorder::new(config).unwrap_or_else(|e| panic!("new: {e}"));
+    let mut recorder = BlackboxRecorder::new(config).unwrap_or_else(|e| panic!("new: {e}"));
 
     recorder
         .record_health_event(&make_health_event(0))
@@ -798,8 +778,7 @@ fn support_bundle_finds_recent_recordings() {
         enable_stream_b: false,
         enable_stream_c: false,
     };
-    let mut recorder =
-        BlackboxRecorder::new(config).unwrap_or_else(|e| panic!("new: {e}"));
+    let mut recorder = BlackboxRecorder::new(config).unwrap_or_else(|e| panic!("new: {e}"));
     recorder
         .record_frame(&make_frame(0), &[0.1], &SafetyState::SafeTorque, 50)
         .unwrap_or_else(|e| panic!("record: {e}"));

@@ -144,7 +144,11 @@ async fn workflow_lifecycle_pid_only_device() -> Result<()> {
     let id: DeviceId = "wf-pid-001".parse()?;
     let caps = DeviceCapabilities::new(true, false, false, false, TorqueNm::new(8.0)?, 4096, 2000);
     let mode = ModeSelectionPolicy::select_mode(&caps, None);
-    assert_eq!(mode, FFBMode::PidPassthrough, "PID-only device must select PidPassthrough");
+    assert_eq!(
+        mode,
+        FFBMode::PidPassthrough,
+        "PID-only device must select PidPassthrough"
+    );
 
     let mut device = VirtualDevice::new(id, "PID Wheel".to_string());
     let mut pipeline = Pipeline::new();
@@ -358,8 +362,11 @@ async fn workflow_hotplug_add_device_mid_session() -> Result<()> {
 
     // Hot-plug second device
     let id_b: DeviceId = "wf-hp-add-b".parse()?;
-    port.add_device(VirtualDevice::new(id_b.clone(), "Secondary Wheel".to_string()))
-        .map_err(|e| anyhow::anyhow!("{e}"))?;
+    port.add_device(VirtualDevice::new(
+        id_b.clone(),
+        "Secondary Wheel".to_string(),
+    ))
+    .map_err(|e| anyhow::anyhow!("{e}"))?;
 
     // First device still works
     dev_a.write_ffb_report(3.0, 1)?;
@@ -445,10 +452,16 @@ async fn workflow_multi_device_three_devices_independent() -> Result<()> {
 
     port.add_device(VirtualDevice::new(id_wheel.clone(), "DD Wheel".to_string()))
         .map_err(|e| anyhow::anyhow!("{e}"))?;
-    port.add_device(VirtualDevice::new(id_pedals.clone(), "Load Cell Pedals".to_string()))
-        .map_err(|e| anyhow::anyhow!("{e}"))?;
-    port.add_device(VirtualDevice::new(id_shifter.clone(), "H-Pattern Shifter".to_string()))
-        .map_err(|e| anyhow::anyhow!("{e}"))?;
+    port.add_device(VirtualDevice::new(
+        id_pedals.clone(),
+        "Load Cell Pedals".to_string(),
+    ))
+    .map_err(|e| anyhow::anyhow!("{e}"))?;
+    port.add_device(VirtualDevice::new(
+        id_shifter.clone(),
+        "H-Pattern Shifter".to_string(),
+    ))
+    .map_err(|e| anyhow::anyhow!("{e}"))?;
 
     let devices = port
         .list_devices()
@@ -530,10 +543,16 @@ async fn workflow_multi_device_independent_pipelines() -> Result<()> {
     let id_a: DeviceId = "wf-multi-pipe-a".parse()?;
     let id_b: DeviceId = "wf-multi-pipe-b".parse()?;
 
-    port.add_device(VirtualDevice::new(id_a.clone(), "Pipeline A Wheel".to_string()))
-        .map_err(|e| anyhow::anyhow!("{e}"))?;
-    port.add_device(VirtualDevice::new(id_b.clone(), "Pipeline B Wheel".to_string()))
-        .map_err(|e| anyhow::anyhow!("{e}"))?;
+    port.add_device(VirtualDevice::new(
+        id_a.clone(),
+        "Pipeline A Wheel".to_string(),
+    ))
+    .map_err(|e| anyhow::anyhow!("{e}"))?;
+    port.add_device(VirtualDevice::new(
+        id_b.clone(),
+        "Pipeline B Wheel".to_string(),
+    ))
+    .map_err(|e| anyhow::anyhow!("{e}"))?;
 
     let mut dev_a = port
         .open_device(&id_a)

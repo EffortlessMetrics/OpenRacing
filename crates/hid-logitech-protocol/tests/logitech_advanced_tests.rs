@@ -305,7 +305,11 @@ fn test_dfp_range_reports_structure() -> Result<(), Box<dyn std::error::Error>> 
     assert_eq!(reports[1][0], 0x81, "fine report byte 0");
     assert_eq!(reports[1][1], 0x0b, "fine report byte 1");
     // For 540°, fine limit values must be non-trivial
-    assert_ne!(&reports[1][2..7], &[0, 0, 0, 0, 0], "540° fine must not be no-op");
+    assert_ne!(
+        &reports[1][2..7],
+        &[0, 0, 0, 0, 0],
+        "540° fine must not be no-op"
+    );
     Ok(())
 }
 
@@ -396,7 +400,10 @@ fn test_trueforce_only_g923() -> Result<(), Box<dyn std::error::Error>> {
         LogitechModel::Unknown,
     ];
     for model in models_without_tf {
-        assert!(!model.supports_trueforce(), "{model:?} must NOT support TrueForce");
+        assert!(
+            !model.supports_trueforce(),
+            "{model:?} must NOT support TrueForce"
+        );
     }
     assert!(LogitechModel::G923.supports_trueforce());
     Ok(())

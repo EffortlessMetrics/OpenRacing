@@ -778,9 +778,9 @@ fn all_content_types_signable() -> Result<(), Box<dyn std::error::Error>> {
 fn deterministic_key_from_fixed_seed() -> Result<(), Box<dyn std::error::Error>> {
     // A fixed 32-byte seed always produces the same public key and signatures
     let seed: [u8; 32] = [
-        0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E,
-        0x0F, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1C,
-        0x1D, 0x1E, 0x1F, 0x20,
+        0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
+        0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E,
+        0x1F, 0x20,
     ];
 
     let kp1 = KeyPair::from_bytes(&seed, "fixed-1".to_string())?;
@@ -819,8 +819,8 @@ fn known_seed_signature_is_verifiable() -> Result<(), Box<dyn std::error::Error>
 }
 
 #[test]
-fn known_seed_different_data_produces_different_signatures() -> Result<(), Box<dyn std::error::Error>>
-{
+fn known_seed_different_data_produces_different_signatures()
+-> Result<(), Box<dyn std::error::Error>> {
     let seed: [u8; 32] = [0xBB; 32];
     let kp = KeyPair::from_bytes(&seed, "diff-msg".to_string())?;
 
@@ -828,9 +828,21 @@ fn known_seed_different_data_produces_different_signatures() -> Result<(), Box<d
     let sig_b = Ed25519Signer::sign(b"message B", &kp.signing_key)?;
 
     assert!(!sig_a.ct_eq(&sig_b));
-    assert!(Ed25519Verifier::verify(b"message A", &sig_a, &kp.public_key)?);
-    assert!(Ed25519Verifier::verify(b"message B", &sig_b, &kp.public_key)?);
-    assert!(!Ed25519Verifier::verify(b"message B", &sig_a, &kp.public_key)?);
+    assert!(Ed25519Verifier::verify(
+        b"message A",
+        &sig_a,
+        &kp.public_key
+    )?);
+    assert!(Ed25519Verifier::verify(
+        b"message B",
+        &sig_b,
+        &kp.public_key
+    )?);
+    assert!(!Ed25519Verifier::verify(
+        b"message B",
+        &sig_a,
+        &kp.public_key
+    )?);
 
     Ok(())
 }
@@ -1075,9 +1087,17 @@ fn key_rotation_resign_with_new_key() -> Result<(), Box<dyn std::error::Error>> 
     assert!(Ed25519Verifier::verify(data, &new_sig, &new_kp.public_key)?);
 
     // Old signature must NOT verify with new key
-    assert!(!Ed25519Verifier::verify(data, &old_sig, &new_kp.public_key)?);
+    assert!(!Ed25519Verifier::verify(
+        data,
+        &old_sig,
+        &new_kp.public_key
+    )?);
     // New signature must NOT verify with old key
-    assert!(!Ed25519Verifier::verify(data, &new_sig, &old_kp.public_key)?);
+    assert!(!Ed25519Verifier::verify(
+        data,
+        &new_sig,
+        &old_kp.public_key
+    )?);
 
     Ok(())
 }

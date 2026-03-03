@@ -18,10 +18,10 @@ use openracing_pipeline::Pipeline;
 use openracing_profile::{WheelProfile, WheelSettings};
 use openracing_telemetry_streams::TelemetryBuffer;
 use openracing_watchdog::{SystemComponent, WatchdogConfig, WatchdogSystem};
+use racing_wheel_engine::JitterMetrics;
 use racing_wheel_engine::safety::{
     SafetyInterlockState, SafetyInterlockSystem, SafetyService, SoftwareWatchdog,
 };
-use racing_wheel_engine::JitterMetrics;
 use racing_wheel_telemetry_recorder::TestFixtureGenerator;
 
 type BoxErr = Box<dyn std::error::Error + Send + Sync>;
@@ -188,8 +188,7 @@ fn stress_large_profile_storage() -> Result<()> {
         settings.ffb.damper_strength = (i as f32 * 0.002) % 1.0;
         settings.input.steering_range = 180 + (i as u16 % 720);
 
-        let profile = WheelProfile::new(&name, format!("dev-{}", i % 10))
-            .with_settings(settings);
+        let profile = WheelProfile::new(&name, format!("dev-{}", i % 10)).with_settings(settings);
         profiles.push(profile);
     }
 
@@ -198,13 +197,9 @@ fn stress_large_profile_storage() -> Result<()> {
     // Verify each profile retained its identity
     for (i, profile) in profiles.iter().enumerate() {
         let expected_name = format!("stress-profile-{i:04}");
-        assert_eq!(
-            profile.name, expected_name,
-            "profile {i}: name mismatch"
-        );
+        assert_eq!(profile.name, expected_name, "profile {i}: name mismatch");
         assert!(
-            profile.settings.ffb.overall_gain >= 0.0
-                && profile.settings.ffb.overall_gain <= 1.0,
+            profile.settings.ffb.overall_gain >= 0.0 && profile.settings.ffb.overall_gain <= 1.0,
             "profile {i}: gain out of range"
         );
     }
@@ -397,10 +392,7 @@ fn stress_watchdog_plugin_quarantine() -> Result<(), BoxErr> {
 
     // Plugin should work again
     let fault = watchdog.record_plugin_execution("stress_plugin", 50);
-    assert!(
-        fault.is_none(),
-        "unexpected fault after quarantine release"
-    );
+    assert!(fault.is_none(), "unexpected fault after quarantine release");
 
     Ok(())
 }
@@ -557,10 +549,10 @@ fn stress_concurrent_fmea_access() -> Result<(), BoxErr> {
                     let mut sys = fmea.lock().map_err(|e| format!("lock: {e}"))?;
                     match tid % 4 {
                         0 => {
-                            if sys.detect_usb_fault(
-                                i as u32 % 10,
-                                Some(Duration::from_millis(100)),
-                            ).is_some() {
+                            if sys
+                                .detect_usb_fault(i as u32 % 10, Some(Duration::from_millis(100)))
+                                .is_some()
+                            {
                                 faults.fetch_add(1, Ordering::Relaxed);
                             }
                         }
@@ -685,10 +677,7 @@ fn stress_watchdog_multi_component_health_checks() -> Result<(), BoxErr> {
 
     // Verify all components have health status
     let health = watchdog.get_all_component_health();
-    assert!(
-        !health.is_empty(),
-        "no component health data after stress"
-    );
+    assert!(!health.is_empty(), "no component health data after stress");
 
     assert!(!watchdog.has_faulted_components());
 
@@ -789,10 +778,7 @@ fn stress_telemetry_fixture_generation() -> Result<()> {
         assert_eq!(recording.metadata.game_id, game_id);
 
         for frame in &recording.frames {
-            assert!(
-                frame.data.rpm >= 0.0,
-                "iteration {i}: negative RPM"
-            );
+            assert!(frame.data.rpm >= 0.0, "iteration {i}: negative RPM");
         }
     }
 
@@ -806,10 +792,7 @@ fn stress_telemetry_fixture_generation() -> Result<()> {
 #[test]
 fn stress_profile_migration_round_trip() -> Result<()> {
     for i in 0u32..500 {
-        let mut profile = WheelProfile::new(
-            format!("migrate-{i}"),
-            format!("dev-{}", i % 8),
-        );
+        let mut profile = WheelProfile::new(format!("migrate-{i}"), format!("dev-{}", i % 8));
 
         // Simulate old schema
         profile.schema_version = 0;

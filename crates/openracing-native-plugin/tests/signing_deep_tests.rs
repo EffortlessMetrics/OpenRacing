@@ -12,9 +12,7 @@ use openracing_crypto::verification::ContentType;
 use openracing_crypto::{SignatureMetadata, SignatureVerifier as _, TrustLevel, utils};
 
 use openracing_native_plugin::error::NativePluginError;
-use openracing_native_plugin::signature::{
-    SignatureVerificationConfig, SignatureVerifier,
-};
+use openracing_native_plugin::signature::{SignatureVerificationConfig, SignatureVerifier};
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -43,13 +41,8 @@ fn sign_plugin_file(
     keypair: &KeyPair,
     signer: &str,
 ) -> Result<SignatureMetadata, Box<dyn std::error::Error>> {
-    let meta = Ed25519Signer::sign_with_metadata(
-        content,
-        keypair,
-        signer,
-        ContentType::Plugin,
-        None,
-    )?;
+    let meta =
+        Ed25519Signer::sign_with_metadata(content, keypair, signer, ContentType::Plugin, None)?;
     utils::create_detached_signature(plugin_path, &meta)?;
     Ok(meta)
 }
@@ -303,10 +296,7 @@ fn appended_bytes_to_plugin_detected() -> Result<(), Box<dyn std::error::Error>>
 
     let verifier = SignatureVerifier::new(&store, SignatureVerificationConfig::strict());
     let result = verifier.verify(&path);
-    assert!(
-        result.is_err(),
-        "Appended data must invalidate signature"
-    );
+    assert!(result.is_err(), "Appended data must invalidate signature");
 
     Ok(())
 }
@@ -324,8 +314,7 @@ fn expired_signature_metadata_timestamp() -> Result<(), Box<dyn std::error::Erro
 
     // Create a signature with a timestamp from 2 years ago
     let sig = Ed25519Signer::sign(content, &kp.signing_key)?;
-    let old_timestamp =
-        chrono::Utc::now() - chrono::Duration::days(730);
+    let old_timestamp = chrono::Utc::now() - chrono::Duration::days(730);
     let meta = SignatureMetadata {
         signature: sig.to_base64(),
         key_fingerprint: kp.fingerprint(),
@@ -460,7 +449,10 @@ fn unknown_key_permissive_mode_warns() -> Result<(), Box<dyn std::error::Error>>
 
     assert!(result.is_signed);
     assert_eq!(result.trust_level, TrustLevel::Unknown);
-    assert!(!result.warnings.is_empty(), "Should have warnings about unknown key");
+    assert!(
+        !result.warnings.is_empty(),
+        "Should have warnings about unknown key"
+    );
 
     Ok(())
 }
@@ -623,23 +615,14 @@ fn sign_plugin_with_various_content_types() -> Result<(), Box<dyn std::error::Er
         let name = format!("ct_{}.dll", i);
         let path = write_fake_plugin(tmp.path(), &name, content)?;
 
-        let meta = Ed25519Signer::sign_with_metadata(
-            content,
-            &kp,
-            "ContentTypeTester",
-            ct.clone(),
-            None,
-        )?;
+        let meta =
+            Ed25519Signer::sign_with_metadata(content, &kp, "ContentTypeTester", ct.clone(), None)?;
         utils::create_detached_signature(&path, &meta)?;
 
         // Crypto signature is valid regardless of content type
         let sig = Signature::from_base64(&meta.signature)?;
         assert!(
-            openracing_crypto::ed25519::Ed25519Verifier::verify(
-                content,
-                &sig,
-                &kp.public_key
-            )?,
+            openracing_crypto::ed25519::Ed25519Verifier::verify(content, &sig, &kp.public_key)?,
             "Signature must be valid for content type variant {}",
             i
         );
