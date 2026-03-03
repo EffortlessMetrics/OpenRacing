@@ -1057,7 +1057,7 @@ mod handler_types {
     fn telemetry_data_construction() {
         let telemetry = TelemetryData {
             wheel_angle_deg: 450.0,
-            wheel_speed_rad_s: 3.14,
+            wheel_speed_rad_s: std::f32::consts::PI,
             temperature_c: 42.5,
             fault_flags: 0,
             hands_on: true,

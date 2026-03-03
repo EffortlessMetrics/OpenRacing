@@ -252,7 +252,7 @@ fn sum_compat_values<T: TelemetryCompat>(t: &T) -> i64 {
 fn generic_compat_consumer_works() {
     let t = sample(90.0, 5.0, 45, 2);
     let sum = sum_compat_values(&t);
-    let expected = 45_i64 + 2 + 90_000 + 5_000 + 0;
+    let expected = 45_i64 + 2 + 90_000 + 5_000;
     assert_eq!(sum, expected);
 }
 
@@ -368,7 +368,7 @@ fn new_test_code_pattern_works() {
 /// Old and new code can coexist: compat and direct access yield same results.
 #[test]
 fn old_and_new_code_coexist() {
-    let t = sample(135.0, 6.28, 50, 0x07);
+    let t = sample(135.0, std::f32::consts::TAU, 50, 0x07);
 
     assert_eq!(t.temp_c(), t.0.temperature_c);
     assert_eq!(t.faults(), t.0.fault_flags);

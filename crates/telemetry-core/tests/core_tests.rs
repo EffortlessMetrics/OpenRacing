@@ -3,7 +3,6 @@
 //! Covers: builder pattern, default values, extended map, TelemetryFlags,
 //! conversion utilities, and re-exported types.
 
-use std::collections::BTreeMap;
 use std::time::Instant;
 
 use racing_wheel_telemetry_core::{
@@ -676,6 +675,7 @@ fn with_timestamp_mut_and_with_sequence() -> TestResult {
 }
 
 #[test]
+#[allow(clippy::field_reassign_with_default)]
 fn validated_clamps_nan_and_out_of_range() -> TestResult {
     let mut t = NormalizedTelemetry::default();
     t.speed_ms = f32::NAN;
@@ -805,7 +805,7 @@ fn telemetry_flags_deserialize_missing_fields_use_defaults() -> TestResult {
 #[test]
 fn telemetry_value_serde_roundtrip() -> TestResult {
     let values = vec![
-        TelemetryValue::Float(3.14),
+        TelemetryValue::Float(std::f32::consts::PI),
         TelemetryValue::Integer(-7),
         TelemetryValue::Boolean(false),
         TelemetryValue::String("hello".into()),

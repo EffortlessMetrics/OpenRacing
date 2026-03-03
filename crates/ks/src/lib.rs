@@ -747,8 +747,8 @@ mod tests {
 
         let mut report = vec![0u8; 28];
         report[0] = 0x01;
-        for i in 1..17 {
-            report[i] = i as u8;
+        for (i, byte) in report.iter_mut().enumerate().take(17).skip(1) {
+            *byte = i as u8;
         }
         report[17] = 0x05;
         report[18..20].copy_from_slice(&1000u16.to_le_bytes());

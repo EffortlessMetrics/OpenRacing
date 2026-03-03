@@ -372,14 +372,12 @@ fn error_spsc_write_wrong_frame_size() -> Result<(), Box<dyn std::error::Error>>
     // Too small
     let result = writer.write(&[0u8; 32]);
     assert!(result.is_err());
-    let err_msg = format!("{}", result.as_ref().err().map_or("", |e| {
-        // Return a &str that lives long enough by leaking
-        // Actually, let's match on the error variant
+    let err_msg = result.as_ref().err().map_or("".to_string(), |e| {
         match e {
-            NativePluginError::SharedMemoryError(msg) => msg.as_str(),
-            _ => "",
+            NativePluginError::SharedMemoryError(msg) => msg.clone(),
+            _ => String::new(),
         }
-    }));
+    });
     assert!(err_msg.contains("mismatch") || err_msg.contains("size"));
 
     // Too large

@@ -4,7 +4,7 @@
 //! Gran Turismo Sport, Trackmania, and AC Rally.
 
 use racing_wheel_telemetry_adapters::{
-    ACRallyAdapter, Automobilista1Adapter, GranTurismo7SportsAdapter, PCars2Adapter,
+    ACRallyAdapter, Automobilista1Adapter, PCars2Adapter,
     PCars3Adapter, RaceRoomAdapter, TelemetryAdapter, TrackmaniaAdapter,
 };
 
@@ -247,6 +247,7 @@ const R3E_OFF_DELTA_FRONT: usize = 1124;
 const R3E_OFF_DELTA_BEHIND: usize = 1128;
 const R3E_OFF_FLAG_YELLOW: usize = 932;
 const R3E_OFF_FLAG_GREEN: usize = 972;
+#[allow(dead_code)]
 const R3E_OFF_IN_PITLANE: usize = 848;
 const R3E_OFF_AID_ABS: usize = 1536;
 const R3E_OFF_TIRE_TEMP_FL_CENTER: usize = 1748;

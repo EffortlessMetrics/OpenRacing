@@ -715,7 +715,7 @@ mod tests {
     fn telemetry_data_round_trip() {
         let tel = TelemetryData {
             wheel_angle_deg: 12.5,
-            wheel_speed_rad_s: 3.14,
+            wheel_speed_rad_s: std::f32::consts::PI,
             temperature_c: 55,
             fault_flags: 0,
             hands_on: true,

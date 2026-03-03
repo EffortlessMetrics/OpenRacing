@@ -2199,7 +2199,7 @@ fn telemetry_flags_deserialize_from_partial_json() -> TestResult {
 fn telemetry_data_full_serde_roundtrip() -> TestResult {
     let data = TelemetryData {
         wheel_angle_deg: -450.0,
-        wheel_speed_rad_s: 3.14,
+        wheel_speed_rad_s: std::f32::consts::PI,
         temperature_c: 65,
         fault_flags: 0b11001100,
         hands_on: true,
@@ -2351,7 +2351,7 @@ fn device_serde_roundtrip() -> TestResult {
     assert_eq!(restored.state, DeviceState::Connected);
     assert_eq!(restored.firmware_version, Some("1.2.3".to_string()));
     assert_eq!(restored.serial_number, Some("SN-12345".to_string()));
-    assert_eq!(restored.capabilities.supports_pid, true);
+    assert!(restored.capabilities.supports_pid);
     assert!((restored.capabilities.max_torque.value() - 20.0).abs() < f32::EPSILON);
     Ok(())
 }
@@ -2814,7 +2814,7 @@ fn current_schema_version_constant_matches() -> TestResult {
 
 #[test]
 fn migration_manager_needs_migration_for_legacy() -> TestResult {
-    let config = MigrationConfig::without_backups();
+    let _config = MigrationConfig::without_backups();
     let dir = tempfile::tempdir()?;
     let config = MigrationConfig::new(dir.path());
     let mgr = MigrationManager::new(config)?;
