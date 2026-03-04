@@ -152,6 +152,7 @@ Phase 3 is complete when ALL of the following are true:
     - [ ] Linux packages (deb, rpm, flatpak)
     - [ ] macOS DMG with notarization
 - [x] **PIDFF Consolidation**: All standard USB HID PID device crates (Simucube, VRS, OpenFFBoard, Cammus, AccuForce, Asetek, FFBeast, Leo Bodnar, PXN) now use `openracing-pidff-common` — ~4,338 lines of duplicated effects code eliminated (PRs #52, #72-74)
+- [x] **PID Source Verification**: All 17 vendor protocol crates cross-referenced against Linux kernel `hid-ids.h`, hid-tmff2 community driver, and simracing-hwdb; source citations added to all VID/PID constants (PR #76)
 - [ ] **Adaptive Scheduling**
     - [x] Dynamic deadline adjustment based on system load
     - [ ] CPU governor integration
@@ -196,4 +197,4 @@ See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for development setup and contr
 Significant architectural changes require an ADR. See [docs/adr/README.md](docs/adr/README.md) for the process.
 
 ---
-*Last updated: 2026-Q3. This roadmap reflects the 1.0 RC feature-complete state with 24,800+ tests across PRs #23-74.*
+*Last updated: 2026-Q3. This roadmap reflects the 1.0 RC feature-complete state with 24,800+ tests across PRs #23-76.*

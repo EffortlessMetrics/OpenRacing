@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Thrustmaster T818 shared-PID documentation** — T818/T248/T128 share PID 0xB696; cross-referenced against hid-tmff2 community driver source (PR #76)
 - **85 authoritative PID cross-validation checks** across 18 vendor categories — Heusinkveld (8), Asetek (7), Cammus (5), VRS (3), Simucube (5), AccuForce (2), FFBeast (2), PXN (4), Logitech (8), Simagic Handbrake (1), Thrustmaster TMX (1), plus 30 from prior PR — all sourced from linux-steering-wheels, simracing-hwdb, and kernel drivers
 - **Bezier LUT fidelity tolerance** widened from 0.02 to 0.05 for curves with extreme control points (high-curvature regions cause expected LUT interpolation divergence)
 - **`#![deny(static_mut_refs)]`** added to 34 non-test crates — enforces safe static access patterns across the workspace (PR #67)
