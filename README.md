@@ -14,8 +14,8 @@ OpenRacing is a high-performance, safety-critical racing wheel and force feedbac
 ## Features
 
 - **Real-time Force Feedback at 1kHz** - Deterministic processing pipeline with sub-millisecond latency for authentic racing feel
-- **Multi-Game Integration** - Native support for 14 simulators: iRacing, ACC, AMS2, rFactor 2, Assetto Corsa, Forza Motorsport/Horizon, BeamNG.drive, Project CARS 2/3, RaceRoom Experience, AC Rally, Dirt 5, EA WRC, F1 2024, F1 25
-- **Safety-Critical Design** - Comprehensive fault injection testing, FMEA analysis, hardware watchdog integration, and 600+ tests
+- **Multi-Game Integration** - Native support for 50+ simulators including iRacing, ACC, AMS2, rFactor 2, Forza, BeamNG.drive, Gran Turismo 7, Euro Truck Simulator 2, EA WRC, F1 25, and more
+- **Safety-Critical Design** - Comprehensive fault injection testing, FMEA analysis, hardware watchdog integration, and 25,500+ tests
 - **Plugin Architecture** - Extensible plugin system supporting both WASM and native plugins for custom DSP, telemetry, and LED effects
 - **Cross-Platform Support** - Runs on Windows 10+, Linux kernel 4.0+, and macOS with consistent behavior
 - **Zero-Allocation Real-Time Path** - Memory-safe real-time processing without heap allocations
@@ -24,42 +24,70 @@ OpenRacing is a high-performance, safety-critical racing wheel and force feedbac
 
 ## Supported Hardware
 
+OpenRacing supports 100+ devices across 25+ vendors. VID/PIDs are sourced from kernel drivers, community hardware databases, and manufacturer documentation.
+
 | Vendor | VID | Models | FFB |
 |--------|-----|--------|-----|
 | **Logitech** | `0x046D` | G27, G29, G923, G Pro | ✅ HID PIDFF + TrueForce |
 | **Fanatec** | `0x0EB7` | CSL DD, GT DD Pro, Podium DD1/DD2, CSW v2.5 | ✅ Custom HID |
 | **Thrustmaster** | `0x044F` | T150/Pro, TMX, T300RS/GT, TX, T500RS, T248/X, T-GT/II, TS-PC, TS-XW, T818 | ✅ HID PIDFF |
 | **Moza Racing** | `0x346E` | R3, R5 V1/V2, R9 V1/V2, R12 V1/V2, R16, R21 | ✅ Serial/HID PIDFF |
-| **Simagic** | `0x3670` / `0x0483` | Alpha, Alpha Mini/EVO, M10, Neo/Mini, pedals | ✅ HID PIDFF |
+| **Simagic** | `0x3670` / `0x0483` | Alpha, Alpha Mini/Ultimate, M10, EVO/Sport/Pro | ✅ Custom HID |
 | **Simucube 2** | `0x16D0` | Sport (17 Nm), Pro (25 Nm), Ultimate (32 Nm) | ✅ HID PIDFF |
 | **VRS DirectForce Pro** | `0x0483` | DirectForce Pro V1/V2 (20/25 Nm) | ✅ HID PIDFF |
-| **Heusinkveld** | `0x16D0` | Sprint, Ultimate+, Pro pedals | Input only |
+| **Heusinkveld** | `0x04D8` | Sprint, Ultimate+, Pro pedals | Input only |
 | **Asetek SimSports** | `0x2433` | Forte (18 Nm), Invicta (27 Nm), La Prima (12 Nm) | ✅ HID PIDFF |
 | **OpenFFBoard** | `0x1209` | All production firmware variants | ✅ HID PIDFF |
 | **FFBeast** | `0x045B` | Joystick, rudder, wheel builds | ✅ HID PIDFF |
-| **Granite Devices IONI/ARGON** | `0x1D50` | IONI / Simucube 1 (15 Nm), IONI Premium (35 Nm), ARGON (10 Nm) | ✅ SimpleMotion V2 |
+| **Granite Devices** | `0x1D50` | IONI / Simucube 1, IONI Premium, ARGON | ✅ SimpleMotion V2 |
 | **SimXperience AccuForce** | `0x1FC9` | AccuForce Pro V1/V2 | ✅ HID PIDFF |
 | **Cammus** | `0x3416` | C5, C12, CP5/LC100 pedals | ✅ HID PIDFF |
-| **Leo Bodnar** | `0x1DD2` | Wheel Interface, FFB Joystick, BBI-32, SLI-Pro | ⚠️ Partial FFB |
+| **Leo Bodnar** | `0x1DD2` | Wheel Interface, FFB Joystick, Pedals, LC Pedals | ⚠️ Partial FFB |
 | **Cube Controls** | `0x0483` | GT Pro, Formula CSX-3 (provisional) | Input only |
+| **MMOS** | `0x1209` | FFB Controller | ✅ HID PIDFF |
+| **SHH Shifter** | `0x1209` | SHH Newt, SHH Lite | Input only |
+| **Oddor** | `0x3853` | Wheelbases, pedals, handbrakes | ⚠️ Partial |
+| **PXN** | `0x3767` | V10, V9, V900 | ⚠️ Partial |
+| **FlashFire** | `0x0079` | 900R, ES900R | ⚠️ Partial |
 | **Generic HID button box** | `0x1209` | Arduino DIY, BangButtons, SimRacingInputs | Input only |
 
 ## Supported Games
+
+OpenRacing includes telemetry adapters for 50+ racing games and simulators:
 
 | Game | Method | Port/Key |
 |------|--------|----------|
 | iRacing | Shared memory | `IRSDKMemMapFileName` |
 | Assetto Corsa | OutGauge UDP | 9996 |
-| AC Competizione (ACC) / AC Rally | Shared memory | — |
-| Automobilista 2 / Project CARS 2/3 | Shared memory + UDP | 5606 |
-| rFactor 2 | Shared memory | — |
+| AC Competizione (ACC) / ACC 2 | Shared memory | — |
+| AC EVO / AC Rally | Shared memory | — |
+| Automobilista 2 / AMS1 | Shared memory + UDP | 5606 |
+| Project CARS 2 / Project CARS 3 | Shared memory + UDP | 5606 |
+| rFactor 2 / rFactor 1 | Shared memory | — |
 | RaceRoom Experience | R3E shared memory | `$R3E` |
-| Forza Motorsport / Horizon | Sled/CarDash UDP | 5300 |
+| Forza Motorsport / Horizon 4 / Horizon 5 | Sled/CarDash UDP | 5300 |
 | BeamNG.drive | LFS OutGauge UDP | 4444 |
-| Dirt 5 | Codemasters UDP | — |
-| EA WRC | Codemasters UDP | — |
-| F1 2024 | Codemasters bridge | — |
+| Gran Turismo 7 / GT Sport | PlayStation UDP | — |
+| Le Mans Ultimate | Shared memory | — |
+| Euro Truck Simulator 2 / ATS | Shared memory | — |
+| EA WRC / WRC Generations | Codemasters UDP | — |
+| DiRT Rally 2.0 / DiRT 3 / DiRT 4 / DiRT 5 | Codemasters UDP | — |
 | F1 25 | Native UDP (format 2025) | 20777 |
+| F1 24 / F1 23 | Codemasters bridge | 20777 |
+| F1 Manager | Codemasters UDP | — |
+| GRID Autosport / GRID 2019 / GRID Legends | Codemasters UDP | — |
+| Wreckfest | Custom UDP | — |
+| KartKraft | Custom UDP | — |
+| Rennsport | Custom UDP | — |
+| Richard Burns Rally | Plugin API | — |
+| Live for Speed | OutGauge/InSim | 30000 |
+| MudRunner / SnowRunner | Custom telemetry | — |
+| MotoGP 23/24 / RIDE 5 | Codemasters-style UDP | — |
+| Dakar Desert Rally | Codemasters UDP | — |
+| NASCAR (Papyrus) / NASCAR 21 | Custom UDP | — |
+| FlatOut UC/4 | Custom UDP | — |
+| Trackmania | Plugin telemetry | — |
+| SimHub (bridge) | JSON UDP | 5555 |
 
 ## Quick Start
 
@@ -131,18 +159,19 @@ wheelctl diag test
 
 ## Project Structure
 
-OpenRacing is organized as a Cargo workspace with the following crates:
+OpenRacing is organized as a Cargo workspace with 84 crates following the Single Responsibility Principle:
 
-| Crate | Description |
-|-------|-------------|
-| [`cli`](crates/cli/) | Command-line interface for device management, diagnostics, and configuration |
-| [`engine`](crates/engine/) | Core force feedback engine with real-time processing pipeline |
-| [`plugins`](crates/plugins/) | Plugin system supporting WASM and native extensions |
-| [`schemas`](crates/schemas/) | Protocol buffer schemas and JSON schema validation |
-| [`service`](crates/service/) | Background service for system-level integration |
-| [`ui`](crates/ui/) | User interface components and safety displays |
-| [`compat`](crates/compat/) | Compatibility layer for legacy hardware and protocols |
-| [`integration-tests`](crates/integration-tests/) | Comprehensive integration and acceptance test suite |
+| Category | Crates | Description |
+|----------|--------|-------------|
+| **Core** | [`engine`](crates/engine/), [`schemas`](crates/schemas/), [`service`](crates/service/) | RT force feedback engine, shared schemas, background service |
+| **CLI & UI** | [`cli`](crates/cli/), [`ui`](crates/ui/) | Command-line tool and safety displays |
+| **Plugins** | [`plugins`](crates/plugins/) | WASM + native plugin runtime |
+| **Device Protocols** | `hid-*-protocol` (×10) | Per-vendor HID protocol microcrates (Moza, Simagic, Fanatec, Thrustmaster, etc.) |
+| **Protocol Primitives** | `hbp`, `moza-wheelbase-report`, `ks`, `input-maps` | Pure parsers/encoders: I/O-free, allocation-free, deterministic |
+| **Game Telemetry** | `telemetry-*` (×20) | Per-game telemetry adapters + shared infrastructure |
+| **IPC & Transport** | `ipc`, `openracing-ipc` | gRPC + Unix socket transport layer |
+| **Compatibility** | [`compat`](crates/compat/) | Legacy API migration helpers |
+| **Testing** | [`integration-tests`](crates/integration-tests/) | End-to-end, performance gate, and soak tests |
 
 ## Contributing
 
