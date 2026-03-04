@@ -53,6 +53,7 @@
 pub mod ids;
 pub mod input;
 pub mod output;
+pub mod settings;
 pub mod types;
 pub mod wire;
 
