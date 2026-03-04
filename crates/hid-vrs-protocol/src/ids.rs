@@ -146,9 +146,7 @@ pub mod product_ids {
     /// Backward-compat alias for the old unverified pedals PID.
     /// The old PID `0xA357` was an unverified sequential estimate;
     /// the community-confirmed PID is `PEDALS` (`0xA3BE`).
-    /// TODO(deprecation): Migrate callers from `PEDALS_V1` (0xA357) to `PEDALS`
-    /// (0xA3BE). Non-test caller: `crates/hid-vrs-protocol/src/types.rs`.
-    /// Once migrated, mark this constant `#[deprecated]`.
+    #[deprecated(since = "0.1.0", note = "Use `PEDALS` (0xA3BE) instead — this PID was an unverified sequential estimate")]
     pub const PEDALS_V1: u16 = 0xA357;
 
     /// VRS Pedals (digital/load cell). ⚠ PID unverified.

@@ -1,4 +1,5 @@
 //! Tests for VRS DirectForce Pro protocol handler.
+#![allow(deprecated)] // Tests intentionally exercise deprecated PEDALS_V1 constant
 
 use super::vrs::{VrsProtocolHandler, is_vrs_product, product_ids};
 use super::{DeviceWriter, VendorProtocol, get_vendor_protocol};

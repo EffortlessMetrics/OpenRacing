@@ -61,6 +61,7 @@ pub fn identify_device(product_id: u16) -> VrsDeviceIdentity {
             supports_ffb: false,
             max_torque_nm: None,
         },
+        #[allow(deprecated)]
         product_ids::PEDALS_V1 => VrsDeviceIdentity {
             product_id,
             name: "VRS Pedals V1",

@@ -472,6 +472,12 @@ impl SupportedDevices {
             (vendor_ids::THRUSTMASTER, 0xB69A, "Thrustmaster T248X"),
             // 0xB69B: unverified — from hid-tmff2 issue #58.
             (vendor_ids::THRUSTMASTER, 0xB69B, "Thrustmaster T818"),
+            // Thrustmaster T-GT II GT Edition
+            (
+                vendor_ids::THRUSTMASTER,
+                0xB681,
+                "Thrustmaster T-GT II GT Edition",
+            ),
             // Thrustmaster legacy wheels (oversteer, linux-steering-wheels, hid-tmff)
             (
                 vendor_ids::THRUSTMASTER,
@@ -546,7 +552,7 @@ impl SupportedDevices {
             // VRS DirectForce Pro devices (share VID 0x0483 with Simagic)
             (vendor_ids::SIMAGIC, 0xA355, "VRS DirectForce Pro"),
             (vendor_ids::SIMAGIC, 0xA356, "VRS DirectForce Pro V2"),
-            (vendor_ids::SIMAGIC, 0xA357, "VRS Pedals V1"),
+            (vendor_ids::SIMAGIC, 0xA357, "VRS Pedals V1 (deprecated — use 0xA3BE)"),
             (vendor_ids::SIMAGIC, 0xA358, "VRS Pedals V2"),
             (vendor_ids::SIMAGIC, 0xA359, "VRS Handbrake"),
             (vendor_ids::SIMAGIC, 0xA35A, "VRS Shifter"),
@@ -810,8 +816,11 @@ impl SupportedDevices {
             vendor_ids::FANATEC => "Fanatec",
             vendor_ids::THRUSTMASTER => "Thrustmaster",
             vendor_ids::MOZA => "Moza Racing",
-            vendor_ids::SIMAGIC | vendor_ids::SIMAGIC_ALT | vendor_ids::SIMAGIC_EVO => "Simagic",
-            // Note: SIMAGIC_ALT (0x16D0) is shared with Simucube 2; dispatch by PID
+            // Note: SIMAGIC (0x0483) is shared with VRS and Cube Controls;
+            // use get_manufacturer_name_for_device() for PID-aware resolution.
+            vendor_ids::SIMAGIC | vendor_ids::SIMAGIC_EVO => "Simagic",
+            // SIMAGIC_ALT (0x16D0) is shared with Simucube 2; dispatch by PID.
+            vendor_ids::SIMAGIC_ALT => "Simucube / Simagic",
             vendor_ids::HEUSINKVELD
             | vendor_ids::HEUSINKVELD_CURRENT
             | vendor_ids::HEUSINKVELD_HANDBRAKE_V1
@@ -828,6 +837,33 @@ impl SupportedDevices {
             vendor_ids::GUILLEMOT => "Guillemot / Thrustmaster",
             vendor_ids::THRUSTMASTER_XBOX => "Thrustmaster",
             _ => "Unknown",
+        }
+    }
+
+    /// Get the manufacturer name with PID-aware disambiguation for shared VIDs.
+    ///
+    /// Prefer this over `get_manufacturer_name()` when the product ID is known.
+    /// This correctly resolves VRS vs Simagic on VID `0x0483` and Simucube vs
+    /// Simagic on VID `0x16D0`.
+    pub fn get_manufacturer_name_for_device(vendor_id: u16, product_id: u16) -> &'static str {
+        match vendor_id {
+            vendor_ids::SIMAGIC => {
+                // VID 0x0483 shared by Simagic legacy, VRS, and Cube Controls
+                if vendor::vrs::is_vrs_product(product_id) {
+                    "VRS"
+                } else {
+                    "Simagic"
+                }
+            }
+            vendor_ids::SIMAGIC_ALT => {
+                // VID 0x16D0 shared by Simucube 2 and legacy Simagic
+                if vendor::simucube::is_simucube_product(product_id) {
+                    "Simucube"
+                } else {
+                    "Simagic"
+                }
+            }
+            _ => Self::get_manufacturer_name(vendor_id),
         }
     }
 }
@@ -1016,7 +1052,7 @@ fn enumerate_hid_devices(
         let manufacturer = device_info
             .manufacturer_string()
             .map(|s| s.to_string())
-            .or_else(|| Some(SupportedDevices::get_manufacturer_name(vendor_id).to_string()));
+            .or_else(|| Some(SupportedDevices::get_manufacturer_name_for_device(vendor_id, product_id).to_string()));
         let product_name = device_info
             .product_string()
             .map(|s| s.to_string())
@@ -1248,7 +1284,7 @@ impl WindowsHidPort {
                     .manufacturer_string()
                     .map(|s| s.to_string())
                     .or_else(|| {
-                        Some(SupportedDevices::get_manufacturer_name(vendor_id).to_string())
+                        Some(SupportedDevices::get_manufacturer_name_for_device(vendor_id, product_id).to_string())
                     });
 
                 let product_name =
@@ -3220,6 +3256,40 @@ mod tests {
             "Simagic"
         );
         assert_eq!(SupportedDevices::get_manufacturer_name(0x1234), "Unknown");
+        // VID 0x16D0 is shared: SIMAGIC_ALT
+        assert_eq!(
+            SupportedDevices::get_manufacturer_name(vendor_ids::SIMAGIC_ALT),
+            "Simucube / Simagic"
+        );
+    }
+
+    #[test]
+    fn test_manufacturer_name_for_device_disambiguates_shared_vids() {
+        // VID 0x0483: VRS DFP should resolve to "VRS", not "Simagic"
+        assert_eq!(
+            SupportedDevices::get_manufacturer_name_for_device(vendor_ids::SIMAGIC, 0xA355),
+            "VRS"
+        );
+        // VID 0x0483: Simagic legacy should still resolve to "Simagic"
+        assert_eq!(
+            SupportedDevices::get_manufacturer_name_for_device(vendor_ids::SIMAGIC, 0x0522),
+            "Simagic"
+        );
+        // VID 0x16D0: Simucube 2 Pro should resolve to "Simucube"
+        assert_eq!(
+            SupportedDevices::get_manufacturer_name_for_device(vendor_ids::SIMAGIC_ALT, 0x0D60),
+            "Simucube"
+        );
+        // VID 0x16D0: unknown PID falls back to "Simagic"
+        assert_eq!(
+            SupportedDevices::get_manufacturer_name_for_device(vendor_ids::SIMAGIC_ALT, 0x9999),
+            "Simagic"
+        );
+        // Non-shared VIDs delegate to get_manufacturer_name()
+        assert_eq!(
+            SupportedDevices::get_manufacturer_name_for_device(vendor_ids::LOGITECH, 0xC24F),
+            "Logitech"
+        );
     }
 
     #[test]

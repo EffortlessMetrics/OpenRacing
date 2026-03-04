@@ -1,4 +1,5 @@
 //! Snapshot tests for VRS DirectForce Pro HID protocol.
+#![allow(deprecated)] // Tests intentionally exercise deprecated PEDALS_V1 constant
 
 use insta::assert_snapshot;
 use racing_wheel_hid_vrs_protocol as vrs;

@@ -3,6 +3,7 @@
 //! Uses proptest with 500 cases to verify invariants on:
 //! - VID / PID constant values and device detection
 //! - FFB constant-force encoder (report ID, magnitude bounds, saturation,
+#![allow(deprecated)] // Tests intentionally exercise deprecated PEDALS_V1 constant
 //!   sign preservation, zero-input)
 //! - Condition effect encoders (spring, damper, friction) report IDs
 //! - Vendor output reports (rotation range, device gain, FFB enable)

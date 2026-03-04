@@ -3,6 +3,7 @@
 //! These tests cross-reference our constants, encoding, and report formats
 //! against the Linux kernel mainline source, community hardware databases,
 //! and the USB HID PID specification.
+#![allow(deprecated)] // Tests intentionally exercise deprecated PEDALS_V1 constant
 //!
 //! ## Sources cited
 //!

@@ -1,4 +1,5 @@
 //! Deep protocol tests for VRS DirectForce Pro HID protocol crate.
+#![allow(deprecated)] // Tests intentionally exercise deprecated PEDALS_V1 constant
 
 use racing_wheel_hid_vrs_protocol::{
     CONSTANT_FORCE_REPORT_LEN, DAMPER_REPORT_LEN, FRICTION_REPORT_LEN, SPRING_REPORT_LEN,
