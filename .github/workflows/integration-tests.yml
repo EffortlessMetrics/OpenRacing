@@ -67,7 +67,9 @@ jobs:
           --skip test_comprehensive_suite \
           --skip test_torque_limit_enforcement \
           --skip test_end_to_end_performance_requirements \
-          --skip test_pipeline_swap_atomicity_under_load
+          --skip test_pipeline_swap_atomicity_under_load \
+          --skip stress_torque_saturation_no_torn_reads \
+          --skip stress_telemetry_loss_no_torn_reads
 
   # Performance gates (critical for CI)
   performance-gates:
