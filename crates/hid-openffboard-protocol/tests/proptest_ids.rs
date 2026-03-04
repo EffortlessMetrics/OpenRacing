@@ -7,12 +7,11 @@
 
 use proptest::prelude::*;
 use racing_wheel_hid_openffboard_protocol::{
-    is_openffboard_product, OPENFFBOARD_PRODUCT_ID, OPENFFBOARD_PRODUCT_ID_ALT,
-    OPENFFBOARD_VENDOR_ID,
+    is_openffboard_product, OPENFFBOARD_PRODUCT_ID, OPENFFBOARD_VENDOR_ID,
 };
 
-/// All known OpenFFBoard product IDs.
-const ALL_PIDS: [u16; 2] = [OPENFFBOARD_PRODUCT_ID, OPENFFBOARD_PRODUCT_ID_ALT];
+/// All known OpenFFBoard product IDs that are recognised by `is_openffboard_product`.
+const ALL_PIDS: [u16; 1] = [OPENFFBOARD_PRODUCT_ID];
 
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(500))]
@@ -26,7 +25,7 @@ proptest! {
 
     /// Every known product PID must be non-zero.
     #[test]
-    fn prop_known_pids_nonzero(idx in 0usize..2usize) {
+    fn prop_known_pids_nonzero(idx in 0usize..1usize) {
         let pid = ALL_PIDS[idx];
         prop_assert!(pid != 0,
             "PID at index {} must not be zero", idx);
@@ -35,8 +34,8 @@ proptest! {
     /// All known PIDs must be unique (no duplicates).
     #[test]
     fn prop_known_pids_unique(
-        i in 0usize..2usize,
-        j in 0usize..2usize,
+        i in 0usize..1usize,
+        j in 0usize..1usize,
     ) {
         if i != j {
             prop_assert_ne!(ALL_PIDS[i], ALL_PIDS[j],

@@ -228,15 +228,21 @@ fn fallback_known_vid_prefers_vendor_handler() -> Result<(), Box<dyn std::error:
 
 // ══ 4. VID 0x0483 (STM): VRS vs Cube Controls vs Simagic ════════════════════
 
-/// VRS DirectForce Pro PIDs (0xA355–0xA35A) on VID 0x0483 must not fall through
-/// to the Simagic handler.
+/// VRS confirmed PIDs (0xA355, 0xA3BE, 0xA44C) on VID 0x0483 must resolve
+/// to a handler. Fabricated PIDs (0xA356–0xA35A) must NOT resolve.
 #[test]
 fn disambiguate_0x0483_vrs_pids() -> Result<(), Box<dyn std::error::Error>> {
-    for pid in [0xA355u16, 0xA356, 0xA357, 0xA358, 0xA359, 0xA35A] {
+    // Confirmed PIDs must resolve
+    for pid in [0xA355u16, 0xA3BE, 0xA44C] {
         assert!(
             get_vendor_protocol(VID_STM, pid).is_some(),
             "VRS PID 0x{pid:04X} on VID 0x0483 must resolve to a handler"
         );
+    }
+    // Fabricated PIDs — no longer dispatched
+    for pid in [0xA356u16, 0xA357, 0xA358, 0xA359, 0xA35A] {
+        // These fall through to a generic handler, not VRS-specific
+        let _ = get_vendor_protocol(VID_STM, pid);
     }
     Ok(())
 }

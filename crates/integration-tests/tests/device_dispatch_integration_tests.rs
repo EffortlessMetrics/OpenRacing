@@ -258,7 +258,7 @@ fn dispatch_routes_leo_bodnar_wheel_interface() -> Result<(), Box<dyn std::error
     Ok(())
 }
 
-// ─── OpenFFBoard (VID 0x1209, PIDs 0xFFB0/0xFFB1) ──────────────────────────
+// ─── OpenFFBoard (VID 0x1209, PID 0xFFB0) ───────────────────────────────────
 
 #[test]
 fn dispatch_routes_openffboard_main() -> Result<(), Box<dyn std::error::Error>> {
@@ -268,9 +268,12 @@ fn dispatch_routes_openffboard_main() -> Result<(), Box<dyn std::error::Error>> 
 }
 
 #[test]
-fn dispatch_routes_openffboard_alt() -> Result<(), Box<dyn std::error::Error>> {
-    let proto = get_vendor_protocol(0x1209, 0xFFB1); // OpenFFBoard Alt PID
-    assert!(proto.is_some(), "OpenFFBoard Alt must be dispatched");
+fn dispatch_does_not_route_openffboard_alt() -> Result<(), Box<dyn std::error::Error>> {
+    let proto = get_vendor_protocol(0x1209, 0xFFB1); // OpenFFBoard Alt PID (no longer dispatched)
+    assert!(
+        proto.is_none(),
+        "OpenFFBoard Alt PID must no longer be dispatched"
+    );
     Ok(())
 }
 

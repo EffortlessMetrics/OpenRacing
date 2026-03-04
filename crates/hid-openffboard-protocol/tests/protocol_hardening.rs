@@ -662,12 +662,24 @@ fn variant_all_array_has_correct_count() -> Result<(), String> {
 #[test]
 fn variant_product_ids_recognised_by_helper() -> Result<(), String> {
     for variant in &OpenFFBoardVariant::ALL {
-        if !is_openffboard_product(variant.product_id()) {
-            return Err(format!(
-                "variant {:?} PID {:#06X} not recognised by is_openffboard_product",
-                variant,
-                variant.product_id()
-            ));
+        let pid = variant.product_id();
+        match variant {
+            OpenFFBoardVariant::Main => {
+                if !is_openffboard_product(pid) {
+                    return Err(format!(
+                        "variant {:?} PID {:#06X} not recognised by is_openffboard_product",
+                        variant, pid
+                    ));
+                }
+            }
+            OpenFFBoardVariant::Alternate => {
+                if is_openffboard_product(pid) {
+                    return Err(format!(
+                        "variant {:?} PID {:#06X} should NOT be recognised by is_openffboard_product",
+                        variant, pid
+                    ));
+                }
+            }
         }
     }
     Ok(())

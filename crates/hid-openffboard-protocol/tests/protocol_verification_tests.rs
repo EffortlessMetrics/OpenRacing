@@ -127,11 +127,14 @@ fn all_variants_share_vid() {
     }
 }
 
-/// `is_openffboard_product` must recognise both known PIDs.
+/// `is_openffboard_product` must recognise only the main PID; alt PID is no longer recognised.
 #[test]
 fn is_openffboard_product_matches_known_pids() {
     assert!(is_openffboard_product(0xFFB0), "main PID");
-    assert!(is_openffboard_product(0xFFB1), "alt PID");
+    assert!(
+        !is_openffboard_product(0xFFB1),
+        "alt PID no longer recognised"
+    );
     assert!(!is_openffboard_product(0xFFB2), "unknown PID");
     assert!(!is_openffboard_product(0x0000), "zero PID");
 }

@@ -473,14 +473,14 @@ impl LinuxHidPort {
             (0x3670, 0x0501), // Simagic EVO
             (0x3670, 0x0502), // Simagic EVO Pro
             // VRS DirectForce Pro devices (share VID 0x0483 with Simagic)
-            (0x0483, 0xA355), // VRS DirectForce Pro
-            (0x0483, 0xA356), // VRS DirectForce Pro V2
-            (0x0483, 0xA357), // VRS Pedals V1
-            (0x0483, 0xA358), // VRS Pedals V2
-            (0x0483, 0xA359), // VRS Handbrake
-            (0x0483, 0xA35A), // VRS Shifter
-            (0x0483, 0xA3BE), // VRS Pedals (corrected)
-            (0x0483, 0xA44C), // VRS R295
+            (0x0483, 0xA355), // VRS DirectForce Pro (✅ kernel hid-ids.h)
+            (0x0483, 0xA3BE), // VRS Pedals (✅ simracing-hwdb)
+            (0x0483, 0xA44C), // VRS R295 (✅ kernel hid-ids.h)
+            // NOTE: Fabricated VRS PIDs removed from dispatch:
+            //   0xA356 (DFP V2), 0xA357 (Pedals V1), 0xA358 (Pedals V2),
+            //   0xA359 (Handbrake), 0xA35A (Shifter)
+            // These were sequential guesses with zero external evidence.
+            // VRS uses non-sequential PIDs (DFP=A355, Pedals=A3BE, R295=A44C).
             // Heusinkveld pedals (VID 0x04D8 — Microchip)
             (0x04D8, 0xF6D0), // Heusinkveld Sprint
             (0x04D8, 0xF6D2), // Heusinkveld Ultimate+
@@ -506,8 +506,8 @@ impl LinuxHidPort {
             (0x3416, 0x1018), // Cammus CP5 Pedals
             (0x3416, 0x1019), // Cammus LC100 Pedals
             // OpenFFBoard (VID 0x1209, pid.codes shared VID)
-            (0x1209, 0xFFB0), // OpenFFBoard
-            (0x1209, 0xFFB1), // OpenFFBoard (alt firmware)
+            (0x1209, 0xFFB0), // OpenFFBoard (✅ pid.codes, firmware)
+            // NOTE: 0xFFB1 removed — not registered on pid.codes, absent from firmware
             (0x1209, 0x1BBD), // Generic HID Button Box
             // FFBeast (VID 0x045B)
             (0x045B, 0x58F9), // FFBeast Joystick

@@ -12,16 +12,29 @@ use racing_wheel_hid_openffboard_protocol::{
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(500))]
 
-    /// Every variant's product_id must be recognised by is_openffboard_product.
+    /// Main variant's product_id must be recognised by is_openffboard_product;
+    /// Alternate variant's product_id must NOT be recognised.
     #[test]
     fn prop_variant_pid_recognised(idx in 0usize..2usize) {
         let variant = OpenFFBoardVariant::ALL[idx];
-        prop_assert!(
-            is_openffboard_product(variant.product_id()),
-            "variant {:?} PID {:#06X} must be recognised",
-            variant,
-            variant.product_id()
-        );
+        match variant {
+            OpenFFBoardVariant::Main => {
+                prop_assert!(
+                    is_openffboard_product(variant.product_id()),
+                    "Main variant {:?} PID {:#06X} must be recognised",
+                    variant,
+                    variant.product_id()
+                );
+            }
+            OpenFFBoardVariant::Alternate => {
+                prop_assert!(
+                    !is_openffboard_product(variant.product_id()),
+                    "Alternate variant {:?} PID {:#06X} must NOT be recognised",
+                    variant,
+                    variant.product_id()
+                );
+            }
+        }
     }
 
     /// Every variant's product_id must match the corresponding constant.
