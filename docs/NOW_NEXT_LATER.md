@@ -1,18 +1,21 @@
 # Now · Next · Later
 
-One-screen execution plan for OpenRacing. Updated after PR #62.
+One-screen execution plan for OpenRacing. Updated after PR #67.
 
 ---
 
 ## NOW (actively in flight)
 
-- **Authoritative PID cross-validation**: 87 checks across 14 vendors against kernel hid-ids.h, hid-lg4ff.c, hid-tmff2, hid-fanatecff, simracing-hwdb, oversteer (PR #62)
-- **README VID accuracy**: corrected 5 incorrect VIDs (PXN, FlashFire, Oddor, MMOS, SHH) — all verified against actual crate constants and kernel sources (PR #62)
+- **PID quarantine PRs**: Removing fabricated/unverified PIDs from active dispatch (PRs #65, #66)
+- **Lint hardening**: Adding `#![deny(static_mut_refs)]` to 34 crates (PR #67)
+- **Toolchain pinning**: Pin nightly to 2026-03-04 for reproducibility (PR #68)
 - **CI green maintenance**: Continuous fix-forward on any regressions
 - **Progressive PR strategy**: Small, focused PRs (≤50 files, ≤5K LOC) landed incrementally
 
-**Merged recently (PRs #24-62):**
-- PR #62: README VID corrections + 66 new cross-validation checks (Logitech, Simucube, AccuForce, FFBeast, Asetek, Cammus, PXN, Moza, VRS, OpenFFBoard)
+**Merged recently (PRs #24-64):**
+- PR #64: CI disk space fix — exclude racing-wheel-ui, aggressive cleanup
+- PR #63: 85 authoritative PID cross-validation checks across 18 vendors + bezier LUT tolerance fix
+- PR #62: README VID corrections + 66 new cross-validation checks
 - PR #61: Thrustmaster cross-validation expansion + CHANGELOG/docs update
 - PR #60: Authoritative PID cross-validation test (35+ kernel-sourced checks)
 - PR #59: README accuracy — games (14→50+), tests (600→25,500+), crates (8→84)
@@ -23,12 +26,7 @@ One-screen execution plan for OpenRacing. Updated after PR #62.
 - PR #54: Platform IPC snapshot normalization
 - PR #52: PIDFF deduplication — 5 device crates use pidff-common, -1,717 lines
 - PR #51: `openracing-pidff-common` shared PIDFF encoder library (37 tests + 8 proptest suites)
-- PR #50: Fanatec + Logitech slot encoder public API exposure
-- PR #49: PIDFF effects for Asetek, FFBeast, Leo Bodnar, PXN
-- PR #48: PIDFF effects for AccuForce, Cammus
-- PR #47: Simucube PIDFF effects (complete effect lifecycle)
-- PR #46: VRS PIDFF effects (vendor-specific report IDs)
-- PRs #24-45: CI fixes, unused deps cleanup, telemetry enrichment, protocol improvements
+- PRs #24-50: CI fixes, PIDFF effects, telemetry enrichment, protocol improvements
 - PR #23: 253K LOC, 85 crates, 24,800+ tests — complete device + game + safety + CI suite
 
 ## NEXT (queued, ready to start)
@@ -37,11 +35,10 @@ One-screen execution plan for OpenRacing. Updated after PR #62.
 - **Docs accuracy pass**: Fix vendor count inconsistencies, verify all CLI commands work
 - **macOS IOKit HID support**: Native macOS device communication (F-053)
 - **macOS CI runner**: Add macOS to GitHub Actions matrix
-- **Plugin security hardening**: Replace Ed25519 stubs with real verification
-- **Unverified PID resolution**: VRS DFP V2 `0xA356`, OpenFFBoard `0xFFB1` — need hardware captures
 - **Device capture tooling**: USB sniffer integration for protocol discovery
 - **Packaging hardening**: deb/rpm/flatpak improvements, macOS DMG with notarization
 - **Line-level code coverage**: Integrate llvm-cov or cargo-tarpaulin into CI
+- **Unverified PID resolution**: Get hardware captures from community for remaining unverified PIDs
 
 ## LATER (roadmap, not yet scoped)
 
@@ -67,7 +64,7 @@ One-screen execution plan for OpenRacing. Updated after PR #62.
 | Protocol crates | 17 HID vendor protocol microcrates + 1 shared PIDFF library |
 | Snapshot tests | 1,400+ snapshot files across 52+ snapshot directories |
 | Crate coverage | 80/87 crates have dedicated test files |
-| PRs merged | 57 total (PRs #1-57) |
+| PRs merged | 64 total (PRs #1-64, plus #65-68 pending) |
 
 ---
 
