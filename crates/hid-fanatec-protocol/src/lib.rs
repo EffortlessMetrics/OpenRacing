@@ -66,6 +66,10 @@ pub use output::{
     build_mode_switch_report, build_rotation_range_report, build_rumble_report,
     build_set_gain_report, build_stop_all_report, fix_report_values,
 };
+pub use slots::{
+    SLOT_CMD_SIZE, effect_cmd, encode_constant_highres, encode_constant_lowres, encode_damper,
+    encode_disable_slot, encode_friction, encode_inertia, encode_spring, encode_stop_all, slot,
+};
 pub use types::{
     FanatecModel, FanatecPedalModel, FanatecRimId, is_pedal_product, is_wheelbase_product,
 };
