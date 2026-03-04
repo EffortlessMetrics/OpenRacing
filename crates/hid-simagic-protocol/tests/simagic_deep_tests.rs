@@ -878,23 +878,34 @@ fn accessory_models_have_zero_torque() {
 
 #[test]
 fn model_from_pid_all_verified_pids() {
-    let verified: &[(u16, SimagicModel)] = &[
+    let confirmed: &[(u16, SimagicModel)] = &[
         (product_ids::EVO_SPORT, SimagicModel::EvoSport),
         (product_ids::EVO, SimagicModel::Evo),
         (product_ids::EVO_PRO, SimagicModel::EvoPro),
-        (product_ids::ALPHA_EVO, SimagicModel::AlphaEvo),
-        (product_ids::NEO, SimagicModel::Neo),
-        (product_ids::NEO_MINI, SimagicModel::NeoMini),
-        (product_ids::P1000_PEDALS, SimagicModel::P1000),
-        (product_ids::P1000A_PEDALS, SimagicModel::P1000),
-        (product_ids::P2000_PEDALS, SimagicModel::P2000),
-        (product_ids::SHIFTER_H, SimagicModel::ShifterH),
-        (product_ids::SHIFTER_SEQ, SimagicModel::ShifterSeq),
         (product_ids::HANDBRAKE, SimagicModel::Handbrake),
     ];
 
-    for &(pid, expected) in verified {
+    for &(pid, expected) in confirmed {
         assert_eq!(SimagicModel::from_pid(pid), expected, "PID {pid:#06x}");
+    }
+
+    // Fabricated PIDs now resolve to Unknown
+    let fabricated = [
+        product_ids::ALPHA_EVO,
+        product_ids::NEO,
+        product_ids::NEO_MINI,
+        product_ids::P1000_PEDALS,
+        product_ids::P1000A_PEDALS,
+        product_ids::P2000_PEDALS,
+        product_ids::SHIFTER_H,
+        product_ids::SHIFTER_SEQ,
+    ];
+    for pid in fabricated {
+        assert_eq!(
+            SimagicModel::from_pid(pid),
+            SimagicModel::Unknown,
+            "fabricated PID {pid:#06x} should resolve to Unknown"
+        );
     }
 }
 
@@ -1044,26 +1055,25 @@ fn encoders_negative_max_torque() {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 #[test]
-fn all_device_categories_reachable() {
-    // Each category must be reachable via at least one PID
+fn all_verified_device_categories_reachable() {
+    // Only verified PIDs produce known categories; fabricated PIDs resolve to Unknown.
     let categories_found: Vec<SimagicDeviceCategory> = [
         product_ids::EVO_SPORT,
-        product_ids::P1000_PEDALS,
-        product_ids::SHIFTER_H,
         product_ids::HANDBRAKE,
-        product_ids::RIM_WR1,
-        0xDEAD, // unknown
+        product_ids::P1000_PEDALS, // fabricated → Unknown
+        0xDEAD,                    // unknown
     ]
     .iter()
     .map(|&pid| simagic::identify_device(pid).category)
     .collect();
 
     assert!(categories_found.contains(&SimagicDeviceCategory::Wheelbase));
-    assert!(categories_found.contains(&SimagicDeviceCategory::Pedals));
-    assert!(categories_found.contains(&SimagicDeviceCategory::Shifter));
     assert!(categories_found.contains(&SimagicDeviceCategory::Handbrake));
-    assert!(categories_found.contains(&SimagicDeviceCategory::Rim));
     assert!(categories_found.contains(&SimagicDeviceCategory::Unknown));
+    // Fabricated peripheral PIDs no longer produce Pedals/Shifter/Rim categories
+    assert!(!categories_found.contains(&SimagicDeviceCategory::Pedals));
+    assert!(!categories_found.contains(&SimagicDeviceCategory::Shifter));
+    assert!(!categories_found.contains(&SimagicDeviceCategory::Rim));
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

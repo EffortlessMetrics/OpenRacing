@@ -217,7 +217,8 @@ fn test_snapshot_device_alpha_evo() {
 
 #[test]
 fn test_snapshot_device_m10() {
-    let identity = simagic::identify_device(0x0600); // Alpha EVO (estimated)
+    // Alpha EVO (0x0600) is a fabricated PID — now resolves to Unknown
+    let identity = simagic::identify_device(0x0600);
     assert_snapshot!(format!(
         "name={}, category={:?}, supports_ffb={}, max_torque={:?}",
         identity.name, identity.category, identity.supports_ffb, identity.max_torque_nm
@@ -226,7 +227,8 @@ fn test_snapshot_device_m10() {
 
 #[test]
 fn test_snapshot_device_neo() {
-    let identity = simagic::identify_device(0x0700); // Neo
+    // Neo (0x0700) is a fabricated PID — now resolves to Unknown
+    let identity = simagic::identify_device(0x0700);
     assert_snapshot!(format!(
         "name={}, category={:?}, supports_ffb={}, max_torque={:?}",
         identity.name, identity.category, identity.supports_ffb, identity.max_torque_nm
@@ -235,7 +237,8 @@ fn test_snapshot_device_neo() {
 
 #[test]
 fn test_snapshot_device_neo_mini() {
-    let identity = simagic::identify_device(0x0701); // Neo Mini
+    // Neo Mini (0x0701) is a fabricated PID — now resolves to Unknown
+    let identity = simagic::identify_device(0x0701);
     assert_snapshot!(format!(
         "name={}, category={:?}, supports_ffb={}, max_torque={:?}",
         identity.name, identity.category, identity.supports_ffb, identity.max_torque_nm
@@ -244,6 +247,7 @@ fn test_snapshot_device_neo_mini() {
 
 #[test]
 fn test_snapshot_device_pedals() {
+    // P1000 (0x1001) is a fabricated PID — now resolves to Unknown
     let identity = simagic::identify_device(0x1001);
     assert_snapshot!(format!(
         "name={}, category={:?}, supports_ffb={}, max_torque={:?}",
@@ -347,10 +351,19 @@ fn test_snapshot_is_wheelbase_product() {
         ("EVO_SPORT", simagic::is_wheelbase_product(0x0500)),
         ("EVO", simagic::is_wheelbase_product(0x0501)),
         ("EVO_PRO", simagic::is_wheelbase_product(0x0502)),
-        ("ALPHA_EVO", simagic::is_wheelbase_product(0x0600)),
-        ("NEO", simagic::is_wheelbase_product(0x0700)),
-        ("NEO_MINI", simagic::is_wheelbase_product(0x0701)),
-        ("P1000_PEDALS", simagic::is_wheelbase_product(0x1001)),
+        (
+            "ALPHA_EVO (fabricated)",
+            simagic::is_wheelbase_product(0x0600),
+        ),
+        ("NEO (fabricated)", simagic::is_wheelbase_product(0x0700)),
+        (
+            "NEO_MINI (fabricated)",
+            simagic::is_wheelbase_product(0x0701),
+        ),
+        (
+            "P1000_PEDALS (fabricated)",
+            simagic::is_wheelbase_product(0x1001),
+        ),
         ("UNKNOWN", simagic::is_wheelbase_product(0xFFFF)),
     ];
     assert_snapshot!(format!("{:?}", results));

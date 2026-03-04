@@ -32,14 +32,11 @@ const ALL_PIDS: [u16; 16] = [
     product_ids::RIM_FORMULA,
 ];
 
-/// Wheelbase-only PIDs.
-const WHEELBASE_PIDS: [u16; 6] = [
+/// Confirmed wheelbase PIDs only.
+const WHEELBASE_PIDS: [u16; 3] = [
     product_ids::EVO_SPORT,
     product_ids::EVO,
     product_ids::EVO_PRO,
-    product_ids::ALPHA_EVO,
-    product_ids::NEO,
-    product_ids::NEO_MINI,
 ];
 
 proptest! {
@@ -73,7 +70,7 @@ proptest! {
 
     /// Known wheelbase models must have strictly positive torque.
     #[test]
-    fn prop_wheelbase_torque_positive(idx in 0usize..6usize) {
+    fn prop_wheelbase_torque_positive(idx in 0usize..3usize) {
         let pid = WHEELBASE_PIDS[idx];
         let model = SimagicModel::from_pid(pid);
         let torque = model.max_torque_nm();

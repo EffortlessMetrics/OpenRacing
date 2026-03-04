@@ -580,8 +580,6 @@ impl SupportedDevices {
             (vendor_ids::MOZA, 0x0022, "Moza HBP Handbrake"),
             // Simagic wheels
             (vendor_ids::SIMAGIC, 0x0522, "Simagic Alpha"),
-            (vendor_ids::SIMAGIC, 0x0523, "Simagic Alpha Mini"),
-            (vendor_ids::SIMAGIC, 0x0524, "Simagic Alpha Ultimate"),
             // VRS DirectForce Pro devices (share VID 0x0483 with Simagic)
             (vendor_ids::SIMAGIC, 0xA355, "VRS DirectForce Pro"),
             (vendor_ids::SIMAGIC, 0xA356, "VRS DirectForce Pro V2"),
@@ -638,34 +636,8 @@ impl SupportedDevices {
             (vendor_ids::SIMAGIC_EVO, 0x0500, "Simagic EVO Sport"),
             (vendor_ids::SIMAGIC_EVO, 0x0501, "Simagic EVO"),
             (vendor_ids::SIMAGIC_EVO, 0x0502, "Simagic EVO Pro"),
-            (
-                vendor_ids::SIMAGIC_EVO,
-                0x0600,
-                "Simagic Alpha EVO (estimated PID)",
-            ),
-            (
-                vendor_ids::SIMAGIC_EVO,
-                0x0700,
-                "Simagic Neo (estimated PID)",
-            ),
             // Simagic EVO peripherals — verified via JacKeTUs/simracing-hwdb
             (vendor_ids::SIMAGIC_EVO, 0x0A04, "Simagic TB-RS Handbrake"),
-            (
-                vendor_ids::SIMAGIC_EVO,
-                0x0701,
-                "Simagic Neo Mini (estimated PID)",
-            ),
-            // Simagic EVO peripherals
-            (vendor_ids::SIMAGIC_EVO, 0x1001, "Simagic P1000 Pedals"),
-            (vendor_ids::SIMAGIC_EVO, 0x1002, "Simagic P2000 Pedals"),
-            (vendor_ids::SIMAGIC_EVO, 0x1003, "Simagic P1000A Pedals"),
-            (vendor_ids::SIMAGIC_EVO, 0x2001, "Simagic H-Pattern Shifter"),
-            (
-                vendor_ids::SIMAGIC_EVO,
-                0x2002,
-                "Simagic Sequential Shifter",
-            ),
-            (vendor_ids::SIMAGIC_EVO, 0x3001, "Simagic Handbrake"),
             // Simucube 2 (VID 0x16D0 = SIMAGIC_ALT, dispatched by product ID)
             (vendor_ids::SIMAGIC_ALT, 0x0D5A, "Simucube 1"),
             (vendor_ids::SIMAGIC_ALT, 0x0D5F, "Simucube 2 Ultimate"),
@@ -1779,19 +1751,9 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
 
             match product_id {
                 0x0522 => {
-                    // Alpha
+                    // Alpha / Alpha Mini / Alpha Ultimate / M10 (all share 0x0522)
                     capabilities.max_torque =
                         TorqueNm::new(15.0).unwrap_or(capabilities.max_torque);
-                }
-                0x0523 => {
-                    // Alpha Mini
-                    capabilities.max_torque =
-                        TorqueNm::new(10.0).unwrap_or(capabilities.max_torque);
-                }
-                0x0524 => {
-                    // Alpha Ultimate
-                    capabilities.max_torque =
-                        TorqueNm::new(23.0).unwrap_or(capabilities.max_torque);
                 }
                 // Simucube PIDs (share VID 0x16D0 with Simagic legacy)
                 0x0D5A => {
@@ -1890,20 +1852,8 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
                     capabilities.max_torque =
                         TorqueNm::new(18.0).unwrap_or(capabilities.max_torque);
                 } // EVO Pro (18 Nm per simagic.com)
-                0x0600 => {
-                    capabilities.max_torque =
-                        TorqueNm::new(25.0).unwrap_or(capabilities.max_torque);
-                } // Alpha EVO (estimated PID)
-                0x0700 => {
-                    capabilities.max_torque =
-                        TorqueNm::new(15.0).unwrap_or(capabilities.max_torque);
-                } // Neo (estimated PID)
-                0x0701 => {
-                    capabilities.max_torque =
-                        TorqueNm::new(10.0).unwrap_or(capabilities.max_torque);
-                } // Neo Mini (estimated PID)
-                // Peripherals (pedals, shifters, handbrake) — input-only, no FFB
-                0x0A04 | 0x1001..=0x1003 | 0x2001..=0x2002 | 0x3001 => {
+                // Verified peripheral: TB-RS Handbrake (0x0A04) — input-only, no FFB
+                0x0A04 => {
                     capabilities.supports_pid = false;
                     capabilities.supports_raw_torque_1khz = false;
                     capabilities.supports_health_stream = false;

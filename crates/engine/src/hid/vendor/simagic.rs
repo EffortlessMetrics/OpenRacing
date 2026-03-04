@@ -24,11 +24,14 @@ pub mod vendor_ids {
 }
 
 /// Known Simagic product IDs.
+///
+/// Only confirmed PIDs are included in dispatch. Alpha Mini and Alpha Ultimate
+/// share PID 0x0522 with Alpha — the separate PIDs 0x0523/0x0524 were fabricated
+/// and are not present in any kernel driver or USB descriptor dump.
 pub mod product_ids {
     // Legacy PIDs (VIDs 0x0483, 0x16D0)
+    /// Alpha / Alpha Mini / Alpha Ultimate / M10 all share this PID.
     pub const ALPHA: u16 = 0x0522;
-    pub const ALPHA_MINI: u16 = 0x0523;
-    pub const ALPHA_ULTIMATE: u16 = 0x0524;
     pub const M10: u16 = 0x0D5A;
     pub const FX: u16 = 0x0D5B;
 
@@ -66,8 +69,6 @@ impl SimagicModel {
 
         match product_id {
             product_ids::ALPHA => Self::Alpha,
-            product_ids::ALPHA_MINI => Self::AlphaMini,
-            product_ids::ALPHA_ULTIMATE => Self::AlphaUltimate,
             product_ids::M10 => Self::M10,
             product_ids::FX => Self::Fx,
             _ => Self::Unknown,
