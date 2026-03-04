@@ -1,6 +1,6 @@
 # Now · Next · Later
 
-One-screen execution plan for OpenRacing. Updated after PR #53.
+One-screen execution plan for OpenRacing. Updated after PR #57.
 
 ---
 
@@ -11,7 +11,11 @@ One-screen execution plan for OpenRacing. Updated after PR #53.
 - **CI green maintenance**: Continuous fix-forward on any regressions
 - **Progressive PR strategy**: Small, focused PRs (≤50 files, ≤5K LOC) landed incrementally
 
-**Merged recently (PRs #24-53):**
+**Merged recently (PRs #24-57):**
+- PR #57: 10 community-verified peripheral vendors from simracing-hwdb (MMOS, SHH, Oddor, SimGrade, SimJack, SimLab, SimNet, SimRuito, SimSonn, SimTrecs)
+- PR #56: CHANGELOG update for PRs #24-55
+- PR #55: str_as_str fix for Rust 2024 edition
+- PR #54: Platform IPC snapshot normalization
 - PR #52: PIDFF deduplication — 5 device crates use pidff-common, -1,717 lines
 - PR #51: `openracing-pidff-common` shared PIDFF encoder library (37 tests + 8 proptest suites)
 - PR #50: Fanatec + Logitech slot encoder public API exposure
@@ -41,7 +45,7 @@ One-screen execution plan for OpenRacing. Updated after PR #53.
 - **ML-based calibration**: Machine-learning-driven auto-calibration for wheel/pedal profiles
 - **Adaptive RT scheduling**: CPU governor integration, load-aware deadline adjustment
 - **Physical hardware capture tooling**: openracing-capture protocol sniffer/mapper
-- **Niche vendor support**: MMOS, Oddor, SHH, SimGrade, Turtle Beach, Simucube 3, SIMTAG, Gomez
+- **Niche vendor support**: Turtle Beach, Simucube 3, SIMTAG, Gomez (MMOS, Oddor, SHH, SimGrade added in PR #57)
 - **Full mutation testing coverage**: Expand beyond current safety/engine/protocol scope
 - **Performance benchmarking automation**: CI-integrated bench_results.json comparison
 
@@ -51,14 +55,14 @@ One-screen execution plan for OpenRacing. Updated after PR #53.
 
 | Metric | Value |
 |--------|-------|
-| Supported devices | ~90+ VID/PID pairs across 15+ vendors |
+| Supported devices | ~105+ VID/PID pairs across 25+ vendors |
 | Supported games | 61 telemetry adapter modules |
 | Test count | 24,800+ (unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, doc-tests, trybuild, BDD, protocol-verification, concurrency-stress, performance-validation, soak-stress, mutation-testing) |
 | Fuzz targets | 113+ across all HID protocols, game adapters, replay, diagnostics, calibration, FFB, crypto, CLI |
 | Protocol crates | 17 HID vendor protocol microcrates + 1 shared PIDFF library |
 | Snapshot tests | 1,400+ snapshot files across 52+ snapshot directories |
 | Crate coverage | 80/87 crates have dedicated test files |
-| PRs merged | 53 total (PRs #1-53) |
+| PRs merged | 57 total (PRs #1-57) |
 
 ---
 
