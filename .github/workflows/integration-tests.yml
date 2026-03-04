@@ -168,11 +168,11 @@ jobs:
         name: stress-test-results
         path: target/stress-*.json
 
-  # CI soak test (1 hour)
+  # CI soak test (15 minutes)
   ci-soak-test:
     name: CI Soak Test
     runs-on: ubuntu-latest
-    timeout-minutes: 75
+    timeout-minutes: 30
     
     steps:
     - uses: actions/checkout@v4
