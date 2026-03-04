@@ -17,7 +17,7 @@
 //!
 //! ### BeamNG-specific notes
 //! - `time` field: hardcoded to 0 (N/A)
-//! - `car[4]` field: always "beam"
+//! - `car\[4\]` field: always "beam"
 //! - `oilPressure`: hardcoded to 0 (N/A)
 //! - `display1`/`display2`: hardcoded to "" (N/A)
 //! - Gear encoding: `electrics.values.gearIndex + 1` → 0=Reverse, 1=Neutral, 2=1st, …

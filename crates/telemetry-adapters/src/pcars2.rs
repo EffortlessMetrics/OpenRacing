@@ -11,7 +11,7 @@
 //!
 //! # Shared memory vs UDP layout
 //! The SMS shared memory (`SharedMemory` struct) is a large C struct (several KB) containing
-//! participant arrays (`sParticipantsData[64]`), unfiltered inputs, vehicle/event info, timings,
+//! participant arrays (`sParticipantsData\[64\]`), unfiltered inputs, vehicle/event info, timings,
 //! flags, car state (floats for brake/throttle/clutch/steering, int for gear), tyre data, damage
 //! and weather. Field types and offsets differ from the compact UDP telemetry packet
 //! (`sTelemetryData`), which uses packed types (u8, i8, u16 for the same fields). The shared
@@ -43,7 +43,7 @@ const MAX_PACKET_SIZE: usize = 1500;
 #[allow(dead_code)] // Retained for documentation; shared memory reading is disabled (see below).
 const PCARS2_SHARED_MEMORY_NAME: &str = "Local\\$pcars2$";
 /// NOTE: The actual SMS `SharedMemory` struct is much larger than 4096 bytes (it contains
-/// `sParticipantsData[64]` arrays, car/track strings, etc.). We map 4096 bytes here only for
+/// `sParticipantsData\[64\]` arrays, car/track strings, etc.). We map 4096 bytes here only for
 /// the shared-memory-present probe; the full struct is handled by the AMS2 adapter.
 #[cfg(windows)]
 const PCARS2_SHARED_MEMORY_SIZE: usize = 4096;
@@ -198,9 +198,9 @@ const KPA_TO_PSI: f32 = 0.145_038;
 /// - Water temperature at offset 22 (i16, °C)
 /// - Fuel level at offset 32 (f32, 0.0–1.0)
 /// - Car flags at offset 17 (u8, bit flags for speed limiter, ABS, handbrake, etc.)
-/// - Local acceleration at offsets 100–111 (f32[3], m/s² → G-forces)
-/// - Tyre temperatures at offset 176 (u8[4], °C)
-/// - Tyre air pressures at offset 352 (u16[4], kPa → PSI)
+/// - Local acceleration at offsets 100–111 (f32\[3\], m/s² → G-forces)
+/// - Tyre temperatures at offset 176 (u8\[4\], °C)
+/// - Tyre air pressures at offset 352 (u16\[4\], kPa → PSI)
 ///
 /// Fields beyond offset 45 are extracted only when the packet is large enough.
 pub fn parse_pcars2_packet(data: &[u8]) -> Result<NormalizedTelemetry> {

@@ -11,7 +11,7 @@
 //! or 32 bytes in PS4 mode. The header is always `0x60 XX` where `XX`
 //! is the command category.
 //!
-//! ## Command categories (byte[1] after header byte 0x60)
+//! ## Command categories (byte\[1\] after header byte 0x60)
 //!
 //! | Header  | Purpose                              |
 //! |---------|--------------------------------------|
@@ -21,7 +21,7 @@
 //! | `60 08` | Settings: range, autocenter          |
 //! | `60 12` | Wheel-specific init (varies)         |
 //!
-//! ## Effect opcodes (byte[3] in `60 00` packets)
+//! ## Effect opcodes (byte\[3\] in `60 00` packets)
 //!
 //! | Opcode | Meaning                  |
 //! |--------|--------------------------|
@@ -32,7 +32,7 @@
 //! | `0x49` | Modify duration / offset |
 //! | `0x89` | Play / stop control      |
 //!
-//! ## Play control (byte[4] in `60 00 ID 89` packets)
+//! ## Play control (byte\[4\] in `60 00 ID 89` packets)
 //!
 //! | Value | Meaning                        |
 //! |-------|--------------------------------|
@@ -40,7 +40,7 @@
 //! | `0x41`| Play with repeat count (u16 LE)|
 //! | `0x00`| Stop                           |
 //!
-//! ## Settings sub-commands (byte[2] in `60 08` packets)
+//! ## Settings sub-commands (byte\[2\] in `60 08` packets)
 //!
 //! | Sub-cmd | Purpose         | Value format          |
 //! |---------|-----------------|-----------------------|
@@ -87,7 +87,7 @@ pub mod effect_op {
     pub const PLAY_CONTROL: u8 = 0x89;
 }
 
-/// Play-control values (byte[4] when opcode = 0x89).
+/// Play-control values (byte\[4\] when opcode = 0x89).
 pub mod play_ctl {
     /// Play effect once.
     pub const PLAY_ONCE: u8 = 0x01;

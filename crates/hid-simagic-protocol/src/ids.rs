@@ -75,8 +75,8 @@ pub const SIMAGIC_LEGACY_PID: u16 = 0x0522;
 /// ## Actual hardware report IDs (from kernel driver)
 ///
 /// The `simagic-ff` kernel driver uses standard HID PID semantics with
-/// 64-byte output reports. Each report's `field[0]->value` is a 64-element
-/// array where `value[0]` is the report type ID:
+/// 64-byte output reports. Each report's `field\[0\]->value` is a 64-element
+/// array where `value\[0\]` is the report type ID:
 ///
 /// | Kernel define                 | value\[0\] | value\[1\]         | Remaining fields               |
 /// |-------------------------------|------------|--------------------|---------------------------------|

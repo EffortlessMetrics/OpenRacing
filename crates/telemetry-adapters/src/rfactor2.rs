@@ -27,11 +27,11 @@
 //! - **Gap #2**: between `mSteeringShaftTorque` and `mFuel`, the official struct has
 //!   8 additional doubles (mFront3rdDeflection, mRear3rdDeflection, mFrontWingHeight,
 //!   mFrontRideHeight, mRearRideHeight, mDrag, mFrontDownforce, mRearDownforce).
-//! - **Gap #3**: between `mEngineMaxRPM` and `mWheels[4]`, the official struct has
+//! - **Gap #3**: between `mEngineMaxRPM` and `mWheels\[4\]`, the official struct has
 //!   ~30 fields (damage, sector, tire compounds, electric boost, 111-byte expansion).
 //! - **rF2GamePhase enum**: 0–8 match rF2State.h; value 9 = paused (tag.2015.09.14). ✓
 //! - **rF2Wheel fields**: all f64 fields up to `mWear` match rF2State.h order.  Note
-//!   that `mTemperature[3]` values are in **Kelvin** (not Celsius). ✓
+//!   that `mTemperature\[3\]` values are in **Kelvin** (not Celsius). ✓
 //! - **Gear convention**: −1=reverse, 0=neutral, 1+=forward (same as rF2 native). ✓
 //! - **Speed**: no discrete speed field in `rF2VehicleTelemetry`; derived from
 //!   `mLocalVel` magnitude (consistent with ISI documentation). ✓
@@ -776,7 +776,7 @@ pub enum GamePhase {
 /// | 12     | struct `mVersionUpdateEnd`    | `unsigned long` |
 /// | 16     | `mBytesUpdatedHint`           | `int`           |
 /// | 20     | `mNumVehicles`                | `long`          |
-/// | 24     | `mVehicles[0]` starts         |                 |
+/// | 24     | `mVehicles\[0\]` starts         |                 |
 ///
 /// This struct reads the **external** version block at offsets 0–7 and
 /// then the inherited struct fields at offsets 8–15 as `bytes_updated_hint`
@@ -801,11 +801,11 @@ pub struct RF2TelemetryHeader {
 /// [rF2 Shared Memory Map Plugin](https://github.com/TheIronWolfModding/rF2SharedMemoryMapPlugin).
 /// All fields up to and including `mWear` are present and in SDK order. ✓
 ///
-/// **Omitted fields after `mWear`**: `mTerrainName[16]`, `mSurfaceType` (u8),
+/// **Omitted fields after `mWear`**: `mTerrainName\[16\]`, `mSurfaceType` (u8),
 /// `mFlat` (bool), `mDetached` (bool), `mStaticUndeflectedRadius` (u8),
 /// `mVerticalTireDeflection` (f64), `mWheelYLocation` (f64), `mToe` (f64),
-/// `mTireCarcassTemperature` (f64), `mTireInnerLayerTemperature[3]` (f64×3),
-/// and `mExpansion[24]`.  This struct is therefore **not** size-compatible
+/// `mTireCarcassTemperature` (f64), `mTireInnerLayerTemperature\[3\]` (f64×3),
+/// and `mExpansion\[24\]`.  This struct is therefore **not** size-compatible
 /// with the SDK `rF2Wheel` (which is 280 bytes with `#pragma pack(4)`).
 #[repr(C)]
 #[derive(Debug, Clone, Copy, Default)]
@@ -843,7 +843,7 @@ pub struct RF2WheelTelemetry {
     /// Pressure (kPa)
     pub pressure: f64,
     /// Temperature — left, center, right (Kelvin; subtract 273.15 for °C)
-    /// SDK: `mTemperature[3]` — "Kelvin (subtract 273.15 to get Celsius),
+    /// SDK: `mTemperature\[3\]` — "Kelvin (subtract 273.15 to get Celsius),
     /// left/center/right (not to be confused with inside/center/outside!)"
     pub temperature: [f64; 3],
     /// Wear (0.0-1.0)
@@ -868,7 +868,7 @@ pub struct RF2WheelTelemetry {
 /// 3. Between `steering_shaft_torque` and `fuel`, the official struct contains
 ///    8 additional doubles: 3rd-spring deflections (2) and aerodynamics (6).
 ///
-/// 4. Between `engine_max_rpm` and `wheels[4]`, the official struct contains
+/// 4. Between `engine_max_rpm` and `wheels\[4\]`, the official struct contains
 ///    ~30 fields (damage, sector, tire compounds, ignition, electric-boost data,
 ///    and a 111-byte expansion block).  These are omitted.
 ///
@@ -892,9 +892,9 @@ pub struct RF2VehicleTelemetry {
     pub lap_number: i32,
     /// Lap start elapsed time — SDK: `mLapStartET` (double)
     pub lap_start_et: f64,
-    /// Vehicle name — SDK: `mVehicleName[64]` (char[64])
+    /// Vehicle name — SDK: `mVehicleName\[64\]` (char\[64\])
     pub vehicle_name: [u8; 64],
-    /// Track name — SDK: `mTrackName[64]` (char[64])
+    /// Track name — SDK: `mTrackName\[64\]` (char\[64\])
     pub track_name: [u8; 64],
     /// World position (x, y, z) — SDK: `mPos` (rF2Vec3)
     pub pos: [f64; 3],
@@ -902,7 +902,7 @@ pub struct RF2VehicleTelemetry {
     pub local_vel: [f64; 3],
     /// Local acceleration (x, y, z) — SDK: `mLocalAccel` (rF2Vec3)
     pub local_accel: [f64; 3],
-    /// Orientation matrix (3×3 row-major, each row is a `rF2Vec3`) — SDK: `mOri[3]`
+    /// Orientation matrix (3×3 row-major, each row is a `rF2Vec3`) — SDK: `mOri\[3\]`
     pub ori: [[f64; 3]; 3],
     /// Local rotation (x, y, z) — SDK: `mLocalRot` (rF2Vec3)
     pub local_rot: [f64; 3],
@@ -937,8 +937,8 @@ pub struct RF2VehicleTelemetry {
     /// Engine max RPM — SDK: `mEngineMaxRPM` (double)
     pub engine_max_rpm: f64,
     // GAP: SDK has ~30 fields here (mScheduledStops through mExpansion[111])
-    //   before mWheels[4].
-    /// Wheel data (FL, FR, RL, RR) — SDK: `mWheels[4]` (rF2Wheel[4])
+    //   before mWheels\[4\].
+    /// Wheel data (FL, FR, RL, RR) — SDK: `mWheels\[4\]` (rF2Wheel\[4\])
     pub wheels: [RF2WheelTelemetry; RF2_MAX_WHEELS],
 }
 

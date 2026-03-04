@@ -52,9 +52,9 @@ pub fn parse_axis(report: &[u8], start: usize) -> Option<u16> {
 /// Parse a standalone SR-P USB report.
 ///
 /// Current best-effort layout:
-/// - `report[0]`: report ID (ignored by this parser)
-/// - `report[1..=2]`: throttle axis (u16 LE)
-/// - `report[3..=4]`: brake axis (u16 LE)
+/// - `report\[0\]`: report ID (ignored by this parser)
+/// - `report\[1..=2\]`: throttle axis (u16 LE)
+/// - `report\[3..=4\]`: brake axis (u16 LE)
 ///
 /// Returns `None` when the report does not contain at least `MIN_REPORT_LEN`
 /// bytes, or when required axis bytes are malformed.

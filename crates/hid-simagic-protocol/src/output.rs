@@ -13,8 +13,8 @@
 //! # Real Simagic wire protocol (from JacKeTUs/simagic-ff)
 //!
 //! The actual hardware protocol uses 64-byte HID Output Reports where the
-//! first byte (`value[0]`) is the report type ID and subsequent bytes carry
-//! parameters. All values are in the `report->field[0]->value` array.
+//! first byte (`value\[0\]`) is the report type ID and subsequent bytes carry
+//! parameters. All values are in the `report->field\[0\]->value` array.
 //! Source: `hid-simagic.c` (commit 52e73e7).
 //!
 //! ## Constant force (`SM_SET_CONSTANT_REPORT = 0x05`)
