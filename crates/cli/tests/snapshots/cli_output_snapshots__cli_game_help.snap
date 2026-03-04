@@ -4,7 +4,7 @@ expression: stdout
 ---
 Game integration commands
 
-Usage: wheelctl.exe game [OPTIONS] <COMMAND>
+Usage: wheelctl game [OPTIONS] <COMMAND>
 
 Commands:
   list       List supported games

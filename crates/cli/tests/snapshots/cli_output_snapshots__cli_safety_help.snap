@@ -4,7 +4,7 @@ expression: stdout
 ---
 Safety and control commands
 
-Usage: wheelctl.exe safety [OPTIONS] <COMMAND>
+Usage: wheelctl safety [OPTIONS] <COMMAND>
 
 Commands:
   enable  Enable high torque mode

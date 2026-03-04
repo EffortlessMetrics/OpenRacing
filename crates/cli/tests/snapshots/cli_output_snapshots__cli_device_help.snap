@@ -4,7 +4,7 @@ expression: stdout
 ---
 Device management commands
 
-Usage: wheelctl.exe device [OPTIONS] <COMMAND>
+Usage: wheelctl device [OPTIONS] <COMMAND>
 
 Commands:
   list       List all connected devices

@@ -4,7 +4,7 @@ expression: stderr
 ---
 Racing Wheel Control CLI - Manage racing wheel hardware, profiles, and diagnostics
 
-Usage: wheelctl.exe [OPTIONS] <COMMAND>
+Usage: wheelctl [OPTIONS] <COMMAND>
 
 Commands:
   device      Device management commands

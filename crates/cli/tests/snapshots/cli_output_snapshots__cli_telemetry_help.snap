@@ -4,7 +4,7 @@ expression: stdout
 ---
 Telemetry probe and capture commands
 
-Usage: wheelctl.exe telemetry [OPTIONS] <COMMAND>
+Usage: wheelctl telemetry [OPTIONS] <COMMAND>
 
 Commands:
   probe    Probe telemetry transport for a game

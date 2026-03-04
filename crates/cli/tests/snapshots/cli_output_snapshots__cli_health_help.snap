@@ -4,7 +4,7 @@ expression: stdout
 ---
 Service health and status
 
-Usage: wheelctl.exe health [OPTIONS]
+Usage: wheelctl health [OPTIONS]
 
 Options:
       --json        Output in JSON format for machine parsing

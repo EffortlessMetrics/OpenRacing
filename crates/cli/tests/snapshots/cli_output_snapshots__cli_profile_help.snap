@@ -4,7 +4,7 @@ expression: stdout
 ---
 Profile management commands
 
-Usage: wheelctl.exe profile [OPTIONS] <COMMAND>
+Usage: wheelctl profile [OPTIONS] <COMMAND>
 
 Commands:
   list      List available profiles

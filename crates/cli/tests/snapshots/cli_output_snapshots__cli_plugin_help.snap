@@ -4,7 +4,7 @@ expression: stdout
 ---
 Plugin management commands
 
-Usage: wheelctl.exe plugin [OPTIONS] <COMMAND>
+Usage: wheelctl plugin [OPTIONS] <COMMAND>
 
 Commands:
   list       List available plugins from registry

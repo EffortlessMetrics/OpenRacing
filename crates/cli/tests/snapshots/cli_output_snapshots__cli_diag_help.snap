@@ -4,7 +4,7 @@ expression: stdout
 ---
 Diagnostic and monitoring commands
 
-Usage: wheelctl.exe diag [OPTIONS] <COMMAND>
+Usage: wheelctl diag [OPTIONS] <COMMAND>
 
 Commands:
   test     Run system diagnostics

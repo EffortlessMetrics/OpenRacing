@@ -10,7 +10,7 @@ All write operations available in the UI are also available through this CLI.
 Use --json flag for machine-readable output suitable for scripting.
 
 
-Usage: wheelctl.exe [OPTIONS] <COMMAND>
+Usage: wheelctl [OPTIONS] <COMMAND>
 
 Commands:
   device      Device management commands

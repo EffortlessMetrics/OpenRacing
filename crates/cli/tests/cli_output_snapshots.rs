@@ -4,6 +4,11 @@
 
 #![allow(deprecated)]
 
+/// Normalize binary name across platforms (strip `.exe` suffix from usage strings)
+fn normalize_cli_output(s: &str) -> String {
+    s.replace("wheelctl.exe", "wheelctl")
+}
+
 // ---------------------------------------------------------------------------
 // CLI help text snapshots
 // ---------------------------------------------------------------------------
@@ -13,6 +18,7 @@ fn snapshot_cli_help_text() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = assert_cmd::Command::cargo_bin("wheelctl")?;
     let output = cmd.arg("--help").output()?;
     let stdout = String::from_utf8_lossy(&output.stdout);
+    let stdout = normalize_cli_output(&stdout);
     insta::assert_snapshot!("cli_help_text", stdout);
     Ok(())
 }
@@ -22,6 +28,7 @@ fn snapshot_cli_device_help() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = assert_cmd::Command::cargo_bin("wheelctl")?;
     let output = cmd.args(["device", "--help"]).output()?;
     let stdout = String::from_utf8_lossy(&output.stdout);
+    let stdout = normalize_cli_output(&stdout);
     insta::assert_snapshot!("cli_device_help", stdout);
     Ok(())
 }
@@ -31,6 +38,7 @@ fn snapshot_cli_diag_help() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = assert_cmd::Command::cargo_bin("wheelctl")?;
     let output = cmd.args(["diag", "--help"]).output()?;
     let stdout = String::from_utf8_lossy(&output.stdout);
+    let stdout = normalize_cli_output(&stdout);
     insta::assert_snapshot!("cli_diag_help", stdout);
     Ok(())
 }
@@ -40,6 +48,7 @@ fn snapshot_cli_safety_help() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = assert_cmd::Command::cargo_bin("wheelctl")?;
     let output = cmd.args(["safety", "--help"]).output()?;
     let stdout = String::from_utf8_lossy(&output.stdout);
+    let stdout = normalize_cli_output(&stdout);
     insta::assert_snapshot!("cli_safety_help", stdout);
     Ok(())
 }
@@ -53,6 +62,7 @@ fn snapshot_cli_unknown_subcommand() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = assert_cmd::Command::cargo_bin("wheelctl")?;
     let output = cmd.arg("nonexistent").output()?;
     let stderr = String::from_utf8_lossy(&output.stderr);
+    let stderr = normalize_cli_output(&stderr);
     insta::assert_snapshot!("cli_unknown_subcommand_error", stderr);
     Ok(())
 }
@@ -62,6 +72,7 @@ fn snapshot_cli_missing_args() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = assert_cmd::Command::cargo_bin("wheelctl")?;
     let output = cmd.output()?;
     let stderr = String::from_utf8_lossy(&output.stderr);
+    let stderr = normalize_cli_output(&stderr);
     insta::assert_snapshot!("cli_missing_args_error", stderr);
     Ok(())
 }
@@ -165,6 +176,7 @@ fn snapshot_cli_profile_help() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = assert_cmd::Command::cargo_bin("wheelctl")?;
     let output = cmd.args(["profile", "--help"]).output()?;
     let stdout = String::from_utf8_lossy(&output.stdout);
+    let stdout = normalize_cli_output(&stdout);
     insta::assert_snapshot!("cli_profile_help", stdout);
     Ok(())
 }
@@ -174,6 +186,7 @@ fn snapshot_cli_plugin_help() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = assert_cmd::Command::cargo_bin("wheelctl")?;
     let output = cmd.args(["plugin", "--help"]).output()?;
     let stdout = String::from_utf8_lossy(&output.stdout);
+    let stdout = normalize_cli_output(&stdout);
     insta::assert_snapshot!("cli_plugin_help", stdout);
     Ok(())
 }
@@ -183,6 +196,7 @@ fn snapshot_cli_game_help() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = assert_cmd::Command::cargo_bin("wheelctl")?;
     let output = cmd.args(["game", "--help"]).output()?;
     let stdout = String::from_utf8_lossy(&output.stdout);
+    let stdout = normalize_cli_output(&stdout);
     insta::assert_snapshot!("cli_game_help", stdout);
     Ok(())
 }
@@ -192,6 +206,7 @@ fn snapshot_cli_telemetry_help() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = assert_cmd::Command::cargo_bin("wheelctl")?;
     let output = cmd.args(["telemetry", "--help"]).output()?;
     let stdout = String::from_utf8_lossy(&output.stdout);
+    let stdout = normalize_cli_output(&stdout);
     insta::assert_snapshot!("cli_telemetry_help", stdout);
     Ok(())
 }
@@ -201,6 +216,7 @@ fn snapshot_cli_health_help() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = assert_cmd::Command::cargo_bin("wheelctl")?;
     let output = cmd.args(["health", "--help"]).output()?;
     let stdout = String::from_utf8_lossy(&output.stdout);
+    let stdout = normalize_cli_output(&stdout);
     insta::assert_snapshot!("cli_health_help", stdout);
     Ok(())
 }
@@ -214,6 +230,7 @@ fn snapshot_cli_device_missing_subcommand() -> Result<(), Box<dyn std::error::Er
     let mut cmd = assert_cmd::Command::cargo_bin("wheelctl")?;
     let output = cmd.args(["device"]).output()?;
     let stderr = String::from_utf8_lossy(&output.stderr);
+    let stderr = normalize_cli_output(&stderr);
     insta::assert_snapshot!("cli_device_missing_subcommand", stderr);
     Ok(())
 }
@@ -223,6 +240,7 @@ fn snapshot_cli_profile_missing_subcommand() -> Result<(), Box<dyn std::error::E
     let mut cmd = assert_cmd::Command::cargo_bin("wheelctl")?;
     let output = cmd.args(["profile"]).output()?;
     let stderr = String::from_utf8_lossy(&output.stderr);
+    let stderr = normalize_cli_output(&stderr);
     insta::assert_snapshot!("cli_profile_missing_subcommand", stderr);
     Ok(())
 }
@@ -234,6 +252,7 @@ fn snapshot_cli_invalid_calibration_type() -> Result<(), Box<dyn std::error::Err
         .args(["device", "calibrate", "wheel-001", "bogus"])
         .output()?;
     let stderr = String::from_utf8_lossy(&output.stderr);
+    let stderr = normalize_cli_output(&stderr);
     insta::assert_snapshot!("cli_invalid_calibration_type", stderr);
     Ok(())
 }
