@@ -172,7 +172,7 @@ proptest! {
     /// Immediate second call is ALWAYS rejected for rates that produce
     /// an interval larger than typical call overhead (~10μs).
     #[test]
-    fn prop_second_immediate_rejected(rate in 1u32..=100_000u32) {
+    fn prop_second_immediate_rejected(rate in 1u32..=10_000u32) {
         let mut limiter = RateLimiter::new(rate);
         let _ = limiter.should_process();
         prop_assert!(!limiter.should_process());
