@@ -31,12 +31,14 @@
 #![deny(clippy::unwrap_used)]
 
 pub mod ids;
+pub mod input;
 pub mod output;
 
 pub use ids::{
     is_ffbeast_product, FFBEAST_PRODUCT_ID_JOYSTICK, FFBEAST_PRODUCT_ID_RUDDER,
     FFBEAST_PRODUCT_ID_WHEEL, FFBEAST_VENDOR_ID,
 };
+pub use input::{FFBeastStateReport, FirmwareVersion, STATE_REPORT_ID};
 pub use output::{
     build_enable_ffb, build_set_gain, FFBeastTorqueEncoder, CONSTANT_FORCE_REPORT_ID,
     CONSTANT_FORCE_REPORT_LEN, GAIN_REPORT_ID,
