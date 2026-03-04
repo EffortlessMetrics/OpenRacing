@@ -210,7 +210,7 @@ fn stress_torque_saturation_no_torn_reads() -> Result<(), Box<dyn std::error::Er
                     // at different instants (TOCTOU). A tolerance of ~10% above
                     // 100 accommodates this without masking real torn-read bugs.
                     assert!(
-                        pct >= 0.0 && pct <= 110.0,
+                        (0.0..=110.0).contains(&pct),
                         "torque saturation % out of range: {pct}"
                     );
                 }
