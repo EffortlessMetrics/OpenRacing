@@ -1387,6 +1387,48 @@ fn authoritative_pid_cross_validation() -> TestResult {
         "Logitech MOMO Racing",
         "kernel hid-ids.h: USB_DEVICE_ID_LOGITECH_MOMO_WHEEL2 0xca03"
     );
+    check_pid!(
+        racing_wheel_hid_logitech_protocol::product_ids::G923,
+        0xC266_u16,
+        "Logitech G923 (PS/Trueforce)",
+        "oversteer: LG_G923P 046d:c266"
+    );
+    check_pid!(
+        racing_wheel_hid_logitech_protocol::product_ids::G923_PS,
+        0xC267_u16,
+        "Logitech G923 (PS alt)",
+        "linux-steering-wheels: PID c267"
+    );
+    check_pid!(
+        racing_wheel_hid_logitech_protocol::product_ids::G_PRO,
+        0xC268_u16,
+        "Logitech G Pro (PS)",
+        "oversteer: LG_GPRO_PS 046d:c268"
+    );
+    check_pid!(
+        racing_wheel_hid_logitech_protocol::product_ids::G_PRO_XBOX,
+        0xC272_u16,
+        "Logitech G Pro (Xbox)",
+        "oversteer: LG_GPRO_XBOX 046d:c272"
+    );
+    check_pid!(
+        racing_wheel_hid_logitech_protocol::product_ids::WINGMAN_FORMULA_FORCE,
+        0xC291_u16,
+        "Logitech Wingman Formula Force",
+        "oversteer: LG_WFF 046d:c291"
+    );
+    check_pid!(
+        racing_wheel_hid_logitech_protocol::product_ids::WINGMAN_FORMULA_FORCE_GP,
+        0xC293_u16,
+        "Logitech Wingman FFG",
+        "oversteer: LG_WFFG 046d:c293 + kernel hid-ids.h: LOGITECH_WINGMAN_FFG"
+    );
+    check_pid!(
+        racing_wheel_hid_logitech_protocol::product_ids::VIBRATION_WHEEL,
+        0xCA04_u16,
+        "Logitech Vibration Wheel",
+        "kernel hid-ids.h: USB_DEVICE_ID_LOGITECH_VIBRATION_WHEEL 0xca04"
+    );
 
     // ── Moza (source: linux-steering-wheels compat table) ─────────────────
     check_pid!(
