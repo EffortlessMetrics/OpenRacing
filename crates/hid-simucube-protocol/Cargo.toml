@@ -12,6 +12,7 @@ normal = ["workspace-hack"]
 
 [dependencies]
 openracing-hid-common = { workspace = true }
+openracing-pidff-common = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }
 workspace-hack = { version = "0.1", path = "../../workspace-hack" }

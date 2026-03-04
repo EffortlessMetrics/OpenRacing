@@ -1,17 +1,22 @@
-//! Output report generation for Simucube force feedback.
+//! Simucube-specific output report helpers for force feedback.
 //!
-//! ## Protocol reality
+//! ## Protocol
 //!
 //! Simucube wheelbases use the **standard USB HID PID (Physical Interface
-//! Device)** protocol for force feedback. Applications upload structured PID
-//! effect descriptors (Constant, Spring, Damper, Sine, etc.) which the device
-//! firmware executes autonomously. There is no direct torque-streaming API.
+//! Device)** protocol for force feedback. The standard PIDFF effect encoders
+//! (Constant, Spring, Damper, Sine, etc.) are available from the [`effects`]
+//! module, which re-exports [`openracing_pidff_common`].
 //!
-//! The builder in this module produces a **placeholder** wire format that is
-//! convenient for internal testing but does **not** match the real HID PID
-//! output report. A conforming implementation would need to generate PID
-//! Set Effect, Effect Operation, and Device Control reports per the
-//! [USB HID PID 1.01 specification](https://www.usb.org/sites/default/files/documents/pid1_01.pdf).
+//! ## This module
+//!
+//! [`SimucubeOutputReport`] provides Simucube-specific helpers for torque
+//! management (clamping to model-specific limits), LED control, and effect
+//! bookkeeping. It generates a compact report for internal testing and
+//! effect tracking.
+//!
+//! For the real USB HID PID wire format, use the PIDFF encoders from
+//! `crate::effects` (e.g., [`crate::encode_set_constant_force`],
+//! [`crate::encode_set_effect`]).
 //!
 //! ## Effect types
 //!
@@ -31,15 +36,14 @@
 use super::{MAX_TORQUE_NM, REPORT_SIZE_OUTPUT, SimucubeError, SimucubeResult};
 use openracing_hid_common::ReportBuilder;
 
-/// Placeholder output report for Simucube force feedback.
+/// Simucube-specific output report for force feedback bookkeeping.
 ///
-/// **Warning:** The wire format produced by [`build()`](Self::build) is a
-/// placeholder and does **not** match the real USB HID PID output report
-/// structure. It is useful for internal testing and effect bookkeeping.
+/// Provides torque clamping (to Simucube model limits), LED control, and
+/// effect tracking. The [`build()`](Self::build) method generates a compact
+/// report for internal testing.
 ///
-/// Real Simucube FFB uses the USB HID PID protocol. Applications upload PID
-/// effect descriptors; the device firmware executes them. Direct torque
-/// streaming is not available.
+/// For the real USB HID PID wire format, use the PIDFF encoders from
+/// [`crate::effects`] (re-exported from [`openracing_pidff_common`]).
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[allow(non_snake_case)]
 pub struct SimucubeOutputReport {
