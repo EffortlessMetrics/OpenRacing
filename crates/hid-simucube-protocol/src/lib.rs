@@ -47,8 +47,12 @@
 //!   follows standard HID conventions — no hardware descriptor dump yet).
 //!   [`SimucubeInputReport`] retains a speculative extended format for
 //!   internal diagnostics; its wire encoding is **not verified**.
-//! - **`output`**: The builder produces a placeholder wire format. Real FFB
-//!   uses USB HID PID effect descriptors per the PID 1.01 specification.
+//! - **`effects`**: Standard USB HID PID effect encoders, re-exported from
+//!   [`openracing_pidff_common`]. Provides allocation-free report generation for
+//!   all PIDFF effect types.
+//! - **`output`**: Simucube-specific output report helpers for torque management,
+//!   LED control, and effect bookkeeping. Real FFB uses USB HID PID effect
+//!   descriptors from the `effects` module.
 //!
 //! ## Sources (web-verified July 2025)
 //!
@@ -81,10 +85,11 @@ pub mod output;
 pub mod types;
 
 pub use effects::{
-    BlockLoadResponse, BlockLoadStatus, DURATION_INFINITE, EffectOp, EffectType as PidEffectType,
-    SetEffect, encode_block_free, encode_device_control, encode_device_gain,
-    encode_effect_operation, encode_set_condition, encode_set_constant_force, encode_set_effect,
-    encode_set_envelope, encode_set_periodic, encode_set_ramp_force, parse_block_load,
+    BlockLoadReport, BlockLoadStatus, DURATION_INFINITE, EffectOp, EffectType as PidEffectType,
+    MAX_EFFECTS, encode_block_free, encode_create_new_effect, encode_device_control,
+    encode_device_gain, encode_effect_operation, encode_set_condition, encode_set_constant_force,
+    encode_set_effect, encode_set_envelope, encode_set_periodic, encode_set_ramp_force,
+    parse_block_load,
 };
 pub use ids::*;
 pub use input::*;
