@@ -145,7 +145,7 @@ fn hid_device_info_fields_accessible_cross_platform() -> Result<(), Box<dyn std:
         serial_number: Some("SN-12345".to_string()),
         manufacturer: Some("TestVendor".to_string()),
         product_name: Some("TestWheel".to_string()),
-        path: "/dev/hidraw0".to_string(),
+        path: "mock://hid/test-device".to_string(),
         interface_number: Some(0),
         usage_page: Some(0x01),
         usage: Some(0x04),
