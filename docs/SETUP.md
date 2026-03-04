@@ -120,7 +120,7 @@ dev-0       Moza Racing     R9 V2                   connected
 
 ### Supported devices
 
-OpenRacing supports the following 14 vendors and their product lines out of the box.
+OpenRacing supports the following 15 vendors and their product lines out of the box.
 
 | Vendor | USB VID | Representative models | FFB support |
 |--------|---------|----------------------|-------------|
@@ -131,6 +131,7 @@ OpenRacing supports the following 14 vendors and their product lines out of the 
 | **Simagic** | `0x0483` / `0x3670` / `0x16D0` | Alpha, Alpha Mini/EVO, M10, Neo/Mini | ✅ HID PIDFF |
 | **VRS DirectForce Pro** | `0x0483` | DirectForce Pro V1/V2 (20/25 Nm) | ✅ HID PIDFF |
 | **Simucube** | `0x16D0` / `0x1D50` | Simucube 2 Sport/Pro/Ultimate; Simucube 1 (IONI / ARGON) | ✅ HID PIDFF / SimpleMotion V2 |
+| **PXN** | `0x11FF` | V10, V12, V12 Lite, GT987 | ✅ HID PIDFF |
 | **Heusinkveld** | `0x04D8` | Sprint, Ultimate+, Pro pedals | Input only |
 | **Cammus** | `0x3416` | C5, C12 direct drive | ✅ HID PIDFF |
 | **Leo Bodnar** | `0x1DD2` | USB sim racing interfaces, load-cell brake controllers | Input only |
