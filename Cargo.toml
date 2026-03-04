@@ -146,6 +146,7 @@ openracing-hid-common = { path = "crates/openracing-hid-common" }
 openracing-shifter = { path = "crates/openracing-shifter" }
 openracing-handbrake = { path = "crates/openracing-handbrake" }
 openracing-ffb = { path = "crates/openracing-ffb" }
+openracing-pidff-common = { path = "crates/pidff-common" }
 openracing-calibration = { path = "crates/openracing-calibration" }
 
 # HID and hardware

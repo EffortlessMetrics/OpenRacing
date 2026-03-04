@@ -15,4 +15,5 @@ proptest = { workspace = true }
 insta = { version = "1.44.1", features = ["yaml"] }
 
 [dependencies]
+openracing-pidff-common = { workspace = true }
 workspace-hack = { version = "0.1", path = "../../workspace-hack" }
