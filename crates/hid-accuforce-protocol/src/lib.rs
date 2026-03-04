@@ -17,10 +17,16 @@
 #![deny(static_mut_refs)]
 #![deny(clippy::unwrap_used)]
 
+pub mod effects;
 pub mod ids;
 pub mod report;
 pub mod types;
 
+pub use effects::{
+    DURATION_INFINITE, EffectOp, EffectType, encode_block_free, encode_device_control,
+    encode_device_gain, encode_effect_operation, encode_set_condition, encode_set_constant_force,
+    encode_set_effect, encode_set_envelope, encode_set_periodic, encode_set_ramp_force,
+};
 pub use ids::{PID_ACCUFORCE_PRO, VENDOR_ID, is_accuforce, is_accuforce_pid};
 pub use report::{HID_PID_USAGE_PAGE, MAX_REPORT_BYTES, RECOMMENDED_B_INTERVAL_MS};
 pub use types::{AccuForceModel, DeviceInfo};
