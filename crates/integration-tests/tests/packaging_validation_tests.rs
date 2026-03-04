@@ -180,6 +180,27 @@ fn known_vid_pids() -> Vec<(&'static str, &'static str, &'static str)> {
         ("11ff", "2141", "PXN GT987"),
         // AccuForce (0x1FC9)
         ("1fc9", "804c", "AccuForce Pro"),
+        // Oddor (0x1021)
+        ("1021", "1888", "Oddor Handbrake"),
+        // MMOS (0xF055)
+        ("f055", "0ffb", "MMOS FFB Controller"),
+        // SHH (0x16C0, V-USB shared VID)
+        ("16c0", "05e1", "SHH Shifter"),
+        // SimGrade (0x1209, pid.codes shared VID)
+        ("1209", "3115", "SimGrade VX-Pro Pedals"),
+        // SimJack (0x2497)
+        ("2497", "5757", "SimJack PRO Pedals"),
+        // SimLab (0x04D8, Microchip shared VID)
+        ("04d8", "e760", "SimLab Handbrake XB1"),
+        // SimNet (0xCAFE)
+        ("cafe", "a301", "SimNet SP Pedals"),
+        // SimRuito (0x5487)
+        ("5487", "5401", "SimRuito Pedals"),
+        // SimSonn (0xDDFD)
+        ("ddfd", "5008", "SimSonn Pedals"),
+        ("ddfd", "6011", "SimSonn Pedals Plus X"),
+        // SimTrecs (0x03EB, Atmel shared VID)
+        ("03eb", "2406", "SimTrecs ProPedal GT"),
     ]
 }
 
