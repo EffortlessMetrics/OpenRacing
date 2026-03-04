@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **openracing-pidff-common shared crate**: canonical PIDFF encoder library (678 lines, 37 unit tests + 8 proptest suites) used by 5 device crates
+- **PIDFF effects for all devices**: Fanatec slot 1-4 effects, Logitech slot 1-4 effects, Thrustmaster full T300RS protocol
+- **VRS R295 wheelbase** (PID 0xA44C): confirmed via Linux kernel `hid-ids.h`
+- **VRS Pedals** (PID 0xA3BE): community-confirmed via JacKeTUs/simracing-hwdb
+- **Manufacturer disambiguation**: `get_manufacturer_name_for_device()` resolves VRS vs Simagic on shared VID 0x0483
+- **Thrustmaster T-GT II GT Edition** (PID 0xB681): added to SupportedDevices registry
 - **24,800+ tests** across the workspace — unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, doc-tests, trybuild, BDD, protocol-verification, concurrency-stress, performance-validation, soak-stress, and mutation-testing categories
 - **113 fuzz targets** covering all 17 HID protocol crates and 61 game telemetry adapters
 - **1,400+ snapshot files** across 52+ snapshot directories (11+ crates)
@@ -31,6 +37,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **5 device crates refactored to use pidff-common**: AccuForce, Asetek, FFBeast, Leo Bodnar, PXN now re-export from `openracing-pidff-common` instead of duplicated 400-line effects modules (-1,717 lines net)
+- **VRS PEDALS_V1 (0xA357) deprecated**: `#[deprecated]` attribute added; use `PEDALS` (0xA3BE) instead
+- **VID 0x16D0 manufacturer label**: changed from "Simagic" to "Simucube / Simagic" to reflect shared VID
 - **CI workflows hardened**: `timeout-minutes` and `cancel-in-progress` added to all GitHub Actions workflows
 - **TelemetryBuffer poison-recovery**: `lock().unwrap()` replaced with poison-recovery pattern
 - **0 `unwrap()`/`expect()` in tests**: all instances eliminated — full compliance with project convention
@@ -44,6 +53,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **VRS devices reported as "Simagic"**: manufacturer name now correctly resolves to "VRS" for VID 0x0483 devices with VRS PIDs
 - **GT Sport telemetry port**: corrected port configuration
 - **Logitech DFP range encoding**: rewritten to match kernel `lg4ff_set_range_dfp` implementation
 - **Notch filter biquad coefficients**: corrected coefficient calculation and DC test
