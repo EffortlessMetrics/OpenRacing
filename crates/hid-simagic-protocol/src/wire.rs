@@ -127,18 +127,19 @@ fn write_le16(buf: &mut [u8; REPORT_SIZE], offset: usize, value: i16) {
 /// Encode a "set effect" report — creates/updates an effect slot.
 ///
 /// Wire format: `[0x01, block_id, 0x01, dur_lo, dur_hi, 0..., gain=0xFF, trigger=0xFF, 0x04, 0x3F, 0...]`
-pub fn encode_set_effect(
-    effect_block_id: u8,
-    duration_ms: u16,
-) -> [u8; REPORT_SIZE] {
+pub fn encode_set_effect(effect_block_id: u8, duration_ms: u16) -> [u8; REPORT_SIZE] {
     let mut buf = [0u8; REPORT_SIZE];
-    let dur = if duration_ms == 0 { 0xFFFFu16 } else { duration_ms };
+    let dur = if duration_ms == 0 {
+        0xFFFFu16
+    } else {
+        duration_ms
+    };
     buf[0] = report_type::SET_EFFECT;
     buf[1] = effect_block_id;
     buf[2] = 0x01; // always 1 per kernel driver
     buf[3] = (dur & 0xFF) as u8;
     buf[4] = ((dur >> 8) & 0xFF) as u8;
-    buf[9] = 0xFF;  // gain
+    buf[9] = 0xFF; // gain
     buf[10] = 0xFF; // trigger button
     buf[11] = 0x04;
     buf[12] = 0x3F;
@@ -307,7 +308,10 @@ mod tests {
     fn test_rescale_half_positive() -> Result<(), Box<dyn std::error::Error>> {
         let half = 0x7FFF / 2;
         let result = rescale_signed_to_10k(half);
-        assert!(result > 4900 && result < 5100, "half should ≈ 5000, got {result}");
+        assert!(
+            result > 4900 && result < 5100,
+            "half should ≈ 5000, got {result}"
+        );
         Ok(())
     }
 
@@ -441,7 +445,10 @@ mod tests {
             64
         );
         assert_eq!(encode_periodic(block_id::SINE, 0, 0, 0, 0).len(), 64);
-        assert_eq!(encode_effect_operation(block_id::CONSTANT, true, 1).len(), 64);
+        assert_eq!(
+            encode_effect_operation(block_id::CONSTANT, true, 1).len(),
+            64
+        );
         assert_eq!(encode_gain(0).len(), 64);
         Ok(())
     }
