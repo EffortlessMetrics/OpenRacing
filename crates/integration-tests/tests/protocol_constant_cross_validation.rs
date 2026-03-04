@@ -1388,6 +1388,72 @@ fn authoritative_pid_cross_validation() -> TestResult {
         "kernel hid-ids.h: USB_DEVICE_ID_LOGITECH_MOMO_WHEEL2 0xca03"
     );
 
+    // ── Moza (source: linux-steering-wheels compat table) ─────────────────
+    check_pid!(
+        racing_wheel_hid_moza_protocol::MOZA_VENDOR_ID,
+        0x346E_u16,
+        "Moza VID",
+        "linux-steering-wheels: VID 346e"
+    );
+    check_pid!(
+        racing_wheel_hid_moza_protocol::product_ids::R16_R21_V1,
+        0x0000_u16,
+        "Moza R16/R21 V1",
+        "linux-steering-wheels: PID 0000"
+    );
+    check_pid!(
+        racing_wheel_hid_moza_protocol::product_ids::R9_V1,
+        0x0002_u16,
+        "Moza R9 V1",
+        "linux-steering-wheels: PID 0002"
+    );
+    check_pid!(
+        racing_wheel_hid_moza_protocol::product_ids::R5_V1,
+        0x0004_u16,
+        "Moza R5 V1",
+        "linux-steering-wheels: PID 0004"
+    );
+    check_pid!(
+        racing_wheel_hid_moza_protocol::product_ids::R3_V1,
+        0x0005_u16,
+        "Moza R3 V1",
+        "linux-steering-wheels: PID 0005"
+    );
+    check_pid!(
+        racing_wheel_hid_moza_protocol::product_ids::R12_V1,
+        0x0006_u16,
+        "Moza R12 V1",
+        "linux-steering-wheels: PID 0006"
+    );
+
+    // ── VRS (source: linux-steering-wheels compat table) ──────────────────
+    check_pid!(
+        racing_wheel_hid_vrs_protocol::VRS_VENDOR_ID,
+        0x0483_u16,
+        "VRS VID (shared STM VID)",
+        "linux-steering-wheels: VID 0483"
+    );
+    check_pid!(
+        racing_wheel_hid_vrs_protocol::VRS_PRODUCT_ID,
+        0xA355_u16,
+        "VRS DirectForce Pro",
+        "linux-steering-wheels: PID a355"
+    );
+
+    // ── OpenFFBoard (source: berarma/oversteer wheel_ids.py) ──────────────
+    check_pid!(
+        racing_wheel_hid_openffboard_protocol::OPENFFBOARD_VENDOR_ID,
+        0x1209_u16,
+        "OpenFFBoard VID",
+        "oversteer wheel_ids.py + pid.codes registry"
+    );
+    check_pid!(
+        racing_wheel_hid_openffboard_protocol::OPENFFBOARD_PRODUCT_ID,
+        0xFFB0_u16,
+        "OpenFFBoard Main",
+        "oversteer wheel_ids.py: Open FFBoard PID 0xFFB0"
+    );
+
     assert!(
         failures.is_empty(),
         "PID cross-validation failures against authoritative sources:\n  {}",
