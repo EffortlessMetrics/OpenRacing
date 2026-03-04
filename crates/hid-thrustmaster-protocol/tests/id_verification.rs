@@ -79,6 +79,9 @@ fn ts_pc_racer_pid_is_b689() {
     assert_eq!(product_ids::TS_PC_RACER, 0xB689);
 }
 
+/// T818 constant retains 0xB69B for backward compatibility, but real T818
+/// hardware shares PID 0xB696 with T248/T128 ("Thrustmaster Advanced Mode
+/// Racer"). See hid-tmff2 issues #58 and #97.
 #[test]
 fn t818_pid_is_b69b() {
     assert_eq!(product_ids::T818, 0xB69B);

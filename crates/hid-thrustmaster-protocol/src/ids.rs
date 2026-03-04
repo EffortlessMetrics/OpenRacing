@@ -26,8 +26,9 @@ pub const THRUSTMASTER_VENDOR_ID: u16 = 0x044F;
 /// - Linux kernel `hid-thrustmaster.c` (torvalds/linux master)
 ///
 /// Result: **No discrepancies found.** All PIDs with external web sources
-/// match our constants. T818 (0xB69B) and F430 FF (0xB65A) remain without
-/// web database confirmation (see per-PID notes).
+/// match our constants. F430 FF (0xB65A) remains without web database
+/// confirmation. T818 shares PID 0xB696 with T248/T128; the standalone
+/// 0xB69B is unverified (see per-PID notes and hid-tmff2 issues #58, #97).
 ///
 /// # Protocol families (from hid-tmff2 probe function)
 ///
@@ -103,7 +104,10 @@ pub mod product_ids {
     /// T248 (hybrid drive, PC mode).
     /// Verified: hid-tmff2 `TMT248_PC_ID = 0xb696`;
     /// oversteer `TM_T248 = '044f:b696'`; linux-steering-wheels table.
-    /// Note: Per hid-tmff2 issue #58, the T818 also reports this PID.
+    ///
+    /// **Shared PID:** T818, T248, and T128 all enumerate as PID 0xB696
+    /// ("Thrustmaster Advanced Mode Racer"). See hid-tmff2 issues #58 and #97.
+    /// Real T818 hardware will be detected here, not via `T818` (0xB69B).
     pub const T248: u16 = 0xB696;
     /// T248X (Xbox variant, GIP protocol).
     /// Verified: linux-hardware.org (044f:b69a = "T248X GIP Racing Wheel").
@@ -136,12 +140,20 @@ pub mod product_ids {
     /// Web-unverified: not found in the-sz.com, linux-hardware.org, or
     /// devicehunt.com databases. Single primary-source lsusb confirmation.
     pub const T_GT_II_GT: u16 = 0xB681;
-    /// T818 (direct drive).
-    /// Caution: hid-tmff2 issue #58 reports the T818 enumerates with PID 0xB696
-    /// (same as T248). This 0xB69B value is unverified and may be incorrect;
-    /// it does not appear in any community driver source (hid-tmff2, oversteer,
-    /// linux-steering-wheels). Retained for backward compatibility; callers
-    /// should also check `T248` PID when detecting T818 hardware.
+    /// T818 (direct drive) — **unverified standalone PID**.
+    ///
+    /// T818 shares PID 0xB696 with T248/T128 ("Thrustmaster Advanced Mode
+    /// Racer"). The standalone PID 0xB69B is unverified — confirmed by
+    /// hid-tmff2 issues #58 and #97. It does not appear in any community
+    /// driver source (hid-tmff2, oversteer, linux-steering-wheels) or USB
+    /// device database (the-sz.com, linux-hardware.org).
+    ///
+    /// The T818 uses the same T248 FFB protocol (same commands, same
+    /// report format). Real T818 hardware should be detected via `T248`
+    /// PID (0xB696), not via this constant.
+    ///
+    /// Retained for backward compatibility; callers should prefer matching
+    /// `T248` (0xB696) as the primary PID for T818 detection.
     pub const T818: u16 = 0xB69B;
 
     // ── Legacy hid-tmff wheels ───────────────────────────────────────────
@@ -302,11 +314,14 @@ impl Model {
             product_ids::T300_RS_GT => Self::T300RSGT,
             product_ids::TX_RACING | product_ids::TX_RACING_ORIG => Self::TXRacing,
             product_ids::T500_RS => Self::T500RS,
+            // T248 PID is shared by T818 and T128 — real T818 hardware
+            // enumerates here (hid-tmff2 issues #58, #97).
             product_ids::T248 => Self::T248,
             product_ids::T248X => Self::T248X,
             product_ids::TS_PC_RACER => Self::TSPCRacer,
             product_ids::TS_XW | product_ids::TS_XW_GIP => Self::TSXW,
             product_ids::T_GT_II_GT => Self::TGTII,
+            // 0xB69B is unverified; real T818 uses T248 PID 0xB696.
             product_ids::T818 => Self::T818,
             product_ids::T80 | product_ids::T80_FERRARI_488 => Self::T80,
             product_ids::NASCAR_PRO_FF2 => Self::NascarProFF2,
