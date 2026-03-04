@@ -3,6 +3,8 @@
 //! Extracted from service telemetry runtime to keep rate control as a small,
 //! reusable and independently versioned crate.
 
+#![deny(static_mut_refs)]
+
 use std::time::{Duration, Instant};
 
 /// Rate limiter to protect RT-adjacent paths from telemetry parsing bursts.

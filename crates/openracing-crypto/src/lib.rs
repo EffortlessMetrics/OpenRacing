@@ -41,6 +41,7 @@
 //! # }
 //! ```
 
+#![deny(static_mut_refs)]
 #![deny(unsafe_op_in_unsafe_fn, clippy::unwrap_used)]
 #![warn(missing_docs, rust_2018_idioms)]
 #![cfg_attr(docsrs, feature(doc_cfg))]

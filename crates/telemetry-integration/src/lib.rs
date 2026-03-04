@@ -4,6 +4,8 @@
 //! runtime registries (adapters, config writers, etc.) synchronized with that
 //! source.
 
+#![deny(static_mut_refs)]
+
 use racing_wheel_telemetry_bdd_metrics::{
     BddMatrixMetrics, MatrixParityPolicy, RuntimeBddMatrixMetrics,
 };

@@ -3,6 +3,7 @@
 //! This crate provides support for sequential and H-pattern shifters.
 //! Supports standard USB HID gamepad reports and dedicated shifter protocols.
 
+#![deny(static_mut_refs)]
 #![deny(unsafe_op_in_unsafe_fn)]
 #![deny(clippy::unwrap_used)]
 

@@ -47,6 +47,7 @@
 //! assert!((calib.apply(32768) - 0.5).abs() < 0.02);
 //! ```
 
+#![deny(static_mut_refs)]
 #![deny(unsafe_op_in_unsafe_fn)]
 #![deny(clippy::unwrap_used)]
 

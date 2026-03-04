@@ -4,6 +4,8 @@
 //! inside the monolithic service crate. The service crate now re-exports this type to
 //! preserve existing public APIs while allowing a dedicated, single-purpose crate.
 
+#![deny(static_mut_refs)]
+
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 

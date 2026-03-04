@@ -3,6 +3,7 @@
 //! This crate provides common utilities shared across different HID protocol
 //! implementations for racing wheel hardware.
 
+#![deny(static_mut_refs)]
 #![deny(unsafe_op_in_unsafe_fn)]
 #![deny(clippy::unwrap_used)]
 
