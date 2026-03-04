@@ -49,7 +49,10 @@ fn make_packet() -> Vec<u8> {
 
 #[test]
 fn protocol_packet_size_constant() -> TestResult {
-    assert_eq!(OUTGAUGE_SIZE, 92, "OutGauge minimum is 92 bytes (without optional ID)");
+    assert_eq!(
+        OUTGAUGE_SIZE, 92,
+        "OutGauge minimum is 92 bytes (without optional ID)"
+    );
     Ok(())
 }
 
