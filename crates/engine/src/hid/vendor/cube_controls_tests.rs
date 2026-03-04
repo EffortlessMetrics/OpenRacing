@@ -146,19 +146,26 @@ fn test_is_cube_controls_product() {
 }
 
 #[test]
-fn test_get_vendor_protocol_cube_controls() {
+fn test_get_vendor_protocol_cube_controls_falls_through_to_simagic() {
+    // Cube Controls fabricated PIDs (0x0C73–0x0C75) are no longer dispatched to
+    // CubeControlsProtocolHandler. Because they share VID 0x0483 (STM32), they
+    // fall through to the Simagic handler. This is intentional — these PIDs are
+    // fabricated and Cube Controls products are input-only (no FFB).
     let proto = get_vendor_protocol(CUBE_CONTROLS_VENDOR_ID, CUBE_CONTROLS_GT_PRO_PID);
     assert!(
         proto.is_some(),
-        "GT Pro must resolve to a vendor protocol (provisional PID)"
+        "VID 0x0483 falls through to Simagic handler"
     );
     let proto = get_vendor_protocol(CUBE_CONTROLS_VENDOR_ID, CUBE_CONTROLS_FORMULA_PRO_PID);
     assert!(
         proto.is_some(),
-        "Formula Pro must resolve to a vendor protocol"
+        "VID 0x0483 falls through to Simagic handler"
     );
     let proto = get_vendor_protocol(CUBE_CONTROLS_VENDOR_ID, CUBE_CONTROLS_CSX3_PID);
-    assert!(proto.is_some(), "CSX3 must resolve to a vendor protocol");
+    assert!(
+        proto.is_some(),
+        "VID 0x0483 falls through to Simagic handler"
+    );
 }
 
 #[test]

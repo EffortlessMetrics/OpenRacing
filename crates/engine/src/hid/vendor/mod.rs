@@ -79,15 +79,13 @@ pub fn get_vendor_protocol(vendor_id: u16, product_id: u16) -> Option<Box<dyn Ve
         0x044F => Some(Box::new(thrustmaster::ThrustmasterProtocolHandler::new(
             vendor_id, product_id,
         ))),
-        // STM VID: shared by Simagic legacy, VRS DirectForce Pro (0xA3xx PIDs),
-        // and provisional Cube Controls assignments (0x0C7x PIDs).
+        // STM VID: shared by Simagic legacy, VRS DirectForce Pro (0xA3xx PIDs).
+        // Note: Cube Controls steering wheel rims also use STM32 (VID 0x0483),
+        // but they are input-only devices (no FFB) with unconfirmed PIDs —
+        // NOT dispatched here. See hid-cube-controls-protocol crate for details.
         0x0483 => {
             if vrs::is_vrs_product(product_id) {
                 Some(Box::new(vrs::VrsProtocolHandler::new(
-                    vendor_id, product_id,
-                )))
-            } else if cube_controls::is_cube_controls_product(product_id) {
-                Some(Box::new(cube_controls::CubeControlsProtocolHandler::new(
                     vendor_id, product_id,
                 )))
             } else {

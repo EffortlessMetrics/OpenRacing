@@ -540,13 +540,9 @@ impl LinuxHidPort {
             (0x1DD2, 0x0031), // Leo Bodnar BU0836 16-bit Joystick
             // SimExperience AccuForce Pro (NXP USB chip VID 0x1FC9)
             (0x1FC9, 0x804C), // SimExperience AccuForce Pro
-            // Cube Controls — PROVISIONAL — estimated values, no USB captures available.
-            // TODO(hw-verify): PIDs 0x0C73–0x0C75 are fabricated placeholders — do NOT
-            // rely on for device matching. Obtain real USB descriptor captures (lsusb -v)
-            // from Cube Controls hardware and update crates/hid-cube-controls-protocol/src/ids.rs.
-            (0x0483, 0x0C73), // Cube Controls GT Pro (provisional)
-            (0x0483, 0x0C74), // Cube Controls Formula Pro (provisional)
-            (0x0483, 0x0C75), // Cube Controls CSX3 (provisional)
+            // Cube Controls PIDs removed from dispatch: fabricated placeholders (0x0C73–0x0C75)
+            // with no hardware evidence. Re-add when real USB descriptors are captured.
+            // See crates/hid-cube-controls-protocol/src/ids.rs for status.
             // PXN (Lite Star) — budget racing wheels with FFB
             // Verified: kernel hid-ids.h USB_VENDOR_ID_LITE_STAR + PIDs
             (0x11FF, 0x3245), // PXN V10

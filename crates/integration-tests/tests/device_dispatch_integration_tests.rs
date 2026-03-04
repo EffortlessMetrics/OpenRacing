@@ -274,14 +274,18 @@ fn dispatch_routes_openffboard_alt() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-// ─── Cube Controls (VID 0x0483, specific PIDs) ──────────────────────────────
+// ─── Cube Controls (VID 0x0483, fabricated PIDs — not dispatched) ────────────
 
 #[test]
-fn dispatch_routes_cube_controls_gt_pro() -> Result<(), Box<dyn std::error::Error>> {
-    let proto = get_vendor_protocol(0x0483, 0x0C73); // Cube Controls GT Pro PID
+fn dispatch_routes_fabricated_cube_controls_pid_to_simagic_fallback()
+-> Result<(), Box<dyn std::error::Error>> {
+    // Cube Controls PIDs (0x0C73–0x0C75) are fabricated placeholders.
+    // They are NOT dispatched to CubeControlsProtocolHandler — instead they
+    // fall through to the Simagic handler (shared VID 0x0483).
+    let proto = get_vendor_protocol(0x0483, 0x0C73);
     assert!(
         proto.is_some(),
-        "Cube Controls GT Pro must be dispatched on shared STM VID"
+        "Fabricated Cube Controls PID falls through to Simagic on shared STM VID"
     );
     Ok(())
 }
@@ -294,7 +298,7 @@ fn stm_vid_dispatches_vrs_before_simagic_fallback() -> Result<(), Box<dyn std::e
     let vrs_proto = get_vendor_protocol(0x0483, 0xA355);
     assert!(vrs_proto.is_some(), "VRS PID must dispatch on STM VID");
 
-    // Non-VRS, non-Cube PID on STM VID → Simagic fallback
+    // Non-VRS PID on STM VID → Simagic fallback
     let simagic_proto = get_vendor_protocol(0x0483, 0x0522);
     assert!(
         simagic_proto.is_some(),
@@ -408,7 +412,11 @@ fn all_vendor_vids_dispatch_for_representative_pids() -> Result<(), Box<dyn std:
         ),
         (0x0483, 0xA355, "VRS (shared STM VID)"),
         (0x0483, 0x0522, "Simagic Legacy (shared STM VID)"),
-        (0x0483, 0x0C73, "Cube Controls (shared STM VID)"),
+        (
+            0x0483,
+            0x0C73,
+            "Cube Controls PID (fabricated, falls to Simagic)",
+        ),
         (0x16D0, 0x0D61, "Simucube"),
         (0x2433, 0xF301, "Asetek"),
         (0x04D8, 0xF6D0, "Heusinkveld"),

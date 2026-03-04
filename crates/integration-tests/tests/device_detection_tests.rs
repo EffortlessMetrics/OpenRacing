@@ -203,7 +203,10 @@ fn known_devices() -> Vec<KnownDevice> {
             vendor: "VRS",
             name: "DirectForce Pro V2",
         },
-        // ── Cube Controls (VID 0x0483 / STM, specific PIDs) ─────────────
+        // ── Cube Controls (VID 0x0483 / STM — fabricated PIDs, falls to Simagic) ──
+        // These are input-only devices (button boxes), not wheelbases.
+        // PIDs are fabricated placeholders — kept here to verify they still
+        // get a handler (Simagic fallback) rather than returning None.
         KnownDevice {
             vid: 0x0483,
             pid: hid_cube_controls_protocol::CUBE_CONTROLS_GT_PRO_PID,
@@ -595,11 +598,12 @@ fn shared_stm_vid_disambiguates_vrs_cube_simagic() -> Result<(), Box<dyn std::er
     );
     assert!(vrs.is_some(), "VRS DFP on STM VID must dispatch");
 
-    // Cube Controls PID on shared STM VID → must get a handler
+    // Cube Controls PID on shared STM VID → falls through to Simagic handler
+    // (Cube Controls PIDs are fabricated and removed from explicit dispatch)
     let cube = get_vendor_protocol(0x0483, hid_cube_controls_protocol::CUBE_CONTROLS_GT_PRO_PID);
     assert!(
         cube.is_some(),
-        "Cube Controls GT Pro on STM VID must dispatch"
+        "Fabricated Cube Controls PID on STM VID falls to Simagic handler"
     );
 
     // Simagic PID on shared STM VID → must get a handler (fallback)

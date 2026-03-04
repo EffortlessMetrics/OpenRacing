@@ -335,9 +335,9 @@ pub mod vendor_ids {
     /// Source: JacKeTUs/simracing-hwdb `90-heusinkveld.hwdb`.
     pub const HEUSINKVELD_SHIFTER: u16 = 0xA020;
     /// Cube Controls S.r.l. — STMicroelectronics shared VID (correct for STM32 devices).
-    /// PROVISIONAL — estimated values, no USB captures available.
-    /// TODO(hw-verify): Obtain real USB descriptor captures and update
-    /// `crates/hid-cube-controls-protocol/src/ids.rs` with confirmed PIDs.
+    /// NOTE: PIDs are unconfirmed (fabricated placeholders). Not used in device dispatch
+    /// until real USB descriptor captures are obtained.
+    /// See `crates/hid-cube-controls-protocol/src/ids.rs` for status.
     pub const CUBE_CONTROLS: u16 = 0x0483; // same as SIMAGIC; see cube_controls.rs
     /// FlashFire (VID 0x2F24) — budget FFB wheels
     /// Source: oversteer wheel_ids.py
@@ -726,25 +726,6 @@ impl SupportedDevices {
                 vendor_ids::SIMEXPERIENCE,
                 0x804C,
                 "SimExperience AccuForce Pro",
-            ),
-            // Cube Controls S.r.l. — PROVISIONAL — estimated values, no USB captures available.
-            // TODO(hw-verify): PIDs 0x0C73–0x0C75 are fabricated placeholders — do NOT
-            // rely on for device matching. See crates/hid-cube-controls-protocol/src/ids.rs.
-            // Uses STM shared VID 0x0483; dispatched in get_vendor_protocol() before Simagic.
-            (
-                vendor_ids::SIMAGIC,
-                0x0C73,
-                "Cube Controls GT Pro (provisional)",
-            ),
-            (
-                vendor_ids::SIMAGIC,
-                0x0C74,
-                "Cube Controls Formula Pro (provisional)",
-            ),
-            (
-                vendor_ids::SIMAGIC,
-                0x0C75,
-                "Cube Controls CSX3 (provisional)",
             ),
             // PXN (Lite Star) — budget racing wheels with FFB
             // Verified: kernel hid-ids.h USB_VENDOR_ID_LITE_STAR + PIDs,
@@ -1725,15 +1706,10 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
                     capabilities.supports_raw_torque_1khz = false;
                     capabilities.max_torque = TorqueNm::ZERO;
                 }
-                // Cube Controls PIDs — PROVISIONAL — estimated values, no USB captures available.
-                // TODO(hw-verify): Input-only devices (button boxes), not wheelbases.
-                // Confirm PIDs with real hardware. See crates/hid-cube-controls-protocol/src/ids.rs.
-                0x0C73..=0x0C75 => {
-                    capabilities.max_torque = TorqueNm::ZERO;
-                    capabilities.encoder_cpr = 0;
-                    capabilities.supports_pid = false;
-                    capabilities.supports_raw_torque_1khz = false;
-                }
+                // Cube Controls PIDs (0x0C73–0x0C75) removed from dispatch:
+                // fabricated placeholders with no hardware evidence. These are input-only
+                // devices (button boxes / steering wheel rims), not wheelbases.
+                // See hid-cube-controls-protocol crate. Re-add when real PIDs confirmed.
                 // VRS DirectForce Pro devices (share VID 0x0483 with Simagic)
                 0xA355 => {
                     capabilities.max_torque =

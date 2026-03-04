@@ -63,7 +63,8 @@ jobs:
           # --no-deps: Don't build documentation for dependencies (faster, cleaner)
           # --all-features: Include documentation for all feature-gated items
           # --workspace: Build docs for all workspace members
-          cargo doc --all-features --workspace --no-deps --locked
+          # Exclude racing-wheel-ui (requires Tauri/GTK system dependencies not available in CI)
+          cargo doc --all-features --workspace --no-deps --locked --exclude racing-wheel-ui
 
           echo "Documentation built successfully"
           ls -la target/doc/
