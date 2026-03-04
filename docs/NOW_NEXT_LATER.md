@@ -1,16 +1,19 @@
 # Now · Next · Later
 
-One-screen execution plan for OpenRacing. Updated after PR #74.
+One-screen execution plan for OpenRacing. Updated after PR #76.
 
 ---
 
-## NOW (actively in flight)
+## NOW (complete — entering maintenance)
 
-- **CI reliability hardening**: Disk cleanup + soak test tolerance + stress test skip-list (PR #70)
-- **CI green maintenance**: Continuous fix-forward on any regressions
-- **Progressive PR strategy**: Small, focused PRs (≤50 files, ≤5K LOC) landed incrementally
+- ✅ **All PIDFF dedup complete**: Every standard USB HID PID device crate uses `openracing-pidff-common` (~4,338 lines eliminated)
+- ✅ **PID source citations added**: All 17 vendor protocol crates cross-referenced against Linux kernel `hid-ids.h`, hid-tmff2, and community drivers
+- ✅ **76 PRs merged**: CI green, all cross-validation tests passing, no fabricated PIDs in active dispatch
+- ✅ **CI green maintenance**: Continuous fix-forward on any regressions
 
-**Merged recently (PRs #24-74):**
+**Merged recently (PRs #24-76):**
+- PR #76: PID reconciliation — Thrustmaster T818 shared-PID docs, hid-tmff2 cross-references, source citations
+- PR #75: Docs update for PRs #72-74
 - PR #74: Cammus PIDFF effects → pidff-common (-207 lines)
 - PR #73: VRS + OpenFFBoard PIDFF effects → pidff-common (-1,616 lines)
 - PR #72: Simucube PIDFF effects → pidff-common (-798 lines)
@@ -39,19 +42,20 @@ One-screen execution plan for OpenRacing. Updated after PR #74.
 
 ## NEXT (queued, ready to start)
 
-- **Docs accuracy pass**: Fix vendor count inconsistencies, verify all CLI commands work
 - **macOS IOKit HID support**: Native macOS device communication (F-053)
 - **macOS CI runner**: Add macOS to GitHub Actions matrix
 - **Device capture tooling**: USB sniffer integration for protocol discovery
 - **Packaging hardening**: deb/rpm/flatpak improvements, macOS DMG with notarization
+- **Crypto stub replacement**: Replace remaining Ed25519 stubs with production `ed25519-dalek` paths
+- **Performance gate CI enforcement**: Wire `validate_performance.py` into required CI checks
 - **Line-level code coverage**: Integrate llvm-cov or cargo-tarpaulin into CI
-- **Unverified PID resolution**: Get hardware captures from community for remaining unverified PIDs
 
 ## LATER (roadmap, not yet scoped)
 
 - **Plugin marketplace**: Community plugin distribution, versioning, and discovery
 - **Cloud telemetry**: Profile sharing, backup, and analytics via OpenRacing Hub
 - **ML-based calibration**: Machine-learning-driven auto-calibration for wheel/pedal profiles
+- **Mobile companion app**: iOS/Android remote monitoring and quick adjustments
 - **Adaptive RT scheduling**: CPU governor integration, load-aware deadline adjustment
 - **Physical hardware capture tooling**: openracing-capture protocol sniffer/mapper
 - **Niche vendor support**: Turtle Beach, Simucube 3, SIMTAG, Gomez (MMOS, Oddor, SHH, SimGrade added in PR #57)
@@ -71,7 +75,7 @@ One-screen execution plan for OpenRacing. Updated after PR #74.
 | Protocol crates | 17 HID vendor protocol microcrates + 1 shared PIDFF library |
 | Snapshot tests | 1,400+ snapshot files across 52+ snapshot directories |
 | Crate coverage | 80/87 crates have dedicated test files |
-| PRs merged | 74 total (PRs #1-74) |
+| PRs merged | 76 total (PRs #1-76) |
 
 ---
 
