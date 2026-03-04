@@ -1,0 +1,7 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 4b8d1afda372c4d484199018a8fed402ac5361f810c78f2aebfe661970723de7 # shrinks to device = (4617, 12565, "SimGrade VX-Pro Pedals")

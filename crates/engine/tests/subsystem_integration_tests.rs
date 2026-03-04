@@ -57,12 +57,24 @@ mod device_dispatch_completeness {
             vendor_ids::LEO_BODNAR,
         ];
 
+        // Non-FFB peripherals that share a VID with a dispatched FFB vendor.
+        // These are input-only devices (pedals, handbrakes, shifters) that correctly
+        // have no protocol handler despite their VID being in dispatched_vids.
+        let non_ffb_peripherals: &[(u16, u16)] = &[
+            (vendor_ids::OPENFFBOARD, 0x3115), // SimGrade VX-Pro Pedals
+            (vendor_ids::HEUSINKVELD, 0xE760), // SimLab Handbrake XB1
+        ];
+
         let all_devices = SupportedDevices::all();
         let mut failures = Vec::new();
 
         for &(vid, pid, name) in all_devices {
             if !dispatched_vids.contains(&vid) {
                 // Skip enumeration-only VIDs (PXN, FlashFire, Guillemot, TM-Xbox)
+                continue;
+            }
+            if non_ffb_peripherals.contains(&(vid, pid)) {
+                // Skip non-FFB peripherals sharing a VID with a dispatched vendor
                 continue;
             }
             if get_vendor_protocol(vid, pid).is_none() {

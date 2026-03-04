@@ -348,6 +348,39 @@ pub mod vendor_ids {
     /// Thrustmaster Xbox controller division (VID 0x24C6)
     /// Source: devicehunt.com, oversteer wheel_ids.py
     pub const THRUSTMASTER_XBOX: u16 = 0x24C6;
+    /// MMOS FFB system (VID 0xF055) — open-source direct drive controller.
+    /// Source: JacKeTUs/simracing-hwdb `90-mmos.hwdb`.
+    pub const MMOS: u16 = 0xF055;
+    /// SHH Shifters (VID 0x16C0 = V-USB shared VID).
+    /// Note: shares VID with Simucube/Simagic — dispatch by PID required.
+    /// Source: JacKeTUs/simracing-hwdb `90-shh.hwdb`.
+    pub const SHH: u16 = 0x16C0;
+    /// Oddor peripherals (VID 0x1021).
+    /// Source: JacKeTUs/simracing-hwdb `90-oddor.hwdb`.
+    pub const ODDOR: u16 = 0x1021;
+    /// SimGrade pedals (VID 0x1209 = pid.codes shared VID).
+    /// Note: shares VID with OpenFFBoard — dispatch by PID required.
+    /// Source: JacKeTUs/simracing-hwdb `90-simgrade.hwdb`.
+    pub const SIMGRADE: u16 = OPENFFBOARD; // 0x1209 (pid.codes shared VID)
+    /// SimJack pedals (VID 0x2497).
+    /// Source: JacKeTUs/simracing-hwdb `90-simjack.hwdb`.
+    pub const SIMJACK: u16 = 0x2497;
+    /// SimLab peripherals (VID 0x04D8 = Microchip Technology shared VID).
+    /// Note: shares VID with Heusinkveld legacy — dispatch by PID required.
+    /// Source: JacKeTUs/simracing-hwdb `90-simlab.hwdb`.
+    pub const SIMLAB: u16 = HEUSINKVELD; // 0x04D8 (Microchip shared VID)
+    /// SimNet Racing pedals (VID 0xCAFE).
+    /// Source: JacKeTUs/simracing-hwdb `90-simnet.hwdb`.
+    pub const SIMNET: u16 = 0xCAFE;
+    /// SimRuito pedals (VID 0x5487).
+    /// Source: JacKeTUs/simracing-hwdb `90-simruito.hwdb`.
+    pub const SIMRUITO: u16 = 0x5487;
+    /// SimSonn pedals (VID 0xDDFD).
+    /// Source: JacKeTUs/simracing-hwdb `90-simsonn.hwdb`.
+    pub const SIMSONN: u16 = 0xDDFD;
+    /// SimTrecs pedals (VID 0x03EB = Atmel/Microchip shared VID).
+    /// Source: JacKeTUs/simracing-hwdb `90-simtrecs.hwdb`.
+    pub const SIMTRECS: u16 = 0x03EB;
 }
 
 /// Known racing wheel product IDs organized by vendor
@@ -758,6 +791,29 @@ impl SupportedDevices {
                 0x5B00,
                 "Thrustmaster Ferrari 458 Italia (Xbox 360)",
             ),
+            // ── Community-verified sim racing peripherals ────────────────
+            // Source: JacKeTUs/simracing-hwdb (udev database for Linux sim racing)
+            // MMOS FFB system (open-source direct drive controller)
+            (vendor_ids::MMOS, 0x0FFB, "MMOS FFB Controller"),
+            // SHH Shifters (shares VID 0x16C0 with Simucube)
+            (vendor_ids::SHH, 0x05E1, "SHH Shifter"),
+            // Oddor peripherals
+            (vendor_ids::ODDOR, 0x1888, "Oddor Handbrake"),
+            // SimGrade pedals (shares VID 0x1209 with OpenFFBoard)
+            (vendor_ids::SIMGRADE, 0x3115, "SimGrade VX-Pro Pedals"),
+            // SimJack pedals
+            (vendor_ids::SIMJACK, 0x5757, "SimJack PRO Pedals"),
+            // SimLab peripherals (shares VID 0x04D8 with Heusinkveld)
+            (vendor_ids::SIMLAB, 0xE760, "SimLab Handbrake XB1"),
+            // SimNet Racing pedals
+            (vendor_ids::SIMNET, 0xA301, "SimNet SP Pedals"),
+            // SimRuito pedals
+            (vendor_ids::SIMRUITO, 0x5401, "SimRuito Pedals"),
+            // SimSonn pedals
+            (vendor_ids::SIMSONN, 0x5008, "SimSonn Pedals"),
+            (vendor_ids::SIMSONN, 0x6011, "SimSonn Pedals Plus X"),
+            // SimTrecs pedals
+            (vendor_ids::SIMTRECS, 0x2406, "SimTrecs ProPedal GT"),
         ]
     }
 
@@ -786,6 +842,16 @@ impl SupportedDevices {
             vendor_ids::FLASHFIRE,
             vendor_ids::GUILLEMOT,
             vendor_ids::THRUSTMASTER_XBOX,
+            vendor_ids::MMOS,
+            vendor_ids::SHH,
+            vendor_ids::ODDOR,
+            // SIMGRADE uses OPENFFBOARD VID (0x1209) — already listed
+            vendor_ids::SIMJACK,
+            // SIMLAB uses HEUSINKVELD VID (0x04D8) — already listed
+            vendor_ids::SIMNET,
+            vendor_ids::SIMRUITO,
+            vendor_ids::SIMSONN,
+            vendor_ids::SIMTRECS,
         ]
     }
 
@@ -836,6 +902,14 @@ impl SupportedDevices {
             vendor_ids::FLASHFIRE => "FlashFire",
             vendor_ids::GUILLEMOT => "Guillemot / Thrustmaster",
             vendor_ids::THRUSTMASTER_XBOX => "Thrustmaster",
+            vendor_ids::MMOS => "MMOS",
+            vendor_ids::SHH => "SHH",
+            vendor_ids::ODDOR => "Oddor",
+            vendor_ids::SIMJACK => "SimJack",
+            vendor_ids::SIMNET => "SimNet Racing",
+            vendor_ids::SIMRUITO => "SimRuito",
+            vendor_ids::SIMSONN => "SimSonn",
+            vendor_ids::SIMTRECS => "SimTrecs",
             _ => "Unknown",
         }
     }
@@ -2009,6 +2083,24 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
             capabilities.max_torque = TorqueNm::ZERO;
             capabilities.encoder_cpr = 240;
             capabilities.min_report_period_us = 8000; // 125Hz
+        }
+        // ── Community-verified non-FFB peripherals (simracing-hwdb) ──
+        vendor_ids::SHH | vendor_ids::ODDOR | vendor_ids::SIMJACK
+        | vendor_ids::SIMNET | vendor_ids::SIMRUITO | vendor_ids::SIMSONN
+        | vendor_ids::SIMTRECS => {
+            // Pedals, handbrakes, and shifters — input-only, no FFB
+            capabilities.supports_pid = false;
+            capabilities.supports_raw_torque_1khz = false;
+            capabilities.max_torque = TorqueNm::ZERO;
+            capabilities.encoder_cpr = 0;
+            capabilities.min_report_period_us = 1000;
+        }
+        vendor_ids::MMOS => {
+            // MMOS FFB Controller — open-source direct drive, uses PIDFF
+            capabilities.supports_pid = true;
+            capabilities.supports_raw_torque_1khz = true;
+            capabilities.encoder_cpr = 4096;
+            capabilities.min_report_period_us = 1000; // 1kHz
         }
         _ => {
             // Unknown vendor - use conservative defaults
