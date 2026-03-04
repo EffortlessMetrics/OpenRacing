@@ -11,7 +11,7 @@ categories = ["concurrency", "embedded", "no-std"]
 
 
 [package.metadata.cargo-udeps.ignore]
-normal = ["workspace-hack"]
+normal = ["workspace-hack", "crossbeam"]
 
 [dependencies]
 crossbeam = { workspace = true, optional = true }
@@ -20,7 +20,6 @@ workspace-hack = { version = "0.1", path = "../../workspace-hack" }
 [dev-dependencies]
 quickcheck = "1.0.3"
 quickcheck_macros = "1.1.0"
-criterion = { workspace = true }
 
 [features]
 default = ["std"]

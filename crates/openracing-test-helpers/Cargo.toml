@@ -20,7 +20,7 @@ fixtures = ["dep:serde", "dep:serde_json"]
 
 
 [package.metadata.cargo-udeps.ignore]
-normal = ["workspace-hack"]
+normal = ["workspace-hack", "thiserror", "async-trait"]
 
 [dependencies]
 thiserror = { workspace = true }

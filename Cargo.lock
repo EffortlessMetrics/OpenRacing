@@ -2576,10 +2576,8 @@ dependencies = [
  "insta",
  "openracing-hid-common",
  "proptest",
- "quickcheck",
  "serde",
  "thiserror 2.0.18",
- "tracing",
  "workspace-hack",
 ]
 
@@ -2590,10 +2588,8 @@ dependencies = [
  "insta",
  "openracing-hid-common",
  "proptest",
- "quickcheck",
  "serde",
  "thiserror 2.0.18",
- "tracing",
  "workspace-hack",
 ]
 
@@ -2613,10 +2609,8 @@ dependencies = [
  "insta",
  "openracing-hid-common",
  "proptest",
- "quickcheck",
  "serde",
  "thiserror 2.0.18",
- "tracing",
  "workspace-hack",
 ]
 
@@ -2624,14 +2618,11 @@ dependencies = [
 name = "hid-simucube-protocol"
 version = "0.1.0"
 dependencies = [
- "criterion",
  "insta",
  "openracing-hid-common",
  "proptest",
- "quickcheck",
  "serde",
  "thiserror 2.0.18",
- "tracing",
  "workspace-hack",
 ]
 
@@ -4206,7 +4197,6 @@ checksum = "d6790f58c7ff633d8771f42965289203411a5e5c68388703c06e14f24770b41e"
 name = "openracing-atomic"
 version = "0.1.0"
 dependencies = [
- "criterion",
  "crossbeam",
  "quickcheck",
  "quickcheck_macros",
@@ -4219,7 +4209,6 @@ version = "0.1.0"
 dependencies = [
  "insta",
  "proptest",
- "quickcheck",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
@@ -4231,7 +4220,6 @@ name = "openracing-capture-ids"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "chrono",
  "clap",
  "crc32fast",
  "ctrlc",
@@ -4291,7 +4279,6 @@ version = "0.1.0"
 dependencies = [
  "insta",
  "proptest",
- "quickcheck",
  "racing-wheel-schemas",
  "workspace-hack",
 ]
@@ -4300,20 +4287,15 @@ dependencies = [
 name = "openracing-diagnostic"
 version = "0.1.0"
 dependencies = [
- "crc32c",
  "criterion",
  "cu-bincode",
  "flate2",
  "insta",
- "proptest",
- "quickcheck",
- "quickcheck_macros",
  "serde",
  "serde_json",
  "sysinfo",
  "tempfile",
  "thiserror 2.0.18",
- "tracing",
  "workspace-hack",
  "zip 7.2.0",
 ]
@@ -4324,8 +4306,6 @@ version = "0.1.0"
 dependencies = [
  "insta",
  "proptest",
- "quickcheck",
- "quickcheck_macros",
  "thiserror 2.0.18",
  "workspace-hack",
 ]
@@ -4589,7 +4569,6 @@ dependencies = [
  "quickcheck_macros",
  "thiserror 2.0.18",
  "tokio",
- "tracing",
  "windows 0.62.2",
  "workspace-hack",
 ]
@@ -4599,7 +4578,6 @@ name = "openracing-shifter"
 version = "0.1.0"
 dependencies = [
  "proptest",
- "quickcheck",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
@@ -4610,11 +4588,9 @@ dependencies = [
 name = "openracing-telemetry-streams"
 version = "0.1.0"
 dependencies = [
- "proptest",
  "serde",
  "thiserror 2.0.18",
  "tokio",
- "tokio-test",
 ]
 
 [[package]]
@@ -4652,7 +4628,6 @@ dependencies = [
 name = "openracing-wasm-runtime"
 version = "0.1.0"
 dependencies = [
- "cap-std 4.0.2",
  "criterion",
  "openracing-plugin-abi",
  "proptest",
@@ -4660,9 +4635,7 @@ dependencies = [
  "thiserror 2.0.18",
  "tokio",
  "tracing",
- "tracing-test",
  "uuid",
- "wasi-common",
  "wasmtime",
  "wasmtime-wasi",
  "wat",
@@ -4674,16 +4647,12 @@ name = "openracing-watchdog"
 version = "0.1.0"
 dependencies = [
  "criterion",
- "crossbeam",
  "insta",
  "openracing-fmea",
  "parking_lot",
  "proptest",
- "quickcheck",
- "quickcheck_macros",
  "serde",
  "thiserror 2.0.18",
- "tokio",
  "tracing",
  "workspace-hack",
 ]
@@ -5925,7 +5894,6 @@ dependencies = [
 name = "racing-wheel-moza-wheelbase-report"
 version = "0.1.0"
 dependencies = [
- "insta",
  "proptest",
  "workspace-hack",
 ]
@@ -10597,6 +10565,7 @@ dependencies = [
  "getrandom 0.2.17",
  "getrandom 0.3.4",
  "getrandom 0.4.1",
+ "gimli",
  "hashbrown 0.15.5",
  "hashbrown 0.16.1",
  "hyper",
@@ -10612,10 +10581,12 @@ dependencies = [
  "miniz_oxide",
  "nix 0.30.1",
  "num-traits",
+ "object",
  "once_cell",
  "percent-encoding",
  "phf_shared 0.10.0",
  "phf_shared 0.11.3",
+ "postcard",
  "ppv-lite86",
  "predicates",
  "proc-macro2",
@@ -10653,6 +10624,9 @@ dependencies = [
  "url",
  "uuid",
  "wasmparser 0.243.0",
+ "wasmtime",
+ "wasmtime-environ",
+ "wiggle",
  "winapi",
  "windows 0.62.2",
  "windows-core 0.62.2",

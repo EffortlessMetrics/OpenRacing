@@ -23,11 +23,7 @@ workspace-hack = { version = "0.1", path = "../../workspace-hack" }
 
 [dev-dependencies]
 proptest = { workspace = true }
-quickcheck = "1.0.3"
-quickcheck_macros = "1.1.0"
 criterion = { workspace = true }
-tokio = { workspace = true, features = ["rt-multi-thread", "time", "sync"] }
-crossbeam = { workspace = true }
 insta = { workspace = true }
 
 [features]
