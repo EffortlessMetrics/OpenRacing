@@ -138,6 +138,7 @@ class CompatUsageTracker:
             "crates/hid-asetek-protocol/",  # intra-crate glob re-exports (not deprecated API pattern)
             "crates/hid-openffboard-protocol/",  # intra-crate glob re-exports (not deprecated API pattern)
             "crates/hid-vrs-protocol/",  # intra-crate glob re-exports (not deprecated API pattern)
+            "crates/hid-cammus-protocol/",  # intra-crate glob re-exports (not deprecated API pattern)
             "crates/schemas/tests/",  # compile-fail tests and DeviceId::new test fixtures
         ]
         
