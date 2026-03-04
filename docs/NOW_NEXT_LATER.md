@@ -6,14 +6,21 @@ One-screen execution plan for OpenRacing. Updated alongside the branch `feat/wav
 
 ## NOW (actively in flight)
 
-- **PR #22 — Wave 15 RC hardening**: waves 22-53 complete — golden packets, safety soak, plugin security, schema evolution, compile-fail tests, doc-tests, telemetry deep, protocol deep, trybuild, BDD scenarios, protocol verification, hot-swap, FFB pipeline E2E, concurrency stress, performance validation, capture tooling, profile/diagnostics deep, core infrastructure deep, input/peripherals deep, WASM/native plugin deep, safety/engine deep, full telemetry adapter re-verification, CI gate verification, game support matrix, udev expansion, example plugin tests, RT enforcement, fault injection, protocol roundtrip proptests, IPC schema compat, service lifecycle, cross-platform, device discovery, replay/diagnostics, calibration/FFB, crypto/signing, CLI deep, compat deep, filter/pipeline deep, input maps, telemetry recorder, profile management, scheduler timing, HID capture, WASM runtime, firmware update, E2E user workflows, snapshot expansion, soak+stress hardening, pedal protocols, support bundle, VRS+OpenFFBoard advanced, ADR audit, Moza+Fanatec+Logitech advanced, Thrustmaster+Simucube+Simagic advanced, telemetry adapter deep, IPC transport deep, safety compliance, torque safety, config/profile/migration edge cases, mutation testing, device hotplug, plugin ABI stability, IPC wire compat, error quality, CLI UX, replay validation, cross-platform expanded, support bundle expanded, rate limiter fix all landed
-- **Test suite at 24,366+**: unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, safety-soak, doc-tests, trybuild, BDD, protocol-verification, concurrency-stress, performance-validation, soak-stress, mutation-testing
+- **PR #23 — Wave 15 RC hardening**: waves 22-55 complete — golden packets, safety soak, plugin security, schema evolution, compile-fail tests, doc-tests, telemetry deep, protocol deep, trybuild, BDD scenarios, protocol verification, hot-swap, FFB pipeline E2E, concurrency stress, performance validation, capture tooling, profile/diagnostics deep, core infrastructure deep, input/peripherals deep, WASM/native plugin deep, safety/engine deep, full telemetry adapter re-verification, CI gate verification, game support matrix, udev expansion, example plugin tests, RT enforcement, fault injection, protocol roundtrip proptests, IPC schema compat, service lifecycle, cross-platform, device discovery, replay/diagnostics, calibration/FFB, crypto/signing, CLI deep, compat deep, filter/pipeline deep, input maps, telemetry recorder, profile management, scheduler timing, HID capture, WASM runtime, firmware update, E2E user workflows, snapshot expansion, soak+stress hardening, pedal protocols, support bundle, VRS+OpenFFBoard advanced, ADR audit, Moza+Fanatec+Logitech advanced, Thrustmaster+Simucube+Simagic advanced, telemetry adapter deep, IPC transport deep, safety compliance, torque safety, config/profile/migration edge cases, mutation testing, device hotplug, plugin ABI stability, IPC wire compat, error quality, CLI UX, replay validation, cross-platform expanded, support bundle expanded, rate limiter fix, proptest expansion, telemetry integration, FFB pipeline, security tests all landed
+- **CI green fixes**: platform-independent snapshots, compat migration test fixes, `cargo fmt` cleanup
+- **Test suite at 24,800+**: unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, safety-soak, doc-tests, trybuild, BDD, protocol-verification, concurrency-stress, performance-validation, soak-stress, mutation-testing
 - **All 15 protocol crates have advanced proptest + deep tests**: comprehensive coverage across all major vendors
 - **All 61 game adapters have test coverage**: complete telemetry adapter verification
 - **113+ fuzz targets**: all HID protocols, game telemetry adapters, replay, diagnostics, calibration, FFB, crypto, CLI
 - **1,400+ snapshot files**: protocol verification complete across ALL 14 HID crates cross-verified against community sources (kernel drivers, pid.codes, vendor docs)
+- **PID verification research**: Cube Controls PIDs FABRICATED (no external evidence), VRS DFP V2 UNVERIFIED, OpenFFBoard `0xFFB1` SPECULATIVE
+- **Crypto stubs now fail-closed**: Ed25519 signature stubs return rejection by default (security improvement)
 
 **Recently completed (this branch):**
+- ✅ Wave 55: Proptest expansion, telemetry integration tests, FFB pipeline tests, security hardening tests
+- ✅ CI fixes: Platform-independent snapshots, compat migration test fixes, `cargo fmt` cleanup
+- ✅ PID verification research: Cube Controls FABRICATED, VRS UNVERIFIED, OpenFFBoard SPECULATIVE findings documented
+- ✅ Crypto stub hardening: Ed25519 stubs now fail-closed (reject by default)
 - ✅ Wave 53: Mutation testing (86), device hotplug (56), config writer deep (30), plugin ABI (58), IPC wire compat (78), error quality (64), CLI UX (55), replay validation (30), cross-platform (34), support bundle (36), rate limiter fix
 - ✅ Wave 52: Safety compliance (45), torque safety (20), config/profile/migration edge cases (77), formatting cleanup, temp file removal
 - ✅ Wave 51: Moza+Fanatec+Logitech advanced (139), Thrustmaster+Simucube+Simagic (134), telemetry adapters (95), IPC transport (86)
@@ -68,6 +75,8 @@ One-screen execution plan for OpenRacing. Updated alongside the branch `feat/wav
 - ✅ Wave 48 profile management + scheduler timing + HID capture + WASM runtime + firmware update: 22,606 → 22,915+ tests passing across all crates
 - ✅ Wave 49 E2E integration + snapshot expansion + soak+stress: 22,915 → 23,043+ tests passing across all crates
 - ✅ Wave 50 pedal protocols + support bundle + VRS+OpenFFBoard + ADR audit: 23,043 → 23,245+ tests passing across all crates
+- ✅ Wave 55 proptest expansion + telemetry integration + FFB pipeline + security tests: 24,366 → 24,800+ tests passing across all crates
+- ✅ CI fixes: platform-independent snapshots, compat migration, fmt cleanup
 - ✅ Wave 53 mutation testing + device hotplug + config writer deep + plugin ABI + IPC wire compat + error quality + CLI UX + replay validation + cross-platform + support bundle + rate limiter fix: 23,841 → 24,366+ tests passing across all crates
 - ✅ Wave 52 safety compliance + torque safety + config/profile/migration edge cases + formatting cleanup + temp file removal: 23,699 → 23,841+ tests passing across all crates
 - ✅ Wave 51 Moza+Fanatec+Logitech advanced + Thrustmaster+Simucube+Simagic + telemetry adapters + IPC transport: 23,245 → 23,699+ tests passing across all crates
@@ -75,13 +84,14 @@ One-screen execution plan for OpenRacing. Updated alongside the branch `feat/wav
 
 ## NEXT (queued, ready to start)
 
-- **Wave 54+ hardening**: macOS IOKit HID support, packaging hardening (deb/rpm/flatpak), adaptive RT scheduling
-- **Merge PR #22** after CI green → cut v1.0.0-rc.2 tag
+- **Merge PR #23** after CI green → cut v1.0.0-rc.2 tag
+- **Start progressive smaller PRs**: break remaining work into focused, reviewable PRs
+- **macOS IOKit HID support**: native macOS device communication (F-053)
+- **Packaging hardening**: deb/rpm/flatpak improvements, macOS DMG with notarization
 - **Line-level code coverage**: integrate `llvm-cov` or `cargo-tarpaulin` into CI to identify uncovered branches
 - **macOS CI runner** in GitHub Actions matrix (F-053)
 - **Plugin system security hardening**: replace Ed25519 stub (`signature.rs:111`), implement PE/ELF embedded signature checking (`crypto/mod.rs:204`)
-- **Packaging/installer automation**: Linux deb/rpm/flatpak, macOS DMG with notarization (Windows MSI done)
-- **Unverified PID resolution**: Cube Controls `0x0C73–0x0C75`, VRS DFP V2 `0xA356`, OpenFFBoard `0xFFB1` — need hardware captures
+- **Unverified PID resolution**: Cube Controls `0x0C73–0x0C75` (FABRICATED), VRS DFP V2 `0xA356` (UNVERIFIED), OpenFFBoard `0xFFB1` (SPECULATIVE) — need hardware captures
 - **Remaining golden-packet tests**: expand golden-packet coverage beyond 6 adapters to all high-priority telemetry adapters
 
 ## LATER (roadmap, not yet scoped)
@@ -104,7 +114,7 @@ One-screen execution plan for OpenRacing. Updated alongside the branch `feat/wav
 |--------|-------|
 | Supported devices | ~90+ VID/PID pairs across 16+ vendors |
 | Supported games | 61 telemetry adapter modules |
-| Test count | 24,366+ across 640+ test binaries (unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, doc-tests, trybuild, BDD, protocol-verification, concurrency-stress, performance-validation, soak-stress, mutation-testing) |
+| Test count | 24,800+ across 640+ test binaries (unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, doc-tests, trybuild, BDD, protocol-verification, concurrency-stress, performance-validation, soak-stress, mutation-testing) |
 | Fuzz targets | 113+ across all HID protocols, game adapters, replay, diagnostics, calibration, FFB, crypto, CLI |
 | Protocol crates | 17 HID vendor protocol microcrates |
 | Snapshot tests | 1,400+ snapshot files across 52+ snapshot directories |

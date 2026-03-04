@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Wave 55 — proptest expansion, telemetry integration, FFB pipeline, security tests** (24,366 → 24,800+ tests):
+  - Proptest expansion: additional property-based tests across protocol and engine crates
+  - Telemetry integration tests: expanded cross-crate telemetry validation
+  - FFB pipeline tests: edge-case coverage for force feedback processing chain
+  - Security hardening tests: expanded crypto and signing verification coverage
+- **CI green fixes — platform-independent snapshots, compat migration, fmt cleanup**:
+  - Platform-independent snapshot tests: normalized output to avoid OS-specific differences in snapshot comparisons
+  - Compat migration test fixes: corrected migration path validation for cross-version compatibility
+  - `cargo fmt` cleanup: formatting alignment across all workspace crates
+- **PID verification research findings**:
+  - Cube Controls PIDs `0x0C73`–`0x0C75` confirmed **FABRICATED** — zero external evidence across pid.codes, vendor docs, kernel sources, or community databases
+  - VRS DFP V2 PID `0xA356` remains **UNVERIFIED** — DFP uses `0xA355` (kernel mainline), no source confirms V2 PID
+  - OpenFFBoard alt PID `0xFFB1` confirmed **SPECULATIVE** — zero evidence across 5 independent sources
+- **Crypto stub hardening**: Ed25519 signature verification stubs now fail-closed (reject by default) instead of accepting — prevents unsigned code from passing validation
+- **24,800+ tests** across the workspace (unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, doc-tests, trybuild, BDD, protocol-verification, concurrency-stress, performance-validation, soak-stress, mutation-testing) — 0 failures
 - **PXN protocol crate** (`hid-pxn-protocol`): V10/V12/GT987 support with VID/PIDs web-verified against Linux kernel `hid-ids.h` (VID `0x11FF`, 5 devices), full proptest/snapshot coverage
 - **GT7 extended packet support** (316/344 bytes): PacketType2 and PacketType3 implemented in `gran_turismo_7.rs` — adds wheel rotation, sway/heave/surge, energy recovery, and filtered throttle/brake fields (resolves F-064)
 - **All 17 vendor protocol crates wired into engine dispatch** — Thrustmaster, Logitech, Fanatec, Simucube (1 & 2), Simagic, Moza, Asetek, VRS, Heusinkveld, AccuForce, OpenFFBoard, FFBeast, Leo Bodnar, Cube Controls, Cammus, and PXN; comprehensive proptest/snapshot coverage; kernel-verified wire-format encoding for T300RS, T150/TMX, DFP range, Fanatec range/sign-fix, and Logitech mode-switch

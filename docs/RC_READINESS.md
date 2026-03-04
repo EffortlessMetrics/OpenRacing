@@ -2,27 +2,29 @@
 
 **Branch:** `feat/wave15-rc-hardening`
 **Generated:** 2026-03-04
-**Commit:** HEAD (wave 53 complete)
+**Commit:** HEAD (wave 55 complete)
 
 ## Build & CI Status
 
 | Check | Status |
 |-------|--------|
 | `cargo clippy --all-targets --all-features -- -D warnings` | ✅ Clean |
-| `cargo fmt --all -- --check` | ✅ Verified (wave 43) |
+| `cargo fmt --all -- --check` | ✅ Verified (wave 55) |
 | `cargo test --all-features --workspace` | ✅ All passing |
 | `cargo deny check` | ✅ Verified (wave 43) |
 | ADR validation (`validate_adr.py`) | ✅ Verified (wave 43) |
 | CI governance workflow | ✅ Fixed |
 | Workspace-hack sync | ✅ Verified (wave 43) |
+| Platform-independent snapshots | ✅ Fixed (wave 55) |
+| Compat migration tests | ✅ Fixed (wave 55) |
 
 ## Test Summary
 
 | Metric | Count |
 |--------|------:|
-| **Total tests** | **24,366+** |
+| **Total tests** | **24,800+** |
 | **Test files** | **662** |
-| Unit tests | 16,800+ |
+| Unit tests | 17,000+ |
 | Snapshot tests | 1,400+ |
 | Property tests (proptest) | 2,600+ |
 | End-to-end (E2E) tests | 1,100+ |
@@ -210,6 +212,10 @@
 - **Replay validation tests**: 30 tests for replay file format, timeline integrity, session reconstruction (wave 53).
 - **Cross-platform expanded**: 34 additional tests for platform-specific path handling, OS detection (wave 53).
 - **Support bundle expanded**: 36 additional tests for bundle completeness, privacy redaction, compression integrity (wave 53).
+- **Wave 55 proptest expansion + telemetry integration + FFB pipeline + security tests**: expanded proptest coverage, telemetry integration validation, FFB pipeline edge cases, security hardening tests (wave 55).
+- **CI fixes for platform-independent snapshots**: snapshot tests now produce consistent output across platforms, compat migration tests fixed, `cargo fmt` cleanup (wave 55).
+- **PID verification research findings**: Cube Controls PIDs `0x0C73`–`0x0C75` confirmed FABRICATED (zero external evidence), VRS DFP V2 UNVERIFIED, OpenFFBoard `0xFFB1` SPECULATIVE — documented for transparency (wave 55).
+- **Crypto stubs fail-closed**: Ed25519 signature stubs now return rejection by default instead of acceptance — security improvement preventing unsigned code from passing validation (wave 55).
 
 ## Overall RC Readiness Assessment
 
@@ -246,6 +252,7 @@
 | Button Box | ✅ Verified | pid.codes, Arduino community |
 | Cammus | ✅ Verified | Community sources |
 | Cube Controls | ✅ Verified | Community databases |
+| Cube Controls PIDs | ⚠️ **FABRICATED** | PIDs `0x0C73`–`0x0C75` have zero external evidence across any source |
 | FFBeast | ✅ Verified | Community databases |
 | Leo Bodnar | ✅ Verified | Vendor documentation |
 | VRS | ✅ Verified | Kernel mainline, community sources |
@@ -258,15 +265,15 @@
 |--------|-----|--------|-------|
 | Fanatec GT DD Pro / ClubSport DD | `0x0020` | Confirmed | GT DD Pro and ClubSport DD share PID `0x0020` with CSL DD in PC mode |
 | OpenFFBoard (alt) | `0xFFB1` | **SPECULATIVE** | Zero evidence across 5 sources; `0xFFB0` confirmed via pid.codes + firmware |
-| Cube Controls | `0x0C73`–`0x0C75` | **UNVERIFIED** | Zero external evidence exists; OpenFlight uses different estimates |
+| Cube Controls | `0x0C73`–`0x0C75` | **FABRICATED** | Zero external evidence exists; PIDs appear to be fabricated; OpenFlight uses different estimates |
 | VRS DFP V2 | `0xA356` | **UNVERIFIED** | DFP uses `0xA355` (kernel mainline); Pedals use `0xA3BE`; V2 PID not in any source |
 
 ## Known Gaps
 
 | Gap | Severity | Notes |
 |-----|----------|-------|
-| Cube Controls PIDs still provisional | Medium | `0x0C73`–`0x0C75` have zero external evidence; need hardware captures |
-| Ed25519 stub needs real implementation | Medium | `signature.rs:111` is a stub; replace before v1.0.0 |
+| Cube Controls PIDs still provisional | Medium | `0x0C73`–`0x0C75` FABRICATED — zero external evidence; need hardware captures |
+| Ed25519 stub needs real implementation | Medium | `signature.rs:111` is a stub; now fail-closed (rejects by default) — safer but still needs real implementation before v1.0.0 |
 | macOS CI not yet in matrix | Medium | macOS runner not added to GitHub Actions (F-053) |
 | Some telemetry adapters need golden-packet tests | Low | 6 of ~56 adapters now have golden-packet tests; remaining adapters use snapshot-only coverage |
 | No physical hardware verification yet | Medium | All PIDs verified against docs/kernel sources only, no USB captures |
