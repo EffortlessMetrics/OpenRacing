@@ -3,6 +3,7 @@
 //!
 //! If any assertion fails, update `ids.rs` AND the SOURCES.md table together.
 //! Do not change only one of the two — they must stay in sync.
+#![allow(deprecated)] // Tests intentionally exercise deprecated PEDALS_V1 constant
 
 use racing_wheel_hid_vrs_protocol::{VRS_PRODUCT_ID, VRS_VENDOR_ID};
 

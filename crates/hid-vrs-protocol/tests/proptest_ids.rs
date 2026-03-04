@@ -3,6 +3,7 @@
 //! Uses proptest with 500 cases to verify invariants on:
 //! - VID/PID constants are non-zero
 //! - Device identity classification determinism and max_torque_nm bounds
+#![allow(deprecated)] // Tests intentionally exercise deprecated PEDALS_V1 constant
 //! - identify_device name is non-empty and torque is non-negative
 //! - Round-trip: PID → identity → PID preserves identity
 

@@ -3,6 +3,7 @@
 //! Covers: input report parsing round-trips, output report construction,
 //! device identification via PID, torque encoding precision and safety limits,
 //! edge cases (boundary values, short reports, invalid data), property tests
+#![allow(deprecated)] // Tests intentionally exercise deprecated PEDALS_V1 constant
 //! for encoding round-trips, and known constant validation.
 
 use racing_wheel_hid_vrs_protocol::{
