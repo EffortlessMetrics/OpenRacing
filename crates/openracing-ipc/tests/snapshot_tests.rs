@@ -7,7 +7,7 @@
 use openracing_ipc::codec::{MessageHeader, message_flags, message_types};
 use openracing_ipc::error::IpcError;
 use openracing_ipc::server::IpcConfig;
-use openracing_ipc::transport::{TransportBuilder, TransportConfig, TransportType};
+use openracing_ipc::transport::{TransportBuilder, TransportType};
 
 use std::time::Duration;
 
