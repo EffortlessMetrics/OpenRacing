@@ -38,9 +38,10 @@ pub use direct::{
     FFB_REPORT_ID, FFB_REPORT_LEN, MODE_CONFIG, MODE_GAME, encode_stop, encode_torque,
 };
 pub use effects::{
-    EffectOp as PidEffectOp, EffectType as PidEffectType, encode_device_control,
-    encode_device_gain, encode_effect_operation, encode_set_condition, encode_set_constant_force,
-    encode_set_effect, encode_set_periodic, encode_set_ramp_force,
+    DURATION_INFINITE, EffectOp, EffectOp as PidEffectOp, EffectType, EffectType as PidEffectType,
+    encode_block_free, encode_device_control, encode_device_gain, encode_effect_operation,
+    encode_set_condition, encode_set_constant_force, encode_set_effect, encode_set_envelope,
+    encode_set_periodic, encode_set_ramp_force,
 };
 pub use ids::{
     PRODUCT_C5, PRODUCT_C12, PRODUCT_CP5_PEDALS, PRODUCT_LC100_PEDALS, VENDOR_ID, is_cammus,
