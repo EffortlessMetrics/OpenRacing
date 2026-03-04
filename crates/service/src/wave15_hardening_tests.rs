@@ -469,7 +469,7 @@ mod tests {
                     product_id: 0xABCD,
                     serial_number: Some("SN001".to_string()),
                     manufacturer: Some("TestCo".to_string()),
-                    path: "/dev/hidraw0".to_string(),
+                    path: "mock://hid/test-device".to_string(),
                     capabilities: racing_wheel_schemas::prelude::DeviceCapabilities::new(
                         true,
                         true,
