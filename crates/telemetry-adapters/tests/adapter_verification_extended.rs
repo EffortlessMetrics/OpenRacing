@@ -773,7 +773,7 @@ mod rfactor2_verification {
     }
 
     /// rF2WheelTelemetry temperature values are in Kelvin (not Celsius).
-    /// Source: rF2State.h `mTemperature[3]` documentation.
+    /// Source: rF2State.h `mTemperature\[3\]` documentation.
     #[test]
     fn wheel_temps_are_kelvin() {
         // Kelvin to Celsius: K - 273.15

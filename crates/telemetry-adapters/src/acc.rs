@@ -39,7 +39,7 @@
 //!
 //! | MMF name                    | Struct            | Key fields (version) |
 //! |-----------------------------|-------------------|----------------------|
-//! | `Local\acpmf_physics`       | `SPageFilePhysics`  | gear, speedKmh, gas, brake, fuel, rpms, steerAngle, brakeTemp[4], clutch (1.10+), brakeBias (1.11+), waterTemp (1.8+) |
+//! | `Local\acpmf_physics`       | `SPageFilePhysics`  | gear, speedKmh, gas, brake, fuel, rpms, steerAngle, brakeTemp\[4\], clutch (1.10+), brakeBias (1.11+), waterTemp (1.8+) |
 //! | `Local\acpmf_graphics`      | `SPageFileGraphic`  | packetId, status, session, currentTime, position, tyreCompound, flag, penalty (1.8+), rainLights (1.8+), wiperLV (1.8+) |
 //! | `Local\acpmf_static`        | `SPageFileStatic`   | smVersion, carModel, track, maxRpm, maxFuel, sectorCount, hasDRS, hasERS (1.7.1+), isOnline (1.13+), dryTyresName (1.8+) |
 //!

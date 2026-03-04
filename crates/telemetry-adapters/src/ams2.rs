@@ -21,7 +21,7 @@
 //! # Struct layout caveat
 //! The `AMS2SharedMemory` struct below is a **simplified** representation of the telemetry fields.
 //! The actual SMS `SharedMemory` struct in the SDK includes large inline arrays
-//! (`sParticipantsData[64]`, per-participant sector times, car/class names, etc.) between the
+//! (`sParticipantsData\[64\]`, per-participant sector times, car/class names, etc.) between the
 //! header fields and the car-state fields. As a result, the byte offsets in this struct do NOT
 //! match the SDK's memory layout for fields after `num_active_participants`. This struct is used
 //! for unit-test data construction; the shared memory reader would need a full binary-compatible

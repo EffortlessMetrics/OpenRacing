@@ -294,7 +294,7 @@ impl QuickReleaseStatus {
 ///
 /// The `report_id()` values here (`0x11`–`0x17`) are this crate's own
 /// abstraction layer and do NOT match the actual Simagic hardware. The real
-/// protocol uses **effect block type IDs** in `value[1]` of the corresponding
+/// protocol uses **effect block type IDs** in `value\[1\]` of the corresponding
 /// report, NOT separate report IDs per effect type:
 ///
 /// | Our ID | Real block ID | Kernel define  | Real report  |
