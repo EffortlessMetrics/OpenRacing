@@ -4,7 +4,7 @@ Running record of pain points, blockers, and technical debt encountered during d
 
 Each entry has: **date**, **severity** (Low/Medium/High), **status** (Open/Resolved/Won't Fix), and a description + proposed remedy.
 
-**Summary (68 items):** 15 Open · 49 Resolved · 1 Investigating · 2 Noted · 1 Won't Fix
+**Summary (68 items):** 14 Open · 49 Resolved · 1 Partially Resolved · 1 Investigating · 2 Noted · 1 Won't Fix
 
 ---
 
@@ -656,7 +656,7 @@ New Cammus pedal PIDs have been identified but are not yet wired into the engine
 
 ---
 
-### F-061 · Simucube protocol crate uses speculative wire format (High · Open)
+### F-061 · Simucube protocol crate uses speculative wire format (High · Partially Resolved)
 
 **Encountered:** Wave 17 kernel protocol verification
 
@@ -670,7 +670,13 @@ PIDs, VID, torque specs, and model classification are verified correct.
 
 **Source:** `github.com/Simucube/simucube-docs.github.io`, `granitedevices.com/wiki/`
 
-**Remedy:** Rewrite input/output modules to use HID PID protocol. This is a significant refactor that requires understanding the USB HID PID usage page (0x0F). Consider sharing a common `hid-pid` crate across Simucube and any other HID PID devices. Low priority since Simucube works via DirectInput on Windows regardless.
+**Partial resolution (2025-07):** `SimucubeHidReport` now accurately models the
+documented HID joystick layout (u16 X/Y + 6 axes + 128 buttons = 32 bytes).
+Field set verified against official Simucube developer docs and Granite Devices
+wiki. `SimucubeInputReport` (speculative extended diagnostics) and `output.rs`
+(placeholder torque-streaming format) remain unverified.
+
+**Remaining remedy:** Rewrite output module to use HID PID protocol. This is a significant refactor that requires understanding the USB HID PID usage page (0x0F). Consider sharing a common `hid-pid` crate across Simucube and any other HID PID devices. Low priority since Simucube works via DirectInput on Windows regardless.
 
 ---
 

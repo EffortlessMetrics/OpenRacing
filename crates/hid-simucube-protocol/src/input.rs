@@ -2,7 +2,7 @@
 //!
 //! Two report types are provided:
 //!
-//! - [`SimucubeHidReport`]: Parses the **documented** standard HID joystick
+//! - [`SimucubeHidReport`]: Parses the **verified** standard HID joystick
 //!   layout (steering axis, Y axis, 6 additional axes, 128 buttons) as
 //!   described in the official Simucube USB interface documentation.
 //!
@@ -11,12 +11,26 @@
 //!   temperature, fault/status flags). Its wire encoding is a placeholder and
 //!   has **not** been verified against real hardware.
 //!
+//! ## Wire-format verification status
+//!
+//! **SimucubeHidReport:** ✅ Verified against official Simucube developer docs
+//! (accessed 2025-07). Axis count, axis width (u16 LE), button count (128),
+//! and byte ordering match the documented USB HID interface specification.
+//! Byte layout (axes then buttons, 32 bytes total) follows standard HID
+//! conventions; no hardware descriptor dump exists to confirm field ordering
+//! within the report, but the field set is authoritative.
+//!
+//! **SimucubeInputReport:** ⚠ Speculative. Field names and sizes are
+//! plausible but the wire encoding is a placeholder. Do not use for
+//! production parsing without hardware verification.
+//!
 //! ## Sources
 //!
 //! - Official Simucube developer docs — `Simucube/simucube-docs.github.io`
-//!   → `docs/Simucube 2/Developers.md`
+//!   → `docs/Simucube 2/Developers.md` (accessed 2025-07, field set verified)
 //! - Granite Devices wiki USB interface documentation —
 //!   <https://granitedevices.com/wiki/Simucube_product_USB_interface_documentation>
+//!   (mirrors official docs content)
 //! - USB HID PID 1.01 specification
 
 use super::{
