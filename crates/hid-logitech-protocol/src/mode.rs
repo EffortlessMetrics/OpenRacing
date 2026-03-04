@@ -169,7 +169,15 @@ pub fn encode_g25_native_mode() -> [u8; REPORT_SIZE] {
 /// Source: `lg4ff_set_range_g25()` in kernel/new-lg4ff.
 pub fn encode_range(range: u16) -> [u8; REPORT_SIZE] {
     let r = range.clamp(MIN_RANGE, MAX_RANGE);
-    [0xf8, 0x81, (r & 0xff) as u8, ((r >> 8) & 0xff) as u8, 0x00, 0x00, 0x00]
+    [
+        0xf8,
+        0x81,
+        (r & 0xff) as u8,
+        ((r >> 8) & 0xff) as u8,
+        0x00,
+        0x00,
+        0x00,
+    ]
 }
 
 // ---------------------------------------------------------------------------
@@ -308,15 +316,20 @@ mod tests {
     fn mode_switch_revert_always_same() {
         // The first command is always the same regardless of target
         for target in [
-            TargetMode::DfEx, TargetMode::Dfp, TargetMode::G25,
-            TargetMode::Dfgt, TargetMode::G27, TargetMode::G29,
+            TargetMode::DfEx,
+            TargetMode::Dfp,
+            TargetMode::G25,
+            TargetMode::Dfgt,
+            TargetMode::G27,
+            TargetMode::G29,
             TargetMode::G923,
         ] {
             let cmds = encode_mode_switch(target);
             assert_eq!(
                 cmds[0],
                 [0xf8, 0x0a, 0x00, 0x00, 0x00, 0x00, 0x00],
-                "revert command differs for {:?}", target
+                "revert command differs for {:?}",
+                target
             );
         }
     }
@@ -434,7 +447,10 @@ mod tests {
 
     #[test]
     fn autocenter_off() {
-        assert_eq!(encode_autocenter_off(), [0xf5, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
+        assert_eq!(
+            encode_autocenter_off(),
+            [0xf5, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+        );
     }
 
     #[test]

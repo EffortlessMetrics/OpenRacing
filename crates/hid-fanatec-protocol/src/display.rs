@@ -532,7 +532,12 @@ mod tests {
             let with = seg_bits(d, true);
             let without = seg_bits(d, false);
             assert_eq!(with & 0x80, 0x80, "point bit not set for {}", d as char);
-            assert_eq!(with & 0x7f, without & 0x7f, "lower bits differ for {}", d as char);
+            assert_eq!(
+                with & 0x7f,
+                without & 0x7f,
+                "lower bits differ for {}",
+                d as char
+            );
         }
     }
 
