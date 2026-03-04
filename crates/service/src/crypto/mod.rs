@@ -185,7 +185,7 @@ pub mod utils {
     ///
     /// Looks for signature in:
     /// 1. Separate .sig file (e.g., plugin.wasm.sig for plugin.wasm)
-    /// 2. Embedded signature section (future)
+    /// 2. Embedded signature section in PE/ELF/Mach-O binaries
     /// 3. Extended attributes (future, Linux/macOS)
     pub fn extract_signature_metadata(file_path: &Path) -> Result<Option<SignatureMetadata>> {
         // Try separate .sig file first

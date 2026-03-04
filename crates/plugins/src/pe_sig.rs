@@ -343,13 +343,21 @@ impl PeSignatureExtractor {
                     PeSigError::MalformedSignature(format!("Invalid base64 signature: {}", e))
                 })?;
 
-        // Compute hash of the signature itself as a placeholder
-        // (actual signed data hash should be computed separately)
-        let mut hasher = Sha256::new();
-        hasher.update(&signature_bytes);
-        let hash_result = hasher.finalize();
-        let mut signed_data_hash = [0u8; 32];
-        signed_data_hash.copy_from_slice(&hash_result);
+        // TODO(security): The JSON signature format does not include the signed
+        // data hash. We set it to all zeros so that any caller comparing this hash
+        // against a computed binary hash will detect a mismatch and FAIL verification
+        // rather than silently accepting. Callers MUST recompute the content hash via
+        // `compute_signed_data_hash()` and compare it against independently obtained
+        // expected values.
+        //
+        // Tracking: replace this stub once the JSON signature spec includes a
+        // `signed_data_hash` field, or remove the JSON format entirely in favor
+        // of the binary ORSIG format.
+        tracing::warn!(
+            "PE JSON signature extracted without signed_data_hash; \
+             callers must compute content hash separately via compute_signed_data_hash()"
+        );
+        let signed_data_hash = [0u8; 32];
 
         // Parse timestamp if present
         let timestamp = json_sig.timestamp.as_ref().and_then(|ts| {

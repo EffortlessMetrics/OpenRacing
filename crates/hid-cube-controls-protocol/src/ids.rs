@@ -40,10 +40,17 @@
 //!
 //! These will be added when real USB captures provide VID/PID data.
 //!
-//! TODO(hw-verify): Obtain a USB descriptor capture (`lsusb -v` or
-//! USBTreeView) from real Cube Controls hardware to confirm or replace
-//! the provisional VID/PIDs below. All downstream crates (engine, integration-tests)
-//! reference these constants — a single update here propagates everywhere.
+//! TODO(FABRICATED): PIDs 0x0C73–0x0C75 are confirmed fabricated placeholders
+//! with zero external evidence. A 2025-07 web verification re-checked:
+//!   pid.codes, devicehunt.com, the-sz.com, usb-ids.gowdy.us, Linux kernel
+//!   hid-ids.h (mainline), hid-universal-pidff.c device table, JacKeTUs/
+//!   linux-steering-wheels, JacKeTUs/simracing-hwdb, RetroBat Wheels.cs,
+//!   SDL GameControllerDB, GitHub code search, Reddit, RaceDepartment forums.
+//!   **None** list any Cube Controls PIDs.
+//! Obtain a USB descriptor capture (`lsusb -v` or USBTreeView) from real
+//! Cube Controls hardware to confirm or replace the provisional VID/PIDs
+//! below. All downstream crates (engine, integration-tests) reference these
+//! constants — a single update here propagates everywhere.
 //!
 //! See `docs/protocols/SOURCES.md` for policy.
 //!

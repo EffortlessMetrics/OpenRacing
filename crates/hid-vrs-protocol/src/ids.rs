@@ -119,8 +119,15 @@ pub mod product_ids {
     ///
     /// ⚠ PID unverified externally (re-checked 2025-07). Not present in Linux
     /// kernel `hid-ids.h`, JacKeTUs/linux-steering-wheels, or simracing-hwdb.
-    /// Originally estimated by sequential numbering, but the Pedals PID
-    /// (`0xA3BE`) breaking the sequence weakens this assumption.
+    /// `hid-universal-pidff.c` device table only lists `USB_DEVICE_ID_VRS_DFP`
+    /// (0xA355) — no V2 entry exists. Originally estimated by sequential
+    /// numbering, but the Pedals PID (`0xA3BE`) and R295 PID (`0xA44C`)
+    /// breaking the sequence strongly undermine this assumption.
+    ///
+    /// TODO(UNVERIFIED): PID 0xA356 is a sequential guess with no external
+    /// evidence. The non-sequential pattern (DFP=0xA355, Pedals=0xA3BE,
+    /// R295=0xA44C) suggests VRS does not use contiguous PIDs. Needs a
+    /// real USB capture or vendor confirmation.
     pub const DIRECTFORCE_PRO_V2: u16 = 0xA356;
 
     /// VRS R295 wheelbase.
