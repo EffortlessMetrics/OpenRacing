@@ -24,6 +24,7 @@ members = [
     "crates/hid-cammus-protocol",
     "crates/hid-cube-controls-protocol",
     "crates/hid-pxn-protocol",
+    "crates/pidff-common",
     "crates/simplemotion-v2",
     "crates/openracing-atomic",
     "crates/openracing-tracing",
