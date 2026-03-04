@@ -64,7 +64,8 @@ jobs:
           # --all-features: Include documentation for all feature-gated items
           # --workspace: Build docs for all workspace members
           # Exclude racing-wheel-ui (requires Tauri/GTK system dependencies not available in CI)
-          cargo doc --all-features --workspace --no-deps --locked --exclude racing-wheel-ui
+          # -D warnings: Treat doc warnings as errors (broken links, etc.)
+          RUSTDOCFLAGS="-D warnings" cargo doc --all-features --workspace --no-deps --locked --exclude racing-wheel-ui
 
           echo "Documentation built successfully"
           ls -la target/doc/
@@ -124,16 +125,19 @@ jobs:
           echo "Created documentation index page"
 
       - name: Setup Pages
+        if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
         uses: actions/configure-pages@v4
 
       - name: Upload artifact
+        if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
         uses: actions/upload-pages-artifact@v3
         with:
           path: "target/doc"
 
-  # Deploy to GitHub Pages
+  # Deploy to GitHub Pages (only on release or manual dispatch)
   deploy:
     name: Deploy to GitHub Pages
+    if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
