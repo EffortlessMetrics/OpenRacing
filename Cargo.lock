@@ -5683,6 +5683,7 @@ name = "racing-wheel-hid-cammus-protocol"
 version = "0.1.0"
 dependencies = [
  "insta",
+ "openracing-pidff-common",
  "proptest",
  "workspace-hack",
 ]
