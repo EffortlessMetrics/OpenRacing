@@ -199,7 +199,27 @@ proptest! {
             // Asetek pedals (Invicta Pedals, Forte Pedals — input-only, non-FFB)
             || (vid == vendor_ids::ASETEK && matches!(pid, 0xF100..=0xF102))
             // Thrustmaster Ferrari 458 Italia (Xbox 360) — rumble motors only, not true FFB
-            || (vid == vendor_ids::THRUSTMASTER_XBOX && pid == 0x5B00);
+            || (vid == vendor_ids::THRUSTMASTER_XBOX && pid == 0x5B00)
+            // ── Community-verified non-FFB peripherals (simracing-hwdb) ──
+            // MMOS FFB controller is actually an FFB device — NOT excluded
+            // SHH shifters (input-only)
+            || (vid == vendor_ids::SHH && pid == 0x05E1)
+            // Oddor handbrake (input-only)
+            || (vid == vendor_ids::ODDOR && pid == 0x1888)
+            // SimGrade VX-Pro Pedals (input-only, shares VID with OpenFFBoard)
+            || (vid == vendor_ids::SIMGRADE && pid == 0x3115)
+            // SimJack PRO Pedals (input-only)
+            || (vid == vendor_ids::SIMJACK && pid == 0x5757)
+            // SimLab Handbrake XB1 (input-only, shares VID with Heusinkveld)
+            || (vid == vendor_ids::SIMLAB && pid == 0xE760)
+            // SimNet SP Pedals (input-only)
+            || (vid == vendor_ids::SIMNET && pid == 0xA301)
+            // SimRuito Pedals (input-only)
+            || (vid == vendor_ids::SIMRUITO && pid == 0x5401)
+            // SimSonn Pedals (input-only)
+            || (vid == vendor_ids::SIMSONN && matches!(pid, 0x5008 | 0x6011))
+            // SimTrecs ProPedal GT (input-only)
+            || (vid == vendor_ids::SIMTRECS && pid == 0x2406);
         if is_non_ffb_peripheral {
             prop_assert_eq!(
                 caps.max_torque.value(),
