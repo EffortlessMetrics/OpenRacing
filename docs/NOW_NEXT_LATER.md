@@ -1,6 +1,6 @@
 # Now · Next · Later
 
-One-screen execution plan for OpenRacing. Updated after PR #57.
+One-screen execution plan for OpenRacing. Updated after PR #61.
 
 ---
 
@@ -10,9 +10,14 @@ One-screen execution plan for OpenRacing. Updated after PR #57.
 - **All vendor slot/effect encoders exposed**: Fanatec 5-slot, Logitech 4-slot, all PIDFF devices (PRs #46-51)
 - **CI green maintenance**: Continuous fix-forward on any regressions
 - **Progressive PR strategy**: Small, focused PRs (≤50 files, ≤5K LOC) landed incrementally
+- **Authoritative PID cross-validation**: 40+ checks against kernel drivers (PRs #60-61)
 
-**Merged recently (PRs #24-57):**
-- PR #57: 10 community-verified peripheral vendors from simracing-hwdb (MMOS, SHH, Oddor, SimGrade, SimJack, SimLab, SimNet, SimRuito, SimSonn, SimTrecs)
+**Merged recently (PRs #24-61):**
+- PR #61: Thrustmaster cross-validation expansion + CHANGELOG/docs update
+- PR #60: Authoritative PID cross-validation test (35+ kernel-sourced checks)
+- PR #59: README accuracy — games (14→50+), tests (600→25,500+), crates (8→84)
+- PR #58: Docs update for PRs #54-57
+- PR #57: 10 community-verified peripheral vendors from simracing-hwdb
 - PR #56: CHANGELOG update for PRs #24-55
 - PR #55: str_as_str fix for Rust 2024 edition
 - PR #54: Platform IPC snapshot normalization
