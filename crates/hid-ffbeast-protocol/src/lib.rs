@@ -30,11 +30,18 @@
 #![deny(static_mut_refs)]
 #![deny(clippy::unwrap_used)]
 
+pub mod effects;
 pub mod ids;
 pub mod input;
 pub mod output;
 pub mod settings;
 
+pub use effects::{
+    EffectOp as PidEffectOp, EffectType as PidEffectType, encode_block_free,
+    encode_device_control as encode_pid_device_control,
+    encode_device_gain as encode_pid_device_gain, encode_effect_operation, encode_set_condition,
+    encode_set_envelope, encode_set_periodic, encode_set_ramp_force,
+};
 pub use ids::{
     FFBEAST_PRODUCT_ID_JOYSTICK, FFBEAST_PRODUCT_ID_RUDDER, FFBEAST_PRODUCT_ID_WHEEL,
     FFBEAST_VENDOR_ID, is_ffbeast_product,
