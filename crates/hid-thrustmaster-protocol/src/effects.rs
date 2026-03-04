@@ -162,7 +162,10 @@ pub struct Timing {
 impl Timing {
     /// Create with infinite duration and zero offset.
     pub fn infinite() -> Self {
-        Self { duration: INFINITE_DURATION, offset: 0 }
+        Self {
+            duration: INFINITE_DURATION,
+            offset: 0,
+        }
     }
 
     /// Encode to 9 bytes: `[0x4f, dur_lo, dur_hi, 0, 0, off_lo, off_hi, 0, 0xff, 0xff]`.
@@ -182,7 +185,11 @@ impl Timing {
 
 /// Convert a replay length (0 = infinite in Linux) to device duration.
 pub fn calculate_duration(length: u16) -> u16 {
-    if length == 0 { INFINITE_DURATION } else { length }
+    if length == 0 {
+        INFINITE_DURATION
+    } else {
+        length
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -568,7 +575,10 @@ mod tests {
 
     #[test]
     fn timing_encode_start_end_markers() {
-        let t = Timing { duration: 1000, offset: 500 };
+        let t = Timing {
+            duration: 1000,
+            offset: 500,
+        };
         let buf = t.encode();
         assert_eq!(buf[0], TIMING_START_MARKER);
         assert_eq!(buf[8], 0xFF);
@@ -577,7 +587,10 @@ mod tests {
 
     #[test]
     fn timing_encode_duration_offset() {
-        let t = Timing { duration: 0x1234, offset: 0x5678 };
+        let t = Timing {
+            duration: 0x1234,
+            offset: 0x5678,
+        };
         let buf = t.encode();
         assert_eq!(buf[1..3], [0x34, 0x12]);
         assert_eq!(buf[5..7], [0x78, 0x56]);
@@ -641,7 +654,15 @@ mod tests {
     #[test]
     fn periodic_upload_header() {
         let buf = encode_periodic_upload(
-            0, 0, 0, 0, 100, Waveform::Sine, &Envelope::default(), 0xFFFF, 0,
+            0,
+            0,
+            0,
+            0,
+            100,
+            Waveform::Sine,
+            &Envelope::default(),
+            0xFFFF,
+            0,
         );
         assert_eq!(buf[0..3], [0x00, 0x01, 0x6b]);
     }
@@ -649,7 +670,15 @@ mod tests {
     #[test]
     fn periodic_upload_waveform_sine() {
         let buf = encode_periodic_upload(
-            0, 0, 0, 0, 100, Waveform::Sine, &Envelope::default(), 0xFFFF, 0,
+            0,
+            0,
+            0,
+            0,
+            100,
+            Waveform::Sine,
+            &Envelope::default(),
+            0xFFFF,
+            0,
         );
         assert_eq!(buf[21], 0x03);
     }
@@ -657,7 +686,15 @@ mod tests {
     #[test]
     fn periodic_upload_waveform_square() {
         let buf = encode_periodic_upload(
-            0, 0, 0, 0, 100, Waveform::Square, &Envelope::default(), 0xFFFF, 0,
+            0,
+            0,
+            0,
+            0,
+            100,
+            Waveform::Square,
+            &Envelope::default(),
+            0xFFFF,
+            0,
         );
         assert_eq!(buf[21], 0x01);
     }
@@ -665,7 +702,15 @@ mod tests {
     #[test]
     fn periodic_upload_marker() {
         let buf = encode_periodic_upload(
-            0, 0, 0, 0, 100, Waveform::Sine, &Envelope::default(), 0xFFFF, 0,
+            0,
+            0,
+            0,
+            0,
+            100,
+            Waveform::Sine,
+            &Envelope::default(),
+            0xFFFF,
+            0,
         );
         assert_eq!(buf[11..13], 0x8000u16.to_le_bytes());
     }
@@ -673,7 +718,15 @@ mod tests {
     #[test]
     fn periodic_upload_magnitude() {
         let buf = encode_periodic_upload(
-            0, 16000, 0, 0, 100, Waveform::Sine, &Envelope::default(), 0xFFFF, 0,
+            0,
+            16000,
+            0,
+            0,
+            100,
+            Waveform::Sine,
+            &Envelope::default(),
+            0xFFFF,
+            0,
         );
         let mag = i16::from_le_bytes([buf[3], buf[4]]);
         assert_eq!(mag, 16000);
@@ -710,33 +763,25 @@ mod tests {
 
     #[test]
     fn condition_upload_header() {
-        let buf = encode_condition_upload(
-            0, 0, 0, 0, 0, 0, 0, ConditionType::Spring, 0xFFFF, 0,
-        );
+        let buf = encode_condition_upload(0, 0, 0, 0, 0, 0, 0, ConditionType::Spring, 0xFFFF, 0);
         assert_eq!(buf[0..3], [0x00, 0x01, 0x64]);
     }
 
     #[test]
     fn condition_upload_spring_type() {
-        let buf = encode_condition_upload(
-            0, 0, 0, 0, 0, 0, 0, ConditionType::Spring, 0xFFFF, 0,
-        );
+        let buf = encode_condition_upload(0, 0, 0, 0, 0, 0, 0, ConditionType::Spring, 0xFFFF, 0);
         assert_eq!(buf[27], 0x00);
     }
 
     #[test]
     fn condition_upload_damper_type() {
-        let buf = encode_condition_upload(
-            0, 0, 0, 0, 0, 0, 0, ConditionType::Other, 0xFFFF, 0,
-        );
+        let buf = encode_condition_upload(0, 0, 0, 0, 0, 0, 0, ConditionType::Other, 0xFFFF, 0);
         assert_eq!(buf[27], 0x01);
     }
 
     #[test]
     fn condition_upload_spring_max_sat() {
-        let buf = encode_condition_upload(
-            0, 0, 0, 0, 0, 0, 0, ConditionType::Spring, 0xFFFF, 0,
-        );
+        let buf = encode_condition_upload(0, 0, 0, 0, 0, 0, 0, ConditionType::Spring, 0xFFFF, 0);
         let max_r = u16::from_le_bytes([buf[23], buf[24]]);
         let max_l = u16::from_le_bytes([buf[25], buf[26]]);
         assert_eq!(max_r, SPRING_MAX_SATURATION);
@@ -745,9 +790,7 @@ mod tests {
 
     #[test]
     fn condition_upload_damper_max_sat() {
-        let buf = encode_condition_upload(
-            0, 0, 0, 0, 0, 0, 0, ConditionType::Other, 0xFFFF, 0,
-        );
+        let buf = encode_condition_upload(0, 0, 0, 0, 0, 0, 0, ConditionType::Other, 0xFFFF, 0);
         let max_r = u16::from_le_bytes([buf[23], buf[24]]);
         assert_eq!(max_r, DEFAULT_MAX_SATURATION);
     }
@@ -755,7 +798,16 @@ mod tests {
     #[test]
     fn condition_upload_hardcoded_values() {
         let buf = encode_condition_upload(
-            0, 100, -100, 50, -50, 0x1000, 0x2000, ConditionType::Spring, 0xFFFF, 0,
+            0,
+            100,
+            -100,
+            50,
+            -50,
+            0x1000,
+            0x2000,
+            ConditionType::Spring,
+            0xFFFF,
+            0,
         );
         assert_eq!(&buf[15..23], &CONDITION_HARDCODED);
     }
@@ -763,7 +815,16 @@ mod tests {
     #[test]
     fn condition_upload_coefficients() {
         let buf = encode_condition_upload(
-            0, 1000, -2000, 50, -50, 0, 0, ConditionType::Spring, 0xFFFF, 0,
+            0,
+            1000,
+            -2000,
+            50,
+            -50,
+            0,
+            0,
+            ConditionType::Spring,
+            0xFFFF,
+            0,
         );
         let rc = i16::from_le_bytes([buf[3], buf[4]]);
         let lc = i16::from_le_bytes([buf[5], buf[6]]);
