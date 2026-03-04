@@ -74,11 +74,18 @@
 #![deny(clippy::unwrap_used)]
 #![deny(static_mut_refs)]
 
+pub mod effects;
 pub mod ids;
 pub mod input;
 pub mod output;
 pub mod types;
 
+pub use effects::{
+    BlockLoadResponse, BlockLoadStatus, DURATION_INFINITE, EffectOp, EffectType as PidEffectType,
+    SetEffect, encode_block_free, encode_device_control, encode_device_gain,
+    encode_effect_operation, encode_set_condition, encode_set_constant_force, encode_set_effect,
+    encode_set_envelope, encode_set_periodic, encode_set_ramp_force, parse_block_load,
+};
 pub use ids::*;
 pub use input::*;
 pub use output::*;
