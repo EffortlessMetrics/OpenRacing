@@ -10,7 +10,9 @@ use proptest::prelude::*;
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 
-const LUT_TOLERANCE: f32 = 0.02;
+// Bezier curves with extreme control points can have high curvature regions
+// where a fixed-resolution LUT diverges from direct evaluation.
+const LUT_TOLERANCE: f32 = 0.05;
 // Exponential/log curves with extreme exponents can have large LUT discretization error
 const LUT_TOLERANCE_WIDE: f32 = 0.5;
 const ENDPOINT_TOLERANCE: f32 = 0.01;

@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **30 new authoritative PID cross-validation checks**: Simucube (VID + 4 PIDs), AccuForce (VID + Pro), FFBeast (VID + Wheel), Asetek (VID + 4 wheelbases), Cammus (VID + 4 devices), PXN (VID + 3 models) — all sourced from linux-steering-wheels and simracing-hwdb
+- **85 authoritative PID cross-validation checks** across 18 vendor categories — Heusinkveld (8), Asetek (7), Cammus (5), VRS (3), Simucube (5), AccuForce (2), FFBeast (2), PXN (4), Logitech (8), Simagic Handbrake (1), Thrustmaster TMX (1), plus 30 from prior PR — all sourced from linux-steering-wheels, simracing-hwdb, and kernel drivers
 
 ### Fixed
 
