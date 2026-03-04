@@ -21,4 +21,9 @@ pub use output::{
     build_set_leds_report, build_set_range_dfp_report, build_set_range_dfp_reports,
     build_set_range_report,
 };
+pub use slots::{
+    SLOT_CMD_SIZE, encode_constant as encode_slot_constant, encode_damper as encode_slot_damper,
+    encode_friction as encode_slot_friction, encode_slot_stop, encode_spring as encode_slot_spring,
+    op as slot_op, slot, translate_force,
+};
 pub use types::{LogitechModel, is_wheel_product};
