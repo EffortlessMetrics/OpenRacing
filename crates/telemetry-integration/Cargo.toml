@@ -19,3 +19,11 @@ normal = ["workspace-hack"]
 [dependencies]
 racing-wheel-telemetry-bdd-metrics = { path = "../telemetry-bdd-metrics" }
 workspace-hack = { version = "0.1", path = "../../workspace-hack" }
+
+[dev-dependencies]
+racing-wheel-telemetry-adapters = { path = "../telemetry-adapters" }
+racing-wheel-telemetry-rate-limiter = { path = "../telemetry-rate-limiter" }
+racing-wheel-telemetry-recorder = { path = "../telemetry-recorder" }
+racing-wheel-telemetry-support = { path = "../telemetry-support" }
+tempfile = "3.25.0"
+tokio = { workspace = true }
