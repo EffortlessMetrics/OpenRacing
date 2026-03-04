@@ -5758,6 +5758,7 @@ name = "racing-wheel-hid-openffboard-protocol"
 version = "0.1.0"
 dependencies = [
  "insta",
+ "openracing-pidff-common",
  "proptest",
  "workspace-hack",
 ]
@@ -5797,6 +5798,7 @@ name = "racing-wheel-hid-vrs-protocol"
 version = "0.1.0"
 dependencies = [
  "insta",
+ "openracing-pidff-common",
  "proptest",
  "tracing",
  "workspace-hack",
