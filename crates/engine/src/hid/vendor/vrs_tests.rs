@@ -113,12 +113,17 @@ fn test_output_report_id() {
 
 #[test]
 fn test_is_vrs_product() {
-    assert!(is_vrs_product(0xA355));
-    assert!(is_vrs_product(0xA356));
-    assert!(is_vrs_product(0xA357));
-    assert!(is_vrs_product(0xA358));
-    assert!(is_vrs_product(0xA3BE)); // Pedals (corrected)
-    assert!(is_vrs_product(0xA44C)); // R295
+    // Confirmed PIDs
+    assert!(is_vrs_product(0xA355)); // DirectForce Pro (kernel hid-ids.h)
+    assert!(is_vrs_product(0xA3BE)); // Pedals (simracing-hwdb)
+    assert!(is_vrs_product(0xA44C)); // R295 (kernel hid-ids.h)
+    // Fabricated PIDs — removed from dispatch
+    assert!(!is_vrs_product(0xA356)); // DFP V2 (sequential guess)
+    assert!(!is_vrs_product(0xA357)); // Pedals V1 (sequential guess)
+    assert!(!is_vrs_product(0xA358)); // Pedals V2 (sequential guess)
+    assert!(!is_vrs_product(0xA359)); // Handbrake (sequential guess)
+    assert!(!is_vrs_product(0xA35A)); // Shifter (sequential guess)
+    // Non-VRS PIDs
     assert!(!is_vrs_product(0x0522));
     assert!(!is_vrs_product(0x1234));
 }

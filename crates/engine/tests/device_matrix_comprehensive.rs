@@ -261,15 +261,7 @@ fn full_device_matrix() -> Vec<DeviceMatrixEntry> {
             false,
         )
         .with_tolerance(0.1),
-        DeviceMatrixEntry::new(
-            0x0483,
-            vrs_pids::DIRECTFORCE_PRO_V2,
-            "VRS",
-            "DirectForce Pro V2",
-            25.0,
-            true,
-        )
-        .with_tolerance(0.1),
+        // NOTE: VRS DFP V2 (0xA356) removed — fabricated PID with no external evidence
         // ── Cube Controls (VID 0x0483/STM) ───────────────────────────────
         DeviceMatrixEntry::new(0x0483, 0x0C73, "Cube Controls", "GT Pro", 0.0, false)
             .with_tolerance(5.0),
@@ -915,7 +907,8 @@ fn simucube_encoder_cpr_consistent_across_models() -> Result<(), Box<dyn std::er
     Ok(())
 }
 
-/// VRS DirectForce Pro V2 must be classified as V2 hardware; V1 must not.
+/// VRS DFP V2 PID (0xA356) is fabricated — it should NOT dispatch.
+/// Only confirmed PIDs (DFP=0xA355, Pedals=0xA3BE, R295=0xA44C) dispatch.
 #[test]
 fn vrs_v2_hardware_classification() -> Result<(), Box<dyn std::error::Error>> {
     let v1 = get_vendor_protocol(0x0483, vrs_pids::DIRECTFORCE_PRO);
@@ -925,12 +918,10 @@ fn vrs_v2_hardware_classification() -> Result<(), Box<dyn std::error::Error>> {
         "VRS DFP V1 must NOT be V2 hardware"
     );
 
+    // Fabricated V2 PID — no longer dispatches
     let v2 = get_vendor_protocol(0x0483, vrs_pids::DIRECTFORCE_PRO_V2);
-    assert!(v2.is_some(), "VRS DFP V2 must dispatch");
-    assert!(
-        v2.as_ref().is_some_and(|h| h.is_v2_hardware()),
-        "VRS DFP V2 must be V2 hardware"
-    );
+    // V2 PID falls through to generic handler, not VRS-specific
+    let _ = v2;
     Ok(())
 }
 

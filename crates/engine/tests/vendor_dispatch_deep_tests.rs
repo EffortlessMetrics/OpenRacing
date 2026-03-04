@@ -266,7 +266,7 @@ mod protocol_switching {
 
     #[test]
     fn switch_02_stm_vid_routes_by_pid_range() {
-        // VRS range (0xA355..=0xA35A) vs Simagic vs Cube Controls on STM VID
+        // VRS confirmed PIDs (0xA355, 0xA3BE, 0xA44C) vs Simagic vs Cube Controls on STM VID
         let vrs = get_vendor_protocol(0x0483, 0xA355);
         let simagic = get_vendor_protocol(0x0483, 0x0001);
         assert!(vrs.is_some(), "VRS PID on STM VID must dispatch to VRS");

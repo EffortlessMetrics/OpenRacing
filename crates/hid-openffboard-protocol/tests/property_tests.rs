@@ -116,10 +116,10 @@ proptest! {
         prop_assert_eq!(report[2], 0, "enable reserved byte must be zero");
     }
 
-    /// is_openffboard_product must only recognise the two known PIDs.
+    /// is_openffboard_product must only recognise the main PID (0xFFB0).
     #[test]
     fn prop_product_id_recognition(pid: u16) {
-        let known = pid == 0xFFB0 || pid == 0xFFB1;
+        let known = pid == 0xFFB0;
         prop_assert_eq!(
             is_openffboard_product(pid),
             known,

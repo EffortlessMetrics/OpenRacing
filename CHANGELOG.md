@@ -70,8 +70,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Notch filter biquad coefficients**: corrected coefficient calculation and DC test
 - **Leo Bodnar placeholder PID**: `0xBEEF` replaced with correct PID `0x1301`
 - **Cube Controls PIDs `0x0C73`–`0x0C75`**: confirmed FABRICATED, removed from FFB dispatch
-- **VRS DFP V2 PID `0xA356`**: marked UNVERIFIED; DFP uses `0xA355` (kernel mainline)
-- **OpenFFBoard alt PID `0xFFB1`**: confirmed SPECULATIVE, zero external evidence
+- **VRS fabricated PIDs removed from dispatch**: `0xA356` (DFP V2), `0xA357` (Pedals V1), `0xA358` (Pedals V2), `0xA359` (Handbrake), `0xA35A` (Shifter) — all sequential guesses with zero external evidence; VRS uses non-sequential PIDs
+- **OpenFFBoard alt PID `0xFFB1` removed from dispatch**: not registered on pid.codes (HTTP 404), absent from OpenFFBoard firmware, zero results in GitHub code search
 - **Fanatec torques corrected**: ClubSport DD+ `20 Nm` → `12 Nm` (web-verified)
 - **Thrustmaster T248X PID**: `0xB697` → `0xB69A`
 - **Logitech G PRO**: torque `8 Nm` → `11 Nm`, rotation `900°` → `1080°`

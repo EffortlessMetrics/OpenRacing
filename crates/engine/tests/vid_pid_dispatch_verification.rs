@@ -33,11 +33,6 @@ const VID_GRANITE: u16 = 0x1D50;
 
 const VRS_PIDS: &[(u16, &str)] = &[
     (0xA355, "DirectForce Pro"),
-    (0xA356, "DirectForce Pro V2"),
-    (0xA357, "Pedals V1 (deprecated)"),
-    (0xA358, "Pedals V2"),
-    (0xA359, "Handbrake"),
-    (0xA35A, "Shifter"),
     (0xA3BE, "Pedals"),
     (0xA44C, "R295"),
 ];
@@ -72,7 +67,7 @@ const SIMUCUBE_PIDS: &[(u16, &str)] = &[
 
 // ── OpenFFBoard PIDs on VID 0x1209 ─────────────────────────────────────────
 
-const OPENFFBOARD_PIDS: &[(u16, &str)] = &[(0xFFB0, "Main"), (0xFFB1, "Alt (unverified)")];
+const OPENFFBOARD_PIDS: &[(u16, &str)] = &[(0xFFB0, "Main")];
 
 // ── Button Box PIDs on VID 0x1209 ──────────────────────────────────────────
 

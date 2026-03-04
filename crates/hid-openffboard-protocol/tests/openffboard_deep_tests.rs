@@ -222,15 +222,21 @@ fn firmware_variant_vendor_id_is_pid_codes() {
 }
 
 #[test]
-fn firmware_variant_all_recognized_by_is_openffboard() {
-    for v in &OpenFFBoardVariant::ALL {
-        assert!(
-            is_openffboard_product(v.product_id()),
-            "Variant {:?} PID 0x{:04X} not recognized",
-            v,
-            v.product_id()
-        );
-    }
+fn firmware_variant_main_recognized_by_is_openffboard() {
+    assert!(
+        is_openffboard_product(OpenFFBoardVariant::Main.product_id()),
+        "Main variant PID 0x{:04X} must be recognized",
+        OpenFFBoardVariant::Main.product_id()
+    );
+}
+
+#[test]
+fn firmware_variant_alt_not_recognized_by_is_openffboard() {
+    assert!(
+        !is_openffboard_product(OpenFFBoardVariant::Alternate.product_id()),
+        "Alternate variant PID 0x{:04X} must NOT be recognized",
+        OpenFFBoardVariant::Alternate.product_id()
+    );
 }
 
 #[test]

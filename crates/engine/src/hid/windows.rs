@@ -582,17 +582,12 @@ impl SupportedDevices {
             (vendor_ids::SIMAGIC, 0x0522, "Simagic Alpha"),
             // VRS DirectForce Pro devices (share VID 0x0483 with Simagic)
             (vendor_ids::SIMAGIC, 0xA355, "VRS DirectForce Pro"),
-            (vendor_ids::SIMAGIC, 0xA356, "VRS DirectForce Pro V2"),
-            (
-                vendor_ids::SIMAGIC,
-                0xA357,
-                "VRS Pedals V1 (deprecated — use 0xA3BE)",
-            ),
-            (vendor_ids::SIMAGIC, 0xA358, "VRS Pedals V2"),
-            (vendor_ids::SIMAGIC, 0xA359, "VRS Handbrake"),
-            (vendor_ids::SIMAGIC, 0xA35A, "VRS Shifter"),
-            (vendor_ids::SIMAGIC, 0xA3BE, "VRS Pedals (corrected)"),
+            (vendor_ids::SIMAGIC, 0xA3BE, "VRS Pedals"),
             (vendor_ids::SIMAGIC, 0xA44C, "VRS R295"),
+            // NOTE: Fabricated VRS PIDs removed from dispatch:
+            //   0xA356 (DFP V2), 0xA357 (Pedals V1), 0xA358 (Pedals V2),
+            //   0xA359 (Handbrake), 0xA35A (Shifter)
+            // These were sequential guesses with zero external evidence.
             // Heusinkveld pedals — current firmware (VID 0x30B7)
             (
                 vendor_ids::HEUSINKVELD_CURRENT,
@@ -669,11 +664,7 @@ impl SupportedDevices {
             (vendor_ids::CAMMUS, 0x1019, "Cammus LC100 Pedals"),
             // OpenFFBoard (open-source direct drive controller)
             (vendor_ids::OPENFFBOARD, 0xFFB0, "OpenFFBoard"),
-            (
-                vendor_ids::OPENFFBOARD,
-                0xFFB1,
-                "OpenFFBoard (alt firmware)",
-            ),
+            // NOTE: 0xFFB1 removed — not registered on pid.codes (404), absent from firmware
             // Generic HID button box (pid.codes VID)
             (vendor_ids::OPENFFBOARD, 0x1BBD, "Generic HID Button Box"),
             // FFBeast (open-source direct drive controller)
@@ -1802,19 +1793,14 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
                         TorqueNm::new(20.0).unwrap_or(capabilities.max_torque);
                     capabilities.encoder_cpr = u16::MAX;
                 }
-                0xA356 => {
-                    capabilities.max_torque =
-                        TorqueNm::new(25.0).unwrap_or(capabilities.max_torque);
-                    capabilities.encoder_cpr = u16::MAX;
-                }
                 0xA44C => {
                     // VRS R295 wheelbase
                     capabilities.max_torque =
                         TorqueNm::new(20.0).unwrap_or(capabilities.max_torque);
                     capabilities.encoder_cpr = u16::MAX;
                 }
-                0xA357..=0xA35A | 0xA3BE => {
-                    // VRS pedals, handbrake, shifter (non-FFB)
+                0xA3BE => {
+                    // VRS pedals (non-FFB)
                     capabilities.supports_pid = false;
                     capabilities.supports_raw_torque_1khz = false;
                     capabilities.max_torque = TorqueNm::ZERO;
@@ -1925,8 +1911,8 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
             }
         }
         vendor_ids::OPENFFBOARD => {
-            // pid.codes shared VID: OpenFFBoard (FFB0/FFB1) or button box (1BBD)
-            if product_id == 0xFFB0 || product_id == 0xFFB1 {
+            // pid.codes shared VID: OpenFFBoard (FFB0) or button box (1BBD)
+            if product_id == 0xFFB0 {
                 // OpenFFBoard uses standard HID PID. 20 Nm is a reasonable default.
                 capabilities.supports_pid = true;
                 capabilities.supports_raw_torque_1khz = true;
@@ -3241,9 +3227,12 @@ mod tests {
 
     #[test]
     fn test_supported_devices_vrs() {
-        // VRS uses SIMAGIC VID
+        // VRS uses SIMAGIC VID — only confirmed PIDs
         assert!(SupportedDevices::is_supported(vendor_ids::SIMAGIC, 0xA355)); // DirectForce Pro
-        assert!(SupportedDevices::is_supported(vendor_ids::SIMAGIC, 0xA356)); // DirectForce Pro V2
+        assert!(SupportedDevices::is_supported(vendor_ids::SIMAGIC, 0xA3BE)); // Pedals
+        assert!(SupportedDevices::is_supported(vendor_ids::SIMAGIC, 0xA44C)); // R295
+        // Fabricated PIDs should NOT be in the supported list
+        assert!(!SupportedDevices::is_supported(vendor_ids::SIMAGIC, 0xA356)); // DFP V2 (fabricated)
     }
 
     #[test]

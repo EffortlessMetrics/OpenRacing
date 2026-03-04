@@ -87,17 +87,21 @@ impl OpenFFBoardVariant {
     }
 }
 
-/// Returns `true` if `product_id` is a known OpenFFBoard product.
+/// Returns `true` if `product_id` is a confirmed OpenFFBoard product.
+///
+/// Only includes PIDs with external evidence (pid.codes, firmware source).
+/// The speculative PID `0xFFB1` is **excluded** — it has zero evidence
+/// from any source (pid.codes 404, absent from firmware/configurator).
 ///
 /// # Examples
 /// ```
 /// use racing_wheel_hid_openffboard_protocol::ids::is_openffboard_product;
 /// assert!(is_openffboard_product(0xFFB0));
-/// assert!(is_openffboard_product(0xFFB1));
+/// assert!(!is_openffboard_product(0xFFB1)); // speculative, excluded
 /// assert!(!is_openffboard_product(0x0001));
 /// ```
 pub fn is_openffboard_product(product_id: u16) -> bool {
-    matches!(product_id, 0xFFB0 | 0xFFB1)
+    matches!(product_id, OPENFFBOARD_PRODUCT_ID)
 }
 
 #[cfg(test)]
@@ -107,7 +111,13 @@ mod tests {
     #[test]
     fn known_products_recognised() {
         assert!(is_openffboard_product(OPENFFBOARD_PRODUCT_ID));
-        assert!(is_openffboard_product(OPENFFBOARD_PRODUCT_ID_ALT));
+    }
+
+    #[test]
+    fn speculative_product_excluded() {
+        // 0xFFB1 has zero external evidence — not registered on pid.codes,
+        // absent from firmware/configurator/kernel/community sources.
+        assert!(!is_openffboard_product(OPENFFBOARD_PRODUCT_ID_ALT));
     }
 
     #[test]

@@ -40,8 +40,13 @@ impl VrsProtocolHandler {
 }
 
 /// Return true when the product ID is a known VRS product.
+///
+/// Only includes PIDs with external evidence (kernel, community hwdb).
+/// Fabricated V2 PIDs (0xA356, 0xA358–0xA35A) are **excluded** — they
+/// have zero external evidence and VRS uses non-sequential PIDs
+/// (DFP=0xA355, Pedals=0xA3BE, R295=0xA44C).
 pub fn is_vrs_product(product_id: u16) -> bool {
-    matches!(product_id, 0xA355..=0xA35A | 0xA3BE | 0xA44C)
+    matches!(product_id, 0xA355 | 0xA3BE | 0xA44C)
 }
 
 impl VendorProtocol for VrsProtocolHandler {

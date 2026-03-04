@@ -103,7 +103,7 @@ proptest! {
         prop_assert_eq!(report[2], 0x00, "byte 2 must be zero");
     }
 
-    /// Variant product IDs must be recognized by is_openffboard_product.
+    /// Main variant product ID must be recognized; Alternate must not.
     #[test]
     fn prop_variant_product_id_recognized(
         variant in prop_oneof![
@@ -112,8 +112,16 @@ proptest! {
         ]
     ) {
         let pid = variant.product_id();
-        prop_assert!(is_openffboard_product(pid),
-            "variant {:?} PID {:#06X} must be recognized", variant, pid);
+        match variant {
+            OpenFFBoardVariant::Main => {
+                prop_assert!(is_openffboard_product(pid),
+                    "Main variant {:?} PID {:#06X} must be recognized", variant, pid);
+            }
+            OpenFFBoardVariant::Alternate => {
+                prop_assert!(!is_openffboard_product(pid),
+                    "Alternate variant {:?} PID {:#06X} must NOT be recognized", variant, pid);
+            }
+        }
     }
 
     /// Random product IDs not matching known PIDs must return false.

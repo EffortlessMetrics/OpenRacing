@@ -62,11 +62,12 @@ fn scenario_initialize_sets_maximum_gain() -> Result<(), Box<dyn std::error::Err
     Ok(())
 }
 
-// ─── Scenario 3: alternate PID also initializes correctly ─────────────────────
+// ─── Scenario 3: alternate PID handler still constructs but is not dispatched ──
 
 #[test]
 fn scenario_alt_pid_initializes_correctly() -> Result<(), Box<dyn std::error::Error>> {
-    // Given: OpenFFBoard alternate firmware PID
+    // Given: OpenFFBoard alternate firmware PID (no longer dispatched, but handler
+    //        can still be directly constructed for testing)
     let mut s = OpenFFBoardScenario::wheelbase(OPENFFBOARD_PRODUCT_ID_ALT);
 
     // When: initialized
@@ -271,20 +272,20 @@ fn scenario_get_vendor_protocol_returns_openffboard() -> Result<(), Box<dyn std:
     Ok(())
 }
 
-// ─── Scenario 12: get_vendor_protocol returns OpenFFBoard for alt PID ─────────
+// ─── Scenario 12: get_vendor_protocol no longer returns handler for alt PID ───
 
 #[test]
-fn scenario_get_vendor_protocol_returns_openffboard_alt_pid()
+fn scenario_get_vendor_protocol_does_not_return_openffboard_alt_pid()
 -> Result<(), Box<dyn std::error::Error>> {
     use racing_wheel_engine::hid::vendor::get_vendor_protocol;
 
     // Given: VID/PID for OpenFFBoard alt firmware
     let protocol = get_vendor_protocol(OPENFFBOARD_VENDOR_ID, OPENFFBOARD_PRODUCT_ID_ALT);
 
-    // Then: protocol is recognised
+    // Then: protocol is no longer recognised
     assert!(
-        protocol.is_some(),
-        "VID=0x1209 / PID=0xFFB1 must be recognised"
+        protocol.is_none(),
+        "VID=0x1209 / PID=0xFFB1 must no longer be recognised"
     );
 
     Ok(())

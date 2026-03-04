@@ -6,8 +6,12 @@
 //!
 //! ## Device IDs
 //! - Vendor ID: `0x1209` (pid.codes open-hardware VID)
-//! - Product ID `0xFFB0`: main firmware
-//! - Product ID `0xFFB1`: alternate/experimental firmware
+//! - Product ID `0xFFB0`: main firmware (✅ confirmed: pid.codes, firmware source)
+//!
+//! Note: PID `0xFFB1` was previously listed as an alternate firmware ID but has
+//! been removed from active dispatch — it is not registered on pid.codes (404),
+//! does not appear anywhere in the OpenFFBoard firmware repository, and has zero
+//! external evidence from any source.
 //!
 //! ## Protocol
 //! Uses standard HID PID constant-force reports for real-time torque output.

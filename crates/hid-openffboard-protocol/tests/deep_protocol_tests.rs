@@ -27,9 +27,9 @@ fn alt_product_id_is_ffb1() {
 }
 
 #[test]
-fn is_openffboard_recognises_both_pids() {
+fn is_openffboard_recognises_main_pid_only() {
     assert!(is_openffboard_product(0xFFB0));
-    assert!(is_openffboard_product(0xFFB1));
+    assert!(!is_openffboard_product(0xFFB1));
 }
 
 #[test]
@@ -37,6 +37,7 @@ fn is_openffboard_rejects_unknown_pid() {
     assert!(!is_openffboard_product(0x0000));
     assert!(!is_openffboard_product(0x1234));
     assert!(!is_openffboard_product(0xFFFF));
+    assert!(!is_openffboard_product(0xFFB1));
 }
 
 #[test]
