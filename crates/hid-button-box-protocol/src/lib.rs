@@ -11,6 +11,7 @@
 //! - POV hat switch
 //! - Rotary encoder support
 
+#![deny(static_mut_refs)]
 #![deny(unsafe_op_in_unsafe_fn)]
 #![deny(clippy::unwrap_used)]
 

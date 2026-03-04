@@ -1,5 +1,7 @@
 //! Normalized telemetry domain contracts for OpenRacing.
 
+#![deny(static_mut_refs)]
+
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 

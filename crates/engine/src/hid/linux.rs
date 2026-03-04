@@ -1423,10 +1423,17 @@ mod tests {
         }
     }
 
+    /// Mutex to serialize tests that manipulate the MOZA_TRANSPORT_MODE_ENV var.
+    /// Without this, parallel tests race on the shared env var and produce flakes.
+    static TRANSPORT_MODE_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
     fn with_moza_transport_mode<T, F>(mode: Option<&str>, test: F) -> T
     where
         F: FnOnce() -> T,
     {
+        let _guard = TRANSPORT_MODE_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         let previous = env::var(MOZA_TRANSPORT_MODE_ENV).ok();
         #[allow(clippy::panic)]
         match mode {

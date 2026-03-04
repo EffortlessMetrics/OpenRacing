@@ -39,6 +39,7 @@
 //! All integers in the ABI are stored in little-endian format. The `to_bytes()`
 //! and `from_bytes()` methods handle conversion automatically.
 
+#![deny(static_mut_refs)]
 #![deny(unsafe_op_in_unsafe_fn, clippy::unwrap_used)]
 #![warn(missing_docs, rust_2018_idioms)]
 #![cfg_attr(docsrs, feature(doc_cfg))]

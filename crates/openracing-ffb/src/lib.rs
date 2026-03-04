@@ -45,6 +45,7 @@
 //! assert_eq!(effect.apply_gain(0.0), 0);
 //! ```
 
+#![deny(static_mut_refs)]
 #![deny(unsafe_op_in_unsafe_fn)]
 #![deny(clippy::unwrap_used)]
 

@@ -2,6 +2,8 @@
 //!
 //! Exposes data types and parsing helpers for integration testing.
 
+#![deny(static_mut_refs)]
+
 use serde::{Deserialize, Serialize};
 
 pub fn parse_hex_u16(s: &str) -> Result<u16, String> {

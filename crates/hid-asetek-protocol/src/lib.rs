@@ -32,6 +32,7 @@
 //! **No open-source FFB wire-format documentation exists** for Asetek at this time.
 //! Changes to byte layout should not be made without a USB capture from real hardware.
 
+#![deny(static_mut_refs)]
 #![deny(unsafe_op_in_unsafe_fn)]
 #![deny(clippy::unwrap_used)]
 

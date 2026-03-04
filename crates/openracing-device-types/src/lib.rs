@@ -3,6 +3,7 @@
 //! This crate provides device type definitions for racing wheel hardware,
 //! abstracted from specific vendor implementations.
 
+#![deny(static_mut_refs)]
 #![deny(unsafe_op_in_unsafe_fn)]
 #![deny(clippy::unwrap_used)]
 

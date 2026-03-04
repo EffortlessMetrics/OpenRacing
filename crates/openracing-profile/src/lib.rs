@@ -2,6 +2,7 @@
 //!
 //! This crate provides profile definitions for racing wheel configurations.
 
+#![deny(static_mut_refs)]
 #![deny(unsafe_op_in_unsafe_fn)]
 #![deny(clippy::unwrap_used)]
 

@@ -2,6 +2,7 @@
 //!
 //! This crate provides utilities for streaming and processing telemetry data.
 
+#![deny(static_mut_refs)]
 #![deny(unsafe_op_in_unsafe_fn)]
 #![deny(clippy::unwrap_used)]
 

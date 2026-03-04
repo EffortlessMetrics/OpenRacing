@@ -1,5 +1,7 @@
 //! Telemetry recording, playback, and synthetic fixture generation utilities.
 
+#![deny(static_mut_refs)]
+
 use racing_wheel_schemas::telemetry::{NormalizedTelemetry, TelemetryFlags, TelemetryFrame};
 use serde::{Deserialize, Serialize};
 use std::fs::File;

@@ -4,6 +4,8 @@
 //! comparison logic so service/orchestrator layers can assert parity behavior
 //! in acceptance tests and runtime diagnostics.
 
+#![deny(static_mut_refs)]
+
 use std::collections::BTreeSet;
 
 /// Policy used to evaluate matrix-vs-registry parity.
