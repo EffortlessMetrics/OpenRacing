@@ -1083,10 +1083,15 @@ mod device_model_compat {
         let mut img_b = test_firmware_image(&data);
         img_b.device_model = "model-beta".to_string();
 
-        let bundle_a = FirmwareBundle::new(&img_a, BundleMetadata::default(), CompressionType::None)?;
-        let bundle_b = FirmwareBundle::new(&img_b, BundleMetadata::default(), CompressionType::None)?;
+        let bundle_a =
+            FirmwareBundle::new(&img_a, BundleMetadata::default(), CompressionType::None)?;
+        let bundle_b =
+            FirmwareBundle::new(&img_b, BundleMetadata::default(), CompressionType::None)?;
 
-        assert_ne!(&*bundle_a.header.device_model, &*bundle_b.header.device_model);
+        assert_ne!(
+            &*bundle_a.header.device_model,
+            &*bundle_b.header.device_model
+        );
         Ok(())
     }
 
@@ -1138,7 +1143,10 @@ mod changelog_tests {
         let bundle = FirmwareBundle::new(&image, metadata, CompressionType::None)?;
         let serialized = bundle.serialize()?;
         let parsed = FirmwareBundle::parse(&serialized)?;
-        assert_eq!(parsed.metadata.title.as_deref(), Some("Critical Safety Fix"));
+        assert_eq!(
+            parsed.metadata.title.as_deref(),
+            Some("Critical Safety Fix")
+        );
         Ok(())
     }
 
@@ -1185,10 +1193,7 @@ mod changelog_tests {
             "build_id".to_string(),
             serde_json::Value::String("abc-123".to_string()),
         );
-        custom.insert(
-            "tested".to_string(),
-            serde_json::Value::Bool(true),
-        );
+        custom.insert("tested".to_string(), serde_json::Value::Bool(true));
         let metadata = BundleMetadata {
             custom,
             ..Default::default()
@@ -1313,7 +1318,10 @@ mod version_comparison_tests {
     fn downgrade_detected() {
         let current = semver::Version::new(3, 0, 0);
         let target = semver::Version::new(2, 5, 0);
-        assert!(target < current, "downgrade: target should be less than current");
+        assert!(
+            target < current,
+            "downgrade: target should be less than current"
+        );
     }
 
     #[test]
@@ -1365,10 +1373,7 @@ mod interrupted_update_tests {
         fs::write(install_dir.join("config.dat"), b"cfg-original").await?;
 
         let manager = RollbackManager::new(backup_dir.clone(), install_dir.clone());
-        let files = vec![
-            PathBuf::from("firmware.bin"),
-            PathBuf::from("config.dat"),
-        ];
+        let files = vec![PathBuf::from("firmware.bin"), PathBuf::from("config.dat")];
         manager
             .create_backup(
                 "multi-file-bak",
@@ -1512,7 +1517,11 @@ mod progress_reporting_tests {
             let json = serde_json::to_string(phase)?;
             json_values.insert(json);
         }
-        assert_eq!(json_values.len(), phases.len(), "all phases should be distinct");
+        assert_eq!(
+            json_values.len(),
+            phases.len(),
+            "all phases should be distinct"
+        );
         Ok(())
     }
 }
@@ -1530,7 +1539,10 @@ mod concurrent_update_tests {
         blocker.begin_update("wheel-A").await?;
 
         let result = blocker.begin_update("wheel-B").await;
-        assert!(result.is_err(), "second concurrent update should be rejected");
+        assert!(
+            result.is_err(),
+            "second concurrent update should be rejected"
+        );
 
         blocker.end_update().await;
         // Now a new update should be possible

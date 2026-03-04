@@ -4,13 +4,10 @@
 //! correctly, preserve context, and support recovery classification.
 
 use openracing_errors::{
-    DeviceError, ErrorCategory, ErrorSeverity, OpenRacingError, RTError,
-    ResultExt, ValidationError,
+    DeviceError, ErrorCategory, ErrorSeverity, OpenRacingError, RTError, ResultExt, ValidationError,
 };
 use racing_wheel_engine::pipeline::PipelineError;
-use racing_wheel_engine::safety::{
-    FaultType, SafetyService, SafetyState, WatchdogError,
-};
+use racing_wheel_engine::safety::{FaultType, SafetyService, SafetyState, WatchdogError};
 use racing_wheel_engine::tracing::TracingError;
 use racing_wheel_engine::{ProfileRepoError, SafetyViolation};
 use std::time::Duration;
@@ -20,12 +17,7 @@ use std::time::Duration;
 // ---------------------------------------------------------------------------
 
 fn create_test_safety_service() -> SafetyService {
-    SafetyService::with_timeouts(
-        5.0,
-        25.0,
-        Duration::from_secs(3),
-        Duration::from_secs(2),
-    )
+    SafetyService::with_timeouts(5.0, 25.0, Duration::from_secs(3), Duration::from_secs(2))
 }
 
 /// Simulate a device-layer function returning an RTError.
@@ -40,24 +32,14 @@ fn device_write(connected: bool, torque: f32, max: f32) -> Result<(), RTError> {
 }
 
 /// Simulate an engine-level function that wraps device errors.
-fn engine_process_tick(
-    connected: bool,
-    torque: f32,
-    max: f32,
-) -> Result<(), OpenRacingError> {
-    device_write(connected, torque, max)
-        .with_context("engine_process_tick")?;
+fn engine_process_tick(connected: bool, torque: f32, max: f32) -> Result<(), OpenRacingError> {
+    device_write(connected, torque, max).with_context("engine_process_tick")?;
     Ok(())
 }
 
 /// Simulate a service-level function that wraps engine errors.
-fn service_handle_frame(
-    connected: bool,
-    torque: f32,
-    max: f32,
-) -> Result<(), OpenRacingError> {
-    engine_process_tick(connected, torque, max)
-        .with_context("service_handle_frame")?;
+fn service_handle_frame(connected: bool, torque: f32, max: f32) -> Result<(), OpenRacingError> {
+    engine_process_tick(connected, torque, max).with_context("service_handle_frame")?;
     Ok(())
 }
 
@@ -196,9 +178,7 @@ fn error_vec_preserves_ordering_and_severity() {
     errors.sort_by_key(|e| std::cmp::Reverse(e.severity()));
 
     assert_eq!(errors[0].severity(), ErrorSeverity::Critical);
-    assert!(
-        errors[0].to_string().to_lowercase().contains("disconnect"),
-    );
+    assert!(errors[0].to_string().to_lowercase().contains("disconnect"),);
 }
 
 // =========================================================================

@@ -206,8 +206,7 @@ async fn calibrate_center_on_managed_device() -> Result<(), BoxErr> {
 
 #[tokio::test]
 async fn enumeration_returns_all_connected_devices() -> Result<(), BoxErr> {
-    let (svc, _ids) =
-        seeded_service(&["prio-primary", "prio-secondary", "prio-tertiary"]).await?;
+    let (svc, _ids) = seeded_service(&["prio-primary", "prio-secondary", "prio-tertiary"]).await?;
     let devices = svc.enumerate_devices().await?;
     assert_eq!(devices.len(), 3);
     Ok(())
@@ -274,10 +273,7 @@ async fn get_status_nonexistent_device_returns_error() -> Result<(), BoxErr> {
 async fn re_enumerate_after_device_removal_marks_disconnected() -> Result<(), BoxErr> {
     let mut port = VirtualHidPort::new();
     let id = make_id("will-vanish")?;
-    port.add_device(VirtualDevice::new(
-        id.clone(),
-        "Will Vanish".to_string(),
-    ))?;
+    port.add_device(VirtualDevice::new(id.clone(), "Will Vanish".to_string()))?;
 
     let port: Arc<dyn racing_wheel_engine::HidPort> = Arc::new(port);
     let svc = ApplicationDeviceService::new(Arc::clone(&port), None).await?;

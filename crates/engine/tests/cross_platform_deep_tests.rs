@@ -151,7 +151,10 @@ fn hid_device_info_fields_accessible_cross_platform() -> Result<(), Box<dyn std:
         report_descriptor_len: None,
         report_descriptor_crc32: None,
         capabilities: racing_wheel_schemas::prelude::DeviceCapabilities::new(
-            false, false, false, false,
+            false,
+            false,
+            false,
+            false,
             racing_wheel_schemas::prelude::TorqueNm::new(10.0)
                 .map_err(|e| format!("TorqueNm::new failed: {e}"))?,
             0,
@@ -312,10 +315,7 @@ fn atomic_rename_preserves_content() -> Result<(), Box<dyn std::error::Error>> {
         content.contains("version"),
         "content should survive atomic rename on all platforms"
     );
-    assert!(
-        !tmp_path.exists(),
-        "tmp file should not exist after rename"
-    );
+    assert!(!tmp_path.exists(), "tmp file should not exist after rename");
     Ok(())
 }
 
@@ -352,9 +352,7 @@ fn spawn_child_process_and_wait_for_exit() -> Result<(), Box<dyn std::error::Err
         .output()?;
 
     #[cfg(unix)]
-    let output = std::process::Command::new("echo")
-        .arg("hello")
-        .output()?;
+    let output = std::process::Command::new("echo").arg("hello").output()?;
 
     assert!(
         output.status.success(),
@@ -461,10 +459,7 @@ fn env_var_round_trips_unicode_strings() -> Result<(), Box<dyn std::error::Error
 #[test]
 fn utf8_string_operations_are_consistent() -> Result<(), Box<dyn std::error::Error>> {
     let test_str = "OpenRacing – résumé – 日本語 – Ω";
-    assert!(
-        !test_str.is_ascii(),
-        "test string should contain non-ASCII"
-    );
+    assert!(!test_str.is_ascii(), "test string should contain non-ASCII");
     let bytes = test_str.as_bytes();
     let round_tripped =
         std::str::from_utf8(bytes).map_err(|e| format!("UTF-8 round-trip failed: {e}"))?;
@@ -538,8 +533,8 @@ fn config_path_construction_compiles_everywhere() -> Result<(), Box<dyn std::err
     let config_dir = {
         #[cfg(windows)]
         {
-            let base = std::env::var("LOCALAPPDATA")
-                .map_err(|e| format!("LOCALAPPDATA not set: {e}"))?;
+            let base =
+                std::env::var("LOCALAPPDATA").map_err(|e| format!("LOCALAPPDATA not set: {e}"))?;
             PathBuf::from(base).join("OpenRacing")
         }
         #[cfg(target_os = "linux")]
@@ -629,9 +624,7 @@ fn cpu_affinity_bitmask_representation() -> Result<(), Box<dyn std::error::Error
         lock_memory: false,
         disable_power_throttling: false,
     };
-    let mask = setup
-        .cpu_affinity
-        .ok_or("affinity should be Some")?;
+    let mask = setup.cpu_affinity.ok_or("affinity should be Some")?;
     assert_eq!(mask, 0x0F);
     Ok(())
 }
@@ -639,10 +632,7 @@ fn cpu_affinity_bitmask_representation() -> Result<(), Box<dyn std::error::Error
 #[test]
 fn num_cpus_returns_positive_count() -> Result<(), Box<dyn std::error::Error>> {
     let cpus = num_cpus::get();
-    assert!(
-        cpus >= 1,
-        "system must have at least one CPU: got {cpus}"
-    );
+    assert!(cpus >= 1, "system must have at least one CPU: got {cpus}");
     // Affinity mask should be representable in u64
     assert!(
         cpus <= 64,
@@ -696,8 +686,8 @@ fn rt_setup_lock_memory_field_exists_cross_platform() -> Result<(), Box<dyn std:
 }
 
 #[test]
-fn scheduler_apply_rt_setup_with_memory_lock_does_not_panic() -> Result<(), Box<dyn std::error::Error>>
-{
+fn scheduler_apply_rt_setup_with_memory_lock_does_not_panic()
+-> Result<(), Box<dyn std::error::Error>> {
     let mut scheduler = AbsoluteScheduler::new_1khz();
     // On non-privileged environments, lock_memory may fail silently or succeed.
     // The key invariant: it must not panic.

@@ -92,7 +92,8 @@ fn pll_exact_intervals_reach_stable() -> Result<(), Box<dyn std::error::Error>> 
 }
 
 #[test]
-fn pll_opposite_drift_directions_produce_opposite_estimates() -> Result<(), Box<dyn std::error::Error>> {
+fn pll_opposite_drift_directions_produce_opposite_estimates()
+-> Result<(), Box<dyn std::error::Error>> {
     let mut pll_slow = PLL::new(PERIOD_1KHZ_NS);
     let mut pll_fast = PLL::new(PERIOD_1KHZ_NS);
     let slow_ns = PERIOD_1KHZ_NS + PERIOD_1KHZ_NS / 10;
@@ -189,14 +190,8 @@ fn jitter_percentiles_are_monotonic() -> Result<(), Box<dyn std::error::Error>> 
     let p50 = m.p50_jitter_ns();
     let p95 = m.p95_jitter_ns();
     let p99 = m.p99_jitter_ns();
-    assert!(
-        p50 <= p95,
-        "p50 ({p50}) must be <= p95 ({p95})"
-    );
-    assert!(
-        p95 <= p99,
-        "p95 ({p95}) must be <= p99 ({p99})"
-    );
+    assert!(p50 <= p95, "p50 ({p50}) must be <= p95 ({p95})");
+    assert!(p95 <= p99, "p95 ({p95}) must be <= p99 ({p99})");
     Ok(())
 }
 
@@ -210,10 +205,7 @@ fn jitter_max_tracks_worst_case() -> Result<(), Box<dyn std::error::Error>> {
     m.record_tick(100, false);
     m.record_tick(999_999, false);
     m.record_tick(200, false);
-    assert_eq!(
-        m.max_jitter_ns, 999_999,
-        "max jitter must track worst case"
-    );
+    assert_eq!(m.max_jitter_ns, 999_999, "max jitter must track worst case");
     Ok(())
 }
 
@@ -281,7 +273,8 @@ fn jitter_reset_clears_all_state() -> Result<(), Box<dyn std::error::Error>> {
 // ===========================================================================
 
 #[test]
-fn jitter_constant_samples_have_lower_variance_than_varied() -> Result<(), Box<dyn std::error::Error>> {
+fn jitter_constant_samples_have_lower_variance_than_varied()
+-> Result<(), Box<dyn std::error::Error>> {
     let mut constant = JitterMetrics::new();
     for _ in 0..100 {
         constant.record_tick(50_000, false);
@@ -333,11 +326,7 @@ fn scheduler_1khz_has_correct_period() -> Result<(), Box<dyn std::error::Error>>
 fn scheduler_custom_period_preserved() -> Result<(), Box<dyn std::error::Error>> {
     let period = 2_000_000u64; // 2ms = 500Hz
     let sched = AbsoluteScheduler::with_period(period);
-    assert_eq!(
-        sched.period_ns(),
-        period,
-        "custom period must be preserved"
-    );
+    assert_eq!(sched.period_ns(), period, "custom period must be preserved");
     Ok(())
 }
 
@@ -365,16 +354,14 @@ fn adaptive_config_default_is_valid() -> Result<(), Box<dyn std::error::Error>> 
 
 #[test]
 fn adaptive_config_inverted_bounds_is_invalid() -> Result<(), Box<dyn std::error::Error>> {
-    let cfg = AdaptiveSchedulingConfig::new()
-        .with_period_bounds(1_100_000, 900_000); // min > max
+    let cfg = AdaptiveSchedulingConfig::new().with_period_bounds(1_100_000, 900_000); // min > max
     assert!(!cfg.is_valid(), "inverted bounds must be invalid");
     Ok(())
 }
 
 #[test]
 fn adaptive_config_normalize_fixes_inverted_thresholds() -> Result<(), Box<dyn std::error::Error>> {
-    let mut cfg = AdaptiveSchedulingConfig::new()
-        .with_period_bounds(1_100_000, 900_000);
+    let mut cfg = AdaptiveSchedulingConfig::new().with_period_bounds(1_100_000, 900_000);
     cfg.normalize();
     assert!(cfg.is_valid(), "normalize should fix inverted bounds");
     Ok(())

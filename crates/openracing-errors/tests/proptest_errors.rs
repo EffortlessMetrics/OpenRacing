@@ -42,9 +42,8 @@ fn arb_device_error() -> impl Strategy<Value = DeviceError> {
         "[a-z0-9_-]{1,30}".prop_map(DeviceError::NotFound),
         "[a-z0-9_-]{1,30}".prop_map(DeviceError::Disconnected),
         "[a-z0-9_-]{1,30}".prop_map(DeviceError::ConnectionFailed),
-        ("\\PC{1,20}", "\\PC{1,30}").prop_map(|(device, message)| {
-            DeviceError::CommunicationError { device, message }
-        }),
+        ("\\PC{1,20}", "\\PC{1,30}")
+            .prop_map(|(device, message)| { DeviceError::CommunicationError { device, message } }),
         "\\PC{1,30}".prop_map(DeviceError::HidError),
         ("\\PC{1,20}", 0usize..1000, 0usize..1000).prop_map(|(device, expected, actual)| {
             DeviceError::InvalidResponse {
@@ -53,10 +52,8 @@ fn arb_device_error() -> impl Strategy<Value = DeviceError> {
                 actual,
             }
         }),
-        ("\\PC{1,20}", 0u64..60_000).prop_map(|(device, timeout_ms)| DeviceError::Timeout {
-            device,
-            timeout_ms,
-        }),
+        ("\\PC{1,20}", 0u64..60_000)
+            .prop_map(|(device, timeout_ms)| DeviceError::Timeout { device, timeout_ms }),
         (any::<u16>(), any::<u16>()).prop_map(|(vendor_id, product_id)| {
             DeviceError::UnsupportedDevice {
                 vendor_id,
@@ -65,16 +62,12 @@ fn arb_device_error() -> impl Strategy<Value = DeviceError> {
         }),
         "\\PC{1,20}".prop_map(DeviceError::Busy),
         "\\PC{1,20}".prop_map(DeviceError::PermissionDenied),
-        ("\\PC{1,20}", "\\PC{1,30}").prop_map(|(device, reason)| {
-            DeviceError::InitializationFailed { device, reason }
-        }),
-        ("\\PC{1,20}", "\\PC{1,30}").prop_map(|(device, message)| DeviceError::FirmwareError {
-            device,
-            message,
-        }),
-        ("\\PC{1,20}", "\\PC{1,30}").prop_map(|(device, feature)| {
-            DeviceError::FeatureNotSupported { device, feature }
-        }),
+        ("\\PC{1,20}", "\\PC{1,30}")
+            .prop_map(|(device, reason)| { DeviceError::InitializationFailed { device, reason } }),
+        ("\\PC{1,20}", "\\PC{1,30}")
+            .prop_map(|(device, message)| DeviceError::FirmwareError { device, message }),
+        ("\\PC{1,20}", "\\PC{1,30}")
+            .prop_map(|(device, feature)| { DeviceError::FeatureNotSupported { device, feature } }),
     ]
 }
 
@@ -83,19 +76,13 @@ fn arb_profile_error() -> impl Strategy<Value = ProfileError> {
     prop_oneof![
         "\\PC{1,30}".prop_map(ProfileError::NotFound),
         "\\PC{1,30}".prop_map(ProfileError::AlreadyExists),
-        ("\\PC{1,20}", "\\PC{1,30}").prop_map(|(path, reason)| ProfileError::InvalidFormat {
-            path,
-            reason,
-        }),
+        ("\\PC{1,20}", "\\PC{1,30}")
+            .prop_map(|(path, reason)| ProfileError::InvalidFormat { path, reason }),
         "\\PC{1,30}".prop_map(ProfileError::ValidationFailed),
-        ("\\PC{1,20}", "\\PC{1,30}").prop_map(|(profile, reason)| ProfileError::SaveFailed {
-            profile,
-            reason,
-        }),
-        ("\\PC{1,20}", "\\PC{1,30}").prop_map(|(path, reason)| ProfileError::LoadFailed {
-            path,
-            reason,
-        }),
+        ("\\PC{1,20}", "\\PC{1,30}")
+            .prop_map(|(profile, reason)| ProfileError::SaveFailed { profile, reason }),
+        ("\\PC{1,20}", "\\PC{1,30}")
+            .prop_map(|(path, reason)| ProfileError::LoadFailed { path, reason }),
         "\\PC{1,30}".prop_map(|chain| ProfileError::CircularInheritance { chain }),
         (1usize..100, 1usize..100).prop_map(|(depth, max_depth)| {
             ProfileError::InheritanceDepthExceeded { depth, max_depth }
@@ -103,13 +90,10 @@ fn arb_profile_error() -> impl Strategy<Value = ProfileError> {
         "\\PC{1,30}".prop_map(|parent_id| ProfileError::ParentNotFound { parent_id }),
         "\\PC{1,30}".prop_map(ProfileError::InvalidId),
         "\\PC{1,30}".prop_map(ProfileError::Conflict),
-        ("\\PC{1,10}", "\\PC{1,10}").prop_map(|(expected, found)| {
-            ProfileError::VersionMismatch { expected, found }
-        }),
-        ("\\PC{1,20}", "\\PC{1,20}").prop_map(|(profile, field)| ProfileError::MissingField {
-            profile,
-            field,
-        }),
+        ("\\PC{1,10}", "\\PC{1,10}")
+            .prop_map(|(expected, found)| { ProfileError::VersionMismatch { expected, found } }),
+        ("\\PC{1,20}", "\\PC{1,20}")
+            .prop_map(|(profile, field)| ProfileError::MissingField { profile, field }),
         "\\PC{1,30}".prop_map(ProfileError::Locked),
         ("\\PC{1,20}", "\\PC{1,20}").prop_map(|(profile, device)| {
             ProfileError::InvalidDeviceMapping { profile, device }
@@ -129,16 +113,12 @@ fn arb_validation_error() -> impl Strategy<Value = ValidationError> {
             }
         ),
         "\\PC{1,30}".prop_map(ValidationError::Required),
-        ("\\PC{1,20}", "\\PC{1,30}").prop_map(|(field, reason)| ValidationError::InvalidFormat {
-            field,
-            reason,
-        }),
-        ("\\PC{1,20}", 1usize..1000, 1usize..1000).prop_map(|(field, actual, max)| {
-            ValidationError::TooLong { field, actual, max }
-        }),
-        ("\\PC{1,20}", 0usize..100, 1usize..100).prop_map(|(field, actual, min)| {
-            ValidationError::TooShort { field, actual, min }
-        }),
+        ("\\PC{1,20}", "\\PC{1,30}")
+            .prop_map(|(field, reason)| ValidationError::InvalidFormat { field, reason }),
+        ("\\PC{1,20}", 1usize..1000, 1usize..1000)
+            .prop_map(|(field, actual, max)| { ValidationError::TooLong { field, actual, max } }),
+        ("\\PC{1,20}", 0usize..100, 1usize..100)
+            .prop_map(|(field, actual, min)| { ValidationError::TooShort { field, actual, min } }),
         ("\\PC{1,20}", "\\PC{1,20}", "\\PC{1,30}").prop_map(|(field, value, expected)| {
             ValidationError::InvalidEnumValue {
                 field,
@@ -147,13 +127,10 @@ fn arb_validation_error() -> impl Strategy<Value = ValidationError> {
             }
         }),
         "\\PC{1,30}".prop_map(ValidationError::ConstraintViolation),
-        ("\\PC{1,20}", "\\PC{1,30}").prop_map(|(field, reason)| {
-            ValidationError::InvalidCharacters { field, reason }
-        }),
-        ("\\PC{1,20}", "\\PC{1,30}").prop_map(|(field, value)| ValidationError::NotUnique {
-            field,
-            value,
-        }),
+        ("\\PC{1,20}", "\\PC{1,30}")
+            .prop_map(|(field, reason)| { ValidationError::InvalidCharacters { field, reason } }),
+        ("\\PC{1,20}", "\\PC{1,30}")
+            .prop_map(|(field, value)| ValidationError::NotUnique { field, value }),
         ("\\PC{1,20}", "\\PC{1,30}").prop_map(|(field, dep)| ValidationError::DependencyNotMet {
             field,
             dependency: dep,

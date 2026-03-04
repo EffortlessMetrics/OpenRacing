@@ -279,7 +279,10 @@ fn rbr_neg_infinity_throttle_becomes_zero() -> TestResult {
     let mut buf = make_packet(FULL_PACKET_SIZE);
     set_f32(&mut buf, OFF_THROTTLE, f32::NEG_INFINITY);
     let t = a.normalize(&buf)?;
-    assert_eq!(t.throttle, 0.0, "NEG_INFINITY throttle should default to 0.0");
+    assert_eq!(
+        t.throttle, 0.0,
+        "NEG_INFINITY throttle should default to 0.0"
+    );
     Ok(())
 }
 

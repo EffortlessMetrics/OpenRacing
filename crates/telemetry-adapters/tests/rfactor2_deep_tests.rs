@@ -228,7 +228,11 @@ fn rf2_empty_names_produce_empty_or_none() -> TestResult {
     let car = t.car_id.as_deref().unwrap_or("");
     let track = t.track_id.as_deref().unwrap_or("");
     assert!(car.is_empty(), "car_id should be empty, got {:?}", car);
-    assert!(track.is_empty(), "track_id should be empty, got {:?}", track);
+    assert!(
+        track.is_empty(),
+        "track_id should be empty, got {:?}",
+        track
+    );
     Ok(())
 }
 

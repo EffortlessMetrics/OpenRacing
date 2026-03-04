@@ -6,10 +6,10 @@
 //! TelemetryFlags, TelemetrySnapshot, config module types, and SchemaError display.
 
 use racing_wheel_schemas::config::SchemaError;
+use racing_wheel_schemas::domain::{DomainError, TorqueNm};
 use racing_wheel_schemas::entities::{
     CalibrationData, CalibrationType, DeviceCapabilities, DeviceState, DeviceType, ProfileScope,
 };
-use racing_wheel_schemas::domain::{DomainError, TorqueNm};
 use racing_wheel_schemas::telemetry::{
     NormalizedTelemetry, TelemetryData, TelemetryFlags, TelemetrySnapshot, TelemetryValue,
 };
@@ -221,36 +221,18 @@ fn snapshot_device_type_all_variants_json() -> Result<(), BoxErr> {
 
 #[test]
 fn snapshot_device_capabilities_dd_wheelbase_json() -> Result<(), DomainError> {
-    let caps = DeviceCapabilities::new(
-        false,
-        true,
-        true,
-        true,
-        TorqueNm::new(25.0)?,
-        65535,
-        1000,
-    );
-    let json = serde_json::to_string_pretty(&caps).map_err(|_| {
-        DomainError::InvalidCurvePoints("serialization failed".into())
-    })?;
+    let caps = DeviceCapabilities::new(false, true, true, true, TorqueNm::new(25.0)?, 65535, 1000);
+    let json = serde_json::to_string_pretty(&caps)
+        .map_err(|_| DomainError::InvalidCurvePoints("serialization failed".into()))?;
     insta::assert_snapshot!("device_capabilities_dd_json", json);
     Ok(())
 }
 
 #[test]
 fn snapshot_device_capabilities_belt_drive_json() -> Result<(), DomainError> {
-    let caps = DeviceCapabilities::new(
-        true,
-        false,
-        false,
-        false,
-        TorqueNm::new(3.0)?,
-        4096,
-        4000,
-    );
-    let json = serde_json::to_string_pretty(&caps).map_err(|_| {
-        DomainError::InvalidCurvePoints("serialization failed".into())
-    })?;
+    let caps = DeviceCapabilities::new(true, false, false, false, TorqueNm::new(3.0)?, 4096, 4000);
+    let json = serde_json::to_string_pretty(&caps)
+        .map_err(|_| DomainError::InvalidCurvePoints("serialization failed".into()))?;
     insta::assert_snapshot!("device_capabilities_belt_json", json);
     Ok(())
 }
@@ -308,11 +290,7 @@ fn snapshot_profile_scope_global_json() -> Result<(), BoxErr> {
 
 #[test]
 fn snapshot_profile_scope_game_car_track_json() -> Result<(), BoxErr> {
-    let scope = ProfileScope::for_track(
-        "iRacing".into(),
-        "porsche-911-gt3-r".into(),
-        "spa".into(),
-    );
+    let scope = ProfileScope::for_track("iRacing".into(), "porsche-911-gt3-r".into(), "spa".into());
     let json = serde_json::to_string_pretty(&scope)?;
     insta::assert_snapshot!("profile_scope_game_car_track_json", json);
     Ok(())

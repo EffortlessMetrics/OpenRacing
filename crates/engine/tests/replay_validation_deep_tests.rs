@@ -23,8 +23,8 @@ use racing_wheel_engine::diagnostic::blackbox::{
 };
 use racing_wheel_engine::diagnostic::replay::{BlackboxReplay, ReplayConfig};
 use racing_wheel_engine::diagnostic::streams::{SafetyStateSimple, StreamReader};
-use racing_wheel_engine::safety::FaultType;
 use racing_wheel_engine::rt::Frame;
+use racing_wheel_engine::safety::FaultType;
 use racing_wheel_engine::safety::SafetyState;
 use racing_wheel_schemas::prelude::DeviceId;
 use std::path::PathBuf;
@@ -148,8 +148,8 @@ fn different_seeds_are_individually_deterministic() {
 
         let mut r1 = BlackboxReplay::load_from_file(&path, cfg.clone())
             .unwrap_or_else(|e| panic!("load: {e}"));
-        let mut r2 = BlackboxReplay::load_from_file(&path, cfg)
-            .unwrap_or_else(|e| panic!("load: {e}"));
+        let mut r2 =
+            BlackboxReplay::load_from_file(&path, cfg).unwrap_or_else(|e| panic!("load: {e}"));
 
         let res1 = r1.execute_replay().unwrap_or_else(|e| panic!("exec: {e}"));
         let res2 = r2.execute_replay().unwrap_or_else(|e| panic!("exec: {e}"));
@@ -171,8 +171,7 @@ fn stream_a_timestamps_are_monotonically_increasing() {
     let path = create_recording(&tmp, 100);
 
     let cfg = ReplayConfig::default();
-    let replay =
-        BlackboxReplay::load_from_file(&path, cfg).unwrap_or_else(|e| panic!("load: {e}"));
+    let replay = BlackboxReplay::load_from_file(&path, cfg).unwrap_or_else(|e| panic!("load: {e}"));
 
     let data = replay.stream_a_data();
     assert!(!data.is_empty(), "should have stream data");
@@ -197,8 +196,7 @@ fn replay_preserves_original_frame_sequence_numbers() {
     let path = create_recording(&tmp, 50);
 
     let cfg = ReplayConfig::default();
-    let replay =
-        BlackboxReplay::load_from_file(&path, cfg).unwrap_or_else(|e| panic!("load: {e}"));
+    let replay = BlackboxReplay::load_from_file(&path, cfg).unwrap_or_else(|e| panic!("load: {e}"));
 
     let data = replay.stream_a_data();
     for (i, record) in data.iter().enumerate() {
@@ -253,8 +251,7 @@ fn version_1_file_remains_loadable() {
     let path = create_recording(&tmp, 25);
 
     let cfg = ReplayConfig::default();
-    let replay =
-        BlackboxReplay::load_from_file(&path, cfg).unwrap_or_else(|e| panic!("load: {e}"));
+    let replay = BlackboxReplay::load_from_file(&path, cfg).unwrap_or_else(|e| panic!("load: {e}"));
 
     assert_eq!(replay.header().version, 1);
     assert_eq!(replay.header().magic, *b"WBB1");
@@ -353,8 +350,7 @@ fn empty_trace_has_valid_structure() {
     let path = create_recording(&tmp, 0);
 
     let cfg = ReplayConfig::default();
-    let replay =
-        BlackboxReplay::load_from_file(&path, cfg).unwrap_or_else(|e| panic!("load: {e}"));
+    let replay = BlackboxReplay::load_from_file(&path, cfg).unwrap_or_else(|e| panic!("load: {e}"));
 
     assert_eq!(replay.header().magic, *b"WBB1");
     assert_eq!(replay.footer().footer_magic, *b"1BBW");
@@ -396,8 +392,7 @@ fn large_trace_compressed_file_size_bounded() {
 
     let mut config = make_config(&tmp, "size-test");
     config.compression_level = 6;
-    let mut recorder =
-        BlackboxRecorder::new(config).unwrap_or_else(|e| panic!("new: {e}"));
+    let mut recorder = BlackboxRecorder::new(config).unwrap_or_else(|e| panic!("new: {e}"));
     record_frames(&mut recorder, 5000, &SafetyState::SafeTorque)
         .unwrap_or_else(|e| panic!("record: {e}"));
     let path = recorder
@@ -423,8 +418,7 @@ fn large_trace_compressed_file_size_bounded() {
 fn trace_with_zero_ts_mono_ns_replays_cleanly() {
     let tmp = TempDir::new().unwrap_or_else(|e| panic!("tmp: {e}"));
     let config = make_config(&tmp, "zero-ts-device");
-    let mut recorder =
-        BlackboxRecorder::new(config).unwrap_or_else(|e| panic!("new: {e}"));
+    let mut recorder = BlackboxRecorder::new(config).unwrap_or_else(|e| panic!("new: {e}"));
 
     for i in 0..20 {
         let frame = Frame {
@@ -462,8 +456,7 @@ fn trace_with_zero_ts_mono_ns_replays_cleanly() {
 fn recording_with_faulted_state_preserves_fault_info() {
     let tmp = TempDir::new().unwrap_or_else(|e| panic!("tmp: {e}"));
     let config = make_config(&tmp, "fault-device");
-    let mut recorder =
-        BlackboxRecorder::new(config).unwrap_or_else(|e| panic!("new: {e}"));
+    let mut recorder = BlackboxRecorder::new(config).unwrap_or_else(|e| panic!("new: {e}"));
 
     // Record some frames in SafeTorque, then switch to Faulted
     for i in 0..10 {
@@ -489,8 +482,7 @@ fn recording_with_faulted_state_preserves_fault_info() {
         .unwrap_or_else(|e| panic!("finalize: {e}"));
 
     let cfg = ReplayConfig::default();
-    let replay =
-        BlackboxReplay::load_from_file(&path, cfg).unwrap_or_else(|e| panic!("load: {e}"));
+    let replay = BlackboxReplay::load_from_file(&path, cfg).unwrap_or_else(|e| panic!("load: {e}"));
 
     let data = replay.stream_a_data();
     assert_eq!(data.len(), 20);
@@ -520,8 +512,7 @@ fn recording_with_faulted_state_preserves_fault_info() {
 fn replay_of_faulted_trace_completes_without_error() {
     let tmp = TempDir::new().unwrap_or_else(|e| panic!("tmp: {e}"));
     let config = make_config(&tmp, "fault-replay");
-    let mut recorder =
-        BlackboxRecorder::new(config).unwrap_or_else(|e| panic!("new: {e}"));
+    let mut recorder = BlackboxRecorder::new(config).unwrap_or_else(|e| panic!("new: {e}"));
 
     let faulted = SafetyState::Faulted {
         fault: FaultType::EncoderNaN,
@@ -574,8 +565,7 @@ fn traces_from_different_devices_are_independently_valid() {
             enable_stream_c: false,
         };
 
-        let mut recorder =
-            BlackboxRecorder::new(config).unwrap_or_else(|e| panic!("new: {e}"));
+        let mut recorder = BlackboxRecorder::new(config).unwrap_or_else(|e| panic!("new: {e}"));
         record_frames(&mut recorder, 40, &SafetyState::SafeTorque)
             .unwrap_or_else(|e| panic!("record: {e}"));
         paths.push(
@@ -592,7 +582,10 @@ fn traces_from_different_devices_are_independently_valid() {
         let result = replay
             .execute_replay()
             .unwrap_or_else(|e| panic!("exec {i}: {e}"));
-        assert_eq!(result.frames_replayed, 40, "device {i} should replay 40 frames");
+        assert_eq!(
+            result.frames_replayed, 40,
+            "device {i} should replay 40 frames"
+        );
     }
 }
 
@@ -604,8 +597,7 @@ fn traces_from_different_devices_are_independently_valid() {
 fn recording_captures_all_frame_fields() {
     let tmp = TempDir::new().unwrap_or_else(|e| panic!("tmp: {e}"));
     let config = make_config(&tmp, "fields-device");
-    let mut recorder =
-        BlackboxRecorder::new(config).unwrap_or_else(|e| panic!("new: {e}"));
+    let mut recorder = BlackboxRecorder::new(config).unwrap_or_else(|e| panic!("new: {e}"));
 
     let frame = Frame {
         ffb_in: 0.75,
@@ -625,8 +617,7 @@ fn recording_captures_all_frame_fields() {
         .unwrap_or_else(|e| panic!("finalize: {e}"));
 
     let cfg = ReplayConfig::default();
-    let replay =
-        BlackboxReplay::load_from_file(&path, cfg).unwrap_or_else(|e| panic!("load: {e}"));
+    let replay = BlackboxReplay::load_from_file(&path, cfg).unwrap_or_else(|e| panic!("load: {e}"));
 
     let data = replay.stream_a_data();
     assert_eq!(data.len(), 1);
@@ -650,15 +641,13 @@ fn recording_captures_all_frame_fields() {
 fn trace_metadata_contains_device_id() {
     let tmp = TempDir::new().unwrap_or_else(|e| panic!("tmp: {e}"));
     let config = make_config(&tmp, "meta-device");
-    let recorder =
-        BlackboxRecorder::new(config).unwrap_or_else(|e| panic!("new: {e}"));
+    let recorder = BlackboxRecorder::new(config).unwrap_or_else(|e| panic!("new: {e}"));
     let path = recorder
         .finalize()
         .unwrap_or_else(|e| panic!("finalize: {e}"));
 
     let cfg = ReplayConfig::default();
-    let replay =
-        BlackboxReplay::load_from_file(&path, cfg).unwrap_or_else(|e| panic!("load: {e}"));
+    let replay = BlackboxReplay::load_from_file(&path, cfg).unwrap_or_else(|e| panic!("load: {e}"));
 
     assert!(
         !replay.header().device_id.is_empty(),
@@ -676,8 +665,7 @@ fn trace_metadata_start_time_is_recent() {
     let path = create_recording(&tmp, 5);
 
     let cfg = ReplayConfig::default();
-    let replay =
-        BlackboxReplay::load_from_file(&path, cfg).unwrap_or_else(|e| panic!("load: {e}"));
+    let replay = BlackboxReplay::load_from_file(&path, cfg).unwrap_or_else(|e| panic!("load: {e}"));
 
     let start_time = replay.header().start_time_unix;
     // Should be a recent Unix timestamp (after 2024)
@@ -696,15 +684,13 @@ fn trace_metadata_stream_flags_match_config() {
     let tmp = TempDir::new().unwrap_or_else(|e| panic!("tmp: {e}"));
     let config = make_config(&tmp, "flags-device");
     // Config has stream_a=true, b=false, c=false => flags = 0b001 = 1
-    let recorder =
-        BlackboxRecorder::new(config).unwrap_or_else(|e| panic!("new: {e}"));
+    let recorder = BlackboxRecorder::new(config).unwrap_or_else(|e| panic!("new: {e}"));
     let path = recorder
         .finalize()
         .unwrap_or_else(|e| panic!("finalize: {e}"));
 
     let cfg = ReplayConfig::default();
-    let replay =
-        BlackboxReplay::load_from_file(&path, cfg).unwrap_or_else(|e| panic!("load: {e}"));
+    let replay = BlackboxReplay::load_from_file(&path, cfg).unwrap_or_else(|e| panic!("load: {e}"));
 
     assert_eq!(
         replay.header().stream_flags & 0x01,
@@ -731,8 +717,7 @@ fn trace_metadata_stream_flags_match_config() {
 fn seek_to_timestamp_zero_accepted() {
     let tmp = TempDir::new().unwrap_or_else(|e| panic!("tmp: {e}"));
     let config = make_config(&tmp, "seek-device");
-    let mut recorder =
-        BlackboxRecorder::new(config).unwrap_or_else(|e| panic!("new: {e}"));
+    let mut recorder = BlackboxRecorder::new(config).unwrap_or_else(|e| panic!("new: {e}"));
 
     for i in 0..200 {
         let frame = make_frame(i);
@@ -766,8 +751,7 @@ fn seek_to_timestamp_zero_accepted() {
 fn non_strict_replay_faster_than_strict() {
     let tmp = TempDir::new().unwrap_or_else(|e| panic!("tmp: {e}"));
     let config = make_config(&tmp, "speed-device");
-    let mut recorder =
-        BlackboxRecorder::new(config).unwrap_or_else(|e| panic!("new: {e}"));
+    let mut recorder = BlackboxRecorder::new(config).unwrap_or_else(|e| panic!("new: {e}"));
 
     // 10 frames at 1ms intervals
     for i in 0..10 {
@@ -958,8 +942,7 @@ fn stream_reader_detects_incomplete_record_data() {
 fn high_torque_active_state_roundtrips() {
     let tmp = TempDir::new().unwrap_or_else(|e| panic!("tmp: {e}"));
     let config = make_config(&tmp, "hta-device");
-    let mut recorder =
-        BlackboxRecorder::new(config).unwrap_or_else(|e| panic!("new: {e}"));
+    let mut recorder = BlackboxRecorder::new(config).unwrap_or_else(|e| panic!("new: {e}"));
 
     let hta = SafetyState::HighTorqueActive {
         since: Instant::now(),
@@ -979,8 +962,7 @@ fn high_torque_active_state_roundtrips() {
         .unwrap_or_else(|e| panic!("finalize: {e}"));
 
     let cfg = ReplayConfig::default();
-    let replay =
-        BlackboxReplay::load_from_file(&path, cfg).unwrap_or_else(|e| panic!("load: {e}"));
+    let replay = BlackboxReplay::load_from_file(&path, cfg).unwrap_or_else(|e| panic!("load: {e}"));
 
     let data = replay.stream_a_data();
     assert_eq!(data.len(), 15);

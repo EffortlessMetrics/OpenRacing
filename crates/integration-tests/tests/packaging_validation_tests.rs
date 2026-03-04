@@ -19,9 +19,8 @@ fn repo_root() -> PathBuf {
 /// Read a file relative to the repo root, returning its contents.
 fn read_packaging_file(rel_path: &str) -> Result<String, Box<dyn std::error::Error>> {
     let path = repo_root().join(rel_path);
-    let content = fs::read_to_string(&path).map_err(|e| {
-        format!("Failed to read {}: {e}", path.display())
-    })?;
+    let content =
+        fs::read_to_string(&path).map_err(|e| format!("Failed to read {}: {e}", path.display()))?;
     Ok(content)
 }
 
@@ -224,13 +223,10 @@ fn workspace_version_is_semver_compliant() -> Result<(), Box<dyn std::error::Err
     let caps = version_re
         .captures(&cargo_toml)
         .ok_or("No version found in root Cargo.toml")?;
-    let version_str = caps
-        .get(1)
-        .ok_or("No version capture group")?
-        .as_str();
-    let _parsed: semver::Version = version_str.parse().map_err(|e| {
-        format!("Workspace version '{version_str}' is not valid semver: {e}")
-    })?;
+    let version_str = caps.get(1).ok_or("No version capture group")?.as_str();
+    let _parsed: semver::Version = version_str
+        .parse()
+        .map_err(|e| format!("Workspace version '{version_str}' is not valid semver: {e}"))?;
     Ok(())
 }
 
@@ -534,13 +530,10 @@ fn udev_rules_has_power_management_section() -> Result<(), Box<dyn std::error::E
     // At least the major vendors should have autosuspend disabled
     for vid in &["046d", "044f", "0eb7", "346e"] {
         let pattern = format!("ATTRS{{idVendor}}==\"{vid}\"");
-        let has_power_rule = content.lines().any(|line| {
-            line.contains("autosuspend") && line.contains(&pattern)
-        });
-        assert!(
-            has_power_rule,
-            "Missing USB autosuspend rule for VID {vid}"
-        );
+        let has_power_rule = content
+            .lines()
+            .any(|line| line.contains("autosuspend") && line.contains(&pattern));
+        assert!(has_power_rule, "Missing USB autosuspend rule for VID {vid}");
     }
     Ok(())
 }

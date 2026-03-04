@@ -188,18 +188,9 @@ mod recoverability_snapshots {
             ("RT_SafetyInterlock", RTError::SafetyInterlock.into()),
             ("RT_BufferOverflow", RTError::BufferOverflow.into()),
             ("RT_DeadlineMissed", RTError::DeadlineMissed.into()),
-            (
-                "Device_NotFound",
-                DeviceError::not_found("test").into(),
-            ),
-            (
-                "Device_Timeout",
-                DeviceError::timeout("test", 100).into(),
-            ),
-            (
-                "Profile_NotFound",
-                ProfileError::not_found("test").into(),
-            ),
+            ("Device_NotFound", DeviceError::not_found("test").into()),
+            ("Device_Timeout", DeviceError::timeout("test", 100).into()),
+            ("Profile_NotFound", ProfileError::not_found("test").into()),
             (
                 "Profile_CircularInheritance",
                 ProfileError::circular_inheritance("a -> b -> a").into(),

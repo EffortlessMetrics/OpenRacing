@@ -320,8 +320,14 @@ fn safety_service_clamp_preserves_sign() {
     let svc = SafetyService::default();
     let positive = svc.clamp_torque_nm(100.0);
     let negative = svc.clamp_torque_nm(-100.0);
-    assert!(positive > 0.0, "positive input should yield positive output");
-    assert!(negative < 0.0, "negative input should yield negative output");
+    assert!(
+        positive > 0.0,
+        "positive input should yield positive output"
+    );
+    assert!(
+        negative < 0.0,
+        "negative input should yield negative output"
+    );
 }
 
 #[test]
@@ -363,11 +369,7 @@ fn software_watchdog_double_arm_fails() -> Result<(), WatchdogError> {
     let mut wd = SoftwareWatchdog::new(100);
     wd.arm()?;
     let result = wd.arm();
-    assert!(
-        result.is_err(),
-        "double arm must fail: got {:?}",
-        result
-    );
+    assert!(result.is_err(), "double arm must fail: got {:?}", result);
     Ok(())
 }
 
@@ -375,8 +377,5 @@ fn software_watchdog_double_arm_fails() -> Result<(), WatchdogError> {
 fn software_watchdog_feed_when_disarmed_fails() {
     let mut wd = SoftwareWatchdog::new(100);
     let result = wd.feed();
-    assert!(
-        result.is_err(),
-        "feed on disarmed watchdog must fail"
-    );
+    assert!(result.is_err(), "feed on disarmed watchdog must fail");
 }

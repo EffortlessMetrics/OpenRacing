@@ -4,8 +4,9 @@ expression: json
 ---
 {
   "transport": {
-    "NamedPipe": {
-      "pipe_name": "\\\\.\\pipe\\openracing"
+    "Tcp": {
+      "address": "127.0.0.1",
+      "port": 50051
     }
   },
   "max_connections": 100,

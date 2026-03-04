@@ -284,10 +284,7 @@ async fn unknown_device_id_open_returns_error() -> Result<(), BoxErr> {
 async fn unknown_device_does_not_affect_known_devices() -> Result<(), BoxErr> {
     let mut port = VirtualHidPort::new();
     let known_id = make_id("known-wheel")?;
-    port.add_device(VirtualDevice::new(
-        known_id.clone(),
-        "Known".to_string(),
-    ))?;
+    port.add_device(VirtualDevice::new(known_id.clone(), "Known".to_string()))?;
 
     let ghost = make_id("ghost-device")?;
     let result = port.open_device(&ghost).await;
@@ -620,9 +617,7 @@ fn capabilities_persist_across_reconnect() -> Result<(), BoxErr> {
         caps_after.supports_raw_torque_1khz,
         caps_before.supports_raw_torque_1khz
     );
-    assert!(
-        (caps_after.max_torque.value() - caps_before.max_torque.value()).abs() < f32::EPSILON
-    );
+    assert!((caps_after.max_torque.value() - caps_before.max_torque.value()).abs() < f32::EPSILON);
     assert_eq!(caps_after.encoder_cpr, caps_before.encoder_cpr);
     assert_eq!(
         caps_after.min_report_period_us,

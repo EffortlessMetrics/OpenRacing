@@ -206,7 +206,11 @@ fn rennsport_ffb_normal_value() -> TestResult {
 fn rennsport_ffb_clamped_above_one() -> TestResult {
     let data = make_packet(100.0, 6000.0, 3, 5.0, 0.1);
     let t = adapter().normalize(&data)?;
-    assert!(t.ffb_scalar <= 1.0, "ffb_scalar={} should be ≤ 1.0", t.ffb_scalar);
+    assert!(
+        t.ffb_scalar <= 1.0,
+        "ffb_scalar={} should be ≤ 1.0",
+        t.ffb_scalar
+    );
     Ok(())
 }
 
@@ -214,7 +218,11 @@ fn rennsport_ffb_clamped_above_one() -> TestResult {
 fn rennsport_ffb_clamped_below_neg_one() -> TestResult {
     let data = make_packet(100.0, 6000.0, 3, -5.0, 0.1);
     let t = adapter().normalize(&data)?;
-    assert!(t.ffb_scalar >= -1.0, "ffb_scalar={} should be ≥ -1.0", t.ffb_scalar);
+    assert!(
+        t.ffb_scalar >= -1.0,
+        "ffb_scalar={} should be ≥ -1.0",
+        t.ffb_scalar
+    );
     Ok(())
 }
 
@@ -240,7 +248,11 @@ fn rennsport_slip_ratio_normal_value() -> TestResult {
 fn rennsport_slip_ratio_clamped_above_one() -> TestResult {
     let data = make_packet(100.0, 6000.0, 3, 0.5, 2.5);
     let t = adapter().normalize(&data)?;
-    assert!(t.slip_ratio <= 1.0, "slip_ratio={} should be ≤ 1.0", t.slip_ratio);
+    assert!(
+        t.slip_ratio <= 1.0,
+        "slip_ratio={} should be ≤ 1.0",
+        t.slip_ratio
+    );
     Ok(())
 }
 
@@ -248,7 +260,11 @@ fn rennsport_slip_ratio_clamped_above_one() -> TestResult {
 fn rennsport_slip_ratio_clamped_below_zero() -> TestResult {
     let data = make_packet(100.0, 6000.0, 3, 0.5, -0.5);
     let t = adapter().normalize(&data)?;
-    assert!(t.slip_ratio >= 0.0, "slip_ratio={} should be ≥ 0.0", t.slip_ratio);
+    assert!(
+        t.slip_ratio >= 0.0,
+        "slip_ratio={} should be ≥ 0.0",
+        t.slip_ratio
+    );
     Ok(())
 }
 

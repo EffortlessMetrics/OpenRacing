@@ -48,8 +48,8 @@ async fn pipeline_normalize_raw_data_produces_valid_telemetry() -> TestResult {
 
 #[test]
 fn pipeline_coverage_alignment_with_adapters() -> TestResult {
-    let matrix = load_default_matrix()
-        .map_err(|e| std::io::Error::other(format!("matrix load: {e}")))?;
+    let matrix =
+        load_default_matrix().map_err(|e| std::io::Error::other(format!("matrix load: {e}")))?;
     let matrix_ids = matrix.game_ids();
     let adapter_ids: Vec<&str> = adapter_factories().iter().map(|(id, _)| *id).collect();
 
@@ -73,16 +73,23 @@ fn pipeline_coverage_alignment_fails_with_missing_adapter() -> TestResult {
         adapter_ids.iter().copied(),
         CoveragePolicy::STRICT,
     );
-    assert!(result.is_err(), "strict policy should detect missing adapter");
+    assert!(
+        result.is_err(),
+        "strict policy should detect missing adapter"
+    );
     let mismatch = result.err().ok_or("expected mismatch")?;
-    assert!(mismatch.missing_in_registry.contains(&"phantom_pipeline_game".to_string()));
+    assert!(
+        mismatch
+            .missing_in_registry
+            .contains(&"phantom_pipeline_game".to_string())
+    );
     Ok(())
 }
 
 #[test]
 fn pipeline_bdd_metrics_reflect_adapter_state() -> TestResult {
-    let matrix = load_default_matrix()
-        .map_err(|e| std::io::Error::other(format!("matrix load: {e}")))?;
+    let matrix =
+        load_default_matrix().map_err(|e| std::io::Error::other(format!("matrix load: {e}")))?;
     let matrix_ids = matrix.game_ids();
     let adapter_ids: Vec<&str> = adapter_factories().iter().map(|(id, _)| *id).collect();
 
@@ -203,7 +210,10 @@ fn hot_swap_coverage_policy_reflects_new_adapters() -> TestResult {
         ["acc"],
         CoveragePolicy::MATRIX_COMPLETE,
     );
-    assert!(before.is_err(), "missing iracing should violate MATRIX_COMPLETE");
+    assert!(
+        before.is_err(),
+        "missing iracing should violate MATRIX_COMPLETE"
+    );
 
     // After hot-swap: acc + iracing
     let after = compare_matrix_and_registry_with_policy(
@@ -252,7 +262,10 @@ fn rate_limiter_60hz_to_1khz_tracks_all_calls() -> TestResult {
         60,
         "all calls must be accounted for"
     );
-    assert!(limiter.processed_count() > 0, "at least one frame should be processed");
+    assert!(
+        limiter.processed_count() > 0,
+        "at least one frame should be processed"
+    );
     Ok(())
 }
 
@@ -327,11 +340,8 @@ fn recording_load_roundtrip() -> TestResult {
 
 #[test]
 fn recording_fixture_generator_produces_valid_data() -> TestResult {
-    let recording = TestFixtureGenerator::generate_racing_session(
-        "fixture_game".to_string(),
-        5.0,
-        60.0,
-    );
+    let recording =
+        TestFixtureGenerator::generate_racing_session("fixture_game".to_string(), 5.0, 60.0);
     assert!(!recording.frames.is_empty());
     assert_eq!(&*recording.metadata.game_id, "fixture_game");
     assert!(recording.metadata.frame_count > 0);
@@ -352,7 +362,11 @@ fn concurrent_registries_strict_rejects_extra_active_games() -> TestResult {
     );
     assert!(result.is_err());
     let mismatch = result.err().ok_or("expected mismatch")?;
-    assert!(mismatch.extra_in_registry.contains(&"unauthorized_game".to_string()));
+    assert!(
+        mismatch
+            .extra_in_registry
+            .contains(&"unauthorized_game".to_string())
+    );
     Ok(())
 }
 
@@ -451,18 +465,15 @@ fn adapter_lifecycle_expected_update_rate() -> TestResult {
 
 #[test]
 fn auto_detect_support_matrix_has_entries() -> TestResult {
-    let matrix = load_default_matrix()
-        .map_err(|e| std::io::Error::other(format!("matrix load: {e}")))?;
+    let matrix =
+        load_default_matrix().map_err(|e| std::io::Error::other(format!("matrix load: {e}")))?;
     assert!(
         !matrix.game_ids().is_empty(),
         "support matrix must have at least one game"
     );
     // Verify each game has a name
     for (game_id, support) in &matrix.games {
-        assert!(
-            !game_id.is_empty(),
-            "game ID must not be empty"
-        );
+        assert!(!game_id.is_empty(), "game ID must not be empty");
         assert!(
             !support.name.is_empty(),
             "game '{game_id}' must have a name"
@@ -488,8 +499,8 @@ fn auto_detect_normalize_game_id_resolves_aliases() -> TestResult {
 
 #[test]
 fn quirk_iracing_game_id_normalized() -> TestResult {
-    let matrix = load_default_matrix()
-        .map_err(|e| std::io::Error::other(format!("matrix load: {e}")))?;
+    let matrix =
+        load_default_matrix().map_err(|e| std::io::Error::other(format!("matrix load: {e}")))?;
     assert!(
         matrix.has_game_id("iracing"),
         "iRacing must be in the support matrix"
@@ -536,16 +547,10 @@ fn quirk_adapter_factories_cover_major_games() -> TestResult {
 
 #[test]
 fn quirk_fixture_scenarios_produce_different_data() -> TestResult {
-    let constant = TestFixtureGenerator::generate_test_scenario(
-        TestScenario::ConstantSpeed,
-        2.0,
-        60.0,
-    );
-    let cornering = TestFixtureGenerator::generate_test_scenario(
-        TestScenario::Cornering,
-        2.0,
-        60.0,
-    );
+    let constant =
+        TestFixtureGenerator::generate_test_scenario(TestScenario::ConstantSpeed, 2.0, 60.0);
+    let cornering =
+        TestFixtureGenerator::generate_test_scenario(TestScenario::Cornering, 2.0, 60.0);
     // Different scenarios should produce different data
     assert!(!constant.frames.is_empty());
     assert!(!cornering.frames.is_empty());

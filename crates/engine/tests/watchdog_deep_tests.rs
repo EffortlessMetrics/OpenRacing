@@ -5,8 +5,8 @@
 //! configurable thresholds.
 
 use racing_wheel_engine::safety::{
-    FaultType, HardwareWatchdog, SafetyInterlockState, SafetyInterlockSystem,
-    SoftwareWatchdog, WatchdogError, WatchdogTimeoutHandler,
+    FaultType, HardwareWatchdog, SafetyInterlockState, SafetyInterlockSystem, SoftwareWatchdog,
+    WatchdogError, WatchdogTimeoutHandler,
 };
 use std::time::{Duration, Instant};
 
@@ -313,7 +313,10 @@ fn fault_log_records_fault_type() {
     sys.report_fault(FaultType::TimingViolation);
     let log = sys.fault_log();
     assert!(!log.is_empty());
-    assert_eq!(log.last().map(|e| e.fault_type), Some(FaultType::TimingViolation));
+    assert_eq!(
+        log.last().map(|e| e.fault_type),
+        Some(FaultType::TimingViolation)
+    );
 }
 
 #[test]

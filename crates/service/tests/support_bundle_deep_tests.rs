@@ -122,7 +122,10 @@ mod required_sections {
         let temp_dir = TempDir::new()?;
         let log_dir = temp_dir.path().join("logs");
         std::fs::create_dir(&log_dir)?;
-        std::fs::write(log_dir.join("app.log"), "2024-01-01 ERROR something failed\n")?;
+        std::fs::write(
+            log_dir.join("app.log"),
+            "2024-01-01 ERROR something failed\n",
+        )?;
         std::fs::write(log_dir.join("error.log"), "stack trace here\n")?;
 
         let mut bundle = SupportBundle::new(SupportBundleConfig::default());
@@ -369,10 +372,7 @@ mod redaction {
                     continue;
                 }
                 let upper = key.to_uppercase();
-                assert!(
-                    !upper.contains("KEY"),
-                    "KEY-containing var leaked: {key}"
-                );
+                assert!(!upper.contains("KEY"), "KEY-containing var leaked: {key}");
             }
         }
         Ok(())
@@ -737,13 +737,9 @@ mod versioning {
         let content = read_zip_entry(&path, "manifest.json")?;
         let manifest: serde_json::Value = serde_json::from_str(&content)?;
 
-        let contents = manifest
-            .get("contents")
-            .ok_or("missing contents section")?;
+        let contents = manifest.get("contents").ok_or("missing contents section")?;
         assert_eq!(
-            contents
-                .get("health_events_count")
-                .and_then(|v| v.as_u64()),
+            contents.get("health_events_count").and_then(|v| v.as_u64()),
             Some(2)
         );
         assert_eq!(
@@ -783,10 +779,7 @@ mod partial_bundle {
 
         let mut bundle = SupportBundle::new(SupportBundleConfig::default());
         let result = bundle.add_profile_files(&nonexistent);
-        assert!(
-            result.is_ok(),
-            "missing profile dir should not cause error"
-        );
+        assert!(result.is_ok(), "missing profile dir should not cause error");
 
         let path = temp_dir.path().join("bundle.zip");
         bundle.generate(&path).map_err(|e| e.to_string())?;

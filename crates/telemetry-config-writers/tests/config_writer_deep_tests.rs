@@ -537,8 +537,7 @@ mod factory_consistency {
             let expected_diffs = writer.get_expected_diffs(&config)?;
 
             let write_keys: HashSet<&str> = write_diffs.iter().map(|d| &*d.key).collect();
-            let expected_keys: HashSet<&str> =
-                expected_diffs.iter().map(|d| &*d.key).collect();
+            let expected_keys: HashSet<&str> = expected_diffs.iter().map(|d| &*d.key).collect();
             assert_eq!(
                 write_keys, expected_keys,
                 "{id}: write and expected diff keys should match"
@@ -1095,11 +1094,7 @@ mod port_configuration {
             let files = walkdir(temp.path())?;
             let json_file = files
                 .iter()
-                .find(|p| {
-                    p.extension()
-                        .map(|e| e == "json")
-                        .unwrap_or(false)
-                })
+                .find(|p| p.extension().map(|e| e == "json").unwrap_or(false))
                 .ok_or(format!("{game_id}: expected a json file"))?;
             let content = std::fs::read_to_string(json_file)?;
             assert!(
@@ -1501,8 +1496,17 @@ mod output_roundtrip {
     #[test]
     fn json_writers_produce_valid_parseable_json() -> TestResult {
         let json_games = [
-            "acc", "ams2", "rfactor2", "eawrc", "ac_rally", "dirt5", "f1",
-            "f1_25", "forza_motorsport", "simhub", "trackmania",
+            "acc",
+            "ams2",
+            "rfactor2",
+            "eawrc",
+            "ac_rally",
+            "dirt5",
+            "f1",
+            "f1_25",
+            "forza_motorsport",
+            "simhub",
+            "trackmania",
         ];
         let config = default_config();
         for game_id in json_games {
@@ -1566,11 +1570,7 @@ mod output_roundtrip {
             let files = walkdir(temp.path())?;
             let json_file = files
                 .iter()
-                .find(|p| {
-                    p.extension()
-                        .map(|e| e == "json")
-                        .unwrap_or(false)
-                })
+                .find(|p| p.extension().map(|e| e == "json").unwrap_or(false))
                 .ok_or(format!("{game_id}: no json file"))?;
             let content = std::fs::read_to_string(json_file)?;
             let value: serde_json::Value = serde_json::from_str(&content)?;
@@ -1625,9 +1625,7 @@ mod game_specific_quirks {
         writer.write_config(temp.path(), &config)?;
 
         let files = walkdir(temp.path())?;
-        let json_file = files
-            .first()
-            .ok_or("expected at least one file")?;
+        let json_file = files.first().ok_or("expected at least one file")?;
         let content = std::fs::read_to_string(json_file)?;
         assert!(
             content.contains("OutGauge"),
@@ -1644,9 +1642,7 @@ mod game_specific_quirks {
         writer.write_config(temp.path(), &config)?;
 
         let files = walkdir(temp.path())?;
-        let json_file = files
-            .first()
-            .ok_or("expected at least one file")?;
+        let json_file = files.first().ok_or("expected at least one file")?;
         let content = std::fs::read_to_string(json_file)?;
         let value: serde_json::Value = serde_json::from_str(&content)?;
         assert_eq!(
@@ -1665,9 +1661,7 @@ mod game_specific_quirks {
         writer.write_config(temp.path(), &config)?;
 
         let files = walkdir(temp.path())?;
-        let json_file = files
-            .first()
-            .ok_or("expected at least one file")?;
+        let json_file = files.first().ok_or("expected at least one file")?;
         let content = std::fs::read_to_string(json_file)?;
         let value: serde_json::Value = serde_json::from_str(&content)?;
         let formats = value

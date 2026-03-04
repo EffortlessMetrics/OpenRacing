@@ -71,10 +71,7 @@ mod help_works {
 
     #[test]
     fn telemetry_help_exits_zero() -> TestResult {
-        wheelctl()?
-            .args(["telemetry", "--help"])
-            .assert()
-            .success();
+        wheelctl()?.args(["telemetry", "--help"]).assert().success();
         Ok(())
     }
 
@@ -148,7 +145,9 @@ mod help_text_quality {
     fn profile_help_lists_subcommands() -> TestResult {
         let out = wheelctl()?.args(["profile", "--help"]).output()?;
         let s = String::from_utf8_lossy(&out.stdout);
-        for sub in &["list", "show", "apply", "create", "edit", "validate", "export", "import"] {
+        for sub in &[
+            "list", "show", "apply", "create", "edit", "validate", "export", "import",
+        ] {
             assert!(
                 s.contains(sub),
                 "profile --help should list subcommand '{sub}': {s}"
@@ -181,20 +180,20 @@ mod invalid_subcommands {
 
     #[test]
     fn completely_unknown_subcommand_reports_error() -> TestResult {
-        wheelctl()?
-            .arg("xyzzy")
-            .assert()
-            .failure()
-            .stderr(predicate::str::contains("unrecognized").or(
-                predicate::str::contains("not recognized")
-                    .or(predicate::str::contains("invalid")),
-            ));
+        wheelctl()?.arg("xyzzy").assert().failure().stderr(
+            predicate::str::contains("unrecognized")
+                .or(predicate::str::contains("not recognized")
+                    .or(predicate::str::contains("invalid"))),
+        );
         Ok(())
     }
 
     #[test]
     fn unknown_nested_subcommand_reports_error() -> TestResult {
-        let assert = wheelctl()?.args(["device", "frobnicate"]).assert().failure();
+        let assert = wheelctl()?
+            .args(["device", "frobnicate"])
+            .assert()
+            .failure();
         let stderr = String::from_utf8_lossy(&assert.get_output().stderr);
         assert!(
             stderr.to_lowercase().contains("invalid")
@@ -242,10 +241,7 @@ mod missing_required_args {
 
     #[test]
     fn device_calibrate_requires_device_and_type() -> TestResult {
-        let assert = wheelctl()?
-            .args(["device", "calibrate"])
-            .assert()
-            .failure();
+        let assert = wheelctl()?.args(["device", "calibrate"]).assert().failure();
         let stderr = String::from_utf8_lossy(&assert.get_output().stderr);
         assert!(
             stderr.to_lowercase().contains("required")
@@ -297,9 +293,7 @@ mod output_format_flags {
     fn json_flag_before_subcommand_accepted() -> TestResult {
         // `--json device list` should parse without error (may fail at runtime
         // connecting to the service, but the parse itself succeeds).
-        let assert = wheelctl()?
-            .args(["--json", "device", "list"])
-            .assert();
+        let assert = wheelctl()?.args(["--json", "device", "list"]).assert();
         // We only care that clap did not reject the flags — exit may be non-zero
         // because the service is not running, but stderr should NOT be a
         // flag-parsing error.
@@ -313,9 +307,7 @@ mod output_format_flags {
 
     #[test]
     fn json_flag_after_subcommand_accepted() -> TestResult {
-        let assert = wheelctl()?
-            .args(["device", "list", "--json"])
-            .assert();
+        let assert = wheelctl()?.args(["device", "list", "--json"]).assert();
         let stderr = String::from_utf8_lossy(&assert.get_output().stderr);
         assert!(
             !stderr.contains("unexpected argument"),
@@ -346,7 +338,11 @@ mod color_control {
 
     #[test]
     fn help_without_no_color_still_succeeds() -> TestResult {
-        wheelctl()?.env_remove("NO_COLOR").arg("--help").assert().success();
+        wheelctl()?
+            .env_remove("NO_COLOR")
+            .arg("--help")
+            .assert()
+            .success();
         Ok(())
     }
 }
@@ -398,9 +394,7 @@ mod verbose_flag {
     #[test]
     fn verbose_flag_accepted_globally() -> TestResult {
         // Should not fail on flag parsing; runtime failure is acceptable.
-        let assert = wheelctl()?
-            .args(["-v", "device", "list"])
-            .assert();
+        let assert = wheelctl()?.args(["-v", "device", "list"]).assert();
         let stderr = String::from_utf8_lossy(&assert.get_output().stderr);
         assert!(
             !stderr.contains("unexpected argument"),
@@ -411,9 +405,7 @@ mod verbose_flag {
 
     #[test]
     fn double_verbose_flag_accepted() -> TestResult {
-        let assert = wheelctl()?
-            .args(["-vv", "device", "list"])
-            .assert();
+        let assert = wheelctl()?.args(["-vv", "device", "list"]).assert();
         let stderr = String::from_utf8_lossy(&assert.get_output().stderr);
         assert!(
             !stderr.contains("unexpected argument"),
@@ -424,9 +416,7 @@ mod verbose_flag {
 
     #[test]
     fn triple_verbose_flag_accepted() -> TestResult {
-        let assert = wheelctl()?
-            .args(["-vvv", "device", "list"])
-            .assert();
+        let assert = wheelctl()?.args(["-vvv", "device", "list"]).assert();
         let stderr = String::from_utf8_lossy(&assert.get_output().stderr);
         assert!(
             !stderr.contains("unexpected argument"),
@@ -457,19 +447,13 @@ mod exit_codes {
 
     #[test]
     fn unknown_flag_exits_nonzero() -> TestResult {
-        wheelctl()?
-            .arg("--nonexistent-flag")
-            .assert()
-            .failure();
+        wheelctl()?.arg("--nonexistent-flag").assert().failure();
         Ok(())
     }
 
     #[test]
     fn missing_required_arg_exits_nonzero() -> TestResult {
-        wheelctl()?
-            .args(["device", "status"])
-            .assert()
-            .failure();
+        wheelctl()?.args(["device", "status"]).assert().failure();
         Ok(())
     }
 }
@@ -484,10 +468,7 @@ mod shell_completions {
     #[test]
     fn bash_completion_produces_output() -> TestResult {
         let out = wheelctl()?.args(["completion", "bash"]).output()?;
-        assert!(
-            out.status.success(),
-            "completion bash should succeed"
-        );
+        assert!(out.status.success(), "completion bash should succeed");
         let stdout = String::from_utf8_lossy(&out.stdout);
         assert!(
             !stdout.is_empty(),
@@ -499,10 +480,7 @@ mod shell_completions {
     #[test]
     fn zsh_completion_produces_output() -> TestResult {
         let out = wheelctl()?.args(["completion", "zsh"]).output()?;
-        assert!(
-            out.status.success(),
-            "completion zsh should succeed"
-        );
+        assert!(out.status.success(), "completion zsh should succeed");
         let stdout = String::from_utf8_lossy(&out.stdout);
         assert!(
             !stdout.is_empty(),
@@ -514,10 +492,7 @@ mod shell_completions {
     #[test]
     fn fish_completion_produces_output() -> TestResult {
         let out = wheelctl()?.args(["completion", "fish"]).output()?;
-        assert!(
-            out.status.success(),
-            "completion fish should succeed"
-        );
+        assert!(out.status.success(), "completion fish should succeed");
         let stdout = String::from_utf8_lossy(&out.stdout);
         assert!(
             !stdout.is_empty(),
@@ -529,10 +504,7 @@ mod shell_completions {
     #[test]
     fn powershell_completion_produces_output() -> TestResult {
         let out = wheelctl()?.args(["completion", "powershell"]).output()?;
-        assert!(
-            out.status.success(),
-            "completion powershell should succeed"
-        );
+        assert!(out.status.success(), "completion powershell should succeed");
         let stdout = String::from_utf8_lossy(&out.stdout);
         assert!(
             !stdout.is_empty(),
@@ -547,9 +519,10 @@ mod shell_completions {
             .args(["completion", "ksh"])
             .assert()
             .failure()
-            .stderr(predicate::str::contains("invalid value").or(
-                predicate::str::contains("possible values"),
-            ));
+            .stderr(
+                predicate::str::contains("invalid value")
+                    .or(predicate::str::contains("possible values")),
+            );
         Ok(())
     }
 
@@ -612,9 +585,7 @@ mod progressive_disclosure {
     #[test]
     fn device_list_works_with_zero_flags() -> TestResult {
         // Simplest form: `wheelctl device list` — should not require any flags.
-        let assert = wheelctl()?
-            .args(["device", "list"])
-            .assert();
+        let assert = wheelctl()?.args(["device", "list"]).assert();
         let stderr = String::from_utf8_lossy(&assert.get_output().stderr);
         assert!(
             !stderr.to_lowercase().contains("required"),
@@ -625,9 +596,7 @@ mod progressive_disclosure {
 
     #[test]
     fn profile_list_works_with_zero_flags() -> TestResult {
-        let assert = wheelctl()?
-            .args(["profile", "list"])
-            .assert();
+        let assert = wheelctl()?.args(["profile", "list"]).assert();
         let stderr = String::from_utf8_lossy(&assert.get_output().stderr);
         assert!(
             !stderr.to_lowercase().contains("required"),
@@ -638,9 +607,7 @@ mod progressive_disclosure {
 
     #[test]
     fn device_list_accepts_detailed_flag() -> TestResult {
-        let assert = wheelctl()?
-            .args(["device", "list", "--detailed"])
-            .assert();
+        let assert = wheelctl()?.args(["device", "list", "--detailed"]).assert();
         let stderr = String::from_utf8_lossy(&assert.get_output().stderr);
         assert!(
             !stderr.contains("unexpected argument"),
@@ -672,10 +639,7 @@ mod telemetry_flag_validation {
 
     #[test]
     fn telemetry_probe_requires_game_flag() -> TestResult {
-        let assert = wheelctl()?
-            .args(["telemetry", "probe"])
-            .assert()
-            .failure();
+        let assert = wheelctl()?.args(["telemetry", "probe"]).assert().failure();
         let stderr = String::from_utf8_lossy(&assert.get_output().stderr);
         assert!(
             stderr.contains("--game") || stderr.to_lowercase().contains("required"),
@@ -708,10 +672,7 @@ mod plugin_arg_validation {
 
     #[test]
     fn plugin_install_requires_plugin_id() -> TestResult {
-        let assert = wheelctl()?
-            .args(["plugin", "install"])
-            .assert()
-            .failure();
+        let assert = wheelctl()?.args(["plugin", "install"]).assert().failure();
         let stderr = String::from_utf8_lossy(&assert.get_output().stderr);
         assert!(
             stderr.to_lowercase().contains("required")
@@ -724,10 +685,7 @@ mod plugin_arg_validation {
 
     #[test]
     fn plugin_search_requires_query() -> TestResult {
-        let assert = wheelctl()?
-            .args(["plugin", "search"])
-            .assert()
-            .failure();
+        let assert = wheelctl()?.args(["plugin", "search"]).assert().failure();
         let stderr = String::from_utf8_lossy(&assert.get_output().stderr);
         assert!(
             stderr.to_lowercase().contains("required")
@@ -748,10 +706,7 @@ mod safety_flag_consistency {
 
     #[test]
     fn safety_enable_requires_device() -> TestResult {
-        let assert = wheelctl()?
-            .args(["safety", "enable"])
-            .assert()
-            .failure();
+        let assert = wheelctl()?.args(["safety", "enable"]).assert().failure();
         let stderr = String::from_utf8_lossy(&assert.get_output().stderr);
         assert!(
             stderr.to_lowercase().contains("required")
@@ -765,9 +720,7 @@ mod safety_flag_consistency {
     #[test]
     fn safety_stop_works_without_device() -> TestResult {
         // `safety stop` should accept no device (means "all devices").
-        let assert = wheelctl()?
-            .args(["safety", "stop"])
-            .assert();
+        let assert = wheelctl()?.args(["safety", "stop"]).assert();
         let stderr = String::from_utf8_lossy(&assert.get_output().stderr);
         assert!(
             !stderr.to_lowercase().contains("required"),

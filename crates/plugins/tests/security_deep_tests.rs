@@ -17,11 +17,11 @@ use openracing_crypto::trust_store::TrustStore;
 use openracing_crypto::verification::{ContentType, VerificationConfig, VerificationService};
 use openracing_crypto::{SignatureMetadata, SignatureVerifier as _, TrustLevel};
 
+use racing_wheel_plugins::PluginClass;
 use racing_wheel_plugins::capability::CapabilityChecker;
 use racing_wheel_plugins::manifest::{Capability, ManifestValidator, PluginManifest};
 use racing_wheel_plugins::native::{SignatureVerificationConfig, SignatureVerifier};
 use racing_wheel_plugins::wasm::{ResourceLimits, WasmRuntime};
-use racing_wheel_plugins::PluginClass;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -268,8 +268,7 @@ fn expired_signature_generates_warning() -> Result<(), Box<dyn std::error::Error
 
     // Create signature with timestamp > 365 days ago
     let sig = Ed25519Signer::sign(content, &kp.signing_key)?;
-    let old_timestamp =
-        chrono::Utc::now() - chrono::Duration::days(400);
+    let old_timestamp = chrono::Utc::now() - chrono::Duration::days(400);
     let metadata = SignatureMetadata {
         signature: sig.to_base64(),
         key_fingerprint: kp.fingerprint(),
@@ -547,10 +546,7 @@ fn system_key_cannot_be_removed_or_modified() -> Result<(), Box<dyn std::error::
         .filter(|(_, entry)| !entry.user_modifiable)
         .collect();
 
-    assert!(
-        !system_keys.is_empty(),
-        "Must have at least one system key"
-    );
+    assert!(!system_keys.is_empty(), "Must have at least one system key");
 
     let (fingerprint, _) = &system_keys[0];
 
@@ -643,8 +639,7 @@ fn wasm_corrupted_module_rejected() -> Result<(), Box<dyn std::error::Error>> {
     let mut runtime = WasmRuntime::new()?;
     let id = Uuid::new_v4();
 
-    let result =
-        runtime.load_plugin_from_bytes(id, &wasm_bytes, vec![Capability::ReadTelemetry]);
+    let result = runtime.load_plugin_from_bytes(id, &wasm_bytes, vec![Capability::ReadTelemetry]);
     assert!(result.is_err(), "Corrupted WASM must be rejected");
 
     Ok(())
@@ -793,7 +788,11 @@ fn capability_network_scoped_to_allowed_hosts() -> Result<(), Box<dyn std::error
     }]);
 
     assert!(checker.check_network_access("api.openracing.io").is_ok());
-    assert!(checker.check_network_access("telemetry.openracing.io").is_ok());
+    assert!(
+        checker
+            .check_network_access("telemetry.openracing.io")
+            .is_ok()
+    );
     assert!(
         checker.check_network_access("evil.com").is_err(),
         "Unlisted host must be denied"
@@ -827,9 +826,7 @@ fn capability_filesystem_scoped_to_granted_paths() -> Result<(), Box<dyn std::er
             .is_ok()
     );
     assert!(
-        checker
-            .check_file_access(Path::new("/etc/passwd"))
-            .is_err(),
+        checker.check_file_access(Path::new("/etc/passwd")).is_err(),
         "System paths must be denied"
     );
     assert!(
@@ -896,13 +893,8 @@ fn signature_metadata_content_type_preserved() -> Result<(), Box<dyn std::error:
         ContentType::Profile,
         ContentType::Update,
     ] {
-        let meta = Ed25519Signer::sign_with_metadata(
-            b"test",
-            &kp,
-            "Signer",
-            content_type.clone(),
-            None,
-        )?;
+        let meta =
+            Ed25519Signer::sign_with_metadata(b"test", &kp, "Signer", content_type.clone(), None)?;
 
         // Serialize and deserialize
         let json = serde_json::to_string(&meta)?;

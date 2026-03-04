@@ -19,7 +19,8 @@ type BoxErr = Box<dyn std::error::Error + Send + Sync>;
 
 #[test]
 fn snapshot_ipc_config_default_json() -> Result<(), BoxErr> {
-    let config = IpcConfig::default();
+    // Use explicit TCP transport to keep snapshot platform-independent.
+    let config = IpcConfig::with_transport(TransportType::tcp());
     let json = serde_json::to_string_pretty(&config)?;
     insta::assert_snapshot!("ipc_config_default", json);
     Ok(())
@@ -27,7 +28,10 @@ fn snapshot_ipc_config_default_json() -> Result<(), BoxErr> {
 
 #[test]
 fn snapshot_transport_config_default_json() -> Result<(), BoxErr> {
-    let config = TransportConfig::default();
+    // Use explicit TCP transport to keep snapshot platform-independent.
+    let config = TransportBuilder::new()
+        .transport(TransportType::tcp())
+        .build();
     let json = serde_json::to_string_pretty(&config)?;
     insta::assert_snapshot!("transport_config_default", json);
     Ok(())

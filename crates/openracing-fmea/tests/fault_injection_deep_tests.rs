@@ -179,8 +179,7 @@ fn recovery_result_success() {
 
 #[test]
 fn recovery_result_failure() {
-    let result =
-        RecoveryResult::failed(Duration::from_millis(100), 3, "test failure");
+    let result = RecoveryResult::failed(Duration::from_millis(100), 3, "test failure");
     assert!(!result.is_success());
     assert_eq!(result.status, RecoveryStatus::Failed);
 }
@@ -401,8 +400,7 @@ fn fmea_matrix_contains_default_entries() {
 
 #[test]
 fn fmea_entry_creation() {
-    let entry = FmeaEntry::new(FaultType::UsbStall)
-        .with_action(FaultAction::SoftStop);
+    let entry = FmeaEntry::new(FaultType::UsbStall).with_action(FaultAction::SoftStop);
     assert_eq!(entry.fault_type, FaultType::UsbStall);
     assert!(entry.enabled);
 }
@@ -418,8 +416,7 @@ fn fmea_entry_custom_response_time() {
 #[test]
 fn fmea_matrix_insert_and_retrieve() {
     let mut matrix = FmeaMatrix::new();
-    let entry = FmeaEntry::new(FaultType::EncoderNaN)
-        .with_action(FaultAction::SoftStop);
+    let entry = FmeaEntry::new(FaultType::EncoderNaN).with_action(FaultAction::SoftStop);
     matrix.insert(entry);
     assert!(matrix.contains(FaultType::EncoderNaN));
     let retrieved = matrix.get(FaultType::EncoderNaN);

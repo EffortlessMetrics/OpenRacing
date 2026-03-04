@@ -7,9 +7,7 @@
 //! - PLL correction is bounded
 //! - Adaptive scheduling respects configured bounds
 
-use openracing_scheduler::{
-    AbsoluteScheduler, AdaptiveSchedulingConfig, JitterMetrics, PLL,
-};
+use openracing_scheduler::{AbsoluteScheduler, AdaptiveSchedulingConfig, JitterMetrics, PLL};
 use proptest::prelude::*;
 use std::time::Duration;
 

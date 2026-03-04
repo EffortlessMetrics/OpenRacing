@@ -205,9 +205,14 @@ fn backward_compat_empty_payload_decoded_with_defaults() -> TestResult {
     // zero-size payloads. Verify this is caught as an encoding-level error,
     // not a panic.
     let codec = MessageCodec::new();
-    let empty = SimplePayload { value: String::new() };
+    let empty = SimplePayload {
+        value: String::new(),
+    };
     let result = codec.encode(&empty);
-    assert!(result.is_err(), "Zero-length protobuf should be rejected by codec");
+    assert!(
+        result.is_err(),
+        "Zero-length protobuf should be rejected by codec"
+    );
     Ok(())
 }
 
@@ -333,9 +338,17 @@ async fn feature_negotiation_unknown_features_filtered() -> TestResult {
 
     assert!(result.compatible);
     // Only known features are enabled
-    assert!(result.enabled_features.contains(&"device_management".to_string()));
+    assert!(
+        result
+            .enabled_features
+            .contains(&"device_management".to_string())
+    );
     assert!(!result.enabled_features.contains(&"time_travel".to_string()));
-    assert!(!result.enabled_features.contains(&"teleportation".to_string()));
+    assert!(
+        !result
+            .enabled_features
+            .contains(&"teleportation".to_string())
+    );
     server.stop().await?;
     Ok(())
 }

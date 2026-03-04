@@ -10,8 +10,8 @@ use proptest::prelude::*;
 use racing_wheel_service::device_service::DeviceState;
 use racing_wheel_service::safety_service::FaultSeverity;
 use racing_wheel_service::system_config::{
-    EngineConfig, GameConfig, IpcConfig, ObservabilityConfig, PluginConfig,
-    SafetyConfig, SystemConfig,
+    EngineConfig, GameConfig, IpcConfig, ObservabilityConfig, PluginConfig, SafetyConfig,
+    SystemConfig,
 };
 
 /// proptest config with 200 cases per test
@@ -28,14 +28,20 @@ fn config() -> ProptestConfig {
 
 fn arb_engine_config() -> impl Strategy<Value = EngineConfig> {
     (
-        100u32..=10_000,   // tick_rate_hz
-        50u32..=10_000,    // max_jitter_us
-        any::<bool>(),     // disable_realtime
-        any::<bool>(),     // memory_lock_all
-        50u32..=2000,      // processing_budget_us
+        100u32..=10_000, // tick_rate_hz
+        50u32..=10_000,  // max_jitter_us
+        any::<bool>(),   // disable_realtime
+        any::<bool>(),   // memory_lock_all
+        50u32..=2000,    // processing_budget_us
     )
         .prop_map(
-            |(tick_rate_hz, max_jitter_us, disable_realtime, memory_lock_all, processing_budget_us)| {
+            |(
+                tick_rate_hz,
+                max_jitter_us,
+                disable_realtime,
+                memory_lock_all,
+                processing_budget_us,
+            )| {
                 EngineConfig {
                     tick_rate_hz,
                     max_jitter_us,
@@ -51,13 +57,13 @@ fn arb_engine_config() -> impl Strategy<Value = EngineConfig> {
 
 fn arb_safety_config() -> impl Strategy<Value = SafetyConfig> {
     (
-        0.1f32..=50.0,   // default_safe_torque_nm
-        0.1f32..=50.0,   // max_torque_nm
-        10u32..=5000,    // fault_response_timeout_ms
-        1u32..=30,       // hands_off_timeout_s
-        40u8..=90,       // temp_warning_c
-        50u8..=100,      // temp_fault_c
-        any::<bool>(),   // require_physical_interlock
+        0.1f32..=50.0, // default_safe_torque_nm
+        0.1f32..=50.0, // max_torque_nm
+        10u32..=5000,  // fault_response_timeout_ms
+        1u32..=30,     // hands_off_timeout_s
+        40u8..=90,     // temp_warning_c
+        50u8..=100,    // temp_fault_c
+        any::<bool>(), // require_physical_interlock
     )
         .prop_map(
             |(default_safe, max, fault_timeout, hands_off, temp_warn, temp_fault, interlock)| {

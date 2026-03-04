@@ -263,10 +263,7 @@ fn unsupported_device_includes_vid_pid() {
         msg.contains("346e") || msg.contains("346E"),
         "Missing vendor ID in: '{msg}'"
     );
-    assert!(
-        msg.contains("0005"),
-        "Missing product ID in: '{msg}'"
-    );
+    assert!(msg.contains("0005"), "Missing product ID in: '{msg}'");
 }
 
 #[test]
@@ -428,7 +425,10 @@ fn downcast_profile_error_from_openracing_error() {
 #[test]
 fn rt_error_codes_are_unique() {
     let all_codes: Vec<(RTError, u8)> = vec![
-        (RTError::DeviceDisconnected, RTError::DeviceDisconnected.code()),
+        (
+            RTError::DeviceDisconnected,
+            RTError::DeviceDisconnected.code(),
+        ),
         (RTError::TorqueLimit, RTError::TorqueLimit.code()),
         (RTError::PipelineFault, RTError::PipelineFault.code()),
         (RTError::TimingViolation, RTError::TimingViolation.code()),
@@ -437,7 +437,10 @@ fn rt_error_codes_are_unique() {
         (RTError::SafetyInterlock, RTError::SafetyInterlock.code()),
         (RTError::BufferOverflow, RTError::BufferOverflow.code()),
         (RTError::DeadlineMissed, RTError::DeadlineMissed.code()),
-        (RTError::ResourceUnavailable, RTError::ResourceUnavailable.code()),
+        (
+            RTError::ResourceUnavailable,
+            RTError::ResourceUnavailable.code(),
+        ),
     ];
 
     let mut seen = HashSet::new();
@@ -529,10 +532,7 @@ fn error_category_matches_variant() {
         OpenRacingError::config("x").category(),
         ErrorCategory::Config
     );
-    assert_eq!(
-        OpenRacingError::other("x").category(),
-        ErrorCategory::Other
-    );
+    assert_eq!(OpenRacingError::other("x").category(), ErrorCategory::Other);
     assert_eq!(
         OpenRacingError::from(std::io::Error::other("x")).category(),
         ErrorCategory::IO
@@ -639,10 +639,7 @@ fn result_ext_with_context_wraps_error_message() -> std::result::Result<(), Stri
     match wrapped {
         Err(err) => {
             let msg = err.to_string();
-            assert!(
-                msg.contains("processing_frame"),
-                "Context lost in: '{msg}'"
-            );
+            assert!(msg.contains("processing_frame"), "Context lost in: '{msg}'");
             assert!(
                 msg.to_lowercase().contains("timing"),
                 "Inner error lost in: '{msg}'"

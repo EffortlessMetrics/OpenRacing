@@ -58,12 +58,8 @@ mod wheel_center_tests {
 
     #[test]
     fn center_uses_first_matching_sample() -> TestResult {
-        let axis = calibrate_joystick_axis(&[
-            (0, 0.0),
-            (30000, 0.48),
-            (33000, 0.50),
-            (65535, 1.0),
-        ])?;
+        let axis =
+            calibrate_joystick_axis(&[(0, 0.0), (30000, 0.48), (33000, 0.50), (65535, 1.0)])?;
         // First sample within ±0.1 of 0.5 is (30000, 0.48)
         assert_eq!(axis.center, Some(30000));
         Ok(())
@@ -71,11 +67,7 @@ mod wheel_center_tests {
 
     #[test]
     fn center_with_asymmetric_range() -> TestResult {
-        let axis = calibrate_joystick_axis(&[
-            (5000, 0.0),
-            (35000, 0.5),
-            (60000, 1.0),
-        ])?;
+        let axis = calibrate_joystick_axis(&[(5000, 0.0), (35000, 0.5), (60000, 1.0)])?;
         assert_eq!(axis.center, Some(35000));
         assert_eq!(axis.min, 5000);
         assert_eq!(axis.max, 60000);
@@ -166,8 +158,7 @@ mod ffb_strength_tests {
         // For AxisCalibration, deadzones are divided by range in apply(),
         // so set deadzone_max = range to get correct 0-1 mapping
         let range = 50000 - 10000;
-        let axis = AxisCalibration::new(10000, 50000)
-            .with_deadzone(0, range);
+        let axis = AxisCalibration::new(10000, 50000).with_deadzone(0, range);
         let mid = 30000;
         assert_near(axis.apply(mid), 0.5, "mid-range FFB");
     }

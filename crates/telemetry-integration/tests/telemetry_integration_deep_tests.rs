@@ -103,10 +103,7 @@ fn coverage_large_set_deterministic() -> TestResult {
     let registry = matrix.clone();
     matrix.reverse(); // Different order, same content
 
-    let c = compare_matrix_and_registry(
-        matrix.iter().map(|s| &**s),
-        registry.iter().map(|s| &**s),
-    );
+    let c = compare_matrix_and_registry(matrix.iter().map(|s| &**s), registry.iter().map(|s| &**s));
     assert!(c.is_exact());
     assert_eq!(c.matrix_game_ids.len(), 100);
     // Verify sorted

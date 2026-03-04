@@ -9,8 +9,8 @@
 //! - Swapped coefficients (0.0 vs 1.0)
 //! - Broken saturation logic
 
-use openracing_filters::prelude::*;
 use openracing_filters::Frame;
+use openracing_filters::prelude::*;
 
 // ---------------------------------------------------------------------------
 // Helpers

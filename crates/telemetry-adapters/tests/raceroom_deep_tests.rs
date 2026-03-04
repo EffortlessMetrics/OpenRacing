@@ -211,7 +211,10 @@ fn r3e_steering_clamped() -> TestResult {
     let mut data = make_r3e_base();
     set_f32(&mut data, OFF_STEER_INPUT, 2.0);
     let t = adapter().normalize(&data)?;
-    assert!((t.steering_angle - 1.0).abs() < 0.001, "steering clamped to 1.0");
+    assert!(
+        (t.steering_angle - 1.0).abs() < 0.001,
+        "steering clamped to 1.0"
+    );
     Ok(())
 }
 
@@ -289,7 +292,11 @@ fn r3e_lateral_g_sign_convention() -> TestResult {
     // R3E +X = left, so 1G left → normalized -1G (lateral_g negated)
     set_f32(&mut data, OFF_LOCAL_ACCEL_X, G_ACCEL);
     let t = adapter().normalize(&data)?;
-    assert!((t.lateral_g - (-1.0)).abs() < 0.01, "lateral_g={}", t.lateral_g);
+    assert!(
+        (t.lateral_g - (-1.0)).abs() < 0.01,
+        "lateral_g={}",
+        t.lateral_g
+    );
     Ok(())
 }
 
@@ -312,7 +319,11 @@ fn r3e_vertical_g_preserves_sign() -> TestResult {
     let mut data = make_r3e_base();
     set_f32(&mut data, OFF_LOCAL_ACCEL_Y, G_ACCEL);
     let t = adapter().normalize(&data)?;
-    assert!((t.vertical_g - 1.0).abs() < 0.01, "vertical_g={}", t.vertical_g);
+    assert!(
+        (t.vertical_g - 1.0).abs() < 0.01,
+        "vertical_g={}",
+        t.vertical_g
+    );
     Ok(())
 }
 

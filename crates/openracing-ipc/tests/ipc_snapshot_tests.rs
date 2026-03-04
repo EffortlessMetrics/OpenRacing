@@ -132,7 +132,10 @@ fn snapshot_header_diagnostic_message() -> Result<(), BoxErr> {
 fn snapshot_error_recoverability_matrix() -> Result<(), BoxErr> {
     let errors: Vec<(&str, IpcError)> = vec![
         ("TransportInit", IpcError::TransportInit("test".into())),
-        ("ConnectionFailed", IpcError::ConnectionFailed("test".into())),
+        (
+            "ConnectionFailed",
+            IpcError::ConnectionFailed("test".into()),
+        ),
         ("EncodingFailed", IpcError::EncodingFailed("test".into())),
         ("DecodingFailed", IpcError::DecodingFailed("test".into())),
         (
@@ -196,10 +199,7 @@ fn snapshot_transport_tcp_custom_description() -> Result<(), BoxErr> {
 #[test]
 fn snapshot_transport_named_pipe_description() -> Result<(), BoxErr> {
     let transport = TransportType::named_pipe(r"\\.\pipe\openracing-test");
-    insta::assert_snapshot!(
-        "transport_named_pipe_description",
-        transport.description()
-    );
+    insta::assert_snapshot!("transport_named_pipe_description", transport.description());
     Ok(())
 }
 

@@ -1752,10 +1752,7 @@ mod power_failure_recovery {
             let dev = format!("dev-{}", i);
             blocker.begin_update(&dev).await?;
             assert!(blocker.is_ffb_blocked());
-            assert_eq!(
-                blocker.get_updating_device().await.as_deref(),
-                Some(&*dev)
-            );
+            assert_eq!(blocker.get_updating_device().await.as_deref(), Some(&*dev));
 
             blocker
                 .set_state(UpdateState::Flashing { progress: 50 })

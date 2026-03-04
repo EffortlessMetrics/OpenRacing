@@ -26,18 +26,14 @@ fn config() -> ProptestConfig {
 
 /// Strategy producing a valid ProfileSchema for roundtrip tests
 fn arb_profile_schema() -> impl Strategy<Value = ProfileSchema> {
-    (
-        arb_profile_scope(),
-        arb_base_config(),
-    )
-        .prop_map(|(scope, base)| ProfileSchema {
-            schema: "wheel.profile/1".to_string(),
-            scope,
-            base,
-            leds: None,
-            haptics: None,
-            signature: None,
-        })
+    (arb_profile_scope(), arb_base_config()).prop_map(|(scope, base)| ProfileSchema {
+        schema: "wheel.profile/1".to_string(),
+        scope,
+        base,
+        leds: None,
+        haptics: None,
+        signature: None,
+    })
 }
 
 fn arb_profile_scope() -> impl Strategy<Value = ProfileScope> {
@@ -51,9 +47,9 @@ fn arb_profile_scope() -> impl Strategy<Value = ProfileScope> {
 
 fn arb_base_config() -> impl Strategy<Value = BaseConfig> {
     (
-        0.0f32..=1.0,   // ffb_gain
-        180u16..=2160,   // dor_deg
-        0.0f32..=50.0,   // torque_cap_nm
+        0.0f32..=1.0,  // ffb_gain
+        180u16..=2160, // dor_deg
+        0.0f32..=50.0, // torque_cap_nm
         arb_filter_config(),
     )
         .prop_map(|(ffb_gain, dor_deg, torque_cap_nm, filters)| BaseConfig {
@@ -66,11 +62,11 @@ fn arb_base_config() -> impl Strategy<Value = BaseConfig> {
 
 fn arb_filter_config() -> impl Strategy<Value = FilterConfig> {
     (
-        0u8..=8,          // reconstruction
-        0.0f32..=1.0,     // friction
-        0.0f32..=1.0,     // damper
-        0.0f32..=1.0,     // inertia
-        0.0f32..=1.0,     // slew_rate
+        0u8..=8,      // reconstruction
+        0.0f32..=1.0, // friction
+        0.0f32..=1.0, // damper
+        0.0f32..=1.0, // inertia
+        0.0f32..=1.0, // slew_rate
     )
         .prop_map(
             |(reconstruction, friction, damper, inertia, slew_rate)| FilterConfig {

@@ -96,8 +96,8 @@ fn detection_all_matrix_games_have_adapters() -> TestResult {
 
 #[test]
 fn detection_custom_matrix_restricts_game_set() -> TestResult {
-    let mut matrix = load_default_matrix()
-        .map_err(|e| std::io::Error::other(format!("matrix load: {e}")))?;
+    let mut matrix =
+        load_default_matrix().map_err(|e| std::io::Error::other(format!("matrix load: {e}")))?;
     let keep: Vec<String> = matrix.games.keys().take(2).cloned().collect();
     matrix.games.retain(|k, _| keep.contains(k));
 
@@ -130,7 +130,9 @@ async fn detection_unknown_game_error_contains_game_id() -> TestResult {
     assert!(result.is_err());
     let err_msg = format!(
         "{}",
-        result.err().ok_or_else(|| std::io::Error::other("expected Err"))?
+        result
+            .err()
+            .ok_or_else(|| std::io::Error::other("expected Err"))?
     );
     assert!(
         err_msg.contains(fake_game),
@@ -164,7 +166,8 @@ fn fallback_empty_matrix_registers_nothing() -> TestResult {
     assert_eq!(service.adapter_count(), 0);
     assert!(service.supported_games().is_empty());
     // BDD metrics should still be present (with zero counts)
-    let metrics = service.runtime_bdd_metrics()
+    let metrics = service
+        .runtime_bdd_metrics()
         .ok_or_else(|| std::io::Error::other("BDD metrics should exist for empty matrix"))?;
     assert_eq!(metrics.matrix_game_count, 0);
     Ok(())
@@ -172,8 +175,8 @@ fn fallback_empty_matrix_registers_nothing() -> TestResult {
 
 #[test]
 fn fallback_partial_matrix_only_matching_adapters() -> TestResult {
-    let mut matrix = load_default_matrix()
-        .map_err(|e| std::io::Error::other(format!("matrix load: {e}")))?;
+    let mut matrix =
+        load_default_matrix().map_err(|e| std::io::Error::other(format!("matrix load: {e}")))?;
     let all_keys: Vec<String> = matrix.games.keys().cloned().collect();
     assert!(all_keys.len() >= 3, "need at least 3 games in matrix");
 
@@ -184,7 +187,10 @@ fn fallback_partial_matrix_only_matching_adapters() -> TestResult {
     let service = TelemetryService::from_support_matrix(Some(matrix));
     assert!(service.adapter_count() <= 3);
     for id in service.adapter_ids() {
-        assert!(keep.contains(&id), "unexpected adapter '{id}' not in filtered matrix");
+        assert!(
+            keep.contains(&id),
+            "unexpected adapter '{id}' not in filtered matrix"
+        );
     }
     Ok(())
 }
@@ -196,7 +202,8 @@ fn fallback_partial_matrix_only_matching_adapters() -> TestResult {
 #[test]
 fn health_bdd_metrics_track_adapter_coverage() -> TestResult {
     let service = TelemetryService::new();
-    let metrics = service.runtime_bdd_metrics()
+    let metrics = service
+        .runtime_bdd_metrics()
         .ok_or_else(|| std::io::Error::other("BDD metrics required"))?;
 
     assert_eq!(metrics.matrix_game_count, service.matrix_game_ids().len());
@@ -221,18 +228,28 @@ fn health_bdd_metrics_track_adapter_coverage() -> TestResult {
 
 #[test]
 fn health_coverage_report_detects_missing_adapters() -> TestResult {
-    let mut matrix = load_default_matrix()
-        .map_err(|e| std::io::Error::other(format!("matrix load: {e}")))?;
-    let fallback = matrix.games.values().next().cloned()
+    let mut matrix =
+        load_default_matrix().map_err(|e| std::io::Error::other(format!("matrix load: {e}")))?;
+    let fallback = matrix
+        .games
+        .values()
+        .next()
+        .cloned()
         .ok_or_else(|| std::io::Error::other("matrix must have at least one game"))?;
-    matrix.games.insert("health_test_phantom".to_string(), fallback);
+    matrix
+        .games
+        .insert("health_test_phantom".to_string(), fallback);
 
     let service = TelemetryService::from_support_matrix(Some(matrix));
-    let report = service.runtime_coverage_report()
+    let report = service
+        .runtime_coverage_report()
         .ok_or_else(|| std::io::Error::other("coverage report required"))?;
 
     assert!(
-        report.adapter_coverage.missing_in_registry.contains(&"health_test_phantom".to_string()),
+        report
+            .adapter_coverage
+            .missing_in_registry
+            .contains(&"health_test_phantom".to_string()),
         "phantom game should appear as missing in adapter coverage"
     );
     Ok(())
@@ -241,9 +258,11 @@ fn health_coverage_report_detects_missing_adapters() -> TestResult {
 #[test]
 fn health_metrics_consistent_across_reads() -> TestResult {
     let service = TelemetryService::new();
-    let m1 = service.runtime_bdd_metrics()
+    let m1 = service
+        .runtime_bdd_metrics()
         .ok_or_else(|| std::io::Error::other("metrics required"))?;
-    let m2 = service.runtime_bdd_metrics()
+    let m2 = service
+        .runtime_bdd_metrics()
         .ok_or_else(|| std::io::Error::other("metrics required"))?;
 
     assert_eq!(m1.matrix_game_count, m2.matrix_game_count);
@@ -283,7 +302,12 @@ async fn degradation_error_then_valid_operation_works() -> TestResult {
 
     // Trigger error first
     let _err = service.start_monitoring("totally_broken_game").await;
-    assert!(service.start_monitoring("totally_broken_game").await.is_err());
+    assert!(
+        service
+            .start_monitoring("totally_broken_game")
+            .await
+            .is_err()
+    );
 
     // Valid operation on known adapter should still work (may error for no game running)
     let _result = service.start_monitoring(&games[0]).await;
@@ -329,7 +353,10 @@ fn degradation_concurrent_reads_during_error_conditions() -> TestResult {
         // All threads should see the same state
         if results.len() >= 2 {
             assert_eq!(results[0].0, results[1].0, "adapter_ids must be consistent");
-            assert_eq!(results[0].1, results[1].1, "adapter_count must be consistent");
+            assert_eq!(
+                results[0].1, results[1].1,
+                "adapter_count must be consistent"
+            );
         }
     });
 

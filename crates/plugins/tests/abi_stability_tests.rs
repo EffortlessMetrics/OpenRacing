@@ -22,18 +22,16 @@ use semver::Version;
 use uuid::Uuid;
 
 use racing_wheel_plugins::abi::{
-    PluginCapabilities, PluginHeader, PluginInitStatus, TelemetryFrame, WasmExportValidation,
-    WasmPluginAbiState, PLUG_ABI_MAGIC, PLUG_ABI_VERSION, WASM_ABI_VERSION,
+    HOST_MODULE, PLUG_ABI_MAGIC, PLUG_ABI_VERSION, PluginCapabilities, PluginHeader,
+    PluginInitStatus, TelemetryFrame, WASM_ABI_VERSION, WasmExportValidation, WasmPluginAbiState,
     capability_str, host_function, return_code, wasm_export, wasm_optional_export,
-    HOST_MODULE,
 };
 use racing_wheel_plugins::capability::CapabilityChecker;
 use racing_wheel_plugins::manifest::{
     Capability, EntryPoints, ManifestValidator, PluginConstraints, PluginManifest, PluginOperation,
 };
 use racing_wheel_plugins::native::{
-    AbiCheckResult, CURRENT_ABI_VERSION, NativePluginConfig,
-    check_abi_compatibility,
+    AbiCheckResult, CURRENT_ABI_VERSION, NativePluginConfig, check_abi_compatibility,
 };
 use racing_wheel_plugins::quarantine::{QuarantineManager, QuarantinePolicy, ViolationType};
 use racing_wheel_plugins::registry::{
@@ -306,7 +304,11 @@ fn capability_filesystem_enforcement_path_scope() -> Result<(), PluginError> {
     }]);
 
     checker.check_file_access(Path::new("/allowed/path/file.txt"))?;
-    assert!(checker.check_file_access(Path::new("/forbidden/file.txt")).is_err());
+    assert!(
+        checker
+            .check_file_access(Path::new("/forbidden/file.txt"))
+            .is_err()
+    );
     Ok(())
 }
 
