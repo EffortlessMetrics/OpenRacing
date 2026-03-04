@@ -43,7 +43,9 @@
 //! - **`ids`**: Verified from official Simucube developer docs and community
 //!   sources (linux-steering-wheels, Granite Devices wiki).
 //! - **`input`**: [`SimucubeHidReport`] implements the documented HID joystick
-//!   layout. [`SimucubeInputReport`] retains a speculative extended format for
+//!   layout (✅ field set verified against official docs 2025-07; byte ordering
+//!   follows standard HID conventions — no hardware descriptor dump yet).
+//!   [`SimucubeInputReport`] retains a speculative extended format for
 //!   internal diagnostics; its wire encoding is **not verified**.
 //! - **`output`**: The builder produces a placeholder wire format. Real FFB
 //!   uses USB HID PID effect descriptors per the PID 1.01 specification.
