@@ -41,8 +41,9 @@ pub const OPENFFBOARD_PRODUCT_ID: u16 = 0xFFB0;
 /// Retained for possible future / community firmware builds, but should not
 /// be treated as confirmed.
 ///
-/// TODO(web-verify): Remove or gate behind a feature flag if no evidence of
-/// 0xFFB1 usage surfaces. Check OpenFFBoard community forums/Discord.
+/// TODO(hw-verify): PID 0xFFB1 is speculative. Remove or gate behind a
+/// `speculative-pids` feature flag if no evidence surfaces. Check OpenFFBoard
+/// community forums/Discord and pid.codes registry.
 pub const OPENFFBOARD_PRODUCT_ID_ALT: u16 = 0xFFB1;
 
 /// Known OpenFFBoard device variants.

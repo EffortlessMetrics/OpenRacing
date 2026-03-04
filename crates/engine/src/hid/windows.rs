@@ -336,7 +336,8 @@ pub mod vendor_ids {
     pub const HEUSINKVELD_SHIFTER: u16 = 0xA020;
     /// Cube Controls S.r.l. — STMicroelectronics shared VID (correct for STM32 devices).
     /// PROVISIONAL — estimated values, no USB captures available.
-    /// TODO: verify with hardware captures.
+    /// TODO(hw-verify): Obtain real USB descriptor captures and update
+    /// `crates/hid-cube-controls-protocol/src/ids.rs` with confirmed PIDs.
     pub const CUBE_CONTROLS: u16 = 0x0483; // same as SIMAGIC; see cube_controls.rs
     /// FlashFire (VID 0x2F24) — budget FFB wheels
     /// Source: oversteer wheel_ids.py
@@ -727,7 +728,8 @@ impl SupportedDevices {
                 "SimExperience AccuForce Pro",
             ),
             // Cube Controls S.r.l. — PROVISIONAL — estimated values, no USB captures available.
-            // TODO: verify with hardware captures. PIDs 0x0C73–0x0C75 are fabricated placeholders.
+            // TODO(hw-verify): PIDs 0x0C73–0x0C75 are fabricated placeholders — do NOT
+            // rely on for device matching. See crates/hid-cube-controls-protocol/src/ids.rs.
             // Uses STM shared VID 0x0483; dispatched in get_vendor_protocol() before Simagic.
             (
                 vendor_ids::SIMAGIC,
@@ -1724,7 +1726,8 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
                     capabilities.max_torque = TorqueNm::ZERO;
                 }
                 // Cube Controls PIDs — PROVISIONAL — estimated values, no USB captures available.
-                // TODO: verify with hardware captures. Input-only devices (button boxes), not wheelbases.
+                // TODO(hw-verify): Input-only devices (button boxes), not wheelbases.
+                // Confirm PIDs with real hardware. See crates/hid-cube-controls-protocol/src/ids.rs.
                 0x0C73..=0x0C75 => {
                     capabilities.max_torque = TorqueNm::ZERO;
                     capabilities.encoder_cpr = 0;

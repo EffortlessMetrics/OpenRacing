@@ -40,9 +40,10 @@
 //!
 //! These will be added when real USB captures provide VID/PID data.
 //!
-//! TODO(web-verify): Obtain a USB descriptor capture (`lsusb -v` or
+//! TODO(hw-verify): Obtain a USB descriptor capture (`lsusb -v` or
 //! USBTreeView) from real Cube Controls hardware to confirm or replace
-//! the provisional VID/PIDs below.
+//! the provisional VID/PIDs below. All downstream crates (engine, integration-tests)
+//! reference these constants — a single update here propagates everywhere.
 //!
 //! See `docs/protocols/SOURCES.md` for policy.
 //!
@@ -60,7 +61,7 @@ pub const CUBE_CONTROLS_VENDOR_ID: u16 = 0x0483;
 
 // ──────────────────────────────────────────────────────────────────────────────
 // PROVISIONAL — estimated values, no USB captures available.
-// TODO: verify with hardware captures (lsusb -v / USBTreeView).
+// TODO(hw-verify): verify with hardware captures (lsusb -v / USBTreeView).
 //
 // These PIDs (0x0C73–0x0C75) were fabricated as placeholders. No community
 // evidence, USB descriptor dump, or vendor documentation confirms them.
