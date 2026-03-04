@@ -9,6 +9,7 @@
 pub mod ids;
 pub mod input;
 pub mod output;
+pub mod slots;
 pub mod types;
 
 pub use ids::{LOGITECH_VENDOR_ID, product_ids};
