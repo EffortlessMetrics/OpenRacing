@@ -237,14 +237,7 @@ fn accuforce_vid_dispatches_known_pids() -> Result<(), Box<dyn std::error::Error
 
 #[test]
 fn simagic_evo_vid_dispatches_known_pids() -> Result<(), Box<dyn std::error::Error>> {
-    let pids: &[(u16, &str)] = &[
-        (0x0500, "EVO Sport"),
-        (0x0502, "EVO Pro"),
-        (0x0700, "NEO"),
-        (0x1001, "P1000 Pedals"),
-        (0x2001, "H-Pattern Shifter"),
-        (0x3001, "Handbrake"),
-    ];
+    let pids: &[(u16, &str)] = &[(0x0500, "EVO Sport"), (0x0501, "EVO"), (0x0502, "EVO Pro")];
     for &(pid, label) in pids {
         assert!(
             get_vendor_protocol(0x3670, pid).is_some(),

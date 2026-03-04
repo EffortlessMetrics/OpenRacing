@@ -51,9 +51,9 @@ pub struct SimagicDeviceIdentity {
 
 /// Identify a Simagic product from its PID (VID `0x3670` products).
 ///
-/// Only EVO Sport (`0x0500`), EVO (`0x0501`), and EVO Pro (`0x0502`) are
-/// verified PIDs from the JacKeTUs/simagic-ff driver. All other matches
-/// use estimated/unverified PIDs.
+/// Only EVO Sport (`0x0500`), EVO (`0x0501`), EVO Pro (`0x0502`), and
+/// TB-RS Handbrake (`0x0A04`) are verified PIDs. All other PIDs (wheelbases,
+/// pedals, shifters, rims) are fabricated estimates and resolve to Unknown.
 pub fn identify_device(product_id: u16) -> SimagicDeviceIdentity {
     match product_id {
         product_ids::EVO_SPORT => SimagicDeviceIdentity {
@@ -77,69 +77,10 @@ pub fn identify_device(product_id: u16) -> SimagicDeviceIdentity {
             supports_ffb: true,
             max_torque_nm: Some(18.0),
         },
-        product_ids::ALPHA_EVO => SimagicDeviceIdentity {
-            product_id,
-            name: "Simagic Alpha EVO",
-            category: SimagicDeviceCategory::Wheelbase,
-            supports_ffb: true,
-            max_torque_nm: Some(15.0),
-        },
-        product_ids::NEO => SimagicDeviceIdentity {
-            product_id,
-            name: "Simagic Neo",
-            category: SimagicDeviceCategory::Wheelbase,
-            supports_ffb: true,
-            max_torque_nm: Some(10.0),
-        },
-        product_ids::NEO_MINI => SimagicDeviceIdentity {
-            product_id,
-            name: "Simagic Neo Mini",
-            category: SimagicDeviceCategory::Wheelbase,
-            supports_ffb: true,
-            max_torque_nm: Some(7.0),
-        },
-        product_ids::P1000_PEDALS | product_ids::P1000A_PEDALS => SimagicDeviceIdentity {
-            product_id,
-            name: "Simagic P1000 Pedals",
-            category: SimagicDeviceCategory::Pedals,
-            supports_ffb: false,
-            max_torque_nm: None,
-        },
-        product_ids::P2000_PEDALS => SimagicDeviceIdentity {
-            product_id,
-            name: "Simagic P2000 Pedals",
-            category: SimagicDeviceCategory::Pedals,
-            supports_ffb: false,
-            max_torque_nm: None,
-        },
-        product_ids::SHIFTER_H => SimagicDeviceIdentity {
-            product_id,
-            name: "Simagic H-Pattern Shifter",
-            category: SimagicDeviceCategory::Shifter,
-            supports_ffb: false,
-            max_torque_nm: None,
-        },
-        product_ids::SHIFTER_SEQ => SimagicDeviceIdentity {
-            product_id,
-            name: "Simagic Sequential Shifter",
-            category: SimagicDeviceCategory::Shifter,
-            supports_ffb: false,
-            max_torque_nm: None,
-        },
         product_ids::HANDBRAKE => SimagicDeviceIdentity {
             product_id,
-            name: "Simagic Handbrake",
+            name: "Simagic TB-RS Handbrake",
             category: SimagicDeviceCategory::Handbrake,
-            supports_ffb: false,
-            max_torque_nm: None,
-        },
-        product_ids::RIM_WR1
-        | product_ids::RIM_GT1
-        | product_ids::RIM_GT_NEO
-        | product_ids::RIM_FORMULA => SimagicDeviceIdentity {
-            product_id,
-            name: "Simagic Rim",
-            category: SimagicDeviceCategory::Rim,
             supports_ffb: false,
             max_torque_nm: None,
         },
@@ -184,13 +125,6 @@ impl SimagicModel {
             product_ids::EVO_SPORT => Self::EvoSport,
             product_ids::EVO => Self::Evo,
             product_ids::EVO_PRO => Self::EvoPro,
-            product_ids::ALPHA_EVO => Self::AlphaEvo,
-            product_ids::NEO => Self::Neo,
-            product_ids::NEO_MINI => Self::NeoMini,
-            product_ids::P1000_PEDALS | product_ids::P1000A_PEDALS => Self::P1000,
-            product_ids::P2000_PEDALS => Self::P2000,
-            product_ids::SHIFTER_H => Self::ShifterH,
-            product_ids::SHIFTER_SEQ => Self::ShifterSeq,
             product_ids::HANDBRAKE => Self::Handbrake,
             _ => Self::Unknown,
         }
@@ -341,8 +275,8 @@ mod tests {
     fn test_identify_device_known_pids() {
         let known_pids = [
             // EVO wheelbases (verified)
-            0x0500u16, 0x0501, 0x0502, // Accessories (estimated PIDs)
-            0x1001, 0x1002, 0x2001, 0x2002, 0x0A04,
+            0x0500u16, 0x0501, 0x0502, // Verified peripheral
+            0x0A04,
         ];
 
         for &pid in &known_pids {
@@ -353,14 +287,29 @@ mod tests {
                     assert!(identity.supports_ffb);
                     assert!(identity.max_torque_nm.is_some());
                 }
-                SimagicDeviceCategory::Pedals
-                | SimagicDeviceCategory::Shifter
-                | SimagicDeviceCategory::Handbrake
-                | SimagicDeviceCategory::Rim => {
+                SimagicDeviceCategory::Handbrake => {
                     assert!(!identity.supports_ffb);
                 }
-                SimagicDeviceCategory::Unknown => {}
+                SimagicDeviceCategory::Pedals
+                | SimagicDeviceCategory::Shifter
+                | SimagicDeviceCategory::Rim
+                | SimagicDeviceCategory::Unknown => {}
             }
+        }
+    }
+
+    #[test]
+    fn test_fabricated_pids_resolve_to_unknown() {
+        let fabricated = [
+            0x0600u16, 0x0700, 0x0701, 0x1001, 0x1002, 0x1003, 0x2001, 0x2002, 0x3001,
+        ];
+        for &pid in &fabricated {
+            let identity = identify_device(pid);
+            assert_eq!(
+                identity.category,
+                SimagicDeviceCategory::Unknown,
+                "fabricated PID 0x{pid:04X} should resolve to Unknown"
+            );
         }
     }
 
@@ -375,7 +324,7 @@ mod tests {
 
     #[test]
     fn test_is_wheelbase_product_non_wheelbases() {
-        let non_wheelbase_pids = [0x1001u16, 0x1002, 0x2001, 0x2002, 0x0A04];
+        let non_wheelbase_pids = [0x0A04u16, 0x0600, 0x0700, 0x1001, 0x2001, 0xFFFF];
 
         for &pid in &non_wheelbase_pids {
             assert!(!is_wheelbase_product(pid));

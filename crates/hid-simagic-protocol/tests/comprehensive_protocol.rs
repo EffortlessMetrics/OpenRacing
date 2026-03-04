@@ -304,9 +304,6 @@ fn identify_all_wheelbases() -> Result<(), Box<dyn std::error::Error>> {
         (product_ids::EVO_SPORT, "EVO Sport", 9.0),
         (product_ids::EVO, "EVO", 12.0),
         (product_ids::EVO_PRO, "EVO Pro", 18.0),
-        (product_ids::ALPHA_EVO, "Alpha EVO", 15.0),
-        (product_ids::NEO, "Neo", 10.0),
-        (product_ids::NEO_MINI, "Neo Mini", 7.0),
     ];
     for (pid, name_fragment, expected_torque) in wheelbases {
         let id = simagic::identify_device(pid);
@@ -333,41 +330,33 @@ fn identify_all_wheelbases() -> Result<(), Box<dyn std::error::Error>> {
 /// Pedals, shifters, handbrake, and rims have no FFB and no torque.
 #[test]
 fn identify_all_peripherals() {
-    let peripherals: &[(u16, SimagicDeviceCategory)] = &[
-        (product_ids::P1000_PEDALS, SimagicDeviceCategory::Pedals),
-        (product_ids::P1000A_PEDALS, SimagicDeviceCategory::Pedals),
-        (product_ids::P2000_PEDALS, SimagicDeviceCategory::Pedals),
-        (product_ids::SHIFTER_H, SimagicDeviceCategory::Shifter),
-        (product_ids::SHIFTER_SEQ, SimagicDeviceCategory::Shifter),
-        (product_ids::HANDBRAKE, SimagicDeviceCategory::Handbrake),
-        (product_ids::RIM_WR1, SimagicDeviceCategory::Rim),
-        (product_ids::RIM_GT1, SimagicDeviceCategory::Rim),
-        (product_ids::RIM_GT_NEO, SimagicDeviceCategory::Rim),
-        (product_ids::RIM_FORMULA, SimagicDeviceCategory::Rim),
-    ];
-    for &(pid, expected_cat) in peripherals {
-        let id = simagic::identify_device(pid);
-        assert_eq!(id.category, expected_cat, "PID {pid:#06x}");
-        assert!(!id.supports_ffb, "PID {pid:#06x} should not support FFB");
-        assert!(
-            id.max_torque_nm.is_none(),
-            "PID {pid:#06x} should have no torque"
-        );
-    }
+    // Only the TB-RS Handbrake (0x0A04) is a verified peripheral.
+    // All other peripheral PIDs are fabricated and now resolve to Unknown.
+    let id = simagic::identify_device(product_ids::HANDBRAKE);
+    assert_eq!(
+        id.category,
+        SimagicDeviceCategory::Handbrake,
+        "Handbrake 0x0A04"
+    );
+    assert!(!id.supports_ffb, "Handbrake should not support FFB");
+    assert!(
+        id.max_torque_nm.is_none(),
+        "Handbrake should have no torque"
+    );
 }
 
-/// P1000 and P1000A both map to the same "P1000 Pedals" identity.
+/// Fabricated P1000 and P1000A PIDs now resolve to Unknown.
 #[test]
-fn p1000_and_p1000a_same_name() {
+fn p1000_and_p1000a_resolve_to_unknown() {
     let a = simagic::identify_device(product_ids::P1000_PEDALS);
     let b = simagic::identify_device(product_ids::P1000A_PEDALS);
-    assert_eq!(a.name, b.name);
-    assert_eq!(a.category, b.category);
+    assert_eq!(a.category, SimagicDeviceCategory::Unknown);
+    assert_eq!(b.category, SimagicDeviceCategory::Unknown);
 }
 
-/// All four rim PIDs map to "Simagic Rim".
+/// Fabricated rim PIDs now resolve to Unknown.
 #[test]
-fn all_rims_same_identity() {
+fn all_rims_resolve_to_unknown() {
     let rim_pids = [
         product_ids::RIM_WR1,
         product_ids::RIM_GT1,
@@ -376,8 +365,11 @@ fn all_rims_same_identity() {
     ];
     for &pid in &rim_pids {
         let id = simagic::identify_device(pid);
-        assert_eq!(id.name, "Simagic Rim", "PID {pid:#06x}");
-        assert_eq!(id.category, SimagicDeviceCategory::Rim);
+        assert_eq!(
+            id.category,
+            SimagicDeviceCategory::Unknown,
+            "PID {pid:#06x}"
+        );
     }
 }
 
@@ -391,24 +383,16 @@ fn identify_unknown_pid() {
     assert_eq!(id.product_id, 0xDEAD);
 }
 
-/// SimagicModel::from_pid agrees with identify_device for all known PIDs.
+/// SimagicModel::from_pid agrees with identify_device for confirmed PIDs.
 #[test]
 fn model_from_pid_consistent_with_identify() {
-    let all_pids = [
+    let confirmed_pids = [
         product_ids::EVO_SPORT,
         product_ids::EVO,
         product_ids::EVO_PRO,
-        product_ids::ALPHA_EVO,
-        product_ids::NEO,
-        product_ids::NEO_MINI,
-        product_ids::P1000_PEDALS,
-        product_ids::P1000A_PEDALS,
-        product_ids::P2000_PEDALS,
-        product_ids::SHIFTER_H,
-        product_ids::SHIFTER_SEQ,
         product_ids::HANDBRAKE,
     ];
-    for pid in all_pids {
+    for pid in confirmed_pids {
         let model = SimagicModel::from_pid(pid);
         let identity = simagic::identify_device(pid);
 
@@ -1002,8 +986,6 @@ fn const_model_torque_matches_identity() -> Result<(), Box<dyn std::error::Error
         (product_ids::EVO_SPORT, SimagicModel::EvoSport),
         (product_ids::EVO, SimagicModel::Evo),
         (product_ids::EVO_PRO, SimagicModel::EvoPro),
-        (product_ids::NEO, SimagicModel::Neo),
-        (product_ids::NEO_MINI, SimagicModel::NeoMini),
     ];
     for (pid, model) in wheelbases {
         let identity = simagic::identify_device(pid);

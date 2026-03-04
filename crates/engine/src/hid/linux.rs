@@ -467,23 +467,11 @@ impl LinuxHidPort {
             (0x346E, 0x0021), // Moza SGP Sequential Shifter
             (0x346E, 0x0022), // Moza HBP Handbrake
             // Simagic legacy devices
-            (0x0483, 0x0522), // Simagic Alpha
-            (0x0483, 0x0523), // Simagic Alpha Mini
-            (0x0483, 0x0524), // Simagic Alpha Ultimate
+            (0x0483, 0x0522), // Simagic Alpha / Alpha Mini / Alpha Ultimate / M10
             // Simagic EVO generation (VID 0x3670)
             (0x3670, 0x0500), // Simagic EVO Sport
             (0x3670, 0x0501), // Simagic EVO
             (0x3670, 0x0502), // Simagic EVO Pro
-            (0x3670, 0x0600), // Simagic Alpha EVO (estimated PID)
-            (0x3670, 0x0700), // Simagic Neo (estimated PID)
-            (0x3670, 0x0701), // Simagic Neo Mini (estimated PID)
-            // Simagic EVO peripherals
-            (0x3670, 0x1001), // Simagic P1000 Pedals
-            (0x3670, 0x1002), // Simagic P2000 Pedals
-            (0x3670, 0x1003), // Simagic P1000A Pedals
-            (0x3670, 0x2001), // Simagic H-Pattern Shifter
-            (0x3670, 0x2002), // Simagic Sequential Shifter
-            (0x3670, 0x3001), // Simagic Handbrake
             // VRS DirectForce Pro devices (share VID 0x0483 with Simagic)
             (0x0483, 0xA355), // VRS DirectForce Pro
             (0x0483, 0xA356), // VRS DirectForce Pro V2

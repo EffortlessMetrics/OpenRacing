@@ -65,12 +65,12 @@ fn scenario_legacy_alpha_passive_mode() -> Result<(), Box<dyn std::error::Error>
     Ok(())
 }
 
-// ─── Scenario 4: legacy Alpha Mini passive ──────────────────────────────────
+// ─── Scenario 4: legacy Alpha passive (covers Alpha Mini/Alpha/Alpha Ultimate) ─
 
 #[test]
 fn scenario_legacy_alpha_mini_passive() -> Result<(), Box<dyn std::error::Error>> {
-    // Given: Alpha Mini (legacy VID 0x0483)
-    let mut s = SimagicScenario::legacy(engine_product_ids::ALPHA_MINI);
+    // Given: Alpha family (legacy VID 0x0483, all share PID 0x0522)
+    let mut s = SimagicScenario::legacy(engine_product_ids::ALPHA);
 
     // When: initialized
     s.initialize()?;

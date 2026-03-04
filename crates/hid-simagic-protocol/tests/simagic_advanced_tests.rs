@@ -43,27 +43,24 @@ fn test_evo_pro_recognition() {
 }
 
 #[test]
-fn test_alpha_evo_recognition() {
+fn test_alpha_evo_quarantined() {
     let identity = identify_device(product_ids::ALPHA_EVO);
-    assert_eq!(identity.name, "Simagic Alpha EVO");
-    assert!(identity.supports_ffb);
-    assert!((identity.max_torque_nm.unwrap_or(0.0) - 15.0).abs() < f32::EPSILON);
+    assert_eq!(identity.category, SimagicDeviceCategory::Unknown);
+    assert!(!identity.supports_ffb);
 }
 
 #[test]
-fn test_neo_recognition() {
+fn test_neo_quarantined() {
     let identity = identify_device(product_ids::NEO);
-    assert_eq!(identity.name, "Simagic Neo");
-    assert!(identity.supports_ffb);
-    assert!((identity.max_torque_nm.unwrap_or(0.0) - 10.0).abs() < f32::EPSILON);
+    assert_eq!(identity.category, SimagicDeviceCategory::Unknown);
+    assert!(!identity.supports_ffb);
 }
 
 #[test]
-fn test_neo_mini_recognition() {
+fn test_neo_mini_quarantined() {
     let identity = identify_device(product_ids::NEO_MINI);
-    assert_eq!(identity.name, "Simagic Neo Mini");
-    assert!(identity.supports_ffb);
-    assert!((identity.max_torque_nm.unwrap_or(0.0) - 7.0).abs() < f32::EPSILON);
+    assert_eq!(identity.category, SimagicDeviceCategory::Unknown);
+    assert!(!identity.supports_ffb);
 }
 
 #[test]
@@ -77,37 +74,42 @@ fn test_model_from_pid_all_wheelbases() {
         SimagicModel::from_pid(product_ids::EVO_PRO),
         SimagicModel::EvoPro
     );
+    // Fabricated PIDs now resolve to Unknown
     assert_eq!(
         SimagicModel::from_pid(product_ids::ALPHA_EVO),
-        SimagicModel::AlphaEvo
+        SimagicModel::Unknown
     );
-    assert_eq!(SimagicModel::from_pid(product_ids::NEO), SimagicModel::Neo);
+    assert_eq!(
+        SimagicModel::from_pid(product_ids::NEO),
+        SimagicModel::Unknown
+    );
     assert_eq!(
         SimagicModel::from_pid(product_ids::NEO_MINI),
-        SimagicModel::NeoMini
+        SimagicModel::Unknown
     );
 }
 
 #[test]
 fn test_pedal_recognition() {
+    // Fabricated pedal PIDs now resolve to Unknown
     let p1000 = identify_device(product_ids::P1000_PEDALS);
-    assert_eq!(p1000.category, SimagicDeviceCategory::Pedals);
+    assert_eq!(p1000.category, SimagicDeviceCategory::Unknown);
     assert!(!p1000.supports_ffb);
-    assert!(p1000.max_torque_nm.is_none());
     assert!(!is_wheelbase_product(product_ids::P1000_PEDALS));
 
     let p2000 = identify_device(product_ids::P2000_PEDALS);
-    assert_eq!(p2000.category, SimagicDeviceCategory::Pedals);
+    assert_eq!(p2000.category, SimagicDeviceCategory::Unknown);
 }
 
 #[test]
 fn test_shifter_recognition() {
+    // Fabricated shifter PIDs now resolve to Unknown
     let h_shifter = identify_device(product_ids::SHIFTER_H);
-    assert_eq!(h_shifter.category, SimagicDeviceCategory::Shifter);
+    assert_eq!(h_shifter.category, SimagicDeviceCategory::Unknown);
     assert!(!h_shifter.supports_ffb);
 
     let seq_shifter = identify_device(product_ids::SHIFTER_SEQ);
-    assert_eq!(seq_shifter.category, SimagicDeviceCategory::Shifter);
+    assert_eq!(seq_shifter.category, SimagicDeviceCategory::Unknown);
 }
 
 #[test]
@@ -119,6 +121,7 @@ fn test_handbrake_recognition() {
 
 #[test]
 fn test_rim_recognition() {
+    // Fabricated rim PIDs now resolve to Unknown
     for &pid in &[
         product_ids::RIM_WR1,
         product_ids::RIM_GT1,
@@ -126,7 +129,7 @@ fn test_rim_recognition() {
         product_ids::RIM_FORMULA,
     ] {
         let identity = identify_device(pid);
-        assert_eq!(identity.category, SimagicDeviceCategory::Rim);
+        assert_eq!(identity.category, SimagicDeviceCategory::Unknown);
         assert!(!identity.supports_ffb);
     }
 }

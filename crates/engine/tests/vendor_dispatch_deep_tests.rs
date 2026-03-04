@@ -123,7 +123,7 @@ mod vendor_detection {
 
     #[test]
     fn detect_05_simagic_evo_devices() {
-        let pids = [(0x0500, "EVO Sport"), (0x0502, "EVO Pro"), (0x0700, "NEO")];
+        let pids = [(0x0500, "EVO Sport"), (0x0501, "EVO"), (0x0502, "EVO Pro")];
         for (pid, label) in pids {
             assert_dispatches(0x3670, pid, &format!("Simagic {label}"));
         }

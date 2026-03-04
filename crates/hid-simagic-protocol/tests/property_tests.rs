@@ -137,32 +137,29 @@ proptest! {
 
     /// Known EVO-generation wheelbase PIDs must be detected as wheelbases with FFB.
     #[test]
-    fn prop_evo_pids_are_wheelbases(idx in 0usize..6usize) {
+    fn prop_evo_pids_are_wheelbases(idx in 0usize..3usize) {
         let pids = [
             product_ids::EVO_SPORT,
             product_ids::EVO,
             product_ids::EVO_PRO,
-            product_ids::ALPHA_EVO,
-            product_ids::NEO,
-            product_ids::NEO_MINI,
         ];
         let pid = pids[idx];
         prop_assert!(
             is_wheelbase_product(pid),
-            "EVO/Neo PID {pid:#06x} must be a wheelbase"
+            "EVO PID {pid:#06x} must be a wheelbase"
         );
         let identity = identify_device(pid);
         prop_assert!(
             identity.supports_ffb,
-            "EVO/Neo PID {pid:#06x} must support FFB"
+            "EVO PID {pid:#06x} must support FFB"
         );
         prop_assert!(
             identity.max_torque_nm.is_some(),
-            "EVO/Neo PID {pid:#06x} must have a max torque value"
+            "EVO PID {pid:#06x} must have a max torque value"
         );
     }
 
-    /// Non-wheelbase Simagic product PIDs must not be detected as wheelbases.
+    /// Fabricated Simagic product PIDs must not be detected as wheelbases.
     #[test]
     fn prop_accessory_pids_not_wheelbases(idx in 0usize..6usize) {
         let pids = [
@@ -176,12 +173,7 @@ proptest! {
         let pid = pids[idx];
         prop_assert!(
             !is_wheelbase_product(pid),
-            "accessory PID {pid:#06x} must not be a wheelbase"
-        );
-        let identity = identify_device(pid);
-        prop_assert!(
-            !identity.supports_ffb,
-            "accessory PID {pid:#06x} must not support FFB"
+            "fabricated PID {pid:#06x} must not be a wheelbase"
         );
     }
 }
