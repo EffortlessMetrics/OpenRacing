@@ -8,7 +8,7 @@ use racing_wheel_telemetry_lfs::{LFSAdapter, TelemetryAdapter};
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 
-const OUTGAUGE_SIZE: usize = 96;
+const OUTGAUGE_SIZE: usize = 92;
 
 // OutGauge offsets
 const OFF_GEAR: usize = 10;

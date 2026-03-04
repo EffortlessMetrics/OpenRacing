@@ -9,7 +9,7 @@ use racing_wheel_telemetry_lfs::{LFSAdapter, TelemetryAdapter};
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 
-const OUTGAUGE_SIZE: usize = 96;
+const OUTGAUGE_SIZE: usize = 92;
 
 // OutGauge byte offsets
 const OFF_GEAR: usize = 10;
@@ -49,7 +49,7 @@ fn make_packet() -> Vec<u8> {
 
 #[test]
 fn protocol_packet_size_constant() -> TestResult {
-    assert_eq!(OUTGAUGE_SIZE, 96, "OutGauge standard is 96 bytes");
+    assert_eq!(OUTGAUGE_SIZE, 92, "OutGauge minimum is 92 bytes (without optional ID)");
     Ok(())
 }
 
@@ -91,7 +91,7 @@ fn protocol_field_no_overlap() -> TestResult {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 #[test]
-fn parse_exact_96_bytes_accepted() -> TestResult {
+fn parse_exact_92_bytes_accepted() -> TestResult {
     let adapter = LFSAdapter::new();
     let buf = make_packet();
     let t = adapter.normalize(&buf)?;
@@ -100,9 +100,9 @@ fn parse_exact_96_bytes_accepted() -> TestResult {
 }
 
 #[test]
-fn parse_95_bytes_rejected() -> TestResult {
+fn parse_91_bytes_rejected() -> TestResult {
     let adapter = LFSAdapter::new();
-    assert!(adapter.normalize(&[0u8; 95]).is_err());
+    assert!(adapter.normalize(&[0u8; 91]).is_err());
     Ok(())
 }
 
