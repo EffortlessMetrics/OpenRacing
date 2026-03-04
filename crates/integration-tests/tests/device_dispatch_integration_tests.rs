@@ -270,7 +270,10 @@ fn dispatch_routes_openffboard_main() -> Result<(), Box<dyn std::error::Error>> 
 #[test]
 fn dispatch_does_not_route_openffboard_alt() -> Result<(), Box<dyn std::error::Error>> {
     let proto = get_vendor_protocol(0x1209, 0xFFB1); // OpenFFBoard Alt PID (no longer dispatched)
-    assert!(proto.is_none(), "OpenFFBoard Alt PID must no longer be dispatched");
+    assert!(
+        proto.is_none(),
+        "OpenFFBoard Alt PID must no longer be dispatched"
+    );
     Ok(())
 }
 
