@@ -271,7 +271,7 @@ async fn profile_hierarchy_applies_game_specific() -> Result<(), BoxErr> {
     let (svc, _tmp) = temp_service().await?;
     let ps = svc.profile_service();
     let caps = test_device_capabilities()?;
-    let device_id = DeviceId::new("hierarchy-dev".to_string())?;
+    let device_id: DeviceId = "hierarchy-dev".parse()?;
 
     let global = make_profile("global-h")?;
     let game_prof = make_game_profile("iracing-h", "iracing", 0.75)?;
@@ -293,7 +293,7 @@ async fn profile_hierarchy_applies_game_specific() -> Result<(), BoxErr> {
 async fn profile_session_override_applied_and_cleared() -> Result<(), BoxErr> {
     let (svc, _tmp) = temp_service().await?;
     let ps = svc.profile_service();
-    let device_id = DeviceId::new("override-dev".to_string())?;
+    let device_id: DeviceId = "override-dev".parse()?;
     let override_profile = make_profile("session-override")?;
 
     ps.set_session_override(&device_id, override_profile.clone())
@@ -330,7 +330,7 @@ async fn delete_active_profile_is_rejected() -> Result<(), BoxErr> {
     let profile = make_profile("active-del")?;
     let pid = ps.create_profile(profile).await?;
 
-    let device_id = DeviceId::new("del-dev".to_string())?;
+    let device_id: DeviceId = "del-dev".parse()?;
     ps.set_active_profile(&device_id, &pid).await?;
 
     let result = ps.delete_profile(&pid).await;

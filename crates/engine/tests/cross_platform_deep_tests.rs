@@ -135,8 +135,8 @@ fn scheduler_short_period_compiles_cross_platform() -> Result<(), Box<dyn std::e
 fn hid_device_info_fields_accessible_cross_platform() -> Result<(), Box<dyn std::error::Error>> {
     // Verify HidDeviceInfo struct is available and its key fields are accessible
     // on all platforms without needing actual hardware.
-    let device_id = racing_wheel_schemas::prelude::DeviceId::new("test-dev-001".to_string())
-        .map_err(|e| format!("DeviceId::new failed: {e}"))?;
+    let device_id: racing_wheel_schemas::prelude::DeviceId = "test-dev-001".parse()
+        .map_err(|e| format!("DeviceId parse failed: {e}"))?;
     let info = racing_wheel_engine::hid::HidDeviceInfo {
         device_id,
         vendor_id: 0x0EB7,

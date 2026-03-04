@@ -146,7 +146,7 @@ fn protocol_telemetry_report_round_trip() -> Result<(), Box<dyn std::error::Erro
 
     assert!((parsed.wheel_angle_deg() - 45.5).abs() < f32::EPSILON);
     assert!((parsed.wheel_speed_rad_s() - 2.5).abs() < f32::EPSILON);
-    assert_eq!(parsed.temp_c, 42);
+    assert_eq!(parsed.temperature_c(), 42);
     assert_eq!(parsed.hands_on(), Some(true));
     assert!(parsed.validate_crc());
     Ok(())
@@ -574,7 +574,7 @@ fn protocol_telemetry_all_fault_flags() {
     let all_faults = 0xFF;
     let report = ProtocolTelemetryReport::new(0.0, 0.0, 80, all_faults, true, 0);
     assert!(report.has_faults());
-    assert_eq!(report.faults, 0xFF);
+    assert_eq!(report.fault_flags(), 0xFF);
 }
 
 // ===================================================================
