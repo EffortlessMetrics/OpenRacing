@@ -1,6 +1,6 @@
 # Now · Next · Later
 
-One-screen execution plan for OpenRacing. Updated after PR #70.
+One-screen execution plan for OpenRacing. Updated after PR #74.
 
 ---
 
@@ -10,7 +10,12 @@ One-screen execution plan for OpenRacing. Updated after PR #70.
 - **CI green maintenance**: Continuous fix-forward on any regressions
 - **Progressive PR strategy**: Small, focused PRs (≤50 files, ≤5K LOC) landed incrementally
 
-**Merged recently (PRs #24-69):**
+**Merged recently (PRs #24-74):**
+- PR #74: Cammus PIDFF effects → pidff-common (-207 lines)
+- PR #73: VRS + OpenFFBoard PIDFF effects → pidff-common (-1,616 lines)
+- PR #72: Simucube PIDFF effects → pidff-common (-798 lines)
+- PR #71: Docs update for PRs #65-69
+- PR #70: CI disk cleanup for heavy jobs
 - PR #69: CHANGELOG + NOW_NEXT_LATER docs update
 - PR #68: Pin nightly toolchain to 2026-03-04 for reproducibility
 - PR #67: `#![deny(static_mut_refs)]` to 34 non-test crates
@@ -34,7 +39,6 @@ One-screen execution plan for OpenRacing. Updated after PR #70.
 
 ## NEXT (queued, ready to start)
 
-- **Simucube PIDFF refactoring**: Align `SetEffect` struct-based API with pidff-common
 - **Docs accuracy pass**: Fix vendor count inconsistencies, verify all CLI commands work
 - **macOS IOKit HID support**: Native macOS device communication (F-053)
 - **macOS CI runner**: Add macOS to GitHub Actions matrix
@@ -67,7 +71,7 @@ One-screen execution plan for OpenRacing. Updated after PR #70.
 | Protocol crates | 17 HID vendor protocol microcrates + 1 shared PIDFF library |
 | Snapshot tests | 1,400+ snapshot files across 52+ snapshot directories |
 | Crate coverage | 80/87 crates have dedicated test files |
-| PRs merged | 69 total (PRs #1-69, plus #70 in review) |
+| PRs merged | 74 total (PRs #1-74) |
 
 ---
 

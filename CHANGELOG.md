@@ -55,6 +55,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **PIDFF deduplication wave (PRs #72-74)**: Consolidated duplicated PIDFF effects code across all standard USB HID PID devices into `openracing-pidff-common`
+  - PR #72: Simucube PIDFF effects → pidff-common (-798 lines)
+  - PR #73: VRS + OpenFFBoard PIDFF effects → pidff-common (-1,616 lines)
+  - PR #74: Cammus PIDFF effects → pidff-common (-207 lines)
+  - Total: ~2,621 lines of duplicated PIDFF code eliminated
 - **5 device crates refactored to use pidff-common**: AccuForce, Asetek, FFBeast, Leo Bodnar, PXN now re-export from `openracing-pidff-common` instead of duplicated 400-line effects modules (-1,717 lines net)
 - **VRS PEDALS_V1 (0xA357) deprecated**: `#[deprecated]` attribute added; use `PEDALS` (0xA3BE) instead
 - **VID 0x16D0 manufacturer label**: changed from "Simagic" to "Simucube / Simagic" to reflect shared VID
