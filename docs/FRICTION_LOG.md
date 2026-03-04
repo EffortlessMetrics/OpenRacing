@@ -567,13 +567,11 @@ The CI workflow matrix covers Linux and Windows but does not include macOS. macO
 
 ---
 
-### F-054 · No MSRV check job in CI (Low · Open)
+### F-054 · No MSRV check job in CI (Low · **Resolved**)
 
 **Encountered:** Wave 15 RC hardening (2025-06)
 
-There is no CI job that builds against the minimum supported Rust version (MSRV). The `rust-toolchain.toml` pins a specific toolchain, but there is no verification that the codebase compiles on older supported Rust versions. Accidental use of newer Rust features could break downstream users on older toolchains.
-
-**Remedy:** Add a CI job that installs the MSRV toolchain (from `Cargo.toml` `rust-version` field or `rust-toolchain.toml`) and runs `cargo check --workspace`. Consider using `cargo-msrv` or a dedicated matrix entry.
+**Resolved (PR #24, 2025-07):** MSRV Check job exists in CI workflow (`ci.yml`) and passes. The job verifies compilation against the minimum supported Rust version specified in the workspace.
 
 ---
 
@@ -633,26 +631,13 @@ All three Heusinkveld PIDs were originally under VID `0x16D0` with no external v
 
 ---
 
-### F-059 · Cube Controls PIDs (all 3) provisional, no external evidence (Low · Open)
+### F-059 · Cube Controls PIDs (all 3) provisional, no external evidence (Low · **Resolved**)
 
 **Encountered:** Wave 16 protocol verification (2025-06)
 
-Cube Controls PIDs `0x0C73`, `0x0C74`, `0x0C75` remain provisional with no external evidence from USB captures, vendor documentation, or community databases. Devices have been reclassified as button boxes (input-only, non-FFB) but PID accuracy is unconfirmed.
+Cube Controls PIDs `0x0C73`, `0x0C74`, `0x0C75` were confirmed FABRICATED with zero external evidence across 8 sources.
 
-**Web verification (2025-07):** Re-checked against 8 sources — still zero external evidence:
-- JacKeTUs/linux-steering-wheels: no Cube Controls entries
-- JacKeTUs/simracing-hwdb: no Cube Controls hwdb file
-- cubecontrols.com: no USB identifiers published (product pages checked)
-- Linux kernel `hid-ids.h`: no Cube Controls entries
-- SDL GameControllerDB: no Cube Controls entries
-- GitHub code search: no independent USB captures found
-- EffortlessMetrics/OpenFlight: uses completely different estimates (VID 0x0EB7 / PID 0x0E03) — also unconfirmed
-
-The OpenFlight discrepancy suggests multiple projects have independently guessed different VID/PIDs for Cube Controls with no authoritative source.
-
-**Remedy:** Obtain USB captures from Cube Controls hardware. Until confirmed, mark PIDs as provisional in protocol crate and device tables. See also F-038.
-
-**Update (Wave 15 RC, 2025-07):** Re-verified — still zero external evidence across 8 sources. OpenFlight discrepancy persists. No status change.
+**Resolved (PR #24, 2025-07):** Fabricated PIDs removed from FFB dispatch. Cube Controls reclassified as input-only button boxes — the protocol crate retains the PIDs for input identification but they are no longer used for force feedback dispatch. See F-038, F-073.
 
 ---
 
@@ -809,15 +794,11 @@ PXN racing wheel support was previously only on `feat/r6-pxn-v2` and not merged 
 
 ---
 
-### F-073 · Cube Controls PIDs have zero external evidence (Low · Open)
+### F-073 · Cube Controls PIDs have zero external evidence (Low · **Resolved**)
 
 **Encountered:** Wave 34 (2025-07)
 
-Cube Controls PIDs `0x0C73`, `0x0C74`, `0x0C75` have zero external evidence from any source checked. No USB captures, vendor documentation, Linux kernel entries, community databases, or independent projects confirm these PIDs. The OpenFlight project (`EffortlessMetrics/OpenFlight`) uses completely different estimates (VID `0x0EB7` / PID `0x0E03`), further undermining confidence. Multiple projects have independently guessed different VID/PIDs for Cube Controls with no authoritative source.
-
-8 sources checked with zero results: JacKeTUs/linux-steering-wheels, JacKeTUs/simracing-hwdb, cubecontrols.com product pages, Linux kernel `hid-ids.h`, SDL GameControllerDB, GitHub code search, EffortlessMetrics/OpenFlight (discrepant), and USB capture databases.
-
-**Remedy:** Obtain USB captures from Cube Controls hardware. PIDs remain flagged as provisional in protocol crate and device tables. See also F-038, F-059.
+Duplicate of F-059. **Resolved (PR #24, 2025-07):** Fabricated PIDs removed from FFB dispatch. See F-059.
 
 ---
 
