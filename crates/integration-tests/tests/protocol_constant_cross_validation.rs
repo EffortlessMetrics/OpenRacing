@@ -1102,7 +1102,7 @@ fn authoritative_pid_cross_validation() -> TestResult {
         "kernel hid-ids.h: USB_DEVICE_ID_LOGITECH_G920_WHEEL"
     );
 
-    // ── Thrustmaster (source: Linux kernel drivers/hid/hid-ids.h) ─────────
+    // ── Thrustmaster (source: Kimplul/hid-tmff2 + kernel hid-ids.h) ──────
     check_pid!(
         racing_wheel_hid_thrustmaster_protocol::THRUSTMASTER_VENDOR_ID,
         0x044F_u16,
@@ -1113,7 +1113,43 @@ fn authoritative_pid_cross_validation() -> TestResult {
         racing_wheel_hid_thrustmaster_protocol::product_ids::T300_RS,
         0xB66E_u16,
         "Thrustmaster T300 RS",
-        "kernel hid-ids.h: USB_DEVICE_ID_THRUSTMASTER_T300RS"
+        "hid-tmff2.h: TMT300RS_PS3_NORM_ID"
+    );
+    check_pid!(
+        racing_wheel_hid_thrustmaster_protocol::product_ids::T300_RS_GT,
+        0xB66F_u16,
+        "Thrustmaster T300 RS GT",
+        "hid-tmff2.h: TMT300RS_PS3_ADV_ID"
+    );
+    check_pid!(
+        racing_wheel_hid_thrustmaster_protocol::product_ids::T300_RS_PS4,
+        0xB66D_u16,
+        "Thrustmaster T300 RS PS4",
+        "hid-tmff2.h: TMT300RS_PS4_NORM_ID"
+    );
+    check_pid!(
+        racing_wheel_hid_thrustmaster_protocol::product_ids::T248,
+        0xB696_u16,
+        "Thrustmaster T248",
+        "hid-tmff2.h: TMT248_PC_ID"
+    );
+    check_pid!(
+        racing_wheel_hid_thrustmaster_protocol::product_ids::TX_RACING,
+        0xB669_u16,
+        "Thrustmaster TX",
+        "hid-tmff2.h: TX_ACTIVE"
+    );
+    check_pid!(
+        racing_wheel_hid_thrustmaster_protocol::product_ids::TS_XW,
+        0xB692_u16,
+        "Thrustmaster TS-XW",
+        "hid-tmff2.h: TSXW_ACTIVE"
+    );
+    check_pid!(
+        racing_wheel_hid_thrustmaster_protocol::product_ids::TS_PC_RACER,
+        0xB689_u16,
+        "Thrustmaster TS-PC Racer",
+        "hid-tmff2.h: TMTS_PC_RACER_ID"
     );
 
     assert!(

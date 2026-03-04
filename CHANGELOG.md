@@ -36,6 +36,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Rustdoc**: public API documentation added to `openracing-ffb` and `openracing-calibration`
 - **10 community-verified sim racing peripheral vendors** from JacKeTUs/simracing-hwdb: MMOS FFB controller (0xF055:0x0FFB), SHH Shifters, Oddor Handbrake, SimGrade Pedals, SimJack Pedals, SimLab Handbrake, SimNet Pedals, SimRuito Pedals, SimSonn Pedals, SimTrecs Pedals
 - **CHANGELOG update** for PRs #24-55 (PR #56)
+- **README accuracy update**: game count (14→50+), test count (600→25,500+), crate table (8→84 crates), added 5 new hardware vendors (MMOS, SHH, Oddor, PXN, FlashFire)
+- **Authoritative PID cross-validation test**: 40+ hardcoded cross-checks against kernel drivers (gotzl/hid-fanatecff, Kimplul/hid-tmff2, JacKeTUs/simagic-ff, Linux kernel hid-ids.h, berarma/oversteer)
 
 ### Changed
 
