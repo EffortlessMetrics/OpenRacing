@@ -14,6 +14,25 @@ use crate::transport::{TransportConfig, TransportType};
 use crate::{MIN_CLIENT_VERSION, PROTOCOL_VERSION};
 
 /// IPC server configuration
+///
+/// # Examples
+///
+/// ```
+/// use openracing_ipc::prelude::*;
+///
+/// // Default configuration
+/// let config = IpcConfig::default();
+/// assert_eq!(config.server_name, "openracing-ipc");
+/// assert_eq!(config.health_buffer_size, 1000);
+///
+/// // Customize with builder methods
+/// let config = IpcConfig::with_transport(TransportType::tcp())
+///     .max_connections(50)
+///     .health_buffer_size(500);
+///
+/// assert_eq!(config.transport.max_connections, 50);
+/// assert_eq!(config.health_buffer_size, 500);
+/// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IpcConfig {
     /// Transport configuration
@@ -347,6 +366,25 @@ impl IpcServer {
 }
 
 /// Check if client version is compatible with minimum required version
+///
+/// # Examples
+///
+/// ```
+/// use openracing_ipc::prelude::is_version_compatible;
+///
+/// // Same version is compatible
+/// assert!(is_version_compatible("1.0.0", "1.0.0"));
+///
+/// // Higher minor/patch versions are compatible
+/// assert!(is_version_compatible("1.1.0", "1.0.0"));
+/// assert!(is_version_compatible("1.0.1", "1.0.0"));
+///
+/// // Different major versions are incompatible
+/// assert!(!is_version_compatible("2.0.0", "1.0.0"));
+///
+/// // Lower versions are incompatible
+/// assert!(!is_version_compatible("1.0.0", "1.1.0"));
+/// ```
 pub fn is_version_compatible(client_version: &str, min_version: &str) -> bool {
     let parse_version = |v: &str| -> Vec<u32> {
         v.split('.')

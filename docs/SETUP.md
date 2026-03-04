@@ -26,7 +26,7 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 # Windows: download and run https://win.rustup.rs
 ```
 
-Minimum supported version: **Rust 1.89**.
+Minimum supported version: **Rust 1.85.0** (nightly toolchain required; see `rust-toolchain.toml`).
 
 ### Git
 
@@ -74,7 +74,7 @@ cd OpenRacing
 # 2. Build in release mode
 cargo build --release --workspace
 
-# 3. Install the CLI into your PATH
+# 3. Install the CLI (wheelctl) into your PATH
 cargo install --path crates/cli
 
 # 4. (Linux only) install udev rules
@@ -85,9 +85,9 @@ sudo udevadm control --reload-rules && sudo udevadm trigger
 ### Verifying the installation
 
 ```bash
-openracing --version
-openracing service start
-openracing devices list
+wheelctl --version
+wheelctl health
+wheelctl device list
 ```
 
 ### Configuration locations
@@ -108,7 +108,7 @@ Connect your wheel base via USB. The OpenRacing service detects it automatically
 
 ```bash
 # Verify your device appears
-openracing devices list
+wheelctl device list
 ```
 
 Successful output looks like:
@@ -143,7 +143,7 @@ Any USB HID device that advertises standard USB HID PID force-feedback capabilit
 
 ### Device not appearing?
 
-1. Run `openracing devices list` — if your device is absent, check the troubleshooting section below.
+1. Run `wheelctl device list` — if your device is absent, check the troubleshooting section below.
 2. Confirm the USB Vendor ID and Product ID match the table above using Device Manager (Windows), `lsusb` (Linux), or System Information (macOS).
 3. See [Section 5 — Troubleshooting](#5-troubleshooting) for common fixes.
 
@@ -166,14 +166,14 @@ No manual steps are required for most games.
 If auto-detection does not write the config file (e.g. the game was already running, or the config was deleted):
 
 ```bash
-openracing config apply <game_id>
+wheelctl game configure <game_id>
 # Example:
-openracing config apply iracing
-openracing config apply acc
-openracing config apply forza_motorsport
+wheelctl game configure iracing
+wheelctl game configure acc
+wheelctl game configure forza_motorsport
 ```
 
-Run `openracing games list` to see the full list of `game_id` values.
+Run `wheelctl game list` to see the full list of `game_id` values.
 
 ### Supported games
 
@@ -250,17 +250,17 @@ sudo usermod -aG plugdev $USER   # log out and back in after this
 
 **All platforms — VID/PID not in supported list**
 
-Run `openracing devices scan --all` to list every HID device with its VID and PID. Cross-reference with the table in [Section 3](#3-device-setup). If your device is missing, please open an issue on GitHub with the VID, PID, and device name.
+Run `wheelctl device list --all` to list every HID device with its VID and PID. Cross-reference with the table in [Section 3](#3-device-setup). If your device is missing, please open an issue on GitHub with the VID, PID, and device name.
 
 ---
 
 ### Game not detected
 
-1. Confirm the game is running: `openracing games status`
+1. Confirm the game is running: `wheelctl game status`
 2. Check that the executable name matches what is expected:
 
 ```bash
-openracing games list --verbose   # shows expected process names
+wheelctl game list --detailed   # shows expected process names
 ```
 
 3. If the process name differs (e.g. a non-Steam install path), edit the game entry in the support matrix or open an issue.
@@ -268,7 +268,7 @@ openracing games list --verbose   # shows expected process names
 4. Apply config manually and restart the game:
 
 ```bash
-openracing config apply <game_id>
+wheelctl game configure <game_id>
 ```
 
 ---
@@ -276,9 +276,9 @@ openracing config apply <game_id>
 ### No force feedback
 
 1. **In-game FFB must be enabled.** Most simulators have a dedicated Force Feedback setting (strength or percentage). Set it to a non-zero value.
-2. Check the service is running: `openracing service status`
-3. Check the device is connected and shows `connected` in `openracing devices list`.
-4. Check diagnostics for fault codes: `openracing diag report`
+2. Check the service is running: `wheelctl health`
+3. Check the device is connected and shows `connected` in `wheelctl device list`.
+4. Check diagnostics for fault codes: `wheelctl diag test`
 5. Review service logs:
    - Windows: `%LOCALAPPDATA%\wheel\logs\`
    - Linux/macOS: `~/.config/wheel/logs/`
@@ -289,10 +289,10 @@ openracing config apply <game_id>
 
 ```bash
 # Check for port conflicts or permission errors
-openracing service start --foreground
+wheelctl health
 
 # Reset to defaults if config is corrupt
-openracing service reset-config
+wheeld --reset-config
 ```
 
 ---
@@ -302,7 +302,7 @@ openracing service reset-config
 If you need help from the community or want to file a bug report, generate a support bundle:
 
 ```bash
-openracing diag bundle --output ~/openracing-bundle.zip
+wheelctl diag support --output ~/openracing-bundle.zip
 ```
 
 The bundle contains sanitised logs, device enumeration, and system info. No personal or game data is included.
@@ -311,59 +311,52 @@ The bundle contains sanitised logs, device enumeration, and system info. No pers
 
 ## 6. CLI Reference
 
-The `openracing` CLI communicates with the background service over a local IPC socket. The service must be running for most commands.
+The `wheelctl` CLI communicates with the background service (`wheeld`) over a local IPC socket. The service must be running for most commands.
 
 ### Service management
 
 ```bash
-openracing service start          # start the background service
-openracing service stop           # stop the background service
-openracing service status         # show running/stopped and uptime
-openracing service restart        # stop then start
+wheelctl health                   # show running/stopped and uptime
 ```
 
 ### Device commands
 
 ```bash
-openracing devices list                    # list all connected and known devices
-openracing devices list --verbose          # include VID/PID and firmware version
-openracing devices scan --all              # enumerate all HID devices (for debugging)
-openracing devices status <device-id>      # detailed status for one device
-openracing devices calibrate <device-id>   # run interactive calibration wizard
+wheelctl device list                       # list all connected and known devices
+wheelctl device list --detailed            # include VID/PID and firmware version
+wheelctl device status <device-id>         # detailed status for one device
+wheelctl device calibrate <device-id>      # run interactive calibration wizard
 ```
 
 ### Game commands
 
 ```bash
-openracing games list                      # list all supported games with status
-openracing games list --verbose            # include process names and config paths
-openracing games status                    # show currently detected/active game
+wheelctl game list                         # list all supported games with status
+wheelctl game list --detailed              # include process names and config paths
+wheelctl game status                       # show currently detected/active game
 ```
 
 ### Configuration commands
 
 ```bash
-openracing config apply <game_id>          # write telemetry config to game folder
-openracing config apply --all              # apply config for all installed games
-openracing config show <game_id>           # print the config that would be written
-openracing config verify <game_id>         # check if config is present and valid
+wheelctl game configure <game_id>          # write telemetry config to game folder
+wheelctl game configure <game_id> --auto   # auto-configure for all installed games
 ```
 
 ### Profile commands
 
 ```bash
-openracing profile list                    # list available FFB profiles
-openracing profile apply <device-id> <profile.json>   # apply a profile
-openracing profile export <device-id>      # export current settings as a profile
+wheelctl profile list                      # list available FFB profiles
+wheelctl profile apply <device-id> <profile.json>   # apply a profile
+wheelctl profile export <device-id>        # export current settings as a profile
 ```
 
 ### Diagnostics
 
 ```bash
-openracing diag test                       # run built-in hardware self-test
-openracing diag report                     # print fault log and current health
-openracing diag bundle --output <file.zip> # create a support bundle
-openracing health                          # quick one-line health summary
+wheelctl diag test                         # run built-in hardware self-test
+wheelctl diag support                      # create a support bundle
+wheelctl health                            # quick one-line health summary
 ```
 
 ---

@@ -1,0 +1,5 @@
+---
+source: crates/openracing-diagnostic/tests/snapshot_tests.rs
+expression: "DiagnosticError::InvalidMagic\n{ expected: *b\"WBB1\", actual: *b\"XXXX\", }.to_string()"
+---
+Invalid magic number: expected [87, 66, 66, 49], got [88, 88, 88, 88]

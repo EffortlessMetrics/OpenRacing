@@ -1,0 +1,5 @@
+---
+source: crates/openracing-errors/tests/snapshot_tests.rs
+expression: "DeviceError::FeatureNotSupported\n{ device: \"logitech-g27\".into(), feature: \"direct-drive\".into(), }.to_string()"
+---
+Feature 'direct-drive' not supported by device logitech-g27

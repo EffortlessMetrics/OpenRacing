@@ -1,0 +1,5 @@
+---
+source: crates/hid-pxn-protocol/tests/snapshot_encoding.rs
+expression: "results.join(\", \")"
+---
+0x0000=false, 0x0001=false, 0x1111=false, 0xFFFF=false

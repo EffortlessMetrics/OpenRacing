@@ -1,0 +1,11 @@
+---
+source: crates/engine/tests/snapshot_tests.rs
+expression: cmd
+---
+TorqueCommand {
+    report_id: 32,
+    torque_mnm: 0,
+    flags: 0,
+    sequence: 0,
+    crc8: 0,
+}

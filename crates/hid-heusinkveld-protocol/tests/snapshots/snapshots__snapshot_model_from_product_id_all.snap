@@ -1,0 +1,15 @@
+---
+source: crates/hid-heusinkveld-protocol/tests/snapshots.rs
+expression: summary
+---
+[
+    "PID=0x1001 -> Sprint (Heusinkveld Sprint)",
+    "PID=0x1003 -> Ultimate (Heusinkveld Ultimate+)",
+    "PID=0x1002 -> HandbrakeV2 (Heusinkveld Handbrake V2)",
+    "PID=0xf6d0 -> Sprint (Heusinkveld Sprint)",
+    "PID=0xf6d2 -> Ultimate (Heusinkveld Ultimate+)",
+    "PID=0xf6d3 -> Pro (Heusinkveld Pro)",
+    "PID=0x8b82 -> HandbrakeV1 (Heusinkveld Handbrake)",
+    "PID=0x3142 -> SequentialShifter (Heusinkveld Sequential Shifter)",
+    "PID=0xffff -> Unknown (Unknown Heusinkveld Device)",
+]

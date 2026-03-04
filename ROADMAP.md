@@ -16,7 +16,7 @@ This document outlines the development roadmap for OpenRacing. It tracks the imp
 - **Safety System**: Hardware watchdog, FMEA fault injection, fault quarantine, safe mode transitions, black box recording
 - **Multi-vendor Device Support**: 15 vendors supported — Logitech, Fanatec, Thrustmaster, Moza, Simagic, Simucube 2, VRS, Heusinkveld, Asetek, OpenFFBoard, FFBeast, Granite Devices IONI/ARGON, AccuForce, Leo Bodnar, PXN (PR #18), Cammus
 - **Protocol Documentation**: All supported devices documented in `docs/protocols/`; VID/PID constants locked to `docs/protocols/SOURCES.md` via `id_verification.rs` test suites in all 15 HID vendor crates
-- **Test Infrastructure**: 9,939 tests, 84 fuzz targets, 936 snapshot files, property-based tests (proptest), E2E journey tests; all HID crates have cross-reference id_verification suites
+- **Test Infrastructure**: 21,043+ tests, 104 fuzz targets, 1,327 snapshot files, property-based tests (proptest), E2E journey tests; all HID crates have cross-reference id_verification suites
 
 **Architecture**: Established via ADRs 0001-0008 (FFB Mode Matrix, IPC Transport, OWP-1 Protocol, RT Scheduling, Plugin Architecture, Safety Interlocks, Multi-Vendor HID Protocol Architecture, Game Auto-Configure and Telemetry Bridge)
 
@@ -139,8 +139,9 @@ Phase 3 is complete when ALL of the following are true:
 - [x] Automatic profile schema version detection
 - [x] Profile migration with backup creation (idempotent)
 
-### Phase 4: Ecosystem & Polish
+### Phase 4: Ecosystem & Polish (in progress)
 - [ ] **Device Ecosystem Tools**
+    - [x] `hid-capture` device capture and fingerprinting tooling (379+ tests — waves 34, 38, 41)
     - [ ] `openracing-capture` utility (protocol sniffer/mapper)
     - [ ] Device protocol reverse engineering toolkit
 - [ ] **macOS Support**
@@ -184,7 +185,7 @@ The following TODOs exist in the codebase and should be addressed before v1.0.0:
 | v0.1.0  | 2025-01-01 | ✅ Released | Core Engine & Linux Support |
 | v0.2.0  | 2026-02-01 | ✅ Released | Windows Support & Tauri UI |
 | v0.3.0  | 2026-02-01 | ✅ Released | WASM Plugins, Game Telemetry, Curve FFB |
-| v1.0 RC | 2026-Q3   | ✅ Feature complete | Multi-vendor devices, 56 telemetry adapter modules, safety hardening, 9,939 tests |
+| v1.0 RC | 2026-Q3   | ✅ Feature complete | Multi-vendor devices, 56 telemetry adapter modules, safety hardening, 21,043+ tests |
 | v1.0.0  | 2026-10-15 | Planned | Production Release with Security Audit |
 
 ## Contributing
@@ -194,4 +195,4 @@ See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for development setup and contr
 Significant architectural changes require an ADR. See [docs/adr/README.md](docs/adr/README.md) for the process.
 
 ---
-*Last updated: 2026-Q3. This roadmap reflects the 1.0 RC feature-complete state.*
+*Last updated: 2026-Q3. This roadmap reflects the 1.0 RC feature-complete state with 21,043+ tests across waves 15-41.*

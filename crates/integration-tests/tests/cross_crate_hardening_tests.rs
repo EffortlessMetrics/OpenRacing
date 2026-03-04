@@ -489,8 +489,8 @@ fn game_support_matrix_stable_games_have_adapter() -> Result<(), Box<dyn std::er
 
     let mut missing = Vec::new();
     for game_id in &stable {
-        if !adapter_ids.contains(game_id.as_str()) {
-            missing.push(game_id.as_str());
+        if !adapter_ids.contains(&**game_id) {
+            missing.push(&**game_id);
         }
     }
 
@@ -875,7 +875,7 @@ fn system_config_default_game_entries_match_adapter_registry()
     // Every game in the default SystemConfig should have a corresponding adapter
     for game_id in config.games.supported_games.keys() {
         assert!(
-            adapter_ids.contains(game_id.as_str()),
+            adapter_ids.contains(&**game_id),
             "SystemConfig game '{game_id}' has no matching adapter in the registry"
         );
     }

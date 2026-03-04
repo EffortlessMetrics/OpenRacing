@@ -174,10 +174,18 @@ fn parse_sled_common(data: &[u8]) -> NormalizedTelemetry {
     let accel_z = read_f32_le(data, OFF_ACCEL_Z).unwrap_or(0.0);
 
     // Tire slip ratios (longitudinal)
-    let slip_ratio_fl = read_f32_le(data, OFF_TIRE_SLIP_RATIO_FL).unwrap_or(0.0).abs();
-    let slip_ratio_fr = read_f32_le(data, OFF_TIRE_SLIP_RATIO_FR).unwrap_or(0.0).abs();
-    let slip_ratio_rl = read_f32_le(data, OFF_TIRE_SLIP_RATIO_RL).unwrap_or(0.0).abs();
-    let slip_ratio_rr = read_f32_le(data, OFF_TIRE_SLIP_RATIO_RR).unwrap_or(0.0).abs();
+    let slip_ratio_fl = read_f32_le(data, OFF_TIRE_SLIP_RATIO_FL)
+        .unwrap_or(0.0)
+        .abs();
+    let slip_ratio_fr = read_f32_le(data, OFF_TIRE_SLIP_RATIO_FR)
+        .unwrap_or(0.0)
+        .abs();
+    let slip_ratio_rl = read_f32_le(data, OFF_TIRE_SLIP_RATIO_RL)
+        .unwrap_or(0.0)
+        .abs();
+    let slip_ratio_rr = read_f32_le(data, OFF_TIRE_SLIP_RATIO_RR)
+        .unwrap_or(0.0)
+        .abs();
     let avg_slip_ratio = (slip_ratio_fl + slip_ratio_fr + slip_ratio_rl + slip_ratio_rr) / 4.0;
 
     // Tire slip angles

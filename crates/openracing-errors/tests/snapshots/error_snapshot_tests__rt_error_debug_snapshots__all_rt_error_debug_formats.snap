@@ -1,0 +1,14 @@
+---
+source: crates/openracing-errors/tests/error_snapshot_tests.rs
+expression: "formatted.join(\"\\n\")"
+---
+DeviceDisconnected
+TorqueLimit
+PipelineFault
+TimingViolation
+RTSetupFailed
+SafetyInterlock
+InvalidConfig
+BufferOverflow
+DeadlineMissed
+ResourceUnavailable

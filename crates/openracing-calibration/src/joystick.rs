@@ -37,6 +37,18 @@ impl JoystickCalibrator {
     }
 
     /// Records a raw sample paired with its expected normalized value.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_calibration::JoystickCalibrator;
+    ///
+    /// let mut cal = JoystickCalibrator::new(0);
+    /// cal.add_sample(0, 0.0);
+    /// cal.add_sample(32768, 0.5);
+    /// cal.add_sample(65535, 1.0);
+    /// // Samples are stored for calibration
+    /// ```
     pub fn add_sample(&mut self, raw: u16, expected_normalized: f32) {
         self.points
             .push(CalibrationPoint::new(raw, expected_normalized));
@@ -72,12 +84,40 @@ impl JoystickCalibrator {
     }
 
     /// Discards all collected samples.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_calibration::JoystickCalibrator;
+    ///
+    /// let mut cal = JoystickCalibrator::new(0);
+    /// cal.add_sample(100, 0.0);
+    /// cal.reset();
+    /// assert!(cal.calibrate().is_err());
+    /// ```
     pub fn reset(&mut self) {
         self.points.clear();
     }
 }
 
 /// Convenience function to calibrate a joystick axis from `(raw, normalized)` pairs.
+///
+/// # Examples
+///
+/// ```
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// use openracing_calibration::calibrate_joystick_axis;
+///
+/// let samples = &[(0, 0.0), (32768, 0.5), (65535, 1.0)];
+/// let axis = calibrate_joystick_axis(samples)?;
+///
+/// assert_eq!(axis.min, 0);
+/// assert_eq!(axis.max, 65535);
+/// // Center detected from the 0.5 sample
+/// assert!(axis.center.is_some());
+/// # Ok(())
+/// # }
+/// ```
 pub fn calibrate_joystick_axis(samples: &[(u16, f32)]) -> CalibrationResult<AxisCalibration> {
     let mut calibrator = JoystickCalibrator::new(0);
     for (raw, normalized) in samples {

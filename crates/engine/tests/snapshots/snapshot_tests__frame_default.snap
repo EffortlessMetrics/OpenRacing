@@ -1,0 +1,12 @@
+---
+source: crates/engine/tests/snapshot_tests.rs
+expression: "Frame::default()"
+---
+{
+  "ffb_in": 0.0,
+  "torque_out": 0.0,
+  "wheel_speed": 0.0,
+  "hands_off": false,
+  "ts_mono_ns": 0,
+  "seq": 0
+}

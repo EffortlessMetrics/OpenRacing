@@ -1,0 +1,5 @@
+---
+source: crates/hid-heusinkveld-protocol/tests/snapshot_encoding.rs
+expression: "vids.join(\", \")"
+---
+0x0000=false, 0x30B7=true, 0x04D8=true, 0x10C4=true, 0xA020=true, 0x16D0=false, 0xFFFF=false

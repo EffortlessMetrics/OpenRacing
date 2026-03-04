@@ -1,0 +1,11 @@
+error[E0603]: struct `RTContext` is private
+ --> tests/compile_fail/rt_context_not_public.rs:6:34
+  |
+6 | use racing_wheel_engine::engine::RTContext;
+  |                                  ^^^^^^^^^ private struct
+  |
+note: the struct `RTContext` is defined here
+ --> src/engine.rs
+  |
+  | struct RTContext {
+  | ^^^^^^^^^^^^^^^^

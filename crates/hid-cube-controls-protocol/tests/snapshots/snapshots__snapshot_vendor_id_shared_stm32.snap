@@ -1,0 +1,5 @@
+---
+source: crates/hid-cube-controls-protocol/tests/snapshots.rs
+expression: "format!(\"VID={:#06x} (STMicroelectronics shared), is_cube_gt={}, is_cube_formula={}, is_cube_csx3={}\",\nCUBE_CONTROLS_VENDOR_ID, is_cube_controls_product(CUBE_CONTROLS_GT_PRO_PID),\nis_cube_controls_product(CUBE_CONTROLS_FORMULA_PRO_PID),\nis_cube_controls_product(CUBE_CONTROLS_CSX3_PID))"
+---
+"VID=0x0483 (STMicroelectronics shared), is_cube_gt=true, is_cube_formula=true, is_cube_csx3=true"

@@ -1,0 +1,5 @@
+---
+source: crates/openracing-diagnostic/tests/snapshot_tests.rs
+expression: output
+---
+WbbHeader { magic: [87, 66, 66, 49], version: 1, device_id: "test-device-001", ffb_mode: 1, stream_flags: 0x07, compression_level: 6, has_stream_a: true, has_stream_b: true, has_stream_c: true }

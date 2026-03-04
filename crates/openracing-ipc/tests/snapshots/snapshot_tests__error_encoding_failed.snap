@@ -1,0 +1,5 @@
+---
+source: crates/openracing-ipc/tests/snapshot_tests.rs
+expression: "format!(\"{err}\")"
+---
+Message encoding failed: message size 20000000 exceeds maximum 16777216

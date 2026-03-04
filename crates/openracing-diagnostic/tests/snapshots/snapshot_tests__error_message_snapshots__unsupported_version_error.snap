@@ -1,0 +1,5 @@
+---
+source: crates/openracing-diagnostic/tests/snapshot_tests.rs
+expression: "DiagnosticError::UnsupportedVersion(99).to_string()"
+---
+Unsupported version: 99

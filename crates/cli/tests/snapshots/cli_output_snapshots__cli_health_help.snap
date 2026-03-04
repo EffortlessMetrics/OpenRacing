@@ -1,0 +1,13 @@
+---
+source: crates/cli/tests/cli_output_snapshots.rs
+expression: stdout
+---
+Service health and status
+
+Usage: wheelctl health [OPTIONS]
+
+Options:
+      --json        Output in JSON format for machine parsing
+  -w, --watch       Watch health events in real-time
+  -v, --verbose...  Verbose logging
+  -h, --help        Print help

@@ -1,0 +1,19 @@
+---
+source: crates/cli/tests/cli_output_snapshots.rs
+expression: diag
+---
+{
+  "device_id": "wheel-001",
+  "performance": {
+    "missed_tick_rate": 0.0001,
+    "missed_ticks": 1,
+    "p99_jitter_us": 0.15,
+    "total_ticks": 1000000
+  },
+  "recent_faults": [],
+  "success": true,
+  "system_info": {
+    "arch": "x86_64",
+    "os": "windows"
+  }
+}

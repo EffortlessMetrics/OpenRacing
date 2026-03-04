@@ -1,0 +1,5 @@
+---
+source: crates/openracing-native-plugin/tests/snapshot_expansion_tests.rs
+expression: "format!(\"{}\", err)"
+---
+ABI version mismatch: expected 3, got 1

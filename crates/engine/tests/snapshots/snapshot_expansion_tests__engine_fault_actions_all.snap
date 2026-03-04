@@ -1,0 +1,11 @@
+---
+source: crates/engine/tests/snapshot_expansion_tests.rs
+expression: actions
+---
+[
+    SoftStop,
+    Quarantine,
+    LogAndContinue,
+    Restart,
+    SafeMode,
+]

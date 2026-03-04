@@ -1,0 +1,10 @@
+---
+source: crates/cli/tests/cli_output_snapshots.rs
+expression: event
+---
+{
+  "device_id": "wheel-001",
+  "event_type": "PerformanceWarning",
+  "message": "High jitter detected",
+  "metadata": {}
+}

@@ -671,14 +671,10 @@ mod tests {
     #[test]
     fn mock_registry_ids_unique() {
         let plugins = get_mock_registry_plugins();
-        let mut ids: Vec<&str> = plugins.iter().map(|p| p.id.as_str()).collect();
+        let mut ids: Vec<&str> = plugins.iter().map(|p| &*p.id).collect();
         ids.sort();
         ids.dedup();
-        assert_eq!(
-            ids.len(),
-            plugins.len(),
-            "all plugin IDs should be unique"
-        );
+        assert_eq!(ids.len(), plugins.len(), "all plugin IDs should be unique");
     }
 
     #[test]
@@ -774,7 +770,11 @@ mod tests {
         let category = "led";
         let filtered: Vec<_> = plugins
             .iter()
-            .filter(|p| p.description.to_lowercase().contains(&category.to_lowercase()))
+            .filter(|p| {
+                p.description
+                    .to_lowercase()
+                    .contains(&category.to_lowercase())
+            })
             .collect();
         assert!(!filtered.is_empty());
         assert!(filtered.iter().any(|p| p.id == "led-dashboard"));

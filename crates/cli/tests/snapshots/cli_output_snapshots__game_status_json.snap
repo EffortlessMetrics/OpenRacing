@@ -1,0 +1,11 @@
+---
+source: crates/cli/tests/cli_output_snapshots.rs
+expression: game
+---
+{
+  "active_game": "iracing",
+  "car_id": "gt3",
+  "success": true,
+  "telemetry_active": true,
+  "track_id": "spa"
+}

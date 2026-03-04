@@ -1,0 +1,5 @@
+---
+source: crates/schemas/tests/snapshot_expansion_tests.rs
+expression: "format!(\"{}\", err)"
+---
+No migration path from wheel.profile/1 to wheel.profile/5

@@ -1,0 +1,12 @@
+---
+source: crates/hid-cube-controls-protocol/tests/snapshots.rs
+expression: summary
+---
+[
+    "PID=0x0c72: model=Unknown, matched=false",
+    "PID=0x0c73: model=GtPro, matched=true",
+    "PID=0x0c74: model=FormulaPro, matched=true",
+    "PID=0x0c75: model=Csx3, matched=true",
+    "PID=0x0c76: model=Unknown, matched=false",
+    "PID=0x0000: model=Unknown, matched=false",
+]

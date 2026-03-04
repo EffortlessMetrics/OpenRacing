@@ -1,0 +1,9 @@
+---
+source: crates/hid-pxn-protocol/tests/snapshot_encoding.rs
+expression: "names.join(\"\\n\")"
+---
+0x3245 -> Some("PXN V10")
+0x1212 -> Some("PXN V12")
+0x1112 -> Some("PXN V12 Lite")
+0x1211 -> Some("PXN V12 Lite (SE)")
+0x2141 -> Some("Lite Star GT987 FF")

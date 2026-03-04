@@ -250,6 +250,18 @@ impl DeviceTelemetryReport {
         }
     }
 
+    /// Get temperature in Celsius (new-name accessor for the wire-level field)
+    pub fn temperature_c(&self) -> u8 {
+        let Self { temp_c: val, .. } = *self;
+        val
+    }
+
+    /// Get fault flags (new-name accessor for the wire-level field)
+    pub fn fault_flags(&self) -> u8 {
+        let Self { faults: val, .. } = *self;
+        val
+    }
+
     /// Check if any faults are present
     pub fn has_faults(&self) -> bool {
         self.faults != 0

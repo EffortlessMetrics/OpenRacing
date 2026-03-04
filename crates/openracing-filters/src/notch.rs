@@ -87,6 +87,16 @@ impl NotchState {
     }
 
     /// Create a bypass filter (no filtering).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_filters::NotchState;
+    ///
+    /// let state = NotchState::bypass();
+    /// // Bypass passes input through unchanged
+    /// assert!((state.b0 - 1.0).abs() < f32::EPSILON);
+    /// ```
     pub fn bypass() -> Self {
         Self {
             b0: 1.0,
@@ -102,6 +112,15 @@ impl NotchState {
     }
 
     /// Create a low-pass filter.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_filters::NotchState;
+    ///
+    /// let state = NotchState::lowpass(200.0, 0.707, 1000.0);
+    /// assert!(state.is_stable());
+    /// ```
     pub fn lowpass(frequency: f32, q: f32, sample_rate: f32) -> Self {
         let omega = 2.0 * PI * frequency / sample_rate;
         let q_clamped = q.clamp(0.1, 10.0);
@@ -128,6 +147,15 @@ impl NotchState {
     }
 
     /// Check if the filter coefficients are stable.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_filters::NotchState;
+    ///
+    /// let bypass = NotchState::bypass();
+    /// assert!(bypass.is_stable());
+    /// ```
     pub fn is_stable(&self) -> bool {
         // Stability condition for biquad: poles must be inside unit circle
         // Simplified check: |a1| + |a2| < 1 is a sufficient condition

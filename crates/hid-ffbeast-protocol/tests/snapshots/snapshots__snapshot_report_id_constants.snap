@@ -1,0 +1,5 @@
+---
+source: crates/hid-ffbeast-protocol/tests/snapshots.rs
+expression: "format!(\"CONSTANT_FORCE_ID={:#04X}, CONSTANT_FORCE_LEN={}, ENABLE_FFB_ID={:#04X}, GAIN_ID={:#04X}\",\nffbeast::CONSTANT_FORCE_REPORT_ID, ffbeast::CONSTANT_FORCE_REPORT_LEN,\nffbeast::output::ENABLE_FFB_REPORT_ID, ffbeast::GAIN_REPORT_ID,)"
+---
+"CONSTANT_FORCE_ID=0x01, CONSTANT_FORCE_LEN=5, ENABLE_FFB_ID=0x60, GAIN_ID=0x61"

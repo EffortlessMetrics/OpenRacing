@@ -1,0 +1,20 @@
+---
+source: crates/hid-button-box-protocol/tests/snapshot_encoding.rs
+expression: "results.join(\"\\n\")"
+---
+0x00 -> Up
+0x01 -> UpRight
+0x02 -> Right
+0x03 -> DownRight
+0x04 -> Down
+0x05 -> DownLeft
+0x06 -> Left
+0x07 -> UpLeft
+0x08 -> Neutral
+0x09 -> Neutral
+0x0A -> Neutral
+0x0B -> Neutral
+0x0C -> Neutral
+0x0D -> Neutral
+0x0E -> Neutral
+0x0F -> Neutral

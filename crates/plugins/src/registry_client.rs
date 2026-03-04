@@ -809,13 +809,14 @@ mod tests {
 
     #[tokio::test]
     async fn test_registry_config_builder() -> Result<()> {
+        let cache_dir = std::env::temp_dir().join("openracing-test-cache");
         let config = RemoteRegistryConfig::new("https://custom.registry.io")
-            .with_cache_dir(PathBuf::from("/tmp/cache"))
+            .with_cache_dir(cache_dir.clone())
             .with_refresh_interval(Duration::from_secs(1800))
             .with_require_signed_index(false);
 
         assert_eq!(config.registry_url, "https://custom.registry.io");
-        assert_eq!(config.cache_dir, PathBuf::from("/tmp/cache"));
+        assert_eq!(config.cache_dir, cache_dir);
         assert_eq!(config.refresh_interval, Duration::from_secs(1800));
         assert!(!config.require_signed_index);
         Ok(())

@@ -1,0 +1,5 @@
+---
+source: crates/hid-cube-controls-protocol/tests/snapshot_encoding.rs
+expression: "format!(\"0x{CUBE_CONTROLS_VENDOR_ID:04X}\")"
+---
+0x0483

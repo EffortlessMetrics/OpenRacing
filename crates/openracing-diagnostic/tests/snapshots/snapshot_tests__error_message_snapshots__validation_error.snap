@@ -1,0 +1,5 @@
+---
+source: crates/openracing-diagnostic/tests/snapshot_tests.rs
+expression: "DiagnosticError::Validation(\"frame count mismatch in footer\".into()).to_string()"
+---
+Validation error: frame count mismatch in footer

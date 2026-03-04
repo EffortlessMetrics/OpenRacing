@@ -2,6 +2,48 @@
 //!
 //! This crate provides standardized force feedback effect definitions
 //! that can be used across different wheel protocols.
+//!
+//! # Effect Composition
+//!
+//! ```
+//! use openracing_ffb::{ConstantEffect, SpringEffect, DamperEffect, FfbGain};
+//!
+//! // Combine effects for realistic force feedback
+//! let constant = ConstantEffect::new(500);
+//! let spring = SpringEffect::new(800);
+//! let damper = DamperEffect::new(300);
+//!
+//! // Apply a global gain to scale all effects
+//! let gain = FfbGain::new(0.7);
+//! let scaled_constant = constant.apply_gain(gain.combined());
+//!
+//! // Combine spring and damper at a given wheel position and velocity
+//! let position: i16 = 100;
+//! let velocity: i16 = 50;
+//! let spring_force = spring.calculate(position);
+//! let damper_force = damper.calculate(velocity);
+//! let total = (spring_force as i32 + damper_force as i32)
+//!     .clamp(i16::MIN as i32, i16::MAX as i32) as i16;
+//!
+//! assert_ne!(total, 0);
+//! ```
+//!
+//! # Torque Calculation
+//!
+//! ```
+//! use openracing_ffb::{ConstantEffect, FfbGain};
+//!
+//! let effect = ConstantEffect::new(10000);
+//!
+//! // Full gain preserves magnitude
+//! assert_eq!(effect.apply_gain(1.0), 10000);
+//!
+//! // Half gain halves the torque
+//! assert_eq!(effect.apply_gain(0.5), 5000);
+//!
+//! // Zero gain silences the effect
+//! assert_eq!(effect.apply_gain(0.0), 0);
+//! ```
 
 #![deny(unsafe_op_in_unsafe_fn)]
 #![deny(clippy::unwrap_used)]
@@ -44,6 +86,21 @@ impl FfbGain {
     /// Creates a new gain with the given overall level, clamped to `[0.0, 1.0]`.
     ///
     /// Torque and effect sub-gains default to `1.0` (full strength).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_ffb::FfbGain;
+    ///
+    /// let gain = FfbGain::new(0.8);
+    /// assert!((gain.overall - 0.8).abs() < f32::EPSILON);
+    /// assert!((gain.torque - 1.0).abs() < f32::EPSILON);
+    /// assert!((gain.effects - 1.0).abs() < f32::EPSILON);
+    ///
+    /// // Values are clamped to [0.0, 1.0]
+    /// let clamped = FfbGain::new(1.5);
+    /// assert!((clamped.overall - 1.0).abs() < f32::EPSILON);
+    /// ```
     pub fn new(overall: f32) -> Self {
         Self {
             overall: overall.clamp(0.0, 1.0),
@@ -53,18 +110,48 @@ impl FfbGain {
     }
 
     /// Sets the torque sub-gain, clamped to `[0.0, 1.0]`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_ffb::FfbGain;
+    ///
+    /// let gain = FfbGain::new(1.0).with_torque(0.5);
+    /// assert!((gain.torque - 0.5).abs() < f32::EPSILON);
+    /// assert!((gain.combined() - 0.5).abs() < f32::EPSILON);
+    /// ```
     pub fn with_torque(mut self, torque: f32) -> Self {
         self.torque = torque.clamp(0.0, 1.0);
         self
     }
 
     /// Sets the effects sub-gain, clamped to `[0.0, 1.0]`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_ffb::FfbGain;
+    ///
+    /// let gain = FfbGain::new(1.0).with_effects(0.3);
+    /// assert!((gain.effects - 0.3).abs() < f32::EPSILON);
+    /// assert!((gain.combined() - 0.3).abs() < f32::EPSILON);
+    /// ```
     pub fn with_effects(mut self, effects: f32) -> Self {
         self.effects = effects.clamp(0.0, 1.0);
         self
     }
 
     /// Returns the product of all three gain factors (`overall × torque × effects`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_ffb::FfbGain;
+    ///
+    /// let gain = FfbGain::new(0.8).with_torque(0.5).with_effects(0.5);
+    /// let combined = gain.combined();
+    /// assert!((combined - 0.2).abs() < 0.001);
+    /// ```
     pub fn combined(&self) -> f32 {
         self.overall * self.torque * self.effects
     }
@@ -109,6 +196,18 @@ impl FfbDirection {
     }
 
     /// Converts the direction to radians.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_ffb::FfbDirection;
+    ///
+    /// let dir = FfbDirection::new(180.0);
+    /// assert!((dir.to_radians() - std::f32::consts::PI).abs() < 0.001);
+    ///
+    /// let dir = FfbDirection::new(90.0);
+    /// assert!((dir.to_radians() - std::f32::consts::FRAC_PI_2).abs() < 0.001);
+    /// ```
     pub fn to_radians(&self) -> f32 {
         self.degrees.to_radians()
     }

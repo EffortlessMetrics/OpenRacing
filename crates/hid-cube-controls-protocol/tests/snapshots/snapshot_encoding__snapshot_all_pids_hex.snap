@@ -1,0 +1,5 @@
+---
+source: crates/hid-cube-controls-protocol/tests/snapshot_encoding.rs
+expression: "formatted.join(\", \")"
+---
+GT Pro: 0x0C73, Formula Pro: 0x0C74, CSX3: 0x0C75

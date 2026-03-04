@@ -1,0 +1,23 @@
+---
+source: crates/engine/tests/engine_snapshot_tests.rs
+expression: telemetry
+---
+{
+  "ffb_scalar": 0.75,
+  "rpm": 7200.0,
+  "speed_ms": 55.5,
+  "slip_ratio": 0.12,
+  "gear": 4,
+  "flags": {
+    "yellow_flag": false,
+    "red_flag": false,
+    "blue_flag": true,
+    "checkered_flag": false,
+    "pit_limiter": false,
+    "drs_enabled": true,
+    "ers_available": true,
+    "in_pit": false
+  },
+  "car_id": "gt3_992",
+  "track_id": "spa"
+}

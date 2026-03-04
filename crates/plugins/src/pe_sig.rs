@@ -130,10 +130,7 @@ impl PeSignatureExtractor {
         let pe = match PE::parse(&file_data) {
             Ok(pe) => pe,
             Err(e) => {
-                return Err(PeSigError::InvalidPe(format!(
-                    "Failed to parse PE: {}",
-                    e
-                )));
+                return Err(PeSigError::InvalidPe(format!("Failed to parse PE: {}", e)));
             }
         };
 
@@ -169,10 +166,7 @@ impl PeSignatureExtractor {
         let pe = match PE::parse(&file_data) {
             Ok(pe) => pe,
             Err(e) => {
-                return Err(PeSigError::InvalidPe(format!(
-                    "Failed to parse PE: {}",
-                    e
-                )));
+                return Err(PeSigError::InvalidPe(format!("Failed to parse PE: {}", e)));
             }
         };
 
@@ -275,15 +269,11 @@ impl PeSignatureExtractor {
 
         // Extract optional timestamp (8 bytes) if present
         let timestamp = if data.len() >= MIN_SIZE + 8 {
-            let ts_bytes: [u8; 8] = data[104..112]
-                .try_into()
-                .map_err(|_| PeSigError::MalformedSignature("Invalid timestamp bytes".to_string()))?;
+            let ts_bytes: [u8; 8] = data[104..112].try_into().map_err(|_| {
+                PeSigError::MalformedSignature("Invalid timestamp bytes".to_string())
+            })?;
             let ts = u64::from_le_bytes(ts_bytes);
-            if ts > 0 {
-                Some(ts)
-            } else {
-                None
-            }
+            if ts > 0 { Some(ts) } else { None }
         } else {
             None
         };
@@ -320,7 +310,9 @@ impl PeSignatureExtractor {
     fn parse_json_signature(&self, data: &[u8]) -> Result<EmbeddedSignature, PeSigError> {
         // Try to parse as JSON
         let json_str = std::str::from_utf8(data).map_err(|_| {
-            PeSigError::MalformedSignature("Signature section is not valid UTF-8 or binary format".to_string())
+            PeSigError::MalformedSignature(
+                "Signature section is not valid UTF-8 or binary format".to_string(),
+            )
         })?;
 
         #[derive(serde::Deserialize)]
@@ -337,19 +329,27 @@ impl PeSignatureExtractor {
         })?;
 
         // Decode base64 signature
-        let signature_bytes =
-            base64::Engine::decode(&base64::engine::general_purpose::STANDARD, &json_sig.signature)
-                .map_err(|e| {
-                    PeSigError::MalformedSignature(format!("Invalid base64 signature: {}", e))
-                })?;
+        let signature_bytes = base64::Engine::decode(
+            &base64::engine::general_purpose::STANDARD,
+            &json_sig.signature,
+        )
+        .map_err(|e| PeSigError::MalformedSignature(format!("Invalid base64 signature: {}", e)))?;
 
-        // Compute hash of the signature itself as a placeholder
-        // (actual signed data hash should be computed separately)
-        let mut hasher = Sha256::new();
-        hasher.update(&signature_bytes);
-        let hash_result = hasher.finalize();
-        let mut signed_data_hash = [0u8; 32];
-        signed_data_hash.copy_from_slice(&hash_result);
+        // TODO(security): The JSON signature format does not include the signed
+        // data hash. We set it to all zeros so that any caller comparing this hash
+        // against a computed binary hash will detect a mismatch and FAIL verification
+        // rather than silently accepting. Callers MUST recompute the content hash via
+        // `compute_signed_data_hash()` and compare it against independently obtained
+        // expected values.
+        //
+        // Tracking: replace this stub once the JSON signature spec includes a
+        // `signed_data_hash` field, or remove the JSON format entirely in favor
+        // of the binary ORSIG format.
+        tracing::warn!(
+            "PE JSON signature extracted without signed_data_hash; \
+             callers must compute content hash separately via compute_signed_data_hash()"
+        );
+        let signed_data_hash = [0u8; 32];
 
         // Parse timestamp if present
         let timestamp = json_sig.timestamp.as_ref().and_then(|ts| {
@@ -383,10 +383,7 @@ impl PeSignatureExtractor {
         let pe = match PE::parse(&file_data) {
             Ok(pe) => pe,
             Err(e) => {
-                return Err(PeSigError::InvalidPe(format!(
-                    "Failed to parse PE: {}",
-                    e
-                )));
+                return Err(PeSigError::InvalidPe(format!("Failed to parse PE: {}", e)));
             }
         };
 
@@ -401,9 +398,8 @@ impl PeSignatureExtractor {
             let name = name.trim_end_matches('\0');
             if name == PE_SIGNATURE_SECTION {
                 sig_start = Some(section.pointer_to_raw_data as usize);
-                sig_end = Some(
-                    section.pointer_to_raw_data as usize + section.size_of_raw_data as usize,
-                );
+                sig_end =
+                    Some(section.pointer_to_raw_data as usize + section.size_of_raw_data as usize);
                 break;
             }
         }
@@ -593,7 +589,10 @@ mod tests {
         let extractor = PeSignatureExtractor::new();
         let result = extractor.extract_signature(temp_file.path())?;
 
-        assert!(result.is_none(), "Expected no signature for PE without .orsig section");
+        assert!(
+            result.is_none(),
+            "Expected no signature for PE without .orsig section"
+        );
 
         Ok(())
     }
@@ -638,7 +637,8 @@ mod tests {
         let timestamp = 1700000000u64;
         let fingerprint = "abc123def456";
 
-        let sig_data = create_binary_signature(&signature, &hash, Some(timestamp), Some(fingerprint));
+        let sig_data =
+            create_binary_signature(&signature, &hash, Some(timestamp), Some(fingerprint));
         let pe_data = create_mock_pe_binary(Some(&sig_data));
 
         let mut temp_file = NamedTempFile::new()?;
@@ -789,10 +789,7 @@ mod tests {
         let embedded_sig = result.ok_or("Expected Some")?;
         assert_eq!(embedded_sig.signature, signature.to_vec());
         assert_eq!(embedded_sig.signed_data_hash, hash);
-        assert!(
-            embedded_sig.timestamp.is_none(),
-            "Expected no timestamp"
-        );
+        assert!(embedded_sig.timestamp.is_none(), "Expected no timestamp");
         assert!(
             embedded_sig.signer_fingerprint.is_none(),
             "Expected no fingerprint"

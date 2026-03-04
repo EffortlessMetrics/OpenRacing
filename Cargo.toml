@@ -49,6 +49,7 @@ members = [
     "crates/openracing-hid-common",
     "crates/openracing-shifter",
     "crates/openracing-handbrake",
+    "crates/openracing-telemetry-streams",
     "crates/openracing-ffb",
     "crates/openracing-calibration",
     "crates/engine",
@@ -162,6 +163,7 @@ quickcheck_macros = "1.1.0"
 hdrhistogram = "7.5.4"
 insta = "1.42.2"
 mockall = "0.14.0"
+tokio-test = "0.4"
 wiremock = "0.6.5"
 statistical = "1.0.0"
 uuid = { version = "1.20.0", features = ["v4"] }

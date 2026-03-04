@@ -8,12 +8,12 @@
 //! - Security types (signature verification config, trust level checks)
 
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 
 use openracing_crypto::trust_store::TrustStore;
-use openracing_crypto::{Ed25519Signer, Ed25519Verifier, KeyPair, PublicKey, TrustLevel};
 use openracing_crypto::verification::ContentType;
+use openracing_crypto::{Ed25519Signer, Ed25519Verifier, KeyPair, PublicKey, TrustLevel};
 use openracing_native_plugin::error::{NativePluginError, NativePluginLoadError};
 use openracing_native_plugin::plugin::{PluginFrame, SharedMemoryHeader};
 use openracing_native_plugin::signature::{
@@ -108,10 +108,7 @@ fn spsc_write_read_round_trip() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     let frame_bytes = unsafe {
-        std::slice::from_raw_parts(
-            &frame as *const PluginFrame as *const u8,
-            frame_size,
-        )
+        std::slice::from_raw_parts(&frame as *const PluginFrame as *const u8, frame_size)
     };
 
     writer.write(frame_bytes)?;
@@ -372,11 +369,9 @@ fn error_spsc_write_wrong_frame_size() -> Result<(), Box<dyn std::error::Error>>
     // Too small
     let result = writer.write(&[0u8; 32]);
     assert!(result.is_err());
-    let err_msg = result.as_ref().err().map_or("".to_string(), |e| {
-        match e {
-            NativePluginError::SharedMemoryError(msg) => msg.clone(),
-            _ => String::new(),
-        }
+    let err_msg = result.as_ref().err().map_or("".to_string(), |e| match e {
+        NativePluginError::SharedMemoryError(msg) => msg.clone(),
+        _ => String::new(),
     });
     assert!(err_msg.contains("mismatch") || err_msg.contains("size"));
 
@@ -543,7 +538,10 @@ fn error_load_error_to_plugin_error_conversion() {
         path: "/test.so".to_string(),
     };
     let plugin_err: NativePluginError = load_err.into();
-    assert!(matches!(plugin_err, NativePluginError::UnsignedPlugin { .. }));
+    assert!(matches!(
+        plugin_err,
+        NativePluginError::UnsignedPlugin { .. }
+    ));
 
     let load_err = NativePluginLoadError::UntrustedSigner {
         fingerprint: "fp123".to_string(),
@@ -744,7 +742,10 @@ fn security_trust_store_integration() {
             .is_ok()
     );
 
-    assert_eq!(trust_store.get_trust_level(&fingerprint), TrustLevel::Trusted);
+    assert_eq!(
+        trust_store.get_trust_level(&fingerprint),
+        TrustLevel::Trusted
+    );
 
     // Unknown key returns Unknown trust level
     assert_eq!(

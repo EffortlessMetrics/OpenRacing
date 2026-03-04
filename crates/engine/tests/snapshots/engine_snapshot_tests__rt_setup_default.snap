@@ -1,0 +1,10 @@
+---
+source: crates/engine/tests/engine_snapshot_tests.rs
+expression: "RTSetup::default()"
+---
+RTSetup {
+    high_priority: true,
+    lock_memory: true,
+    disable_power_throttling: true,
+    cpu_affinity: None,
+}

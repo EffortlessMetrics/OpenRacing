@@ -1,0 +1,5 @@
+---
+source: crates/openracing-ipc/tests/snapshot_tests.rs
+expression: "format!(\"{bytes:02x?}\")"
+---
+[04, 00, 00, 04, 00, 00, 2a, 00, 00, 00, 12, 00]

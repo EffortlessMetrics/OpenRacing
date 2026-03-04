@@ -8,7 +8,7 @@
 
 use proptest::prelude::*;
 use racing_wheel_hid_moza_protocol::{
-    DeviceSignature, MozaDeviceCategory, SignatureVerdict, MOZA_VENDOR_ID, identify_device,
+    DeviceSignature, MOZA_VENDOR_ID, MozaDeviceCategory, SignatureVerdict, identify_device,
     product_ids, verify_signature,
 };
 

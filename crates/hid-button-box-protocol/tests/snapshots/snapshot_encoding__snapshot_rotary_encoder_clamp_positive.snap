@@ -1,0 +1,5 @@
+---
+source: crates/hid-button-box-protocol/tests/snapshot_encoding.rs
+expression: "format!(\"pos={}, delta={}\", encoder.position, encoder.delta)"
+---
+pos=200, delta=127

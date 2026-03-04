@@ -1,0 +1,5 @@
+---
+source: crates/openracing-errors/tests/snapshot_tests.rs
+expression: "ValidationError::custom(\"profile name cannot start with a dot\").to_string()"
+---
+Validation error: profile name cannot start with a dot

@@ -1,0 +1,19 @@
+---
+source: crates/openracing-errors/tests/error_snapshot_tests.rs
+expression: "formatted.join(\"\\n\")"
+---
+RT_DeviceDisconnected: recoverable=false, severity=CRITICAL, category=RT
+RT_TorqueLimit: recoverable=false, severity=CRITICAL, category=RT
+RT_PipelineFault: recoverable=true, severity=ERROR, category=RT
+RT_TimingViolation: recoverable=true, severity=WARN, category=RT
+RT_SafetyInterlock: recoverable=false, severity=CRITICAL, category=RT
+RT_BufferOverflow: recoverable=true, severity=WARN, category=RT
+RT_DeadlineMissed: recoverable=false, severity=CRITICAL, category=RT
+Device_NotFound: recoverable=true, severity=ERROR, category=Device
+Device_Timeout: recoverable=true, severity=WARN, category=Device
+Profile_NotFound: recoverable=true, severity=ERROR, category=Profile
+Profile_CircularInheritance: recoverable=true, severity=ERROR, category=Profile
+Validation_Required: recoverable=true, severity=ERROR, category=Validation
+Config: recoverable=true, severity=ERROR, category=Config
+Other: recoverable=true, severity=ERROR, category=Other
+Io: recoverable=true, severity=ERROR, category=IO

@@ -1,0 +1,5 @@
+---
+source: crates/openracing-ipc/tests/snapshot_tests.rs
+expression: "format!(\"{err}\")"
+---
+Version incompatibility: client 0.9.0 is not compatible with server 1.0.0

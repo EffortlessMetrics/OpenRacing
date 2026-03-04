@@ -1,0 +1,5 @@
+---
+source: crates/openracing-errors/tests/error_snapshot_tests.rs
+expression: "format!(\"{:?}\", ProfileError::InvalidDeviceMapping\n{ profile: \"drift-pro\".into(), device: \"nonexistent-wheel\".into(), })"
+---
+InvalidDeviceMapping { profile: "drift-pro", device: "nonexistent-wheel" }

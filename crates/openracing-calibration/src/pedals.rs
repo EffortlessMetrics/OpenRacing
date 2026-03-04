@@ -41,6 +41,17 @@ impl PedalCalibrator {
     }
 
     /// Records a raw throttle reading.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_calibration::PedalCalibrator;
+    ///
+    /// let mut cal = PedalCalibrator::new();
+    /// cal.add_throttle(100);
+    /// cal.add_throttle(900);
+    /// // Samples are collected for later calibration
+    /// ```
     pub fn add_throttle(&mut self, raw: u16) {
         self.throttle_samples.push(raw);
     }
@@ -87,6 +98,20 @@ impl PedalCalibrator {
     }
 
     /// Discards all collected samples so calibration can be restarted.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_calibration::PedalCalibrator;
+    ///
+    /// let mut cal = PedalCalibrator::new();
+    /// cal.add_throttle(100);
+    /// cal.add_brake(200);
+    /// cal.add_clutch(300);
+    /// cal.reset();
+    /// // After reset, calibrate will fail (no samples)
+    /// assert!(cal.calibrate().is_err());
+    /// ```
     pub fn reset(&mut self) {
         self.throttle_samples.clear();
         self.brake_samples.clear();
@@ -104,6 +129,25 @@ impl Default for PedalCalibrator {
 ///
 /// Equivalent to creating a [`PedalCalibrator`], feeding all samples, and calling
 /// [`calibrate`](PedalCalibrator::calibrate).
+///
+/// # Examples
+///
+/// ```
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// use openracing_calibration::create_pedal_calibration;
+///
+/// let axes = create_pedal_calibration(
+///     &[0, 32768, 65535],  // throttle samples
+///     &[0, 65535],          // brake samples
+///     &[0, 65535],          // clutch samples
+/// )?;
+///
+/// assert_eq!(axes.len(), 3);
+/// assert_eq!(axes[0].min, 0);
+/// assert_eq!(axes[0].max, 65535);
+/// # Ok(())
+/// # }
+/// ```
 pub fn create_pedal_calibration(
     throttle: &[u16],
     brake: &[u16],

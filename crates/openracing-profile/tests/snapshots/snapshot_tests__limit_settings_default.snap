@@ -1,0 +1,9 @@
+---
+source: crates/openracing-profile/tests/snapshot_tests.rs
+expression: "LimitSettings::default()"
+---
+{
+  "max_speed": null,
+  "max_temp": 80,
+  "emergency_stop": true
+}

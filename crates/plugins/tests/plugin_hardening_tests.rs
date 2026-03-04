@@ -18,9 +18,7 @@ use racing_wheel_plugins::native::{
     AbiCheckResult, CURRENT_ABI_VERSION, NativePluginConfig, NativePluginHost,
     SignatureVerificationConfig, check_abi_compatibility,
 };
-use racing_wheel_plugins::quarantine::{
-    QuarantineManager, QuarantinePolicy, ViolationType,
-};
+use racing_wheel_plugins::quarantine::{QuarantineManager, QuarantinePolicy, ViolationType};
 use racing_wheel_plugins::registry::{
     PluginCatalog, PluginId, PluginMetadata, VersionCompatibility, check_compatibility,
 };
@@ -184,13 +182,31 @@ fn manifest_empty_name_and_author_each_rejected() {
 
     let mut m = make_manifest(PluginClass::Safe);
     m.name = String::new();
-    let err_msg = format!("{}", validator.validate(&m).err().unwrap_or_else(|| unreachable!()));
-    assert!(err_msg.contains("name"), "error should mention 'name': {err_msg}");
+    let err_msg = format!(
+        "{}",
+        validator
+            .validate(&m)
+            .err()
+            .unwrap_or_else(|| unreachable!())
+    );
+    assert!(
+        err_msg.contains("name"),
+        "error should mention 'name': {err_msg}"
+    );
 
     let mut m = make_manifest(PluginClass::Safe);
     m.author = String::new();
-    let err_msg = format!("{}", validator.validate(&m).err().unwrap_or_else(|| unreachable!()));
-    assert!(err_msg.contains("author"), "error should mention 'author': {err_msg}");
+    let err_msg = format!(
+        "{}",
+        validator
+            .validate(&m)
+            .err()
+            .unwrap_or_else(|| unreachable!())
+    );
+    assert!(
+        err_msg.contains("author"),
+        "error should mention 'author': {err_msg}"
+    );
 }
 
 #[test]
@@ -235,8 +251,8 @@ async fn manifest_load_malformed_yaml_errors() -> Result<(), Box<dyn std::error:
 }
 
 #[tokio::test]
-async fn manifest_load_valid_yaml_but_invalid_constraints_rejected(
-) -> Result<(), Box<dyn std::error::Error>> {
+async fn manifest_load_valid_yaml_but_invalid_constraints_rejected()
+-> Result<(), Box<dyn std::error::Error>> {
     let temp = tempdir()?;
     let mut manifest = make_manifest(PluginClass::Safe);
     manifest.constraints.max_execution_time_us = 999_999;
@@ -260,7 +276,10 @@ fn manifest_json_serialization_preserves_all_fields() -> Result<(), Box<dyn std:
     assert_eq!(restored.class, manifest.class);
     assert_eq!(restored.capabilities, manifest.capabilities);
     assert_eq!(restored.operations, manifest.operations);
-    assert_eq!(restored.entry_points.main_function, manifest.entry_points.main_function);
+    assert_eq!(
+        restored.entry_points.main_function,
+        manifest.entry_points.main_function
+    );
     Ok(())
 }
 
@@ -325,7 +344,10 @@ fn wasm_runtime_rejects_module_without_memory() -> Result<(), Box<dyn std::error
     let result = runtime.load_plugin_from_bytes(id, &wasm, vec![]);
     assert!(result.is_err());
     let msg = format!("{}", result.err().unwrap_or_else(|| unreachable!()));
-    assert!(msg.contains("memory"), "error should mention 'memory': {msg}");
+    assert!(
+        msg.contains("memory"),
+        "error should mention 'memory': {msg}"
+    );
     Ok(())
 }
 
@@ -337,7 +359,10 @@ fn wasm_runtime_rejects_module_without_process() -> Result<(), Box<dyn std::erro
     let result = runtime.load_plugin_from_bytes(id, &wasm, vec![]);
     assert!(result.is_err());
     let msg = format!("{}", result.err().unwrap_or_else(|| unreachable!()));
-    assert!(msg.contains("process"), "error should mention 'process': {msg}");
+    assert!(
+        msg.contains("process"),
+        "error should mention 'process': {msg}"
+    );
     Ok(())
 }
 
@@ -485,10 +510,18 @@ async fn native_host_rejects_unsigned_plugin_file() -> Result<(), Box<dyn std::e
     let host = NativePluginHost::new_with_defaults();
     let fake_path = plugin_dir.join(lib_name);
     let result = host
-        .load_plugin(uuid::Uuid::new_v4(), "unsigned-test".to_string(), &fake_path, 1000)
+        .load_plugin(
+            uuid::Uuid::new_v4(),
+            "unsigned-test".to_string(),
+            &fake_path,
+            1000,
+        )
         .await;
 
-    assert!(result.is_err(), "Strict config should reject unsigned native plugin");
+    assert!(
+        result.is_err(),
+        "Strict config should reject unsigned native plugin"
+    );
     Ok(())
 }
 
@@ -510,10 +543,7 @@ fn capability_checker_empty_denies_everything() {
 
 #[test]
 fn capability_checker_grants_only_requested() -> Result<(), PluginError> {
-    let checker = CapabilityChecker::new(vec![
-        Capability::ReadTelemetry,
-        Capability::ControlLeds,
-    ]);
+    let checker = CapabilityChecker::new(vec![Capability::ReadTelemetry, Capability::ControlLeds]);
     checker.check_telemetry_read()?;
     checker.check_led_control()?;
     assert!(checker.check_telemetry_modify().is_err());
@@ -528,7 +558,11 @@ fn capability_filesystem_nested_paths_allowed_siblings_denied() -> Result<(), Pl
         paths: vec!["/data/plugins".to_string()],
     }]);
     checker.check_file_access(Path::new("/data/plugins/sub/deep/file.bin"))?;
-    assert!(checker.check_file_access(Path::new("/data/other/file.txt")).is_err());
+    assert!(
+        checker
+            .check_file_access(Path::new("/data/other/file.txt"))
+            .is_err()
+    );
     assert!(checker.check_file_access(Path::new("/etc/passwd")).is_err());
     Ok(())
 }
@@ -559,16 +593,28 @@ fn capability_network_specific_hosts_only() -> Result<(), PluginError> {
 fn capability_error_messages_contain_context() {
     let checker = CapabilityChecker::new(vec![]);
 
-    let err = checker.check_telemetry_read().err().unwrap_or_else(|| unreachable!());
+    let err = checker
+        .check_telemetry_read()
+        .err()
+        .unwrap_or_else(|| unreachable!());
     assert!(format!("{err}").contains("ReadTelemetry"));
 
-    let err = checker.check_dsp_processing().err().unwrap_or_else(|| unreachable!());
+    let err = checker
+        .check_dsp_processing()
+        .err()
+        .unwrap_or_else(|| unreachable!());
     assert!(format!("{err}").contains("ProcessDsp"));
 
-    let err = checker.check_file_access(Path::new("/secret")).err().unwrap_or_else(|| unreachable!());
+    let err = checker
+        .check_file_access(Path::new("/secret"))
+        .err()
+        .unwrap_or_else(|| unreachable!());
     assert!(format!("{err}").contains("/secret"));
 
-    let err = checker.check_network_access("bad.host").err().unwrap_or_else(|| unreachable!());
+    let err = checker
+        .check_network_access("bad.host")
+        .err()
+        .unwrap_or_else(|| unreachable!());
     assert!(format!("{err}").contains("bad.host"));
 }
 
@@ -583,10 +629,8 @@ fn capability_has_capability_bool_check() {
 
 #[test]
 fn wasm_capability_enforcer_delegates_to_inner_checker() -> Result<(), PluginError> {
-    let enforcer = WasmCapabilityEnforcer::new(vec![
-        Capability::ReadTelemetry,
-        Capability::ControlLeds,
-    ]);
+    let enforcer =
+        WasmCapabilityEnforcer::new(vec![Capability::ReadTelemetry, Capability::ControlLeds]);
     let checker = enforcer.checker();
     checker.check_telemetry_read()?;
     checker.check_led_control()?;
@@ -599,7 +643,10 @@ fn manifest_safe_plugin_cannot_have_process_dsp() {
     let validator = ManifestValidator::default();
     let mut m = make_manifest(PluginClass::Safe);
     m.capabilities = vec![Capability::ProcessDsp];
-    let err = validator.validate(&m).err().unwrap_or_else(|| unreachable!());
+    let err = validator
+        .validate(&m)
+        .err()
+        .unwrap_or_else(|| unreachable!());
     assert!(format!("{err}").contains("ProcessDsp"));
 }
 
@@ -619,11 +666,15 @@ fn manifest_neither_class_allows_filesystem() {
     let validator = ManifestValidator::default();
 
     let mut safe = make_manifest(PluginClass::Safe);
-    safe.capabilities = vec![Capability::FileSystem { paths: vec!["/tmp".to_string()] }];
+    safe.capabilities = vec![Capability::FileSystem {
+        paths: vec!["/tmp".to_string()],
+    }];
     assert!(validator.validate(&safe).is_err());
 
     let mut fast = make_manifest(PluginClass::Fast);
-    fast.capabilities = vec![Capability::FileSystem { paths: vec!["/tmp".to_string()] }];
+    fast.capabilities = vec![Capability::FileSystem {
+        paths: vec!["/tmp".to_string()],
+    }];
     fast.constraints.max_execution_time_us = 100;
     fast.constraints.max_memory_bytes = 2 * 1024 * 1024;
     fast.constraints.update_rate_hz = 1000;
@@ -635,11 +686,15 @@ fn manifest_neither_class_allows_network() {
     let validator = ManifestValidator::default();
 
     let mut safe = make_manifest(PluginClass::Safe);
-    safe.capabilities = vec![Capability::Network { hosts: vec!["x.com".to_string()] }];
+    safe.capabilities = vec![Capability::Network {
+        hosts: vec!["x.com".to_string()],
+    }];
     assert!(validator.validate(&safe).is_err());
 
     let mut fast = make_manifest(PluginClass::Fast);
-    fast.capabilities = vec![Capability::Network { hosts: vec!["x.com".to_string()] }];
+    fast.capabilities = vec![Capability::Network {
+        hosts: vec!["x.com".to_string()],
+    }];
     fast.constraints.max_execution_time_us = 100;
     fast.constraints.max_memory_bytes = 2 * 1024 * 1024;
     fast.constraints.update_rate_hz = 1000;
@@ -662,7 +717,7 @@ fn registry_add_and_retrieve_plugin() -> Result<(), PluginError> {
 
     let retrieved = catalog.get_plugin(&id, None);
     assert!(retrieved.is_some());
-    assert_eq!(retrieved.map(|m| m.name.as_str()), Some("FFB Filter"));
+    assert_eq!(retrieved.map(|m| &*m.name), Some("FFB Filter"));
     Ok(())
 }
 
@@ -686,7 +741,10 @@ fn registry_multiple_versions_latest_returned() -> Result<(), PluginError> {
     assert_eq!(catalog.version_count(), 3);
 
     let latest = catalog.get_plugin(&id, None);
-    assert_eq!(latest.map(|m| m.version.to_string()), Some("2.0.0".to_string()));
+    assert_eq!(
+        latest.map(|m| m.version.to_string()),
+        Some("2.0.0".to_string())
+    );
     Ok(())
 }
 
@@ -704,7 +762,10 @@ fn registry_get_specific_version() -> Result<(), PluginError> {
 
     let specific = catalog.get_plugin(&id, Some(&semver::Version::new(1, 0, 0)));
     assert!(specific.is_some());
-    assert_eq!(specific.map(|m| m.version.to_string()), Some("1.0.0".to_string()));
+    assert_eq!(
+        specific.map(|m| m.version.to_string()),
+        Some("1.0.0".to_string())
+    );
     Ok(())
 }
 
@@ -737,7 +798,10 @@ fn registry_remove_specific_version() -> Result<(), PluginError> {
     assert_eq!(catalog.version_count(), 1);
 
     let latest = catalog.get_plugin(&id, None);
-    assert_eq!(latest.map(|m| m.version.to_string()), Some("2.0.0".to_string()));
+    assert_eq!(
+        latest.map(|m| m.version.to_string()),
+        Some("2.0.0".to_string())
+    );
     Ok(())
 }
 
@@ -813,13 +877,7 @@ fn registry_contains_version_checks() -> Result<(), PluginError> {
 #[test]
 fn registry_empty_name_rejected() {
     let mut catalog = PluginCatalog::new();
-    let meta = PluginMetadata::new(
-        "",
-        semver::Version::new(1, 0, 0),
-        "Author",
-        "Desc",
-        "MIT",
-    );
+    let meta = PluginMetadata::new("", semver::Version::new(1, 0, 0), "Author", "Desc", "MIT");
     assert!(catalog.add_plugin(meta).is_err());
 }
 
@@ -857,14 +915,20 @@ fn registry_find_compatible_version() -> Result<(), PluginError> {
     // Requiring 1.0.0 should find 1.2.0 (highest compatible in major 1)
     let compat = catalog.find_compatible_version(&id, &semver::Version::new(1, 0, 0));
     assert!(compat.is_some());
-    assert_eq!(compat.map(|m| m.version.to_string()), Some("1.2.0".to_string()));
+    assert_eq!(
+        compat.map(|m| m.version.to_string()),
+        Some("1.2.0".to_string())
+    );
     Ok(())
 }
 
 #[test]
 fn semver_same_major_higher_minor_compatible() {
     assert_eq!(
-        check_compatibility(&semver::Version::new(1, 0, 0), &semver::Version::new(1, 3, 0)),
+        check_compatibility(
+            &semver::Version::new(1, 0, 0),
+            &semver::Version::new(1, 3, 0)
+        ),
         VersionCompatibility::Compatible,
     );
 }
@@ -872,7 +936,10 @@ fn semver_same_major_higher_minor_compatible() {
 #[test]
 fn semver_different_major_incompatible() {
     assert_eq!(
-        check_compatibility(&semver::Version::new(1, 0, 0), &semver::Version::new(2, 0, 0)),
+        check_compatibility(
+            &semver::Version::new(1, 0, 0),
+            &semver::Version::new(2, 0, 0)
+        ),
         VersionCompatibility::Incompatible,
     );
 }
@@ -880,7 +947,10 @@ fn semver_different_major_incompatible() {
 #[test]
 fn semver_lower_available_incompatible() {
     assert_eq!(
-        check_compatibility(&semver::Version::new(1, 5, 0), &semver::Version::new(1, 2, 0)),
+        check_compatibility(
+            &semver::Version::new(1, 5, 0),
+            &semver::Version::new(1, 2, 0)
+        ),
         VersionCompatibility::Incompatible,
     );
 }
@@ -891,8 +961,14 @@ fn semver_prerelease_exact_match_only() -> Result<(), Box<dyn std::error::Error>
     let alpha2 = semver::Version::parse("1.0.0-alpha")?;
     let beta = semver::Version::parse("1.0.0-beta")?;
 
-    assert_eq!(check_compatibility(&alpha1, &alpha2), VersionCompatibility::Compatible);
-    assert_eq!(check_compatibility(&alpha1, &beta), VersionCompatibility::Incompatible);
+    assert_eq!(
+        check_compatibility(&alpha1, &alpha2),
+        VersionCompatibility::Compatible
+    );
+    assert_eq!(
+        check_compatibility(&alpha1, &beta),
+        VersionCompatibility::Incompatible
+    );
     Ok(())
 }
 
@@ -900,28 +976,43 @@ fn semver_prerelease_exact_match_only() -> Result<(), Box<dyn std::error::Error>
 fn semver_zero_major_requires_exact_minor() {
     // 0.x versions: require exact minor match
     assert_eq!(
-        check_compatibility(&semver::Version::new(0, 1, 0), &semver::Version::new(0, 1, 5)),
+        check_compatibility(
+            &semver::Version::new(0, 1, 0),
+            &semver::Version::new(0, 1, 5)
+        ),
         VersionCompatibility::Compatible,
     );
     assert_eq!(
-        check_compatibility(&semver::Version::new(0, 1, 0), &semver::Version::new(0, 2, 0)),
+        check_compatibility(
+            &semver::Version::new(0, 1, 0),
+            &semver::Version::new(0, 2, 0)
+        ),
         VersionCompatibility::Incompatible,
     );
 }
 
 #[test]
 fn registry_metadata_builder_pattern() {
-    let meta = PluginMetadata::new("Plugin", semver::Version::new(1, 0, 0), "Author", "Desc", "MIT")
-        .with_homepage("https://example.com")
-        .with_capabilities(vec![Capability::ReadTelemetry])
-        .with_signature_fingerprint("abc123")
-        .with_download_url("https://dl.example.com/p.zip")
-        .with_package_hash("deadbeef");
+    let meta = PluginMetadata::new(
+        "Plugin",
+        semver::Version::new(1, 0, 0),
+        "Author",
+        "Desc",
+        "MIT",
+    )
+    .with_homepage("https://example.com")
+    .with_capabilities(vec![Capability::ReadTelemetry])
+    .with_signature_fingerprint("abc123")
+    .with_download_url("https://dl.example.com/p.zip")
+    .with_package_hash("deadbeef");
 
     assert_eq!(meta.homepage, Some("https://example.com".to_string()));
     assert_eq!(meta.capabilities.len(), 1);
     assert_eq!(meta.signature_fingerprint, Some("abc123".to_string()));
-    assert_eq!(meta.download_url, Some("https://dl.example.com/p.zip".to_string()));
+    assert_eq!(
+        meta.download_url,
+        Some("https://dl.example.com/p.zip".to_string())
+    );
     assert_eq!(meta.package_hash, Some("deadbeef".to_string()));
 }
 
@@ -1025,12 +1116,16 @@ fn isolation_quarantine_escalation_across_releases() -> Result<(), PluginError> 
     let id = Uuid::new_v4();
 
     manager.record_violation(id, ViolationType::Crash, "crash 1".to_string())?;
-    let state = manager.get_quarantine_state(id).unwrap_or_else(|| unreachable!());
+    let state = manager
+        .get_quarantine_state(id)
+        .unwrap_or_else(|| unreachable!());
     assert_eq!(state.escalation_level, 1);
 
     manager.release_from_quarantine(id)?;
     manager.record_violation(id, ViolationType::Crash, "crash 2".to_string())?;
-    let state = manager.get_quarantine_state(id).unwrap_or_else(|| unreachable!());
+    let state = manager
+        .get_quarantine_state(id)
+        .unwrap_or_else(|| unreachable!());
     assert_eq!(state.escalation_level, 2);
     Ok(())
 }

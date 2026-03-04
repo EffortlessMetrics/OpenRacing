@@ -1,0 +1,9 @@
+---
+source: crates/schemas/tests/schema_snapshot_tests.rs
+expression: "formatted.join(\"\\n\")"
+---
+Disconnected: "Disconnected"
+Connected: "Connected"
+Active: "Active"
+Faulted: "Faulted"
+SafeMode: "SafeMode"

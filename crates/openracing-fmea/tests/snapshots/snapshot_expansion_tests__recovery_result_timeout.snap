@@ -1,0 +1,10 @@
+---
+source: crates/openracing-fmea/tests/snapshot_expansion_tests.rs
+expression: result
+---
+RecoveryResult {
+    status: Timeout,
+    duration: 10s,
+    attempts: 2,
+    error: None,
+}

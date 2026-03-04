@@ -1,0 +1,13 @@
+---
+source: crates/service/tests/service_snapshot_tests.rs
+expression: flags
+---
+FeatureFlags {
+    disable_realtime: false,
+    force_ffb_mode: None,
+    enable_dev_features: false,
+    enable_debug_logging: false,
+    enable_virtual_devices: false,
+    disable_safety_interlocks: false,
+    enable_plugin_dev_mode: false,
+}

@@ -1,0 +1,5 @@
+---
+source: crates/openracing-diagnostic/tests/snapshot_tests.rs
+expression: output
+---
+stream_a=true stream_b=false stream_c=true flags=0x05

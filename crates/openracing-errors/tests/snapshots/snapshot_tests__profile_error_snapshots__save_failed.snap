@@ -1,0 +1,5 @@
+---
+source: crates/openracing-errors/tests/snapshot_tests.rs
+expression: "ProfileError::SaveFailed\n{ profile: \"my-profile\".into(), reason: \"disk full\".into(), }.to_string()"
+---
+Failed to save profile my-profile: disk full

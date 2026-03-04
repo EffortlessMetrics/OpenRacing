@@ -1,0 +1,5 @@
+---
+source: crates/openracing-errors/tests/snapshot_tests.rs
+expression: "OpenRacingError::other(\"unexpected internal state\").to_string()"
+---
+unexpected internal state

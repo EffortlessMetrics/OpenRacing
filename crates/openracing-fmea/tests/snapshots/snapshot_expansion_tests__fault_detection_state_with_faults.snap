@@ -1,0 +1,14 @@
+---
+source: crates/openracing-fmea/tests/snapshot_expansion_tests.rs
+expression: state
+---
+FaultDetectionState {
+    consecutive_count: 2,
+    last_occurrence: Some(
+        200ms,
+    ),
+    window_start: None,
+    window_count: 0,
+    quarantined: false,
+    quarantine_until: None,
+}

@@ -1,0 +1,9 @@
+---
+source: crates/openracing-ipc/tests/ipc_snapshot_tests.rs
+expression: "formatted.join(\"\\n\")"
+---
+COMPRESSED: 0x0001
+REQUIRES_ACK: 0x0002
+IS_RESPONSE: 0x0004
+IS_ERROR: 0x0008
+STREAMING: 0x0010

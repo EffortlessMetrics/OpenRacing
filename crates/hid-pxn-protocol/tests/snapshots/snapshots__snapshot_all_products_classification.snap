@@ -1,0 +1,13 @@
+---
+source: crates/hid-pxn-protocol/tests/snapshots.rs
+expression: summary
+---
+[
+    "PID=0x3245: name=PXN V10, is_pxn=true",
+    "PID=0x1212: name=PXN V12, is_pxn=true",
+    "PID=0x1112: name=PXN V12 Lite, is_pxn=true",
+    "PID=0x1211: name=PXN V12 Lite (SE), is_pxn=true",
+    "PID=0x2141: name=Lite Star GT987 FF, is_pxn=true",
+    "PID=0x0000: name=(none), is_pxn=false",
+    "PID=0xFFFF: name=(none), is_pxn=false",
+]

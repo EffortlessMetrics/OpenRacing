@@ -1,0 +1,5 @@
+---
+source: crates/telemetry-forza/tests/snapshots.rs
+expression: "format!(\"{variants:?}\")"
+---
+"[(\"float\", \"Float(1.5)\"), (\"int\", \"Integer(42)\"), (\"bool\", \"Boolean(true)\"), (\"string\", \"String(\\\"test\\\")\")]"

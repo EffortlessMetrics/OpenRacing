@@ -27,6 +27,12 @@ include = [
     # RT pipeline compilation and execution
     "openracing-pipeline",
 
+    # --- Calibration & crypto (correctness = safety) ---
+    # Wheel/pedal calibration (wrong calibration = wrong torque output)
+    "openracing-calibration",
+    # Ed25519 code signing for native plugins (signature bypass = code injection)
+    "openracing-crypto",
+
     # --- Safety infrastructure (watchdogs, RT scheduling, lock-free counters) ---
     # Hardware watchdog state machine (arm/disarm/timeout transitions)
     "openracing-hardware-watchdog",
@@ -55,9 +61,83 @@ include = [
     # Heusinkveld — pedal input parsing (braking safety)
     "hid-heusinkveld-protocol",
 
+    # --- HID protocol encoding (additional) ---
+    "hid-button-box-protocol",
+    "racing-wheel-hid-accuforce-protocol",
+    "hid-cube-controls-protocol",
+    "racing-wheel-hid-pxn-protocol",
+
     # --- Supporting crates ---
     "racing-wheel-ks",
     "racing-wheel-input-maps",
+
+    # --- Device & input subsystem ---
+    # Shifter input decoding (gear selection safety)
+    "openracing-shifter",
+    # Handbrake input decoding
+    "openracing-handbrake",
+    # Shared HID helpers used across protocol crates
+    "openracing-hid-common",
+    # Device type definitions and classification
+    "openracing-device-types",
+
+    # --- Curves, errors, diagnostics ---
+    # Bezier & LUT response curves (wrong curve = wrong FFB feel)
+    "openracing-curves",
+    # Centralized error types and severity classification
+    "openracing-errors",
+    # Runtime diagnostics and system health
+    "openracing-diagnostic",
+    # Tracing infrastructure for RT observability
+    "openracing-tracing",
+
+    # --- Plugin system ---
+    # Plugin ABI definitions (wrong ABI = UB)
+    "openracing-plugin-abi",
+    # Native plugin loader and lifecycle
+    "openracing-native-plugin",
+    # WASM plugin runtime and sandboxing
+    "openracing-wasm-runtime",
+    # Plugin registry and lifecycle management
+    "racing-wheel-plugins",
+
+    # --- Profile & firmware ---
+    # User profile data model
+    "openracing-profile",
+    # Profile storage and retrieval
+    "openracing-profile-repository",
+    # Firmware update logic
+    "openracing-firmware-update",
+
+    # --- IPC, service, CLI ---
+    # IPC transport layer (gRPC + Unix socket)
+    "openracing-ipc",
+    # Telemetry stream management
+    "openracing-telemetry-streams",
+    # HID device capture and replay
+    "racing-wheel-hid-capture",
+    # Capture device identifiers
+    "openracing-capture-ids",
+
+    # --- Protocol helpers ---
+    # Serial report parsing for Moza wheelbases
+    "racing-wheel-moza-wheelbase-report",
+    # SimpleMotion v2 protocol for servo drives
+    "racing-wheel-simplemotion-v2",
+    # Structured report parser
+    "racing-wheel-srp",
+    # HID byte packing utilities
+    "racing-wheel-hbp",
+    # Changelog parsing
+    "racing-wheel-changelog",
+    # Legacy API compatibility layer
+    "compat",
+
+    # --- UI & CLI ---
+    # Command-line interface
+    "wheelctl",
+    # User interface components
+    "racing-wheel-ui",
 ]
 
 # Skip trivial, auto-generated, and test-only code

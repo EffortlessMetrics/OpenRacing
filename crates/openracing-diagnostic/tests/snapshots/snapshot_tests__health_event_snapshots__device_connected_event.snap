@@ -1,0 +1,14 @@
+---
+source: crates/openracing-diagnostic/tests/snapshot_tests.rs
+expression: event
+---
+HealthEventData {
+    timestamp_ns: 1700000000000000000,
+    device_id: "fanatec-csl-dd",
+    event_type: "DeviceConnected",
+    context: Object {
+        "firmware": String("1.34"),
+        "pid": String("0001"),
+        "vid": String("0EB7"),
+    },
+}

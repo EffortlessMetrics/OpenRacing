@@ -1,0 +1,5 @@
+---
+source: crates/openracing-fmea/tests/snapshot_expansion_tests.rs
+expression: "RecoveryStatus::Failed"
+---
+Failed

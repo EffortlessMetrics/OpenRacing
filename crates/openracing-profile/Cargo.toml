@@ -18,5 +18,7 @@ uuid = { workspace = true }
 workspace-hack = { version = "0.1", path = "../../workspace-hack" }
 
 [dev-dependencies]
+insta = { workspace = true, features = ["json", "redactions"] }
 proptest = { workspace = true }
 quickcheck = { workspace = true }
+serde_json = { workspace = true }

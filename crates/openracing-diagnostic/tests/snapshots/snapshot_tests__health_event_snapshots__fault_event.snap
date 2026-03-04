@@ -1,0 +1,13 @@
+---
+source: crates/openracing-diagnostic/tests/snapshot_tests.rs
+expression: event
+---
+HealthEventData {
+    timestamp_ns: 1700000001000000000,
+    device_id: "moza-r9",
+    event_type: "FaultDetected",
+    context: Object {
+        "duration_ms": Number(15),
+        "fault": String("watchdog_timeout"),
+    },
+}

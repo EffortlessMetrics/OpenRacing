@@ -1,0 +1,6 @@
+---
+source: crates/openracing-errors/tests/snapshot_tests.rs
+expression: format_source_chain(&err)
+---
+RT error: Real-time timing violation
+  caused by: Real-time timing violation

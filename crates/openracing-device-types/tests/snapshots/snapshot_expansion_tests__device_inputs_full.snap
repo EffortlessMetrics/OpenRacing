@@ -1,0 +1,55 @@
+---
+source: crates/openracing-device-types/tests/snapshot_expansion_tests.rs
+expression: inputs
+---
+DeviceInputs {
+    tick: 0,
+    buttons: [
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+    ],
+    hat: 0,
+    steering: Some(
+        32768,
+    ),
+    throttle: Some(
+        50000,
+    ),
+    brake: Some(
+        40000,
+    ),
+    clutch_left: None,
+    clutch_right: None,
+    clutch_combined: Some(
+        10000,
+    ),
+    clutch_left_button: None,
+    clutch_right_button: None,
+    handbrake: Some(
+        8000,
+    ),
+    rotaries: [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+    ],
+}

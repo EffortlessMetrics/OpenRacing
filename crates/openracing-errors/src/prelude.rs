@@ -59,6 +59,22 @@ macro_rules! error_context {
 }
 
 /// Macro for creating a validation error with context.
+///
+/// Returns early with the given error if the condition is `false`.
+///
+/// # Examples
+///
+/// ```
+/// use openracing_errors::prelude::*;
+///
+/// fn check_name(name: &str) -> Result<()> {
+///     openracing_errors::validate!(!name.is_empty(), ValidationError::required("name"));
+///     Ok(())
+/// }
+///
+/// assert!(check_name("Alice").is_ok());
+/// assert!(check_name("").is_err());
+/// ```
 #[macro_export]
 macro_rules! validate {
     ($condition:expr, $error:expr) => {
@@ -69,6 +85,15 @@ macro_rules! validate {
 }
 
 /// Macro for creating a required field validation error.
+///
+/// # Examples
+///
+/// ```
+/// use openracing_errors::prelude::*;
+///
+/// let err = openracing_errors::require!("profile_name");
+/// assert_eq!(err.to_string(), "Required field 'profile_name' is missing");
+/// ```
 #[macro_export]
 macro_rules! require {
     ($field:expr) => {
@@ -77,6 +102,23 @@ macro_rules! require {
 }
 
 /// Macro for creating an out of range validation error.
+///
+/// Returns early with an [`OutOfRange`](ValidationError::OutOfRange) error if
+/// `$value` is outside `[$min, $max]`.
+///
+/// # Examples
+///
+/// ```
+/// use openracing_errors::prelude::*;
+///
+/// fn check_gain(gain: f32) -> Result<()> {
+///     openracing_errors::validate_range!("gain", gain, 0.0_f32, 1.0_f32);
+///     Ok(())
+/// }
+///
+/// assert!(check_gain(0.5).is_ok());
+/// assert!(check_gain(1.5).is_err());
+/// ```
 #[macro_export]
 macro_rules! validate_range {
     ($field:expr, $value:expr, $min:expr, $max:expr) => {

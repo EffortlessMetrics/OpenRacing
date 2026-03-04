@@ -1,0 +1,10 @@
+---
+source: crates/hid-cube-controls-protocol/tests/snapshots.rs
+expression: table
+---
+[
+    "GtPro: display='Cube Controls GT Pro', torque=0.0Nm, provisional=true",
+    "FormulaPro: display='Cube Controls Formula Pro', torque=0.0Nm, provisional=true",
+    "Csx3: display='Cube Controls CSX3', torque=0.0Nm, provisional=true",
+    "Unknown: display='Cube Controls (unknown model)', torque=0.0Nm, provisional=true",
+]

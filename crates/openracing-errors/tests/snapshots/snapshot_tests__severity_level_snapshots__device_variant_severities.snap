@@ -1,0 +1,17 @@
+---
+source: crates/openracing-errors/tests/snapshot_tests.rs
+expression: "formatted.join(\"\\n\")"
+---
+NotFound: ERROR
+Disconnected: CRITICAL
+ConnectionFailed: ERROR
+CommunicationError: ERROR
+HidError: ERROR
+InvalidResponse: ERROR
+Timeout: WARN
+UnsupportedDevice: ERROR
+Busy: WARN
+PermissionDenied: ERROR
+InitializationFailed: ERROR
+FirmwareError: ERROR
+FeatureNotSupported: INFO

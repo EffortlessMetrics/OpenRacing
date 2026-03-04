@@ -60,6 +60,15 @@ impl HandsOffState {
     }
 
     /// Create a disabled hands-off detector.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_filters::HandsOffState;
+    ///
+    /// let state = HandsOffState::disabled();
+    /// assert!(!state.enabled);
+    /// ```
     pub fn disabled() -> Self {
         Self {
             enabled: false,
@@ -71,6 +80,16 @@ impl HandsOffState {
     }
 
     /// Create a hands-off detector with default settings (2 second timeout).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_filters::HandsOffState;
+    ///
+    /// let state = HandsOffState::default_detector();
+    /// assert!(state.enabled);
+    /// assert_eq!(state.timeout_ticks, 2000); // 2s at 1kHz
+    /// ```
     pub fn default_detector() -> Self {
         Self::new(true, 0.05, 2.0)
     }
@@ -86,6 +105,18 @@ impl HandsOffState {
     }
 
     /// Reset the hands-off counter.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_filters::HandsOffState;
+    ///
+    /// let mut state = HandsOffState::default_detector();
+    /// state.counter = 100;
+    /// state.reset();
+    /// assert_eq!(state.counter, 0);
+    /// assert!((state.last_torque).abs() < f32::EPSILON);
+    /// ```
     pub fn reset(&mut self) {
         self.counter = 0;
         self.last_torque = 0.0;

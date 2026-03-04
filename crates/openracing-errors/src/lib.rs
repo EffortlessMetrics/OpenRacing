@@ -33,6 +33,64 @@
 //!     Ok(value)
 //! }
 //! ```
+//!
+//! # Pattern Matching on Errors
+//!
+//! ```
+//! use openracing_errors::prelude::*;
+//!
+//! let err: OpenRacingError = RTError::TimingViolation.into();
+//!
+//! let message = match &err {
+//!     OpenRacingError::RT(RTError::TimingViolation) => "timing issue",
+//!     OpenRacingError::RT(rt) if rt.requires_safety_action() => "safety action needed",
+//!     OpenRacingError::Device(_) => "device problem",
+//!     _ => "other error",
+//! };
+//! assert_eq!(message, "timing issue");
+//! ```
+//!
+//! # Error Category Classification
+//!
+//! ```
+//! use openracing_errors::{OpenRacingError, RTError, DeviceError, ErrorCategory};
+//!
+//! let rt_err: OpenRacingError = RTError::PipelineFault.into();
+//! assert_eq!(rt_err.category(), ErrorCategory::RT);
+//!
+//! let dev_err: OpenRacingError = DeviceError::not_found("wheel").into();
+//! assert_eq!(dev_err.category(), ErrorCategory::Device);
+//!
+//! let cfg_err = OpenRacingError::config("missing section");
+//! assert_eq!(cfg_err.category(), ErrorCategory::Config);
+//! ```
+//!
+//! # Severity-Based Error Handling
+//!
+//! ```
+//! use openracing_errors::{OpenRacingError, RTError, ErrorSeverity};
+//!
+//! // Critical errors require immediate attention
+//! let critical: OpenRacingError = RTError::DeviceDisconnected.into();
+//! assert_eq!(critical.severity(), ErrorSeverity::Critical);
+//! assert!(!critical.is_recoverable());
+//!
+//! // Non-critical errors are recoverable
+//! let recoverable = OpenRacingError::config("bad value");
+//! assert_eq!(recoverable.severity(), ErrorSeverity::Error);
+//! assert!(recoverable.is_recoverable());
+//! ```
+//!
+//! # Error Context Macro
+//!
+//! ```
+//! use openracing_errors::prelude::*;
+//! use openracing_errors::error_context;
+//!
+//! let ctx = error_context!("apply_profile", "profile" => "gt3", "device" => "moza-r9");
+//! assert!(ctx.to_string().contains("apply_profile"));
+//! assert!(ctx.to_string().contains("gt3"));
+//! ```
 
 #![deny(unsafe_op_in_unsafe_fn, clippy::unwrap_used)]
 #![warn(missing_docs, rust_2018_idioms)]

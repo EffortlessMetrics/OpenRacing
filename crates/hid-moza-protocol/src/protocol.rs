@@ -137,7 +137,7 @@ const MOZA_DESCRIPTOR_CRC32_ALLOWLIST_ENV: &str = "OPENRACING_MOZA_DESCRIPTOR_CR
 const MOZA_ALLOW_UNKNOWN_SIGNATURE_ENV: &str = "OPENRACING_MOZA_ALLOW_UNKNOWN_SIGNATURE";
 
 fn parse_ffb_mode(value: &str) -> Option<FfbMode> {
-    match value.trim().to_ascii_lowercase().as_str() {
+    match &*value.trim().to_ascii_lowercase() {
         "off" => Some(FfbMode::Off),
         "standard" | "pidff" | "pid" => Some(FfbMode::Standard),
         "direct" | "raw" => Some(FfbMode::Direct),
@@ -149,7 +149,7 @@ fn parse_ffb_mode(value: &str) -> Option<FfbMode> {
 
 fn parse_bool_env(value: &str) -> bool {
     matches!(
-        value.trim().to_ascii_lowercase().as_str(),
+        &*value.trim().to_ascii_lowercase(),
         "1" | "true" | "yes" | "on" | "enable" | "enabled"
     )
 }

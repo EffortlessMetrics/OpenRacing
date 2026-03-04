@@ -1,0 +1,5 @@
+---
+source: crates/openracing-ipc/tests/snapshot_tests.rs
+expression: "format!(\"{err}\")"
+---
+gRPC error: status: UNAVAILABLE, message: connection reset

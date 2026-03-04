@@ -1561,3 +1561,802 @@ fn full_round_trip_f24_telem_and_status() -> TestResult {
     );
     Ok(())
 }
+
+// ── Field extraction accuracy: hand-crafted byte patterns ────────────────────
+
+/// Verify header fields are at the exact byte offsets specified by the protocol.
+#[test]
+fn header_field_offsets_verified_by_hand() -> TestResult {
+    let mut raw = vec![0u8; 29];
+    // packetFormat at bytes 0-1 (little-endian)
+    raw[0] = 0xE7; // 2023 = 0x07E7
+    raw[1] = 0x07;
+    // gameYear(2), major(3), minor(4), packetVersion(5)
+    raw[2] = 23;
+    raw[3] = 1;
+    raw[4] = 0;
+    raw[5] = 1;
+    // packetId at byte 6
+    raw[6] = 6;
+    // sessionUID at bytes 7-14
+    // sessionTime at bytes 15-18
+    // frameIdentifier at bytes 19-22
+    // overallFrameIdentifier at bytes 23-26
+    // playerCarIndex at byte 27
+    raw[27] = 19;
+    // secondaryPlayerCarIndex at byte 28
+    raw[28] = 255;
+
+    let header = parse_header(&raw)?;
+    assert_eq!(header.packet_format, 2023);
+    assert_eq!(header.packet_id, 6);
+    assert_eq!(header.player_car_index, 19);
+    Ok(())
+}
+
+/// Verify car telemetry entry offsets by writing known values at exact positions.
+#[test]
+fn car_telemetry_field_offsets_verified_by_hand() -> TestResult {
+    let mut raw = vec![0u8; MIN_CAR_TELEMETRY_PACKET_SIZE];
+    // Write header: format=2024, packetId=6, playerIndex=0
+    raw[0..2].copy_from_slice(&2024u16.to_le_bytes());
+    raw[6] = 6;
+    raw[27] = 0;
+
+    let car_base = 29; // HEADER_SIZE
+    // speed at car_base+0..2
+    raw[car_base..car_base + 2].copy_from_slice(&275u16.to_le_bytes());
+    // throttle at car_base+2..6
+    raw[car_base + 2..car_base + 6].copy_from_slice(&0.77f32.to_le_bytes());
+    // steer at car_base+6..10
+    raw[car_base + 6..car_base + 10].copy_from_slice(&(-0.33f32).to_le_bytes());
+    // brake at car_base+10..14
+    raw[car_base + 10..car_base + 14].copy_from_slice(&0.15f32.to_le_bytes());
+    // clutch at car_base+14
+    raw[car_base + 14] = 0;
+    // gear at car_base+15 (i8)
+    raw[car_base + 15] = 6u8;
+    // engine_rpm at car_base+16..18
+    raw[car_base + 16..car_base + 18].copy_from_slice(&11234u16.to_le_bytes());
+    // drs at car_base+18
+    raw[car_base + 18] = 1;
+    // brakes_temperature at car_base+22..30 (4x u16)
+    raw[car_base + 22..car_base + 24].copy_from_slice(&501u16.to_le_bytes());
+    raw[car_base + 24..car_base + 26].copy_from_slice(&502u16.to_le_bytes());
+    raw[car_base + 26..car_base + 28].copy_from_slice(&503u16.to_le_bytes());
+    raw[car_base + 28..car_base + 30].copy_from_slice(&504u16.to_le_bytes());
+    // tyres_surface_temperature at car_base+30..34
+    raw[car_base + 30] = 91;
+    raw[car_base + 31] = 92;
+    raw[car_base + 32] = 93;
+    raw[car_base + 33] = 94;
+    // tyres_inner_temperature at car_base+34..38
+    raw[car_base + 34] = 101;
+    raw[car_base + 35] = 102;
+    raw[car_base + 36] = 103;
+    raw[car_base + 37] = 104;
+    // engine_temperature at car_base+38..40
+    raw[car_base + 38..car_base + 40].copy_from_slice(&109u16.to_le_bytes());
+    // tyres_pressure at car_base+40..56 (4x f32)
+    raw[car_base + 40..car_base + 44].copy_from_slice(&23.1f32.to_le_bytes());
+    raw[car_base + 44..car_base + 48].copy_from_slice(&23.2f32.to_le_bytes());
+    raw[car_base + 48..car_base + 52].copy_from_slice(&22.1f32.to_le_bytes());
+    raw[car_base + 52..car_base + 56].copy_from_slice(&22.2f32.to_le_bytes());
+
+    let telem = parse_car_telemetry(&raw, 0)?;
+    assert_eq!(telem.speed_kmh, 275);
+    assert!((telem.throttle - 0.77).abs() < 1e-5);
+    assert!((telem.steer - (-0.33)).abs() < 1e-5);
+    assert!((telem.brake - 0.15).abs() < 1e-5);
+    assert_eq!(telem.gear, 6);
+    assert_eq!(telem.engine_rpm, 11234);
+    assert_eq!(telem.drs, 1);
+    assert_eq!(telem.brakes_temperature, [501, 502, 503, 504]);
+    assert_eq!(telem.tyres_surface_temperature, [91, 92, 93, 94]);
+    assert_eq!(telem.tyres_inner_temperature, [101, 102, 103, 104]);
+    assert_eq!(telem.engine_temperature, 109);
+    assert!((telem.tyres_pressure[0] - 23.1).abs() < 1e-4);
+    assert!((telem.tyres_pressure[1] - 23.2).abs() < 1e-4);
+    assert!((telem.tyres_pressure[2] - 22.1).abs() < 1e-4);
+    assert!((telem.tyres_pressure[3] - 22.2).abs() < 1e-4);
+    Ok(())
+}
+
+/// Verify F1 23 car status entry field offsets with hand-crafted bytes.
+#[test]
+fn car_status_2023_field_offsets_verified_by_hand() -> TestResult {
+    let mut raw = vec![0u8; MIN_CAR_STATUS_2023_PACKET_SIZE];
+    // Header: format=2023, packetId=7, playerIndex=0
+    raw[0..2].copy_from_slice(&2023u16.to_le_bytes());
+    raw[6] = 7;
+    raw[27] = 0;
+
+    let base = 29; // car 0 starts at HEADER_SIZE
+    raw[base] = 2; // tractionControl
+    raw[base + 1] = 1; // antiLockBrakes
+    raw[base + 4] = 1; // pitLimiterStatus
+    raw[base + 5..base + 9].copy_from_slice(&42.5f32.to_le_bytes()); // fuelInTank
+    raw[base + 13..base + 17].copy_from_slice(&11.2f32.to_le_bytes()); // fuelRemainingLaps
+    raw[base + 17..base + 19].copy_from_slice(&13500u16.to_le_bytes()); // maxRPM
+    raw[base + 22] = 1; // drsAllowed
+    raw[base + 25] = 14; // actualTyreCompound (Hard)
+    raw[base + 27] = 5; // tyreAgeLaps
+    raw[base + 29..base + 33].copy_from_slice(&1_500_000.0f32.to_le_bytes()); // ersStoreEnergy
+    raw[base + 33] = 2; // ersDeployMode
+    raw[base + 34..base + 38].copy_from_slice(&300_000.0f32.to_le_bytes()); // ersHarvestedMGUK
+    raw[base + 38..base + 42].copy_from_slice(&200_000.0f32.to_le_bytes()); // ersHarvestedMGUH
+    raw[base + 42..base + 46].copy_from_slice(&800_000.0f32.to_le_bytes()); // ersDeployed
+
+    let status = parse_car_status_2023(&raw, 0)?;
+    assert_eq!(status.traction_control, 2);
+    assert_eq!(status.anti_lock_brakes, 1);
+    assert_eq!(status.pit_limiter_status, 1);
+    assert!((status.fuel_in_tank - 42.5).abs() < 1e-5);
+    assert!((status.fuel_remaining_laps - 11.2).abs() < 1e-5);
+    assert_eq!(status.max_rpm, 13500);
+    assert_eq!(status.drs_allowed, 1);
+    assert_eq!(status.actual_tyre_compound, 14);
+    assert_eq!(status.tyre_age_laps, 5);
+    assert_eq!(status.engine_power_ice, 0.0); // not present in F1 23
+    assert_eq!(status.engine_power_mguk, 0.0);
+    assert!((status.ers_store_energy - 1_500_000.0).abs() < 1.0);
+    assert_eq!(status.ers_deploy_mode, 2);
+    assert!((status.ers_harvested_mguk - 300_000.0).abs() < 1.0);
+    assert!((status.ers_harvested_mguh - 200_000.0).abs() < 1.0);
+    assert!((status.ers_deployed - 800_000.0).abs() < 1.0);
+    Ok(())
+}
+
+/// Verify F1 24 car status entry field offsets, including the new engine power fields.
+#[test]
+fn car_status_2024_field_offsets_verified_by_hand() -> TestResult {
+    let mut raw = vec![0u8; MIN_CAR_STATUS_2024_PACKET_SIZE];
+    raw[0..2].copy_from_slice(&2024u16.to_le_bytes());
+    raw[6] = 7;
+    raw[27] = 0;
+
+    let base = 29;
+    raw[base] = 1; // tractionControl
+    raw[base + 1] = 0; // antiLockBrakes
+    raw[base + 4] = 0; // pitLimiterStatus
+    raw[base + 5..base + 9].copy_from_slice(&38.0f32.to_le_bytes()); // fuelInTank
+    raw[base + 13..base + 17].copy_from_slice(&15.5f32.to_le_bytes()); // fuelRemainingLaps
+    raw[base + 17..base + 19].copy_from_slice(&14000u16.to_le_bytes()); // maxRPM
+    raw[base + 22] = 0; // drsAllowed
+    raw[base + 25] = 16; // actualTyreCompound (C5)
+    raw[base + 27] = 12; // tyreAgeLaps
+    // F1 24 new fields:
+    raw[base + 29..base + 33].copy_from_slice(&560_000.0f32.to_le_bytes()); // enginePowerICE
+    raw[base + 33..base + 37].copy_from_slice(&120_000.0f32.to_le_bytes()); // enginePowerMGUK
+    raw[base + 37..base + 41].copy_from_slice(&3_200_000.0f32.to_le_bytes()); // ersStoreEnergy
+    raw[base + 41] = 3; // ersDeployMode
+    raw[base + 42..base + 46].copy_from_slice(&700_000.0f32.to_le_bytes()); // ersHarvestedMGUK
+    raw[base + 46..base + 50].copy_from_slice(&450_000.0f32.to_le_bytes()); // ersHarvestedMGUH
+    raw[base + 50..base + 54].copy_from_slice(&1_100_000.0f32.to_le_bytes()); // ersDeployed
+
+    let status = parse_car_status_2024(&raw, 0)?;
+    assert_eq!(status.traction_control, 1);
+    assert_eq!(status.anti_lock_brakes, 0);
+    assert!((status.fuel_in_tank - 38.0).abs() < 1e-5);
+    assert!((status.fuel_remaining_laps - 15.5).abs() < 1e-5);
+    assert_eq!(status.max_rpm, 14000);
+    assert_eq!(status.actual_tyre_compound, 16);
+    assert_eq!(status.tyre_age_laps, 12);
+    assert!((status.engine_power_ice - 560_000.0).abs() < 1.0);
+    assert!((status.engine_power_mguk - 120_000.0).abs() < 1.0);
+    assert!((status.ers_store_energy - 3_200_000.0).abs() < 1.0);
+    assert_eq!(status.ers_deploy_mode, 3);
+    assert!((status.ers_harvested_mguk - 700_000.0).abs() < 1.0);
+    assert!((status.ers_harvested_mguh - 450_000.0).abs() < 1.0);
+    assert!((status.ers_deployed - 1_100_000.0).abs() < 1.0);
+    Ok(())
+}
+
+/// Session data field offsets verified by hand-crafted bytes.
+#[test]
+fn session_data_field_offsets_verified_by_hand() -> TestResult {
+    let mut raw = vec![0u8; 37]; // header(29) + 8 session fields
+    raw[0..2].copy_from_slice(&2024u16.to_le_bytes());
+    raw[6] = 1; // session packet ID
+    raw[27] = 0;
+
+    // Session data starts at offset 29
+    raw[29] = 0; // weather
+    raw[30] = 42u8; // trackTemperature (i8=42)
+    raw[31] = 30u8; // airTemperature (i8=30)
+    raw[32] = 57; // totalLaps
+    raw[33..35].copy_from_slice(&5891u16.to_le_bytes()); // trackLength
+    raw[35] = 10; // sessionType (race)
+    raw[36] = 11; // trackId (Monza)
+
+    let session = parse_session_data(&raw)?;
+    assert_eq!(session.track_temperature, 42);
+    assert_eq!(session.air_temperature, 30);
+    assert_eq!(session.session_type, 10);
+    assert_eq!(session.track_id, 11);
+    Ok(())
+}
+
+// ── Edge cases: truncated, wrong IDs, version mismatches ─────────────────────
+
+/// Packet with NaN float values should be sanitized to 0.0 by ByteReader.
+#[test]
+fn car_telemetry_nan_float_sanitized() -> TestResult {
+    let mut raw = build_car_telemetry_packet_native(
+        PACKET_FORMAT_2024,
+        0,
+        100,
+        3,
+        8000,
+        0.5,
+        0.0,
+        0.0,
+        0,
+        [22.0; 4],
+    );
+    // Overwrite throttle (car_base+2..6) with NaN
+    let car_base = 29;
+    let nan_bytes = f32::NAN.to_le_bytes();
+    raw[car_base + 2..car_base + 6].copy_from_slice(&nan_bytes);
+
+    let telem = parse_car_telemetry(&raw, 0)?;
+    // ByteReader::f32_le returns 0.0 for non-finite values
+    assert_eq!(telem.throttle, 0.0);
+    Ok(())
+}
+
+/// Packet with Infinity float values should be sanitized to 0.0.
+#[test]
+fn car_telemetry_infinity_float_sanitized() -> TestResult {
+    let mut raw = build_car_telemetry_packet_native(
+        PACKET_FORMAT_2023,
+        0,
+        100,
+        3,
+        8000,
+        0.5,
+        0.0,
+        0.0,
+        0,
+        [22.0; 4],
+    );
+    let car_base = 29;
+    let inf_bytes = f32::INFINITY.to_le_bytes();
+    raw[car_base + 10..car_base + 14].copy_from_slice(&inf_bytes); // brake field
+
+    let telem = parse_car_telemetry(&raw, 0)?;
+    assert_eq!(telem.brake, 0.0);
+    Ok(())
+}
+
+/// Negative infinity is also sanitized.
+#[test]
+fn car_telemetry_neg_infinity_float_sanitized() -> TestResult {
+    let mut raw = build_car_telemetry_packet_native(
+        PACKET_FORMAT_2024,
+        0,
+        100,
+        3,
+        8000,
+        0.5,
+        0.0,
+        0.0,
+        0,
+        [22.0; 4],
+    );
+    let car_base = 29;
+    let neg_inf_bytes = f32::NEG_INFINITY.to_le_bytes();
+    raw[car_base + 6..car_base + 10].copy_from_slice(&neg_inf_bytes); // steer field
+
+    let telem = parse_car_telemetry(&raw, 0)?;
+    assert_eq!(telem.steer, 0.0);
+    Ok(())
+}
+
+/// Oversized packets (extra trailing bytes) should still parse correctly.
+#[test]
+fn car_telemetry_oversized_packet_parses() -> TestResult {
+    let mut raw = build_car_telemetry_packet_native(
+        PACKET_FORMAT_2024,
+        0,
+        200,
+        6,
+        11000,
+        0.8,
+        0.0,
+        0.0,
+        0,
+        [23.0; 4],
+    );
+    // Append 100 extra bytes
+    raw.extend_from_slice(&[0xFFu8; 100]);
+    let telem = parse_car_telemetry(&raw, 0)?;
+    assert_eq!(telem.speed_kmh, 200);
+    assert_eq!(telem.gear, 6);
+    Ok(())
+}
+
+/// Oversized status packets parse correctly.
+#[test]
+fn car_status_2024_oversized_packet_parses() -> TestResult {
+    let mut raw = build_car_status_packet_f24(0, 25.0, 2_000_000.0, 1, 0, 13, 13500);
+    raw.extend_from_slice(&[0xFFu8; 100]);
+    let status = parse_car_status_2024(&raw, 0)?;
+    assert!((status.fuel_in_tank - 25.0).abs() < 1e-5);
+    Ok(())
+}
+
+/// Maximum u16 speed value parses correctly.
+#[test]
+fn car_telemetry_max_speed_u16() -> TestResult {
+    let raw = build_car_telemetry_packet_native(
+        PACKET_FORMAT_2024,
+        0,
+        u16::MAX,
+        8,
+        u16::MAX,
+        1.0,
+        0.0,
+        0.0,
+        1,
+        [30.0; 4],
+    );
+    let telem = parse_car_telemetry(&raw, 0)?;
+    assert_eq!(telem.speed_kmh, u16::MAX);
+    assert_eq!(telem.engine_rpm, u16::MAX);
+    Ok(())
+}
+
+/// Verify u16::MAX speed normalizes to expected m/s value.
+#[test]
+fn normalize_max_u16_speed() -> TestResult {
+    let telem = CarTelemetryData {
+        speed_kmh: u16::MAX,
+        throttle: 1.0,
+        steer: 0.0,
+        brake: 0.0,
+        gear: 8,
+        engine_rpm: 15000,
+        drs: 0,
+        brakes_temperature: [0; 4],
+        tyres_surface_temperature: [0; 4],
+        tyres_inner_temperature: [0; 4],
+        engine_temperature: 0,
+        tyres_pressure: [0.0; 4],
+    };
+    let status = F1NativeCarStatusData::default();
+    let norm = normalize(&telem, &status, &SessionData::default());
+    let expected = f32::from(u16::MAX) / 3.6;
+    assert!((norm.speed_ms - expected).abs() < 0.01);
+    Ok(())
+}
+
+/// Packet with format 2023 header but Car Status data that is 2024-sized:
+/// process_packet should parse using the 2023 parser (47-byte entries).
+#[test]
+fn process_packet_f23_header_oversized_data_uses_f23_parser() -> TestResult {
+    // Build an F1 23 status packet (47-byte entries) with extra padding
+    let mut raw = build_car_status_packet_f23(0, 30.0, 2_000_000.0, 1, 0, 12, 13000);
+    raw.extend_from_slice(&[0u8; 200]); // extra data
+    let mut state = F1NativeState::default();
+    // Need telemetry first
+    let telem = build_car_telemetry_packet_native(
+        PACKET_FORMAT_2023,
+        0,
+        180,
+        5,
+        12000,
+        0.7,
+        0.0,
+        0.0,
+        0,
+        [23.0; 4],
+    );
+    F1NativeAdapter::process_packet(&mut state, &telem)?;
+    let result = F1NativeAdapter::process_packet(&mut state, &raw)?;
+    assert!(result.is_some());
+    let norm = result.ok_or("expected emission")?;
+    assert!((norm.speed_ms - 180.0 / 3.6).abs() < 0.01);
+    Ok(())
+}
+
+/// Truncated at various sizes within the header.
+#[test]
+fn parse_header_truncated_at_various_sizes() {
+    for size in 0..29 {
+        let raw = vec![0u8; size];
+        assert!(parse_header(&raw).is_err(), "size {} should fail", size);
+    }
+}
+
+/// Truncated car telemetry at various sizes near the minimum.
+#[test]
+fn car_telemetry_truncated_at_various_sizes() {
+    for size in 0..MIN_CAR_TELEMETRY_PACKET_SIZE {
+        let raw = vec![0u8; size];
+        assert!(
+            parse_car_telemetry(&raw, 0).is_err(),
+            "size {} should fail",
+            size
+        );
+    }
+}
+
+/// Truncated F1 23 car status at various sizes near the minimum.
+#[test]
+fn car_status_2023_truncated_at_various_sizes() {
+    for size in 0..MIN_CAR_STATUS_2023_PACKET_SIZE {
+        let raw = vec![0u8; size];
+        assert!(
+            parse_car_status_2023(&raw, 0).is_err(),
+            "size {} should fail",
+            size
+        );
+    }
+}
+
+/// Truncated F1 24 car status at various sizes near the minimum.
+#[test]
+fn car_status_2024_truncated_at_various_sizes() {
+    for size in 0..MIN_CAR_STATUS_2024_PACKET_SIZE {
+        let raw = vec![0u8; size];
+        assert!(
+            parse_car_status_2024(&raw, 0).is_err(),
+            "size {} should fail",
+            size
+        );
+    }
+}
+
+/// All non-supported packet IDs in 0..=255 are either handled or silently ignored.
+#[test]
+fn process_packet_all_packet_ids_no_panic() -> TestResult {
+    let mut state = F1NativeState::default();
+    for id in 0..=255u8 {
+        let raw = build_f1_native_header_bytes(PACKET_FORMAT_2024, id, 0);
+        // Should not panic; may return Ok(None) or Err for malformed data
+        let _ = F1NativeAdapter::process_packet(&mut state, &raw);
+    }
+    Ok(())
+}
+
+/// Motion packets (ID 0) are silently ignored by process_packet.
+#[test]
+fn process_packet_motion_packet_ignored() -> TestResult {
+    let mut state = F1NativeState::default();
+    let raw = build_f1_native_header_bytes(PACKET_FORMAT_2024, 0, 0);
+    let result = F1NativeAdapter::process_packet(&mut state, &raw)?;
+    assert!(result.is_none());
+    Ok(())
+}
+
+/// Lap data packets (ID 2) are silently ignored.
+#[test]
+fn process_packet_lap_data_ignored() -> TestResult {
+    let mut state = F1NativeState::default();
+    let raw = build_f1_native_header_bytes(PACKET_FORMAT_2023, 2, 0);
+    let result = F1NativeAdapter::process_packet(&mut state, &raw)?;
+    assert!(result.is_none());
+    Ok(())
+}
+
+/// Event packets (ID 3) are silently ignored.
+#[test]
+fn process_packet_event_packet_ignored() -> TestResult {
+    let mut state = F1NativeState::default();
+    let raw = build_f1_native_header_bytes(PACKET_FORMAT_2024, 3, 0);
+    let result = F1NativeAdapter::process_packet(&mut state, &raw)?;
+    assert!(result.is_none());
+    Ok(())
+}
+
+/// Participants packets (ID 4) are silently ignored.
+#[test]
+fn process_packet_participants_packet_ignored() -> TestResult {
+    let mut state = F1NativeState::default();
+    let raw = build_f1_native_header_bytes(PACKET_FORMAT_2023, 4, 0);
+    let result = F1NativeAdapter::process_packet(&mut state, &raw)?;
+    assert!(result.is_none());
+    Ok(())
+}
+
+/// Car setups packets (ID 5) are silently ignored.
+#[test]
+fn process_packet_car_setups_packet_ignored() -> TestResult {
+    let mut state = F1NativeState::default();
+    let raw = build_f1_native_header_bytes(PACKET_FORMAT_2024, 5, 0);
+    let result = F1NativeAdapter::process_packet(&mut state, &raw)?;
+    assert!(result.is_none());
+    Ok(())
+}
+
+/// Final classification packets (ID 8) are silently ignored.
+#[test]
+fn process_packet_final_classification_ignored() -> TestResult {
+    let mut state = F1NativeState::default();
+    let raw = build_f1_native_header_bytes(PACKET_FORMAT_2023, 8, 0);
+    let result = F1NativeAdapter::process_packet(&mut state, &raw)?;
+    assert!(result.is_none());
+    Ok(())
+}
+
+/// Lobby info packets (ID 9) are silently ignored.
+#[test]
+fn process_packet_lobby_info_ignored() -> TestResult {
+    let mut state = F1NativeState::default();
+    let raw = build_f1_native_header_bytes(PACKET_FORMAT_2024, 9, 0);
+    let result = F1NativeAdapter::process_packet(&mut state, &raw)?;
+    assert!(result.is_none());
+    Ok(())
+}
+
+/// Session updates overwrite previous session state.
+#[test]
+fn process_packet_session_updates_overwrite() -> TestResult {
+    let mut state = F1NativeState::default();
+    let raw1 = build_session_packet(PACKET_FORMAT_2023, 30, 22, 5, 11);
+    F1NativeAdapter::process_packet(&mut state, &raw1)?;
+    assert_eq!(state.session.track_id, 11);
+
+    let raw2 = build_session_packet(PACKET_FORMAT_2023, 35, 25, 10, 5);
+    F1NativeAdapter::process_packet(&mut state, &raw2)?;
+    assert_eq!(state.session.track_id, 5);
+    assert_eq!(state.session.session_type, 10);
+    assert_eq!(state.session.track_temperature, 35);
+    Ok(())
+}
+
+/// Verify that the traction_control and anti_lock_brakes flags are parsed
+/// from car status packets and appear in normalized output.
+#[test]
+fn normalize_traction_control_and_abs_flags() -> TestResult {
+    let telem = CarTelemetryData {
+        speed_kmh: 150,
+        throttle: 0.6,
+        steer: 0.0,
+        brake: 0.0,
+        gear: 4,
+        engine_rpm: 9000,
+        drs: 0,
+        brakes_temperature: [0; 4],
+        tyres_surface_temperature: [0; 4],
+        tyres_inner_temperature: [0; 4],
+        engine_temperature: 0,
+        tyres_pressure: [0.0; 4],
+    };
+    let status = F1NativeCarStatusData {
+        traction_control: 2,
+        anti_lock_brakes: 1,
+        ..F1NativeCarStatusData::default()
+    };
+    let norm = normalize(&telem, &status, &SessionData::default());
+    assert!(norm.flags.traction_control);
+    assert!(norm.flags.abs_active);
+    Ok(())
+}
+
+/// Verify TC/ABS flags are false when set to 0.
+#[test]
+fn normalize_tc_abs_off() -> TestResult {
+    let telem = CarTelemetryData {
+        speed_kmh: 150,
+        throttle: 0.6,
+        steer: 0.0,
+        brake: 0.0,
+        gear: 4,
+        engine_rpm: 9000,
+        drs: 0,
+        brakes_temperature: [0; 4],
+        tyres_surface_temperature: [0; 4],
+        tyres_inner_temperature: [0; 4],
+        engine_temperature: 0,
+        tyres_pressure: [0.0; 4],
+    };
+    let status = F1NativeCarStatusData {
+        traction_control: 0,
+        anti_lock_brakes: 0,
+        ..F1NativeCarStatusData::default()
+    };
+    let norm = normalize(&telem, &status, &SessionData::default());
+    assert!(!norm.flags.traction_control);
+    assert!(!norm.flags.abs_active);
+    Ok(())
+}
+
+/// Track names resolve correctly for known IDs.
+#[test]
+fn track_name_lookup_known_ids() -> TestResult {
+    use racing_wheel_telemetry_adapters::f1_25::track_name_from_id;
+
+    let known = [
+        (0, "Melbourne"),
+        (5, "Monaco"),
+        (7, "Silverstone"),
+        (11, "Monza"),
+        (14, "Abu Dhabi"),
+        (30, "Miami"),
+        (31, "Las Vegas"),
+        (32, "Losail"),
+    ];
+    for (id, expected) in known {
+        assert_eq!(
+            track_name_from_id(id),
+            expected,
+            "track id {} should be '{}'",
+            id,
+            expected
+        );
+    }
+    Ok(())
+}
+
+/// Unknown track IDs return "Unknown".
+#[test]
+fn track_name_lookup_unknown_ids() -> TestResult {
+    use racing_wheel_telemetry_adapters::f1_25::track_name_from_id;
+    assert_eq!(track_name_from_id(33), "Unknown");
+    assert_eq!(track_name_from_id(127), "Unknown");
+    // Negative IDs are clamped to 0 by max(0), so -1 maps to Melbourne (index 0)
+    assert_eq!(track_name_from_id(-1), "Melbourne");
+    Ok(())
+}
+
+/// Wet tyre compound name.
+#[test]
+fn tyre_compound_wet() -> TestResult {
+    use racing_wheel_telemetry_adapters::f1_25::tyre_compound_name;
+    assert_eq!(tyre_compound_name(8), "Wet");
+    assert_eq!(tyre_compound_name(15), "Wet");
+    Ok(())
+}
+
+/// Intermediate tyre compound name.
+#[test]
+fn tyre_compound_intermediate() -> TestResult {
+    use racing_wheel_telemetry_adapters::f1_25::tyre_compound_name;
+    assert_eq!(tyre_compound_name(7), "Intermediate");
+    Ok(())
+}
+
+/// Tire pressure reordering: F1 data [RL, RR, FL, FR] → normalized [FL, FR, RL, RR].
+#[test]
+fn normalize_tire_pressure_reorder() -> TestResult {
+    let telem = CarTelemetryData {
+        speed_kmh: 200,
+        throttle: 0.5,
+        steer: 0.0,
+        brake: 0.0,
+        gear: 5,
+        engine_rpm: 10000,
+        drs: 0,
+        brakes_temperature: [0; 4],
+        tyres_surface_temperature: [0; 4],
+        tyres_inner_temperature: [0; 4],
+        engine_temperature: 0,
+        tyres_pressure: [21.0, 21.5, 22.0, 22.5], // [RL, RR, FL, FR]
+    };
+    let status = F1NativeCarStatusData::default();
+    let norm = normalize(&telem, &status, &SessionData::default());
+    // Normalized order: [FL, FR, RL, RR]
+    assert!((norm.tire_pressures_psi[0] - 22.0).abs() < 1e-4); // FL
+    assert!((norm.tire_pressures_psi[1] - 22.5).abs() < 1e-4); // FR
+    assert!((norm.tire_pressures_psi[2] - 21.0).abs() < 1e-4); // RL
+    assert!((norm.tire_pressures_psi[3] - 21.5).abs() < 1e-4); // RR
+    Ok(())
+}
+
+/// Tire surface temps reordering: F1 data [RL, RR, FL, FR] → normalized [FL, FR, RL, RR].
+#[test]
+fn normalize_tire_temps_reorder() -> TestResult {
+    let telem = CarTelemetryData {
+        speed_kmh: 200,
+        throttle: 0.5,
+        steer: 0.0,
+        brake: 0.0,
+        gear: 5,
+        engine_rpm: 10000,
+        drs: 0,
+        brakes_temperature: [0; 4],
+        tyres_surface_temperature: [81, 82, 83, 84], // [RL, RR, FL, FR]
+        tyres_inner_temperature: [0; 4],
+        engine_temperature: 0,
+        tyres_pressure: [0.0; 4],
+    };
+    let status = F1NativeCarStatusData::default();
+    let norm = normalize(&telem, &status, &SessionData::default());
+    assert_eq!(norm.tire_temps_c[0], 83); // FL
+    assert_eq!(norm.tire_temps_c[1], 84); // FR
+    assert_eq!(norm.tire_temps_c[2], 81); // RL
+    assert_eq!(norm.tire_temps_c[3], 82); // RR
+    Ok(())
+}
+
+/// Car telemetry for player at middle index (index 11).
+#[test]
+fn car_telemetry_middle_player_index() -> TestResult {
+    let raw = build_car_telemetry_packet_native(
+        PACKET_FORMAT_2024,
+        11,
+        260,
+        7,
+        13000,
+        0.9,
+        0.0,
+        0.05,
+        1,
+        [24.0; 4],
+    );
+    let telem = parse_car_telemetry(&raw, 11)?;
+    assert_eq!(telem.speed_kmh, 260);
+    assert_eq!(telem.gear, 7);
+    assert_eq!(telem.engine_rpm, 13000);
+    Ok(())
+}
+
+/// NaN in car status ERS field is sanitized to 0.0.
+#[test]
+fn car_status_2024_nan_ers_sanitized() -> TestResult {
+    let mut raw = build_car_status_packet_f24(0, 20.0, 1_000_000.0, 0, 0, 13, 12000);
+    // Overwrite ERS store energy (at offset base+37..41) with NaN
+    let base = 29; // car 0
+    let nan_bytes = f32::NAN.to_le_bytes();
+    raw[base + 37..base + 41].copy_from_slice(&nan_bytes);
+    let status = parse_car_status_2024(&raw, 0)?;
+    assert_eq!(status.ers_store_energy, 0.0);
+    Ok(())
+}
+
+/// Adapter normalize() rejects format 0.
+#[test]
+fn adapter_normalize_rejects_format_0() {
+    let adapter = F1NativeAdapter::new();
+    let raw = build_f1_native_header_bytes(0, 6, 0);
+    assert!(adapter.normalize(&raw).is_err());
+}
+
+/// Adapter normalize() rejects format u16::MAX.
+#[test]
+fn adapter_normalize_rejects_format_max() {
+    let adapter = F1NativeAdapter::new();
+    let raw = build_f1_native_header_bytes(u16::MAX, 6, 0);
+    assert!(adapter.normalize(&raw).is_err());
+}
+
+/// process_packet with a session packet then a status-only does not emit.
+#[test]
+fn process_packet_session_then_status_no_emit() -> TestResult {
+    let mut state = F1NativeState::default();
+    let session = build_session_packet(PACKET_FORMAT_2024, 30, 25, 6, 11);
+    F1NativeAdapter::process_packet(&mut state, &session)?;
+
+    let status = build_car_status_packet_f24(0, 25.0, 2_000_000.0, 1, 0, 13, 13500);
+    let result = F1NativeAdapter::process_packet(&mut state, &status)?;
+    assert!(result.is_none(), "status without telemetry must not emit");
+    Ok(())
+}
+
+/// Verify decoder_type is set in process_packet emissions.
+#[test]
+fn process_packet_emission_has_decoder_type() -> TestResult {
+    let mut state = F1NativeState::default();
+    let telem = build_car_telemetry_packet_native(
+        PACKET_FORMAT_2024,
+        0,
+        200,
+        6,
+        11000,
+        0.8,
+        0.0,
+        0.0,
+        0,
+        [23.0; 4],
+    );
+    let status = build_car_status_packet_f24(0, 25.0, 2_000_000.0, 1, 0, 13, 13500);
+    F1NativeAdapter::process_packet(&mut state, &telem)?;
+    let norm = F1NativeAdapter::process_packet(&mut state, &status)?.ok_or("expected emission")?;
+    assert_eq!(
+        norm.extended.get("decoder_type"),
+        Some(&TelemetryValue::String("f1_native_udp".to_string()))
+    );
+    Ok(())
+}

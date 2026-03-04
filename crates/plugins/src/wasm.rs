@@ -415,7 +415,7 @@ impl WasmRuntime {
         };
 
         // Check capability against the capability checker
-        let result = match capability_str.as_str() {
+        let result = match &*capability_str {
             abi::capability_str::READ_TELEMETRY => {
                 caller.data().capability_checker.check_telemetry_read()
             }

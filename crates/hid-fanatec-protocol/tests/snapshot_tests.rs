@@ -188,7 +188,10 @@ fn test_snapshot_all_wheelbase_variants() {
 fn test_snapshot_all_pedal_variants() {
     use racing_wheel_hid_fanatec_protocol::{FanatecPedalModel, product_ids};
     let pids: &[(u16, &str)] = &[
-        (product_ids::CLUBSPORT_PEDALS_V1_V2, "ClubSport Pedals V1/V2"),
+        (
+            product_ids::CLUBSPORT_PEDALS_V1_V2,
+            "ClubSport Pedals V1/V2",
+        ),
         (product_ids::CLUBSPORT_PEDALS_V3, "ClubSport Pedals V3"),
         (product_ids::CSL_ELITE_PEDALS, "CSL Elite Pedals"),
         (product_ids::CSL_PEDALS_LC, "CSL Pedals LC"),
@@ -243,16 +246,46 @@ fn test_snapshot_protocol_constants() {
     use racing_wheel_hid_fanatec_protocol::{FANATEC_VENDOR_ID, ids};
     let lines = [
         format!("VENDOR_ID=0x{:04X}", FANATEC_VENDOR_ID),
-        format!("report_ids::STANDARD_INPUT=0x{:02X}", ids::report_ids::STANDARD_INPUT),
-        format!("report_ids::EXTENDED_INPUT=0x{:02X}", ids::report_ids::EXTENDED_INPUT),
-        format!("report_ids::MODE_SWITCH=0x{:02X}", ids::report_ids::MODE_SWITCH),
-        format!("report_ids::FFB_OUTPUT=0x{:02X}", ids::report_ids::FFB_OUTPUT),
-        format!("report_ids::LED_DISPLAY=0x{:02X}", ids::report_ids::LED_DISPLAY),
-        format!("ffb_commands::CONSTANT_FORCE=0x{:02X}", ids::ffb_commands::CONSTANT_FORCE),
-        format!("ffb_commands::SET_ROTATION_RANGE=0x{:02X}", ids::ffb_commands::SET_ROTATION_RANGE),
-        format!("ffb_commands::SET_GAIN=0x{:02X}", ids::ffb_commands::SET_GAIN),
-        format!("ffb_commands::STOP_ALL=0x{:02X}", ids::ffb_commands::STOP_ALL),
-        format!("led_commands::REV_LIGHTS=0x{:02X}", ids::led_commands::REV_LIGHTS),
+        format!(
+            "report_ids::STANDARD_INPUT=0x{:02X}",
+            ids::report_ids::STANDARD_INPUT
+        ),
+        format!(
+            "report_ids::EXTENDED_INPUT=0x{:02X}",
+            ids::report_ids::EXTENDED_INPUT
+        ),
+        format!(
+            "report_ids::MODE_SWITCH=0x{:02X}",
+            ids::report_ids::MODE_SWITCH
+        ),
+        format!(
+            "report_ids::FFB_OUTPUT=0x{:02X}",
+            ids::report_ids::FFB_OUTPUT
+        ),
+        format!(
+            "report_ids::LED_DISPLAY=0x{:02X}",
+            ids::report_ids::LED_DISPLAY
+        ),
+        format!(
+            "ffb_commands::CONSTANT_FORCE=0x{:02X}",
+            ids::ffb_commands::CONSTANT_FORCE
+        ),
+        format!(
+            "ffb_commands::SET_ROTATION_RANGE=0x{:02X}",
+            ids::ffb_commands::SET_ROTATION_RANGE
+        ),
+        format!(
+            "ffb_commands::SET_GAIN=0x{:02X}",
+            ids::ffb_commands::SET_GAIN
+        ),
+        format!(
+            "ffb_commands::STOP_ALL=0x{:02X}",
+            ids::ffb_commands::STOP_ALL
+        ),
+        format!(
+            "led_commands::REV_LIGHTS=0x{:02X}",
+            ids::led_commands::REV_LIGHTS
+        ),
         format!("led_commands::DISPLAY=0x{:02X}", ids::led_commands::DISPLAY),
         format!("led_commands::RUMBLE=0x{:02X}", ids::led_commands::RUMBLE),
     ];

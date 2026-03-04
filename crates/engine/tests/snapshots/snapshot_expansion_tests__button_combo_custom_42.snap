@@ -1,0 +1,7 @@
+---
+source: crates/engine/tests/snapshot_expansion_tests.rs
+expression: "ButtonCombo::CustomSequence(42)"
+---
+CustomSequence(
+    42,
+)

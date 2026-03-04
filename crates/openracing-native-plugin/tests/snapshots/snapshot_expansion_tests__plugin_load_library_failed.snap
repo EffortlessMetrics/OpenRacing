@@ -1,0 +1,5 @@
+---
+source: crates/openracing-native-plugin/tests/snapshot_expansion_tests.rs
+expression: "format!(\"{}\", err)"
+---
+Library loading failed: symbol not found: plugin_init

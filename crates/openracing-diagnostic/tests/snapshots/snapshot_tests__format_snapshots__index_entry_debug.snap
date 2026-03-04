@@ -1,0 +1,11 @@
+---
+source: crates/openracing-diagnostic/tests/snapshot_tests.rs
+expression: entry
+---
+IndexEntry {
+    timestamp_ms: 500,
+    stream_a_offset: 0,
+    stream_b_offset: 0,
+    stream_c_offset: 0,
+    frame_count: 100,
+}

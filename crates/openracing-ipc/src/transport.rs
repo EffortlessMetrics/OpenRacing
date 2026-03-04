@@ -13,6 +13,20 @@ use crate::DEFAULT_TCP_PORT;
 use crate::error::IpcResult;
 
 /// Transport type configuration
+///
+/// # Examples
+///
+/// ```
+/// use openracing_ipc::TransportType;
+///
+/// // Create TCP transport with defaults
+/// let tcp = TransportType::tcp();
+/// assert!(tcp.description().contains("TCP"));
+///
+/// // TCP with custom address and port
+/// let custom = TransportType::tcp_with_address("0.0.0.0", 8080);
+/// assert!(custom.description().contains("8080"));
+/// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum TransportType {
     /// TCP transport (cross-platform)
@@ -152,6 +166,23 @@ impl Default for TransportConfig {
 }
 
 /// Transport builder for creating transports with configuration
+///
+/// # Examples
+///
+/// ```
+/// use openracing_ipc::prelude::*;
+/// use std::time::Duration;
+///
+/// let config = TransportBuilder::new()
+///     .transport(TransportType::tcp())
+///     .max_connections(50)
+///     .connection_timeout(Duration::from_secs(10))
+///     .enable_acl(true)
+///     .build();
+///
+/// assert_eq!(config.max_connections, 50);
+/// assert!(config.enable_acl);
+/// ```
 pub struct TransportBuilder {
     config: TransportConfig,
 }

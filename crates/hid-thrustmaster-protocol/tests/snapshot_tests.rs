@@ -480,7 +480,16 @@ fn test_snapshot_all_model_names() {
     ];
     let results: Vec<String> = models
         .iter()
-        .map(|m| format!("{:?}: name={}, torque={}, rot={}, ffb={}", m, m.name(), m.max_torque_nm(), m.max_rotation_deg(), m.supports_ffb()))
+        .map(|m| {
+            format!(
+                "{:?}: name={}, torque={}, rot={}, ffb={}",
+                m,
+                m.name(),
+                m.max_torque_nm(),
+                m.max_rotation_deg(),
+                m.supports_ffb()
+            )
+        })
         .collect();
     assert_snapshot!(results.join("\n"));
 }

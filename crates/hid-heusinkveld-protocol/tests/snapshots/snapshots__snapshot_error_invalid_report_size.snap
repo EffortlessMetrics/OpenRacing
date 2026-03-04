@@ -1,0 +1,5 @@
+---
+source: crates/hid-heusinkveld-protocol/tests/snapshots.rs
+expression: "format!(\"{err}\")"
+---
+"Invalid report size: expected 8, got 3"

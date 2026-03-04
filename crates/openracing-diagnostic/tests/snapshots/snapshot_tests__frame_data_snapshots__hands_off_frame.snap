@@ -1,0 +1,12 @@
+---
+source: crates/openracing-diagnostic/tests/snapshot_tests.rs
+expression: frame
+---
+FrameData {
+    ffb_in: 0.0,
+    torque_out: 0.0,
+    wheel_speed: 0.0,
+    hands_off: true,
+    ts_mono_ns: 5000000000,
+    seq: 100,
+}

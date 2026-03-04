@@ -1,0 +1,1 @@
+{"reconstruction":99,"friction":{"value":-1.0},"damper":{"value":999.0},"inertia":{"value":0.0},"notch_filters":[],"slew_rate":{"value":0.0},"curve_points":[],"torque_cap":{"value":0.0},"bumpstop":{"enabled":false,"start_angle":{"value":0.0},"max_angle":{"value":0.0},"stiffness":0.0,"damping":0.0},"hands_off":{"enabled":false,"threshold":0.0,"timeout_seconds":0.0}}

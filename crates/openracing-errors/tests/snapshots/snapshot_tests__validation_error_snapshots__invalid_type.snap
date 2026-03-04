@@ -1,0 +1,5 @@
+---
+source: crates/openracing-errors/tests/snapshot_tests.rs
+expression: "ValidationError::InvalidType\n{\n    field: \"gain\".into(), expected: \"f32\".into(), actual: \"string\".into(),\n}.to_string()"
+---
+Invalid type for field 'gain': expected f32, got string

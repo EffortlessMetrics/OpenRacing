@@ -1,0 +1,5 @@
+---
+source: crates/openracing-errors/tests/snapshot_tests.rs
+expression: "ProfileError::AlreadyExists(\"drift-pro\".into()).to_string()"
+---
+Profile already exists: drift-pro

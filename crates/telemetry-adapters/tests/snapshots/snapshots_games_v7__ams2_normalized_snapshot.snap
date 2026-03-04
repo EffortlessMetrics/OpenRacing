@@ -3,14 +3,14 @@ source: crates/telemetry-adapters/tests/snapshots_games_v7.rs
 expression: normalized
 ---
 speed_ms: 45
-steering_angle: 0
-throttle: 0
+steering_angle: 0.15
+throttle: 0.75
 brake: 0
 clutch: 0
 rpm: 7200
-max_rpm: 0
+max_rpm: 8500
 gear: 4
-num_gears: 0
+num_gears: 6
 lateral_g: 0
 longitudinal_g: 0
 vertical_g: 0
@@ -53,25 +53,19 @@ flags:
 car_id: Formula_Trainer
 track_id: Interlagos
 position: 0
-lap: 0
+lap: 3
 current_lap_time_s: 0
 best_lap_time_s: 0
 last_lap_time_s: 0
 delta_ahead_s: 0
 delta_behind_s: 0
-fuel_percent: 0
+fuel_percent: 0.5416667
 engine_temp_c: 0
 extended:
-  brake:
+  fuel_capacity_l:
     type: Float
-    value: 0
-  fuel_level:
+    value: 60
+  fuel_level_l:
     type: Float
     value: 32.5
-  lap_count:
-    type: Integer
-    value: 3
-  throttle:
-    type: Float
-    value: 0.75
 sequence: 0

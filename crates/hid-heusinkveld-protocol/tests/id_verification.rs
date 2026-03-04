@@ -5,11 +5,10 @@
 //! Do not change only one of the two — they must stay in sync.
 
 use hid_heusinkveld_protocol::{
-    HEUSINKVELD_HANDBRAKE_V1_PID, HEUSINKVELD_HANDBRAKE_V1_VENDOR_ID,
-    HEUSINKVELD_HANDBRAKE_V2_PID, HEUSINKVELD_LEGACY_SPRINT_PID, HEUSINKVELD_LEGACY_ULTIMATE_PID,
-    HEUSINKVELD_LEGACY_VENDOR_ID, HEUSINKVELD_PRO_PID, HEUSINKVELD_SHIFTER_PID,
-    HEUSINKVELD_SHIFTER_VENDOR_ID, HEUSINKVELD_SPRINT_PID, HEUSINKVELD_ULTIMATE_PID,
-    HEUSINKVELD_VENDOR_ID,
+    HEUSINKVELD_HANDBRAKE_V1_PID, HEUSINKVELD_HANDBRAKE_V1_VENDOR_ID, HEUSINKVELD_HANDBRAKE_V2_PID,
+    HEUSINKVELD_LEGACY_SPRINT_PID, HEUSINKVELD_LEGACY_ULTIMATE_PID, HEUSINKVELD_LEGACY_VENDOR_ID,
+    HEUSINKVELD_PRO_PID, HEUSINKVELD_SHIFTER_PID, HEUSINKVELD_SHIFTER_VENDOR_ID,
+    HEUSINKVELD_SPRINT_PID, HEUSINKVELD_ULTIMATE_PID, HEUSINKVELD_VENDOR_ID,
 };
 
 /// Current Heusinkveld VID must be 0x30B7.
@@ -91,16 +90,48 @@ fn cross_check_all_known_pids() -> Result<(), String> {
 
     let table: &[(u16, u16, HeusinkveldModel)] = &[
         // Current VID 0x30B7
-        (HEUSINKVELD_VENDOR_ID, HEUSINKVELD_SPRINT_PID, HeusinkveldModel::Sprint),
-        (HEUSINKVELD_VENDOR_ID, HEUSINKVELD_ULTIMATE_PID, HeusinkveldModel::Ultimate),
-        (HEUSINKVELD_VENDOR_ID, HEUSINKVELD_HANDBRAKE_V2_PID, HeusinkveldModel::HandbrakeV2),
+        (
+            HEUSINKVELD_VENDOR_ID,
+            HEUSINKVELD_SPRINT_PID,
+            HeusinkveldModel::Sprint,
+        ),
+        (
+            HEUSINKVELD_VENDOR_ID,
+            HEUSINKVELD_ULTIMATE_PID,
+            HeusinkveldModel::Ultimate,
+        ),
+        (
+            HEUSINKVELD_VENDOR_ID,
+            HEUSINKVELD_HANDBRAKE_V2_PID,
+            HeusinkveldModel::HandbrakeV2,
+        ),
         // Legacy VID 0x04D8
-        (HEUSINKVELD_LEGACY_VENDOR_ID, HEUSINKVELD_LEGACY_SPRINT_PID, HeusinkveldModel::Sprint),
-        (HEUSINKVELD_LEGACY_VENDOR_ID, HEUSINKVELD_LEGACY_ULTIMATE_PID, HeusinkveldModel::Ultimate),
-        (HEUSINKVELD_LEGACY_VENDOR_ID, HEUSINKVELD_PRO_PID, HeusinkveldModel::Pro),
+        (
+            HEUSINKVELD_LEGACY_VENDOR_ID,
+            HEUSINKVELD_LEGACY_SPRINT_PID,
+            HeusinkveldModel::Sprint,
+        ),
+        (
+            HEUSINKVELD_LEGACY_VENDOR_ID,
+            HEUSINKVELD_LEGACY_ULTIMATE_PID,
+            HeusinkveldModel::Ultimate,
+        ),
+        (
+            HEUSINKVELD_LEGACY_VENDOR_ID,
+            HEUSINKVELD_PRO_PID,
+            HeusinkveldModel::Pro,
+        ),
         // Peripherals
-        (HEUSINKVELD_HANDBRAKE_V1_VENDOR_ID, HEUSINKVELD_HANDBRAKE_V1_PID, HeusinkveldModel::HandbrakeV1),
-        (HEUSINKVELD_SHIFTER_VENDOR_ID, HEUSINKVELD_SHIFTER_PID, HeusinkveldModel::SequentialShifter),
+        (
+            HEUSINKVELD_HANDBRAKE_V1_VENDOR_ID,
+            HEUSINKVELD_HANDBRAKE_V1_PID,
+            HeusinkveldModel::HandbrakeV1,
+        ),
+        (
+            HEUSINKVELD_SHIFTER_VENDOR_ID,
+            HEUSINKVELD_SHIFTER_PID,
+            HeusinkveldModel::SequentialShifter,
+        ),
     ];
 
     for &(vid, pid, ref expected) in table {

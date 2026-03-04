@@ -1,0 +1,5 @@
+---
+source: crates/openracing-tracing/tests/tracing_snapshot_tests.rs
+expression: out.trim()
+---
+ERROR pipeline fault detected error_code=5 tick_count=42

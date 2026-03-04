@@ -1,0 +1,5 @@
+---
+source: crates/openracing-errors/tests/snapshot_tests.rs
+expression: "ProfileError::invalid_format(\"profiles/gt3.yaml\",\n\"missing name field\").to_string()"
+---
+Invalid profile format in profiles/gt3.yaml: missing name field

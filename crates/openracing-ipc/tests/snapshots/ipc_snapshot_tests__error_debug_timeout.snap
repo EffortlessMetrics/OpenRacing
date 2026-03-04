@@ -1,0 +1,5 @@
+---
+source: crates/openracing-ipc/tests/ipc_snapshot_tests.rs
+expression: "format!(\"{err:?}\")"
+---
+Timeout { timeout_ms: 30000 }

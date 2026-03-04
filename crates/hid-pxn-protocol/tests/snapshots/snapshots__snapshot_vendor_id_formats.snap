@@ -1,0 +1,5 @@
+---
+source: crates/hid-pxn-protocol/tests/snapshots.rs
+expression: "format!(\"decimal={}, hex={:#06X}, binary={:#018b}\", pxn::VENDOR_ID,\npxn::VENDOR_ID, pxn::VENDOR_ID)"
+---
+"decimal=4607, hex=0x11FF, binary=0b0001000111111111"

@@ -7,10 +7,10 @@
 //! - Consistency between SimagicModel and identify_device
 
 use proptest::prelude::*;
+use racing_wheel_hid_simagic_protocol::ids::SIMAGIC_LEGACY_VENDOR_ID;
 use racing_wheel_hid_simagic_protocol::{
     SIMAGIC_VENDOR_ID, SimagicModel, identify_device, is_wheelbase_product, product_ids,
 };
-use racing_wheel_hid_simagic_protocol::ids::SIMAGIC_LEGACY_VENDOR_ID;
 
 /// All known Simagic product IDs (wheelbases and peripherals).
 const ALL_PIDS: [u16; 16] = [

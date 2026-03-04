@@ -102,7 +102,11 @@ fn beamng_edge_case_max_values_snapshot() -> TestResult {
     write_f32_le(&mut buf, OFF_TURBO, 2.8);
     write_f32_le(&mut buf, OFF_OIL_PRESSURE, 7.5);
     write_f32_le(&mut buf, OFF_OIL_TEMP, 160.0);
-    write_u32_le(&mut buf, OFF_SHOW_LIGHTS, DL_SHIFT | DL_PITSPEED | DL_TC | DL_ABS);
+    write_u32_le(
+        &mut buf,
+        OFF_SHOW_LIGHTS,
+        DL_SHIFT | DL_PITSPEED | DL_TC | DL_ABS,
+    );
 
     let adapter = BeamNGAdapter::new();
     let normalized = adapter.normalize(&buf)?;

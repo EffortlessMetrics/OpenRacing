@@ -1,0 +1,31 @@
+---
+source: crates/openracing-fmea/tests/snapshot_expansion_tests.rs
+expression: proc
+---
+RecoveryProcedure {
+    fault_type: ThermalLimit,
+    max_attempts: 1,
+    retry_delay: 100ms,
+    timeout: 60s,
+    automatic: true,
+    steps: [
+        RecoveryStep {
+            name: "reduce_load",
+            description: "Reduce torque output",
+            timeout: 50ms,
+            optional: false,
+        },
+        RecoveryStep {
+            name: "cooldown",
+            description: "Wait for cooldown",
+            timeout: 30s,
+            optional: false,
+        },
+        RecoveryStep {
+            name: "verify",
+            description: "Verify temperature normal",
+            timeout: 5s,
+            optional: false,
+        },
+    ],
+}

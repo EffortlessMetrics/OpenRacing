@@ -55,9 +55,12 @@ impl HidDeviceInfo {
 mod tests {
     use super::*;
 
+    /// Platform-neutral mock device path for tests.
+    const MOCK_PATH: &str = "mock://hid/test-device";
+
     #[test]
     fn test_device_info_creation() {
-        let info = HidDeviceInfo::new(0x1234, 0x5678, "/dev/hidraw0".to_string());
+        let info = HidDeviceInfo::new(0x1234, 0x5678, MOCK_PATH.to_string());
         assert_eq!(info.vendor_id, 0x1234);
         assert_eq!(info.product_id, 0x5678);
         assert!(info.matches(0x1234, 0x5678));
@@ -66,15 +69,15 @@ mod tests {
 
     #[test]
     fn test_device_info_display_name() {
-        let info = HidDeviceInfo::new(0x1234, 0x5678, "/dev/hidraw0".to_string())
+        let info = HidDeviceInfo::new(0x1234, 0x5678, MOCK_PATH.to_string())
             .with_product_name("Test Wheel".to_string());
         assert_eq!(info.display_name(), "Test Wheel");
 
-        let info = HidDeviceInfo::new(0x1234, 0x5678, "/dev/hidraw0".to_string())
+        let info = HidDeviceInfo::new(0x1234, 0x5678, MOCK_PATH.to_string())
             .with_manufacturer("Test Co".to_string());
         assert_eq!(info.display_name(), "Test Co");
 
-        let info = HidDeviceInfo::new(0x1234, 0x5678, "/dev/hidraw0".to_string());
+        let info = HidDeviceInfo::new(0x1234, 0x5678, MOCK_PATH.to_string());
         assert_eq!(info.display_name(), "1234:5678");
     }
 }

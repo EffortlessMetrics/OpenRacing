@@ -1,0 +1,5 @@
+---
+source: crates/openracing-diagnostic/tests/snapshot_tests.rs
+expression: "SafetyStateSimple::HighTorqueChallenge"
+---
+HighTorqueChallenge

@@ -1,0 +1,14 @@
+---
+source: crates/openracing-fmea/tests/snapshot_expansion_tests.rs
+expression: marker
+---
+FaultMarker {
+    fault_type: UsbStall,
+    timestamp: 1.5s,
+    pre_fault_data_offset: 0,
+    post_fault_data_length: 0,
+    device_state: [],
+    telemetry_snapshot: None,
+    plugin_states: [],
+    recovery_actions: [],
+}

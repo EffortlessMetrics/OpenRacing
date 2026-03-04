@@ -1,0 +1,12 @@
+---
+source: crates/engine/tests/engine_snapshot_tests.rs
+expression: report
+---
+DeviceCapabilitiesReport {
+    report_id: 1,
+    flags: 15,
+    max_torque_cnm: 800,
+    encoder_cpr: 2048,
+    min_report_period_us: 1000,
+    protocol_version: 0,
+}

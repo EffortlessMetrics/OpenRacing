@@ -1,0 +1,5 @@
+---
+source: crates/openracing-ipc/tests/ipc_snapshot_tests.rs
+expression: transport.description()
+---
+TCP 10.0.0.1:9999

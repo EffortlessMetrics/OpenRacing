@@ -452,8 +452,8 @@ mod tests {
         report[input_report::ROTARY_START] = 0x55;
         report[input_report::ROTARY_START + 1] = 0xAA;
 
-        let parsed = parse_wheelbase_input_report(&report)
-            .ok_or("expected full round-trip parse")?;
+        let parsed =
+            parse_wheelbase_input_report(&report).ok_or("expected full round-trip parse")?;
         assert_eq!(parsed.steering, steering);
         assert_eq!(parsed.pedals.throttle, throttle);
         assert_eq!(parsed.pedals.brake, brake);
@@ -483,8 +483,8 @@ mod tests {
         report[input_report::HANDBRAKE_START..input_report::HANDBRAKE_START + 2]
             .copy_from_slice(&handbrake.to_le_bytes());
 
-        let parsed = parse_wheelbase_pedal_axes(&report)
-            .ok_or("expected pedal axes round-trip parse")?;
+        let parsed =
+            parse_wheelbase_pedal_axes(&report).ok_or("expected pedal axes round-trip parse")?;
         assert_eq!(parsed.throttle, throttle);
         assert_eq!(parsed.brake, brake);
         assert_eq!(parsed.clutch, Some(clutch));
@@ -521,8 +521,8 @@ mod tests {
     fn parse_wheelbase_all_ff_axes() -> Result<(), Box<dyn std::error::Error>> {
         let mut report = [0xFFu8; MIN_REPORT_LEN];
         report[0] = input_report::REPORT_ID;
-        let parsed = parse_wheelbase_pedal_axes(&report)
-            .ok_or("expected parse for 0xFF-filled axes")?;
+        let parsed =
+            parse_wheelbase_pedal_axes(&report).ok_or("expected parse for 0xFF-filled axes")?;
         assert_eq!(parsed.throttle, u16::MAX);
         assert_eq!(parsed.brake, u16::MAX);
         Ok(())
@@ -532,8 +532,8 @@ mod tests {
     fn parse_wheelbase_all_zero_axes() -> Result<(), Box<dyn std::error::Error>> {
         let mut report = [0x00u8; MIN_REPORT_LEN];
         report[0] = input_report::REPORT_ID;
-        let parsed = parse_wheelbase_pedal_axes(&report)
-            .ok_or("expected parse for zero-filled axes")?;
+        let parsed =
+            parse_wheelbase_pedal_axes(&report).ok_or("expected parse for zero-filled axes")?;
         assert_eq!(parsed.throttle, 0);
         assert_eq!(parsed.brake, 0);
         Ok(())
@@ -543,8 +543,7 @@ mod tests {
 
     #[test]
     fn parse_wheelbase_pedal_axes_clutch_present_handbrake_absent()
-        -> Result<(), Box<dyn std::error::Error>>
-    {
+    -> Result<(), Box<dyn std::error::Error>> {
         // Report long enough for clutch (offset 7..9) but not handbrake (offset 9..11)
         let mut report = [0u8; input_report::HANDBRAKE_START];
         report[0] = input_report::REPORT_ID;
@@ -601,8 +600,8 @@ mod tests {
             .copy_from_slice(&0x3000u16.to_le_bytes());
         report[input_report::ROTARY_START] = 0x77;
 
-        let parsed = parse_wheelbase_input_report(&report)
-            .ok_or("expected parse with partial rotary")?;
+        let parsed =
+            parse_wheelbase_input_report(&report).ok_or("expected parse with partial rotary")?;
         assert_eq!(parsed.rotary, [0x77, 0x00]);
         Ok(())
     }

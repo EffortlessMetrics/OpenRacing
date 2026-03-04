@@ -1,0 +1,11 @@
+---
+source: crates/openracing-device-types/tests/snapshot_expansion_tests.rs
+expression: telemetry
+---
+TelemetryData {
+    wheel_angle_deg: 0.0,
+    wheel_speed_rad_s: 0.0,
+    temperature_c: 85,
+    fault_flags: 3,
+    hands_on: false,
+}

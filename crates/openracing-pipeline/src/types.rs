@@ -163,6 +163,19 @@ impl Pipeline {
     ///
     /// The curve is pre-computed as a LUT at profile load time (not in RT path).
     /// This ensures zero allocations during RT processing.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_pipeline::Pipeline;
+    /// use openracing_curves::CurveLut;
+    ///
+    /// let mut pipeline = Pipeline::new();
+    /// assert!(pipeline.response_curve().is_none());
+    ///
+    /// pipeline.set_response_curve(CurveLut::linear());
+    /// assert!(pipeline.response_curve().is_some());
+    /// ```
     pub fn set_response_curve(&mut self, curve: CurveLut) {
         self.response_curve = Some(Box::new(curve));
     }
@@ -174,18 +187,54 @@ impl Pipeline {
     }
 
     /// Get the configuration hash for this pipeline
+    ///
+    /// The hash changes when the pipeline configuration changes, enabling
+    /// efficient change detection.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_pipeline::Pipeline;
+    ///
+    /// let p1 = Pipeline::new();
+    /// let p2 = Pipeline::with_hash(0xCAFE);
+    ///
+    /// assert_eq!(p1.config_hash(), 0);
+    /// assert_eq!(p2.config_hash(), 0xCAFE);
+    /// assert_ne!(p1.config_hash(), p2.config_hash());
+    /// ```
     #[must_use]
     pub fn config_hash(&self) -> u64 {
         self.config_hash
     }
 
     /// Check if pipeline is empty
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_pipeline::Pipeline;
+    ///
+    /// let pipeline = Pipeline::new();
+    /// assert!(pipeline.is_empty());
+    /// assert_eq!(pipeline.node_count(), 0);
+    /// ```
     #[must_use]
     pub fn is_empty(&self) -> bool {
         self.nodes.is_empty()
     }
 
     /// Get the number of filter nodes
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_pipeline::Pipeline;
+    ///
+    /// let pipeline = Pipeline::new();
+    /// assert_eq!(pipeline.node_count(), 0);
+    /// assert!(pipeline.is_empty());
+    /// ```
     #[must_use]
     pub fn node_count(&self) -> usize {
         self.nodes.len()

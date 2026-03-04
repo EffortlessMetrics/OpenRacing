@@ -514,7 +514,7 @@ impl SystemConfig {
         );
 
         // Add migration logic here as schema evolves
-        match self.schema_version.as_str() {
+        match &*self.schema_version {
             "wheel.config/0" => {
                 // Example migration from v0 to v1
                 // Add new fields with defaults, remove deprecated fields

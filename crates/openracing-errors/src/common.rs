@@ -125,11 +125,31 @@ impl OpenRacingError {
     }
 
     /// Create a configuration error with a message.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_errors::{OpenRacingError, ErrorCategory};
+    ///
+    /// let err = OpenRacingError::config("missing wheel section");
+    /// assert_eq!(err.category(), ErrorCategory::Config);
+    /// assert!(err.to_string().contains("missing wheel section"));
+    /// ```
     pub fn config(msg: impl Into<String>) -> Self {
         OpenRacingError::Config(msg.into())
     }
 
     /// Create a generic error with a message.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_errors::{OpenRacingError, ErrorCategory};
+    ///
+    /// let err = OpenRacingError::other("unexpected state");
+    /// assert_eq!(err.category(), ErrorCategory::Other);
+    /// assert!(err.to_string().contains("unexpected state"));
+    /// ```
     pub fn other(msg: impl Into<String>) -> Self {
         OpenRacingError::Other(msg.into())
     }

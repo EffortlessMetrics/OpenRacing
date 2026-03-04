@@ -1,0 +1,7 @@
+---
+source: crates/openracing-ffb/tests/snapshot_tests.rs
+expression: "FfbDirection::default()"
+---
+{
+  "degrees": 0.0
+}

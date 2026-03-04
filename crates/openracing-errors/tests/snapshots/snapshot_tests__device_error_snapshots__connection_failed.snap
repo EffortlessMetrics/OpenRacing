@@ -1,0 +1,5 @@
+---
+source: crates/openracing-errors/tests/snapshot_tests.rs
+expression: "DeviceError::ConnectionFailed(\"usb-hub-3\".into()).to_string()"
+---
+Failed to connect to device: usb-hub-3

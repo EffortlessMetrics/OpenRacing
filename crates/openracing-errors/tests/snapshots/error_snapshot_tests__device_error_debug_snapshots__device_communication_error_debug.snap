@@ -1,0 +1,5 @@
+---
+source: crates/openracing-errors/tests/error_snapshot_tests.rs
+expression: "format!(\"{:?}\", DeviceError::CommunicationError\n{ device: \"fanatec-dd-pro\".into(), message: \"USB transfer timeout\".into(), })"
+---
+CommunicationError { device: "fanatec-dd-pro", message: "USB transfer timeout" }

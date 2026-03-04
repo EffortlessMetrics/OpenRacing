@@ -1,0 +1,5 @@
+error[E0616]: field `state` of struct `SafetyService` is private
+  --> tests/compile_fail/safety_service_private_state.rs:13:13
+   |
+13 |     service.state = racing_wheel_engine::safety::SafetyState::HighTorqueActive {
+   |             ^^^^^ private field

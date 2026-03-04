@@ -1,0 +1,12 @@
+---
+source: crates/schemas/tests/schema_snapshot_tests.rs
+expression: json
+---
+{
+  "center_position": 0.5,
+  "min_position": null,
+  "max_position": null,
+  "pedal_ranges": null,
+  "calibrated_at": "2024-01-15T12:00:00Z",
+  "calibration_type": "Center"
+}

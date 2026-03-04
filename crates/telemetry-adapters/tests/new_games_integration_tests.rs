@@ -460,14 +460,14 @@ fn pcars2_steering_clamped_to_minus_one_plus_one() -> TestResult {
 
 // ─── Live For Speed ───────────────────────────────────────────────────────────
 //
-// OutGauge UDP port 30000, 96-byte packet:
+// OutGauge UDP port 30000, 92-byte packet (96 with optional OutGauge ID):
 //   offset 10 u8  gear  (0=Reverse, 1=Neutral, 2=1st, 3=2nd, …)
 //   offset 12 f32 speed_ms   offset 16 f32 rpm
 //   offset 28 f32 fuel [0,1] offset 48 f32 throttle
 //   offset 52 f32 brake      offset 56 f32 clutch
 
 fn make_lfs_packet(speed: f32, rpm: f32, gear: u8, throttle: f32, brake: f32) -> Vec<u8> {
-    let mut data = vec![0u8; 96];
+    let mut data = vec![0u8; 92];
     data[10] = gear;
     write_f32_le(&mut data, 12, speed);
     write_f32_le(&mut data, 16, rpm);
@@ -880,8 +880,8 @@ mod proptest_tests {
 
         #[test]
         fn lfs_short_packet_always_errors(
-            // OUTGAUGE_PACKET_SIZE = 96
-            data in proptest::collection::vec(any::<u8>(), 0..96usize)
+            // OUTGAUGE_PACKET_SIZE = 92
+            data in proptest::collection::vec(any::<u8>(), 0..92usize)
         ) {
             prop_assert!(LFSAdapter::new().normalize(&data).is_err());
         }

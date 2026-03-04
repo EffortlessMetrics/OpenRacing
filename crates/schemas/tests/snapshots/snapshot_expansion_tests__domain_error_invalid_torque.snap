@@ -1,0 +1,5 @@
+---
+source: crates/schemas/tests/snapshot_expansion_tests.rs
+expression: "format!(\"{}\", err)"
+---
+Invalid torque value: 55 Nm (must be >= 0 and <= 50 Nm)

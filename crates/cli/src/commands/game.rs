@@ -429,10 +429,7 @@ mod tests {
 
     #[test]
     fn format_telemetry_unknown_passthrough() {
-        assert_eq!(
-            format_telemetry_method("something_new"),
-            "something_new"
-        );
+        assert_eq!(format_telemetry_method("something_new"), "something_new");
     }
 
     // --- field_name_label ---

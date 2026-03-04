@@ -6,9 +6,7 @@
 
 use std::time::{Duration, Instant};
 
-use racing_wheel_telemetry_rate_limiter::{
-    AdaptiveRateLimiter, RateLimiter, RateLimiterStats,
-};
+use racing_wheel_telemetry_rate_limiter::{AdaptiveRateLimiter, RateLimiter, RateLimiterStats};
 
 // ---------------------------------------------------------------------------
 // 1. Rate limiting at various frequencies
@@ -434,4 +432,214 @@ fn set_max_rate_hz_roundtrips() {
         limiter.set_max_rate_hz(rate);
         assert_eq!(limiter.max_rate_hz(), rate, "roundtrip failed for {rate}");
     }
+}
+
+// ---------------------------------------------------------------------------
+// 9. Reconfiguration mid-stream
+// ---------------------------------------------------------------------------
+
+#[test]
+fn reconfigure_slower_rejects_immediate() {
+    let mut limiter = RateLimiter::new(1000);
+    assert!(limiter.should_process());
+    limiter.set_max_rate_hz(1);
+    // 1 Hz → 1s interval; immediate call rejected
+    assert!(!limiter.should_process());
+}
+
+#[test]
+fn reconfigure_faster_after_slow() {
+    let mut limiter = RateLimiter::new(1); // 1 Hz
+    assert!(limiter.should_process());
+    limiter.set_max_rate_hz(u32::MAX);
+    // Near-zero interval → immediate call accepted
+    assert!(limiter.should_process());
+}
+
+#[test]
+fn reconfigure_preserves_counters() {
+    let mut limiter = RateLimiter::new(60);
+    assert!(limiter.should_process());
+    assert!(!limiter.should_process());
+    let p_before = limiter.processed_count();
+    let d_before = limiter.dropped_count();
+    limiter.set_max_rate_hz(120);
+    assert_eq!(limiter.processed_count(), p_before);
+    assert_eq!(limiter.dropped_count(), d_before);
+}
+
+#[test]
+fn repeated_reconfigurations_stable() {
+    let mut limiter = RateLimiter::new(60);
+    for rate in [1, 10, 100, 1000, u32::MAX, 1, 60, 0] {
+        limiter.set_max_rate_hz(rate);
+        assert!(
+            limiter.max_rate_hz() >= 1,
+            "rate must be >= 1 after set_max_rate_hz({rate})"
+        );
+    }
+}
+
+// ---------------------------------------------------------------------------
+// 10. Boundary values
+// ---------------------------------------------------------------------------
+
+#[test]
+fn boundary_power_of_two_rates() {
+    for rate in [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024] {
+        let mut limiter = RateLimiter::new(rate);
+        assert!(
+            limiter.should_process(),
+            "first call accepted for rate {rate}"
+        );
+        assert!(
+            !limiter.should_process(),
+            "immediate second rejected for rate {rate}"
+        );
+    }
+}
+
+#[test]
+fn boundary_u32_max_no_drops() {
+    let mut limiter = RateLimiter::new(u32::MAX);
+    for _ in 0..100 {
+        assert!(limiter.should_process());
+    }
+    assert_eq!(limiter.dropped_count(), 0);
+    assert_eq!(limiter.processed_count(), 100);
+}
+
+#[test]
+fn boundary_processed_plus_dropped_invariant() {
+    let mut limiter = RateLimiter::new(10);
+    let total_calls = 500u64;
+    for _ in 0..total_calls {
+        let _ = limiter.should_process();
+    }
+    assert_eq!(
+        limiter.processed_count() + limiter.dropped_count(),
+        total_calls
+    );
+}
+
+// ---------------------------------------------------------------------------
+// 11. Reset and statistics edge cases
+// ---------------------------------------------------------------------------
+
+#[test]
+fn reset_then_rate_still_enforced() {
+    let mut limiter = RateLimiter::new(60);
+    assert!(limiter.should_process());
+    limiter.reset_stats();
+    // Timing state is preserved, so immediate call is still rejected
+    assert!(!limiter.should_process());
+    assert_eq!(limiter.dropped_count(), 1);
+}
+
+#[test]
+fn consecutive_resets_are_idempotent() {
+    let mut limiter = RateLimiter::new(100);
+    assert!(limiter.should_process());
+    limiter.reset_stats();
+    limiter.reset_stats();
+    limiter.reset_stats();
+    assert_eq!(limiter.processed_count(), 0);
+    assert_eq!(limiter.dropped_count(), 0);
+}
+
+#[test]
+fn stats_independent_of_future_mutations() {
+    let mut limiter = RateLimiter::new(100);
+    assert!(limiter.should_process());
+    let snap1 = RateLimiterStats::from(&limiter);
+    // Mutate limiter after snapshot
+    assert!(!limiter.should_process());
+    assert!(!limiter.should_process());
+    // Snapshot must be unchanged
+    assert_eq!(snap1.processed_count, 1);
+    assert_eq!(snap1.dropped_count, 0);
+}
+
+// ---------------------------------------------------------------------------
+// 12. Adaptive rate limiter: extended scenarios
+// ---------------------------------------------------------------------------
+
+#[test]
+fn adaptive_converges_under_constant_high_cpu() {
+    let mut adaptive = AdaptiveRateLimiter::new(1000, 50.0);
+    let mut prev = adaptive.stats().max_rate_hz;
+    for _ in 0..200 {
+        adaptive.update_cpu_usage(90.0);
+        let curr = adaptive.stats().max_rate_hz;
+        assert!(curr <= prev || curr == prev);
+        prev = curr;
+    }
+    // Should have settled at the lower clamp
+    assert!(adaptive.stats().max_rate_hz >= 1);
+}
+
+#[test]
+fn adaptive_converges_under_constant_low_cpu() {
+    let mut adaptive = AdaptiveRateLimiter::new(500, 50.0);
+    let mut prev = adaptive.stats().max_rate_hz;
+    for _ in 0..200 {
+        adaptive.update_cpu_usage(0.0);
+        let curr = adaptive.stats().max_rate_hz;
+        assert!(curr >= prev || curr == prev);
+        prev = curr;
+    }
+    // Should have settled at the upper clamp
+    assert!(adaptive.stats().max_rate_hz <= 1000);
+}
+
+#[test]
+fn adaptive_stats_track_processing() {
+    let mut adaptive = AdaptiveRateLimiter::new(100, 50.0);
+    assert!(adaptive.should_process());
+    assert!(!adaptive.should_process());
+    let stats = adaptive.stats();
+    assert_eq!(stats.processed_count, 1);
+    assert_eq!(stats.dropped_count, 1);
+    assert!((stats.drop_rate_percent - 50.0).abs() < f32::EPSILON);
+}
+
+// ---------------------------------------------------------------------------
+// 13. Timer precision edge cases
+// ---------------------------------------------------------------------------
+
+#[tokio::test]
+async fn async_first_slot_is_nearly_immediate() {
+    let mut limiter = RateLimiter::new(60);
+    let start = Instant::now();
+    limiter.wait_for_slot().await;
+    let elapsed = start.elapsed();
+    assert!(
+        elapsed < Duration::from_millis(10),
+        "first slot should be immediate, took {elapsed:?}"
+    );
+}
+
+#[tokio::test]
+async fn async_slot_at_u32_max_rate_is_fast() {
+    let mut limiter = RateLimiter::new(u32::MAX);
+    limiter.wait_for_slot().await;
+    let start = Instant::now();
+    limiter.wait_for_slot().await;
+    let elapsed = start.elapsed();
+    assert!(
+        elapsed < Duration::from_millis(5),
+        "u32::MAX rate should have near-zero interval, took {elapsed:?}"
+    );
+}
+
+#[tokio::test]
+async fn async_adaptive_wait_first_slot_immediate() {
+    let mut adaptive = AdaptiveRateLimiter::new(60, 50.0);
+    let start = Instant::now();
+    adaptive.wait_for_slot().await;
+    let elapsed = start.elapsed();
+    assert!(
+        elapsed < Duration::from_millis(10),
+        "first adaptive slot should be immediate, took {elapsed:?}"
+    );
 }

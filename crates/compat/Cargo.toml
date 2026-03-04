@@ -14,3 +14,7 @@ workspace-hack = { version = "0.1", path = "../../workspace-hack" }
 
 [dev-dependencies]
 racing-wheel-engine = { path = "../engine" }
+racing-wheel-schemas = { path = "../schemas" }
+serde_json = { workspace = true }
+insta = { workspace = true, features = ["json"] }
+proptest = { workspace = true }

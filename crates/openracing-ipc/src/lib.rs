@@ -13,6 +13,62 @@
 //! - [`handlers`]: gRPC service handler traits
 //! - [`error`]: IPC-specific error types
 //!
+//! # IPC Config Creation
+//!
+//! ```
+//! use openracing_ipc::prelude::*;
+//!
+//! // Default configuration uses platform-native transport
+//! let config = IpcConfig::default();
+//! assert_eq!(config.server_name, "openracing-ipc");
+//!
+//! // Customize with builder methods
+//! let config = IpcConfig::with_transport(TransportType::tcp())
+//!     .max_connections(50)
+//!     .health_buffer_size(500);
+//!
+//! assert_eq!(config.transport.max_connections, 50);
+//! assert_eq!(config.health_buffer_size, 500);
+//! ```
+//!
+//! # Message Construction
+//!
+//! ```
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! use openracing_ipc::prelude::*;
+//!
+//! // Create a wire message header
+//! let header = MessageHeader::new(message_types::DEVICE, 256, 1);
+//! let bytes = header.encode();
+//! assert_eq!(bytes.len(), MessageHeader::SIZE);
+//!
+//! // Round-trip encode/decode
+//! let decoded = MessageHeader::decode(&bytes)?;
+//! assert_eq!(decoded.message_type, message_types::DEVICE);
+//! assert_eq!(decoded.payload_len, 256);
+//! assert_eq!(decoded.sequence, 1);
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! # Transport Setup
+//!
+//! ```
+//! use openracing_ipc::prelude::*;
+//! use std::time::Duration;
+//!
+//! // Build a transport configuration
+//! let config = TransportBuilder::new()
+//!     .transport(TransportType::tcp())
+//!     .max_connections(50)
+//!     .connection_timeout(Duration::from_secs(10))
+//!     .enable_acl(true)
+//!     .build();
+//!
+//! assert_eq!(config.max_connections, 50);
+//! assert!(config.enable_acl);
+//! ```
+//!
 //! # Wire Protocol Stability
 //!
 //! The wire protocol is designed for backward compatibility:

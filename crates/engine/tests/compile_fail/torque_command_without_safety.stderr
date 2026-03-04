@@ -1,0 +1,5 @@
+error[E0616]: field `rt_thread` of struct `Engine` is private
+  --> tests/compile_fail/torque_command_without_safety.rs:18:26
+   |
+18 |     let _device = engine.rt_thread;
+   |                          ^^^^^^^^^ private field

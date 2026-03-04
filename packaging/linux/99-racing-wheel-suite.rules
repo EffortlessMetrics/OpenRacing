@@ -18,6 +18,16 @@ SUBSYSTEM=="hidraw", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="c26e", GROUP="i
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="c267", GROUP="input", MODE="0664", TAG+="uaccess"
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="c268", GROUP="input", MODE="0664", TAG+="uaccess"
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="c272", GROUP="input", MODE="0664", TAG+="uaccess"
+# Legacy Logitech wheels (hid-logitech-protocol ids.rs)
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="c295", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="c294", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="c29c", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="ca03", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="c293", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="c291", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="ca04", GROUP="input", MODE="0664", TAG+="uaccess"
+# G923 native HID mode (after mode switch from PS compat)
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="c266", GROUP="input", MODE="0664", TAG+="uaccess"
 
 # ─── Thrustmaster (0x044F) ─────────────────────────────────────────────────
 # T150, T150 Pro, T300RS (PS4 mode), T300RS, T300RS GT, TX Racing, T500RS, TMX
@@ -39,11 +49,25 @@ SUBSYSTEM=="hidraw", ATTRS{idVendor}=="044f", ATTRS{idProduct}=="b689", GROUP="i
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="044f", ATTRS{idProduct}=="b691", GROUP="input", MODE="0664", TAG+="uaccess"
 # T818 (direct drive)
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="044f", ATTRS{idProduct}=="b69b", GROUP="input", MODE="0664", TAG+="uaccess"
-# Pedals: T3PA, T3PA Pro, T-LCM, T-LCM Pro
+# T-GT II GT mode (hid-thrustmaster-protocol ids.rs)
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="044f", ATTRS{idProduct}=="b681", GROUP="input", MODE="0664", TAG+="uaccess"
+# TX Racing original PID
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="044f", ATTRS{idProduct}=="b664", GROUP="input", MODE="0664", TAG+="uaccess"
+# Legacy Thrustmaster: T80, T80 Ferrari 488, NASCAR Pro FF2, FGT Rumble, RGT FF, FGT FF, F430 FF
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="044f", ATTRS{idProduct}=="b668", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="044f", ATTRS{idProduct}=="b66a", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="044f", ATTRS{idProduct}=="b605", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="044f", ATTRS{idProduct}=="b651", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="044f", ATTRS{idProduct}=="b653", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="044f", ATTRS{idProduct}=="b654", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="044f", ATTRS{idProduct}=="b65a", GROUP="input", MODE="0664", TAG+="uaccess"
+# Pedals: T3PA, T3PA Pro, T-LCM (0xB371), T-LCM Pro, TPR Pedals
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="044f", ATTRS{idProduct}=="b678", GROUP="input", MODE="0664", TAG+="uaccess"
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="044f", ATTRS{idProduct}=="b679", GROUP="input", MODE="0664", TAG+="uaccess"
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="044f", ATTRS{idProduct}=="b68d", GROUP="input", MODE="0664", TAG+="uaccess"
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="044f", ATTRS{idProduct}=="b69a", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="044f", ATTRS{idProduct}=="b371", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="044f", ATTRS{idProduct}=="b68f", GROUP="input", MODE="0664", TAG+="uaccess"
 
 # ─── Fanatec (0x0EB7) ─────────────────────────────────────────────────────
 # All Fanatec products share VID 0x0EB7 — match vendor-wide
@@ -71,6 +95,10 @@ SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="a35a", GROUP="i
 # VRS Pedals (corrected PID), R295
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="a3be", GROUP="input", MODE="0664", TAG+="uaccess"
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="a44c", GROUP="input", MODE="0664", TAG+="uaccess"
+# Cube Controls (0x0483 STM VID, provisional PIDs — hid-cube-controls-protocol ids.rs)
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="0c73", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="0c74", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="0c75", GROUP="input", MODE="0664", TAG+="uaccess"
 
 # ─── OpenMoko / MCS VID (0x16D0) — Simagic legacy, Heusinkveld, Simucube 2 ─
 # Simagic M10, FX (OpenMoko VID variant)
@@ -87,9 +115,27 @@ SUBSYSTEM=="hidraw", ATTRS{idVendor}=="16d0", ATTRS{idProduct}=="0d61", GROUP="i
 # Simucube ActivePedal, Wireless Wheel (PIDs estimated — not independently verified)
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="16d0", ATTRS{idProduct}=="0d62", GROUP="input", MODE="0664", TAG+="uaccess"
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="16d0", ATTRS{idProduct}=="0d63", GROUP="input", MODE="0664", TAG+="uaccess"
+# Simucube ActivePedal / SC-Link Hub (hid-simucube-protocol ids.rs)
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="16d0", ATTRS{idProduct}=="0d66", GROUP="input", MODE="0664", TAG+="uaccess"
+# Simucube 2 bootloader (firmware upgrade mode)
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="16d0", ATTRS{idProduct}=="0d5e", GROUP="input", MODE="0664", TAG+="uaccess"
 
 # ─── Simagic EVO generation (0x3670) ──────────────────────────────────────
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="3670", GROUP="input", MODE="0664", TAG+="uaccess"
+
+# ─── Heusinkveld current hardware (0x30B7) ─────────────────────────────────
+# Sprint, Ultimate+, Handbrake V2 (hid-heusinkveld-protocol ids.rs)
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="30b7", ATTRS{idProduct}=="1001", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="30b7", ATTRS{idProduct}=="1002", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="30b7", ATTRS{idProduct}=="1003", GROUP="input", MODE="0664", TAG+="uaccess"
+# ─── Heusinkveld legacy (0x04D8, Microchip VID) ───────────────────────────
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="04d8", ATTRS{idProduct}=="f6d0", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="04d8", ATTRS{idProduct}=="f6d2", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="04d8", ATTRS{idProduct}=="f6d3", GROUP="input", MODE="0664", TAG+="uaccess"
+# ─── Heusinkveld Handbrake V1 (0x10C4, Silicon Labs VID) ──────────────────
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="10c4", ATTRS{idProduct}=="8b82", GROUP="input", MODE="0664", TAG+="uaccess"
+# ─── Heusinkveld Sequential Shifter (0xA020) ──────────────────────────────
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="a020", ATTRS{idProduct}=="3142", GROUP="input", MODE="0664", TAG+="uaccess"
 
 # ─── Cammus (0x3416) ──────────────────────────────────────────────────────
 # Shenzhen Cammus Electronic Technology Co., Ltd.
@@ -110,6 +156,10 @@ SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2433", ATTRS{idProduct}=="f300", GROUP="i
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2433", ATTRS{idProduct}=="f301", GROUP="input", MODE="0664", TAG+="uaccess"
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2433", ATTRS{idProduct}=="f303", GROUP="input", MODE="0664", TAG+="uaccess"
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2433", ATTRS{idProduct}=="f306", GROUP="input", MODE="0664", TAG+="uaccess"
+# Asetek pedals: Invicta, Forte, La Prima (hid-asetek-protocol ids.rs)
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2433", ATTRS{idProduct}=="f100", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2433", ATTRS{idProduct}=="f101", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2433", ATTRS{idProduct}=="f102", GROUP="input", MODE="0664", TAG+="uaccess"
 
 # ─── OpenFFBoard (0x1209, pid.codes open hardware) ────────────────────────
 # Open-source direct drive wheel controller — https://github.com/Ultrawipf/OpenFFBoard
@@ -141,6 +191,14 @@ SUBSYSTEM=="hidraw", ATTRS{idVendor}=="1dd2", ATTRS{idProduct}=="000c", GROUP="i
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="1dd2", ATTRS{idProduct}=="1301", GROUP="input", MODE="0664", TAG+="uaccess"
 # USB Joystick (input-only)
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="1dd2", ATTRS{idProduct}=="0001", GROUP="input", MODE="0664", TAG+="uaccess"
+# Leo Bodnar FFB Joystick, BU0836A, BU0836X, BU0836 16-bit (hid-leo-bodnar-protocol ids.rs)
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="1dd2", ATTRS{idProduct}=="000f", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="1dd2", ATTRS{idProduct}=="000b", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="1dd2", ATTRS{idProduct}=="0030", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="1dd2", ATTRS{idProduct}=="0031", GROUP="input", MODE="0664", TAG+="uaccess"
+# Leo Bodnar Pedals, LC Pedals (simracing-hwdb)
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="1dd2", ATTRS{idProduct}=="100c", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="1dd2", ATTRS{idProduct}=="22d0", GROUP="input", MODE="0664", TAG+="uaccess"
 
 
 # ─── PXN (0x11FF, Shenzhen Jinyu Technology) ──────────────────────────────
@@ -211,6 +269,9 @@ ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="1d50", ATTRS{idProduct}=="605
 # Leo Bodnar
 ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="1dd2", ATTRS{idProduct}=="000e", ATTR{power/autosuspend}="-1"
 ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="1dd2", ATTRS{idProduct}=="000c", ATTR{power/autosuspend}="-1"
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="1dd2", ATTRS{idProduct}=="000f", ATTR{power/autosuspend}="-1"
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="1dd2", ATTRS{idProduct}=="100c", ATTR{power/autosuspend}="-1"
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="1dd2", ATTRS{idProduct}=="22d0", ATTR{power/autosuspend}="-1"
 # PXN (Shenzhen Jinyu Technology)
 ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="11ff", ATTRS{idProduct}=="3245", ATTR{power/autosuspend}="-1"
 ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="11ff", ATTRS{idProduct}=="1212", ATTR{power/autosuspend}="-1"
@@ -219,3 +280,15 @@ ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="11ff", ATTRS{idProduct}=="121
 ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="11ff", ATTRS{idProduct}=="2141", ATTR{power/autosuspend}="-1"
 # AccuForce / SimXperience (NXP USB chip, VID 0x1FC9)
 ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="1fc9", ATTRS{idProduct}=="804c", ATTR{power/autosuspend}="-1"
+# Heusinkveld (VID 0x30B7)
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="30b7", ATTR{power/autosuspend}="-1"
+# Heusinkveld legacy (Microchip VID 0x04D8) — PID-specific to avoid affecting other Microchip devices
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="04d8", ATTRS{idProduct}=="f6d0", ATTR{power/autosuspend}="-1"
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="04d8", ATTRS{idProduct}=="f6d2", ATTR{power/autosuspend}="-1"
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="04d8", ATTRS{idProduct}=="f6d3", ATTR{power/autosuspend}="-1"
+# Asetek pedals
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="2433", ATTRS{idProduct}=="f100", ATTR{power/autosuspend}="-1"
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="2433", ATTRS{idProduct}=="f101", ATTR{power/autosuspend}="-1"
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="2433", ATTRS{idProduct}=="f102", ATTR{power/autosuspend}="-1"
+# Simucube ActivePedal
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="16d0", ATTRS{idProduct}=="0d66", ATTR{power/autosuspend}="-1"

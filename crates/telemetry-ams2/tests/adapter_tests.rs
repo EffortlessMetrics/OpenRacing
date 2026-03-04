@@ -3,7 +3,6 @@
 //! AMS2 uses Windows shared memory, so most behavioral tests are adapter-level
 //! (game_id, update_rate, etc.). Shared memory tests require a running AMS2 instance.
 
-use racing_wheel_telemetry_adapters::TelemetryValue;
 use racing_wheel_telemetry_adapters::ams2::{AMS2SharedMemory, DrsState, HighestFlag, PitMode};
 use racing_wheel_telemetry_ams2::{AMS2Adapter, TelemetryAdapter};
 use std::time::Duration;
@@ -308,7 +307,7 @@ fn test_normalize_ffb_scalar_clamped() -> TestResult {
 // Extended data and string extraction
 // ---------------------------------------------------------------------------
 
-/// Extended data keys (throttle, brake, fuel_level, lap_count) are populated.
+/// Typed fields (throttle, brake) and extended data keys (fuel_level_l, lap) are populated.
 #[test]
 fn test_normalize_extended_data_keys() -> TestResult {
     let adapter = AMS2Adapter::new();
@@ -316,23 +315,21 @@ fn test_normalize_extended_data_keys() -> TestResult {
     data.throttle = 0.6;
     data.brake = 0.3;
     data.fuel_level = 42.0;
+    data.fuel_capacity = 100.0;
     data.laps_completed = 7;
     let result = adapter.normalize(&shared_memory_to_bytes(&data))?;
-    assert!(result.extended.contains_key("throttle"));
-    assert!(result.extended.contains_key("brake"));
-    assert!(result.extended.contains_key("fuel_level"));
-    assert!(result.extended.contains_key("lap_count"));
 
-    if let Some(TelemetryValue::Float(t)) = result.extended.get("throttle") {
-        assert!((*t - 0.6).abs() < 0.001);
-    } else {
-        return Err("throttle should be a Float".into());
-    }
-    if let Some(TelemetryValue::Integer(laps)) = result.extended.get("lap_count") {
-        assert_eq!(*laps, 7);
-    } else {
-        return Err("lap_count should be an Integer".into());
-    }
+    // throttle and brake are now first-class typed fields
+    assert!((result.throttle - 0.6).abs() < 0.001);
+    assert!((result.brake - 0.3).abs() < 0.001);
+
+    // fuel is now a typed field (percent) + extended (liters)
+    assert!((result.fuel_percent - 0.42).abs() < 0.001);
+    assert!(result.extended.contains_key("fuel_level_l"));
+
+    // lap is a typed field
+    assert_eq!(result.lap, 7);
+
     Ok(())
 }
 

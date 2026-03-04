@@ -1,0 +1,8 @@
+---
+source: crates/openracing-ipc/tests/ipc_snapshot_tests.rs
+expression: "formatted.join(\"\\n\")"
+---
+Stopped
+Starting
+Running
+ShuttingDown

@@ -966,8 +966,7 @@ mod tests {
 
     #[test]
     fn parse_plugin_list_with_category() -> TestResult {
-        let cli =
-            Cli::try_parse_from(["wheelctl", "plugin", "list", "--category", "ffb"])?;
+        let cli = Cli::try_parse_from(["wheelctl", "plugin", "list", "--category", "ffb"])?;
         match &cli.command {
             Commands::Plugin(PluginCommands::List { category }) => {
                 assert_eq!(category.as_deref(), Some("ffb"));
@@ -993,7 +992,12 @@ mod tests {
     #[test]
     fn parse_plugin_info_with_version() -> TestResult {
         let cli = Cli::try_parse_from([
-            "wheelctl", "plugin", "info", "ffb-smoothing", "--version", "2.0",
+            "wheelctl",
+            "plugin",
+            "info",
+            "ffb-smoothing",
+            "--version",
+            "2.0",
         ])?;
         match &cli.command {
             Commands::Plugin(PluginCommands::Info { plugin_id, version }) => {
@@ -1020,13 +1024,8 @@ mod tests {
 
     #[test]
     fn parse_diag_replay_detailed() -> TestResult {
-        let cli = Cli::try_parse_from([
-            "wheelctl",
-            "diag",
-            "replay",
-            "recording.wbb",
-            "--detailed",
-        ])?;
+        let cli =
+            Cli::try_parse_from(["wheelctl", "diag", "replay", "recording.wbb", "--detailed"])?;
         match &cli.command {
             Commands::Diag(DiagCommands::Replay { detailed, .. }) => {
                 assert!(detailed);
@@ -1156,8 +1155,7 @@ mod tests {
 
     #[test]
     fn parse_diag_metrics_with_device() -> TestResult {
-        let cli =
-            Cli::try_parse_from(["wheelctl", "diag", "metrics", "wheel-001", "--watch"])?;
+        let cli = Cli::try_parse_from(["wheelctl", "diag", "metrics", "wheel-001", "--watch"])?;
         match &cli.command {
             Commands::Diag(DiagCommands::Metrics { device, watch }) => {
                 assert_eq!(device.as_deref(), Some("wheel-001"));
@@ -1232,8 +1230,7 @@ mod tests {
 
     #[test]
     fn reject_telemetry_capture_missing_out() {
-        let result =
-            Cli::try_parse_from(["wheelctl", "telemetry", "capture", "--game", "acc"]);
+        let result = Cli::try_parse_from(["wheelctl", "telemetry", "capture", "--game", "acc"]);
         assert!(result.is_err());
     }
 }

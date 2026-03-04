@@ -1,0 +1,11 @@
+---
+source: crates/schemas/tests/schema_snapshot_tests.rs
+expression: "formatted.join(\"\\n\")"
+---
+Other: "Other"
+WheelBase: "WheelBase"
+SteeringWheel: "SteeringWheel"
+Pedals: "Pedals"
+Shifter: "Shifter"
+Handbrake: "Handbrake"
+ButtonBox: "ButtonBox"

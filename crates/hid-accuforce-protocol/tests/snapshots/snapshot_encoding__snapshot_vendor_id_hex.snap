@@ -1,0 +1,5 @@
+---
+source: crates/hid-accuforce-protocol/tests/snapshot_encoding.rs
+expression: "format!(\"0x{VENDOR_ID:04X}\")"
+---
+0x1FC9

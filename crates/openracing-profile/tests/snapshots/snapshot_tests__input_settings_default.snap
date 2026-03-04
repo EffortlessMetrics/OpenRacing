@@ -1,0 +1,11 @@
+---
+source: crates/openracing-profile/tests/snapshot_tests.rs
+expression: "InputSettings::default()"
+---
+{
+  "steering_range": 900,
+  "steering_deadzone": 0,
+  "throttle_curve": "Linear",
+  "brake_curve": "Linear",
+  "clutch_curve": "Linear"
+}

@@ -1,0 +1,14 @@
+---
+source: crates/hid-heusinkveld-protocol/tests/snapshot_encoding.rs
+expression: "combos.join(\"\\n\")"
+---
+VID=0x30B7,PID=0x1001 -> Sprint
+VID=0x30B7,PID=0x1003 -> Ultimate
+VID=0x30B7,PID=0x1002 -> HandbrakeV2
+VID=0x04D8,PID=0xF6D0 -> Sprint
+VID=0x04D8,PID=0xF6D2 -> Ultimate
+VID=0x04D8,PID=0xF6D3 -> Pro
+VID=0x10C4,PID=0x8B82 -> HandbrakeV1
+VID=0xA020,PID=0x3142 -> SequentialShifter
+VID=0x0000,PID=0x0000 -> Unknown
+VID=0x30B7,PID=0xFFFF -> Unknown

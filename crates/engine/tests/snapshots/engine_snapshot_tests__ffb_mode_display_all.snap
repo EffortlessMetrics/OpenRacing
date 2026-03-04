@@ -1,0 +1,9 @@
+---
+source: crates/engine/tests/engine_snapshot_tests.rs
+expression: output
+---
+[
+    "PID Pass-through",
+    "Raw Torque",
+    "Telemetry Synthesis",
+]

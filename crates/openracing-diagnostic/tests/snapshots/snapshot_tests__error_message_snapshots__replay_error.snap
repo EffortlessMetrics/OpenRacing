@@ -1,0 +1,5 @@
+---
+source: crates/openracing-diagnostic/tests/snapshot_tests.rs
+expression: "DiagnosticError::Replay(\"frame index out of bounds\".into()).to_string()"
+---
+Replay error: frame index out of bounds

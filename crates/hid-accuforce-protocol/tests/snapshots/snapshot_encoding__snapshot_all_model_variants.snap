@@ -1,0 +1,6 @@
+---
+source: crates/hid-accuforce-protocol/tests/snapshot_encoding.rs
+expression: "summary.join(\"\\n\")"
+---
+Pro: name=SimExperience AccuForce Pro, torque=7.0Nm
+Unknown: name=SimExperience AccuForce (unknown model), torque=7.0Nm

@@ -4,6 +4,29 @@ use std::io;
 use thiserror::Error;
 
 /// IPC error type
+///
+/// # Examples
+///
+/// ```
+/// use openracing_ipc::IpcError;
+///
+/// // Recoverable errors can be retried
+/// let err = IpcError::ConnectionFailed("network timeout".to_string());
+/// assert!(err.is_recoverable());
+/// assert!(!err.is_fatal());
+///
+/// // Fatal errors require server restart
+/// let err = IpcError::TransportInit("port in use".to_string());
+/// assert!(err.is_fatal());
+/// assert!(!err.is_recoverable());
+///
+/// // Convenience constructors
+/// let err = IpcError::timeout(5000);
+/// assert!(err.to_string().contains("5000"));
+///
+/// let err = IpcError::connection_limit(100);
+/// assert!(err.to_string().contains("100"));
+/// ```
 #[derive(Debug, Error)]
 pub enum IpcError {
     /// Transport initialization failed

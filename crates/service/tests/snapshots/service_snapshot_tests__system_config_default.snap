@@ -1,0 +1,108 @@
+---
+source: crates/service/tests/service_snapshot_tests.rs
+expression: config
+---
+{
+  "schema_version": "wheel.config/1",
+  "engine": {
+    "tick_rate_hz": 1000,
+    "max_jitter_us": 250,
+    "force_ffb_mode": null,
+    "disable_realtime": false,
+    "rt_cpu_affinity": null,
+    "memory_lock_all": true,
+    "processing_budget_us": 200
+  },
+  "service": {
+    "service_name": "wheeld",
+    "service_display_name": "Racing Wheel Service",
+    "service_description": "Racing wheel hardware management and force feedback service",
+    "health_check_interval": 30,
+    "max_restart_attempts": 3,
+    "restart_delay": 5,
+    "auto_restart": true,
+    "shutdown_timeout": 30
+  },
+  "ipc": {
+    "transport": "Native",
+    "bind_address": null,
+    "max_connections": 10,
+    "connection_timeout": 30,
+    "enable_acl": true,
+    "max_message_size": 1048576
+  },
+  "games": {
+    "auto_configure": true,
+    "auto_profile_switch": true,
+    "profile_switch_timeout_ms": 500,
+    "telemetry_timeout_s": 5,
+    "supported_games": {
+      "acc": {
+        "executables": [
+          "AC2-Win64-Shipping.exe"
+        ],
+        "telemetry_method": "udp_broadcast",
+        "config_paths": [
+          "Documents/Assetto Corsa Competizione/Config/broadcasting.json"
+        ],
+        "auto_configure": true
+      },
+      "iracing": {
+        "executables": [
+          "iRacingSim64DX11.exe",
+          "iRacingSim64.exe"
+        ],
+        "telemetry_method": "shared_memory",
+        "config_paths": [
+          "Documents/iRacing/app.ini"
+        ],
+        "auto_configure": true
+      },
+      "ac_rally": {
+        "executables": [],
+        "telemetry_method": "probe_discovery",
+        "config_paths": [
+          "Documents/Assetto Corsa Rally/Config/openracing_probe.json"
+        ],
+        "auto_configure": true
+      }
+    }
+  },
+  "safety": {
+    "default_safe_torque_nm": 5.0,
+    "max_torque_nm": 25.0,
+    "fault_response_timeout_ms": 50,
+    "hands_off_timeout_s": 5,
+    "temp_warning_c": 70,
+    "temp_fault_c": 80,
+    "require_physical_interlock": true
+  },
+  "plugins": {
+    "enabled": true,
+    "plugin_paths": [
+      "plugins/safe",
+      "plugins/native"
+    ],
+    "auto_load": true,
+    "timeout_ms": 100,
+    "max_memory_mb": 64,
+    "enable_native": false
+  },
+  "observability": {
+    "enable_metrics": true,
+    "metrics_interval_s": 60,
+    "enable_tracing": true,
+    "tracing_sample_rate": 0.1,
+    "enable_blackbox": true,
+    "blackbox_retention_hours": 24,
+    "health_stream_hz": 10
+  },
+  "development": {
+    "enable_dev_features": false,
+    "enable_debug_logging": false,
+    "enable_virtual_devices": false,
+    "disable_safety_interlocks": false,
+    "enable_plugin_dev_mode": false,
+    "mock_telemetry": false
+  }
+}

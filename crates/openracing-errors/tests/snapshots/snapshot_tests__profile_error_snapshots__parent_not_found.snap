@@ -1,0 +1,5 @@
+---
+source: crates/openracing-errors/tests/snapshot_tests.rs
+expression: "ProfileError::ParentNotFound { parent_id: \"base-gt3\".into(), }.to_string()"
+---
+Parent profile not found: base-gt3

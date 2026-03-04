@@ -99,7 +99,7 @@ cargo doc --all-features --workspace
 ### Testing RT Code
 ```rust
 #[test]
-fn test_zero_alloc_rt_path() {
+fn test_zero_alloc_rt_path() -> Result<(), Box<dyn std::error::Error>> {
     // Use allocation tracking to ensure no heap usage
     let _guard = allocation_tracker::track();
     
@@ -107,9 +107,10 @@ fn test_zero_alloc_rt_path() {
     let mut frame = Frame::default();
     
     // This must not allocate
-    engine.process_frame(&mut frame).unwrap();
+    engine.process_frame(&mut frame)?;
     
     assert_eq!(allocation_tracker::allocations(), 0);
+    Ok(())
 }
 ```
 

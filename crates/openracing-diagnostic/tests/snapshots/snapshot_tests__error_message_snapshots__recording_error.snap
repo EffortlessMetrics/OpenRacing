@@ -1,0 +1,5 @@
+---
+source: crates/openracing-diagnostic/tests/snapshot_tests.rs
+expression: "DiagnosticError::Recording(\"buffer overflow in stream A\".into()).to_string()"
+---
+Recording error: buffer overflow in stream A

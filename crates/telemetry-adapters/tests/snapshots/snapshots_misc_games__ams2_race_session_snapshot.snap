@@ -3,14 +3,14 @@ source: crates/telemetry-adapters/tests/snapshots_misc_games.rs
 expression: normalized
 ---
 speed_ms: 55
-steering_angle: 0
-throttle: 0
+steering_angle: -0.12
+throttle: 0.85
 brake: 0
 clutch: 0
 rpm: 9500
-max_rpm: 0
+max_rpm: 12000
 gear: 5
-num_gears: 0
+num_gears: 6
 lateral_g: 0
 longitudinal_g: 0
 vertical_g: 0
@@ -20,10 +20,10 @@ slip_angle_fr: 0
 slip_angle_rl: 0
 slip_angle_rr: 0
 tire_temps_c:
-  - 0
-  - 0
-  - 0
-  - 0
+  - 95
+  - 97
+  - 88
+  - 90
 tire_pressures_psi:
   - 0
   - 0
@@ -51,25 +51,25 @@ flags:
   formation_lap: false
   session_paused: false
 position: 0
-lap: 0
+lap: 4
 current_lap_time_s: 0
-best_lap_time_s: 0
-last_lap_time_s: 0
+best_lap_time_s: 78.5
+last_lap_time_s: 79.2
 delta_ahead_s: 0
 delta_behind_s: 0
-fuel_percent: 0
-engine_temp_c: 0
+fuel_percent: 0.375
+engine_temp_c: 92
 extended:
-  brake:
+  fuel_capacity_l:
     type: Float
-    value: 0
-  fuel_level:
+    value: 80
+  fuel_level_l:
     type: Float
     value: 30
-  lap_count:
-    type: Integer
-    value: 4
-  throttle:
+  oil_pressure_kpa:
     type: Float
-    value: 0.85
+    value: 450
+  oil_temp_c:
+    type: Float
+    value: 110
 sequence: 0

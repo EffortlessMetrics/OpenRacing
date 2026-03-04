@@ -119,8 +119,15 @@ pub mod product_ids {
     ///
     /// ⚠ PID unverified externally (re-checked 2025-07). Not present in Linux
     /// kernel `hid-ids.h`, JacKeTUs/linux-steering-wheels, or simracing-hwdb.
-    /// Originally estimated by sequential numbering, but the Pedals PID
-    /// (`0xA3BE`) breaking the sequence weakens this assumption.
+    /// `hid-universal-pidff.c` device table only lists `USB_DEVICE_ID_VRS_DFP`
+    /// (0xA355) — no V2 entry exists. Originally estimated by sequential
+    /// numbering, but the Pedals PID (`0xA3BE`) and R295 PID (`0xA44C`)
+    /// breaking the sequence strongly undermine this assumption.
+    ///
+    /// TODO(UNVERIFIED): PID 0xA356 is a sequential guess with no external
+    /// evidence. The non-sequential pattern (DFP=0xA355, Pedals=0xA3BE,
+    /// R295=0xA44C) suggests VRS does not use contiguous PIDs. Needs a
+    /// real USB capture or vendor confirmation.
     pub const DIRECTFORCE_PRO_V2: u16 = 0xA356;
 
     /// VRS R295 wheelbase.
@@ -139,7 +146,9 @@ pub mod product_ids {
     /// Backward-compat alias for the old unverified pedals PID.
     /// The old PID `0xA357` was an unverified sequential estimate;
     /// the community-confirmed PID is `PEDALS` (`0xA3BE`).
-    /// TODO: Migrate callers from `PEDALS_V1` (0xA357) to `PEDALS` (0xA3BE).
+    /// TODO(deprecation): Migrate callers from `PEDALS_V1` (0xA357) to `PEDALS`
+    /// (0xA3BE). Non-test caller: `crates/hid-vrs-protocol/src/types.rs`.
+    /// Once migrated, mark this constant `#[deprecated]`.
     pub const PEDALS_V1: u16 = 0xA357;
 
     /// VRS Pedals (digital/load cell). ⚠ PID unverified.

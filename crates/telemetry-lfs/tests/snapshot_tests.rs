@@ -105,7 +105,11 @@ fn lfs_edge_case_all_dashboard_lights() -> TestResult {
     write_f32_le(&mut buf, OFF_TURBO, 2.5);
     write_f32_le(&mut buf, OFF_OIL_PRESSURE, 6.8);
     write_f32_le(&mut buf, OFF_OIL_TEMP, 150.0);
-    write_u32_le(&mut buf, OFF_SHOW_LIGHTS, DL_SHIFT | DL_PITSPEED | DL_TC | DL_ABS);
+    write_u32_le(
+        &mut buf,
+        OFF_SHOW_LIGHTS,
+        DL_SHIFT | DL_PITSPEED | DL_TC | DL_ABS,
+    );
 
     let adapter = LFSAdapter::new();
     let normalized = adapter.normalize(&buf)?;

@@ -1,0 +1,19 @@
+---
+source: crates/simplemotion-v2/tests/deep_protocol_tests.rs
+expression: report.to_vec()
+---
+- 1
+- 0
+- 2
+- 0
+- 1
+- 16
+- 1
+- 0
+- 0
+- 0
+- 0
+- 0
+- 0
+- 0
+- 161

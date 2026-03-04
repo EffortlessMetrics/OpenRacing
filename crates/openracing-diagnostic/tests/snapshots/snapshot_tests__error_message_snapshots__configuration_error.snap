@@ -1,0 +1,5 @@
+---
+source: crates/openracing-diagnostic/tests/snapshot_tests.rs
+expression: "DiagnosticError::Configuration(\"compression level 15 is invalid\".into()).to_string()"
+---
+Invalid configuration: compression level 15 is invalid

@@ -1,0 +1,55 @@
+---
+source: crates/engine/tests/engine_snapshot_tests.rs
+expression: inputs
+---
+DeviceInputs {
+    tick: 42,
+    buttons: [
+        255,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+    ],
+    hat: 3,
+    steering: Some(
+        32768,
+    ),
+    throttle: Some(
+        65535,
+    ),
+    brake: Some(
+        0,
+    ),
+    clutch_left: Some(
+        16000,
+    ),
+    clutch_right: Some(
+        16000,
+    ),
+    clutch_combined: None,
+    clutch_left_button: None,
+    clutch_right_button: None,
+    handbrake: None,
+    rotaries: [
+        127,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+    ],
+}

@@ -1,0 +1,7 @@
+---
+source: crates/hid-pxn-protocol/tests/snapshot_encoding.rs
+expression: "unknowns.join(\"\\n\")"
+---
+0x0000 -> None
+0x0001 -> None
+0xFFFF -> None

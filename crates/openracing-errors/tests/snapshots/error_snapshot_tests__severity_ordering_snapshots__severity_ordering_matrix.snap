@@ -1,0 +1,20 @@
+---
+source: crates/openracing-errors/tests/error_snapshot_tests.rs
+expression: "comparisons.join(\"\\n\")"
+---
+INFO vs INFO: equal
+INFO vs WARN: less
+INFO vs ERROR: less
+INFO vs CRITICAL: less
+WARN vs INFO: greater
+WARN vs WARN: equal
+WARN vs ERROR: less
+WARN vs CRITICAL: less
+ERROR vs INFO: greater
+ERROR vs WARN: greater
+ERROR vs ERROR: equal
+ERROR vs CRITICAL: less
+CRITICAL vs INFO: greater
+CRITICAL vs WARN: greater
+CRITICAL vs ERROR: greater
+CRITICAL vs CRITICAL: equal

@@ -1,0 +1,8 @@
+---
+source: crates/schemas/tests/schema_snapshot_tests.rs
+expression: "formatted.join(\"\\n\")"
+---
+Center: "Center"
+Range: "Range"
+Pedals: "Pedals"
+Full: "Full"

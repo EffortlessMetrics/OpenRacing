@@ -1,0 +1,5 @@
+---
+source: crates/schemas/tests/schema_snapshot_tests.rs
+expression: "format!(\"{err}\")"
+---
+Curve points are not monotonic

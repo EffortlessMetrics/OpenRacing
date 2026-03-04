@@ -228,7 +228,7 @@ mod tests {
         let matrix = create_default_matrix();
         for (game_id, game) in &matrix.games {
             assert!(
-                known_methods.contains(&game.telemetry.method.as_str()),
+                known_methods.contains(&&*game.telemetry.method),
                 "Game '{}' uses unrecognized telemetry method: '{}'",
                 game_id,
                 game.telemetry.method

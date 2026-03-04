@@ -1,0 +1,14 @@
+---
+source: crates/openracing-errors/tests/snapshot_tests.rs
+expression: "formatted.join(\"\\n\")"
+---
+Device disconnected: CRITICAL
+Torque limit exceeded: CRITICAL
+Pipeline processing fault: ERROR
+Real-time timing violation: WARN
+Failed to apply real-time setup: CRITICAL
+Invalid configuration parameter: ERROR
+Safety interlock triggered: CRITICAL
+RT buffer overflow: WARN
+RT deadline missed: CRITICAL
+RT resource unavailable: ERROR

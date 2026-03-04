@@ -1,0 +1,13 @@
+---
+source: crates/schemas/tests/schema_snapshot_tests.rs
+expression: json
+---
+{
+  "supports_pid": true,
+  "supports_raw_torque_1khz": false,
+  "supports_health_stream": false,
+  "supports_led_bus": false,
+  "max_torque": 3.0,
+  "encoder_cpr": 4096,
+  "min_report_period_us": 4000
+}

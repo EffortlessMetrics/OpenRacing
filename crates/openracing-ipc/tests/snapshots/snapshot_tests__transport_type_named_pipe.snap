@@ -1,0 +1,9 @@
+---
+source: crates/openracing-ipc/tests/snapshot_tests.rs
+expression: json
+---
+{
+  "NamedPipe": {
+    "pipe_name": "\\\\.\\pipe\\openracing"
+  }
+}

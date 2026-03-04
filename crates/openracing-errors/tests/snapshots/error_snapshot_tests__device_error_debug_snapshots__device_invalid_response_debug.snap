@@ -1,0 +1,5 @@
+---
+source: crates/openracing-errors/tests/error_snapshot_tests.rs
+expression: "format!(\"{:?}\", DeviceError::InvalidResponse\n{ device: \"simucube-2\".into(), expected: 64, actual: 0, })"
+---
+InvalidResponse { device: "simucube-2", expected: 64, actual: 0 }

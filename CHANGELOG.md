@@ -9,17 +9,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Wave 55 — proptest expansion, telemetry integration, FFB pipeline, security tests** (24,366 → 24,800+ tests):
+  - Proptest expansion: additional property-based tests across protocol and engine crates
+  - Telemetry integration tests: expanded cross-crate telemetry validation
+  - FFB pipeline tests: edge-case coverage for force feedback processing chain
+  - Security hardening tests: expanded crypto and signing verification coverage
+- **CI green fixes — platform-independent snapshots, compat migration, fmt cleanup**:
+  - Platform-independent snapshot tests: normalized output to avoid OS-specific differences in snapshot comparisons
+  - Compat migration test fixes: corrected migration path validation for cross-version compatibility
+  - `cargo fmt` cleanup: formatting alignment across all workspace crates
+- **PID verification research findings**:
+  - Cube Controls PIDs `0x0C73`–`0x0C75` confirmed **FABRICATED** — zero external evidence across pid.codes, vendor docs, kernel sources, or community databases
+  - VRS DFP V2 PID `0xA356` remains **UNVERIFIED** — DFP uses `0xA355` (kernel mainline), no source confirms V2 PID
+  - OpenFFBoard alt PID `0xFFB1` confirmed **SPECULATIVE** — zero evidence across 5 independent sources
+- **Crypto stub hardening**: Ed25519 signature verification stubs now fail-closed (reject by default) instead of accepting — prevents unsigned code from passing validation
+- **24,800+ tests** across the workspace (unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, doc-tests, trybuild, BDD, protocol-verification, concurrency-stress, performance-validation, soak-stress, mutation-testing) — 0 failures
 - **PXN protocol crate** (`hid-pxn-protocol`): V10/V12/GT987 support with VID/PIDs web-verified against Linux kernel `hid-ids.h` (VID `0x11FF`, 5 devices), full proptest/snapshot coverage
 - **GT7 extended packet support** (316/344 bytes): PacketType2 and PacketType3 implemented in `gran_turismo_7.rs` — adds wheel rotation, sway/heave/surge, energy recovery, and filtered throttle/brake fields (resolves F-064)
 - **All 17 vendor protocol crates wired into engine dispatch** — Thrustmaster, Logitech, Fanatec, Simucube (1 & 2), Simagic, Moza, Asetek, VRS, Heusinkveld, AccuForce, OpenFFBoard, FFBeast, Leo Bodnar, Cube Controls, Cammus, and PXN; comprehensive proptest/snapshot coverage; kernel-verified wire-format encoding for T300RS, T150/TMX, DFP range, Fanatec range/sign-fix, and Logitech mode-switch
-- **8,344+ tests** across the workspace (unit, integration, proptest, snapshot, E2E) — total test count growing
-- **~85+ fuzz targets** covering all HID protocols and game telemetry adapters
+- **13,075 tests** across the workspace (unit, integration, proptest, snapshot, E2E) — 0 failures, 52 ignored
+- **14,017+ tests** across the workspace (unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, doc-tests) — 0 failures
+- **15,444+ tests** across the workspace (unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, doc-tests, trybuild) — 0 failures
+- **15,820+ tests** across the workspace (unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, doc-tests, trybuild, BDD) — 0 failures, 44 ignored
+- **16,742+ tests** across the workspace (unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, doc-tests, trybuild, BDD, protocol-verification) — 0 failures, 44 ignored
+- **17,696+ tests** across the workspace (unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, doc-tests, trybuild, BDD, protocol-verification, concurrency-stress, performance-validation) — 0 failures, 44 ignored
+- **18,645+ tests** across the workspace (unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, doc-tests, trybuild, BDD, protocol-verification, concurrency-stress, performance-validation) — 0 failures, 44 ignored
+- **21,043+ tests** across the workspace (unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, doc-tests, trybuild, BDD, protocol-verification, concurrency-stress, performance-validation) — 0 failures, 44 ignored
+- **21,374+ tests** across the workspace (unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, doc-tests, trybuild, BDD, protocol-verification, concurrency-stress, performance-validation) — 0 failures, 44 ignored
+- **22,326+ tests** across the workspace (unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, doc-tests, trybuild, BDD, protocol-verification, concurrency-stress, performance-validation) — 0 failures, 44 ignored
+- **24,366+ tests** across the workspace (unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, doc-tests, trybuild, BDD, protocol-verification, concurrency-stress, performance-validation, soak-stress, mutation-testing) — 0 failures, 44 ignored
+- **23,699+ tests** across the workspace (unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, doc-tests, trybuild, BDD, protocol-verification, concurrency-stress, performance-validation, soak-stress) — 0 failures, 44 ignored
+- **23,043+ tests** across the workspace (unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, doc-tests, trybuild, BDD, protocol-verification, concurrency-stress, performance-validation, soak-stress) — 0 failures, 44 ignored
+- **22,915+ tests** across the workspace (unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, doc-tests, trybuild, BDD, protocol-verification, concurrency-stress, performance-validation) — 0 failures, 44 ignored
+- **96 fuzz targets** covering all HID protocols and game telemetry adapters (AMS2 target added)
+- **100+ fuzz targets** covering all HID protocols, game telemetry adapters, and new wave 24 targets
+- **104 fuzz targets** covering all HID protocols, game telemetry adapters, and wave 31 targets (telemetry packet, profile, calibration, filter pipeline)
+- **113 fuzz targets** covering all HID protocols, game telemetry adapters, and wave 46 targets (replay, diagnostics, calibration, FFB, crypto, CLI)
+- **977 snapshot files** across 38 snapshot directories
+- **1,141 snapshot files** across 44 snapshot directories
+- **1,400+ snapshot files** across 52+ snapshot directories (expanded to 11+ crates)
+- **1,327 snapshot files** across 52 snapshot directories (expanded to 11 crates)
 - **Fanatec GT DD Pro/ClubSport DD PID findings**: GT DD Pro and ClubSport DD confirmed to share PID `0x0020` with CSL DD in PC mode
 - **OpenFFBoard PID 0xFFB1 confirmed SPECULATIVE**: zero evidence across 5 independent sources (pid.codes, firmware, configurator, GitHub, linux-steering-wheels)
 - **Cube Controls PIDs remain unverified**: PIDs `0x0C73`–`0x0C75` have zero external evidence; OpenFlight uses different estimates
 - **VRS DFP V2 PID 0xA356 unverified**: DFP uses `0xA355` (kernel mainline), Pedals use `0xA3BE`; no source confirms V2 PID
 - **59 game telemetry adapters verified against official documentation** — port numbers, protocol formats, and field mappings cross-checked; web-verified protocol comments added to GT7 (Salsa20), F1 25 (format 2025), F1 2024, and lesser-documented adapters
-- **7,400+ tests** (unit, integration, proptest, snapshot, e2e) across the workspace:
+- **Test suite highlights** (cumulative across waves 15-20):
   - 174 E2E scenarios for Simucube, Heusinkveld, ButtonBox, AccuForce, Cube Controls, Leo Bodnar
   - 68 integration tests for subsystems and round-trips, plus 66 cross-crate integration tests
   - 86 unit tests for plugins and service crates
@@ -33,9 +68,190 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Mutation-killing tests for Fanatec, Logitech, Thrustmaster, and filters
   - Kernel-verified property tests for Fanatec, Logitech, Thrustmaster
   - `proptest_ids.rs` VID/PID constant validation for FFBeast and OpenFFBoard
+- **Wave 22 — engine/service deep testing** (13,075 → ~13,400 tests):
+  - Engine device and game integration tests (device dispatch, game telemetry pipelines)
+  - IPC snapshot tests (serialization round-trip verification)
+  - Service lifecycle tests (startup, shutdown, restart, error recovery)
+  - Error exhaustiveness tests (all error variants exercised)
+- **Wave 23 — golden packets, safety soak, plugin security, schema evolution** (~13,400 → ~13,750 tests):
+  - Golden-packet integration tests for 6 telemetry adapters (end-to-end validation against known-good captures)
+  - Safety soak tests: 10K-tick sustained operation under fault injection for interlock and watchdog subsystems
+  - Plugin security hardening tests (WASM sandbox escape, native plugin isolation, capability enforcement)
+  - Schema evolution tests (forward/backward compatibility across schema versions)
+  - CLI and profile deep tests (subcommand coverage, profile inheritance, validation edge cases)
+- **Wave 24 — compile-fail, config/firmware, atomic, scheduler, doc-tests** (~13,750 → 14,017+ tests):
+  - Trybuild compile-fail tests enforcing type-safety invariants at API boundaries
+  - Config and firmware-update deep tests (validation, migration, rollback scenarios)
+  - Atomic stress tests (concurrent access patterns, ordering guarantees)
+  - Scheduler deep tests (priority inversion, deadline miss handling, RT timing edge cases)
+  - Doc-tests: public API examples verified via `cargo test --doc`
+  - 4 new fuzz targets (100+ total)
+- **Wave 25 — telemetry adapter deep, watchdog/FMEA deep, full-stack E2E** (14,017 → ~14,500+ tests):
+  - Telemetry adapter deep tests: AMS2, SimHub, KartKraft, MudRunner, Rennsport
+  - Watchdog and FMEA deep tests (fault injection, timeout scenarios, recovery paths)
+  - Protocol snapshot tests expanded across all protocol crates
+  - Full-stack E2E integration tests (device connect → telemetry → FFB output)
+  - Performance gate validation tests (CI-enforced RT timing budgets)
+- **Wave 26 — remaining adapters, protocol deep, peripherals, FFB/calibration** (~14,500 → ~15,000+ tests):
+  - Remaining telemetry adapter deep tests: F1, Forza, LFS, RaceRoom, WRC
+  - Protocol deep tests: Moza, Fanatec, Thrustmaster (encoding, wire-format, round-trip)
+  - Peripherals deep tests (pedals, shifters, handbrakes, button boxes)
+  - SimpleMotion V2 and filters deep tests
+  - FFB, calibration, and pipeline deep tests (force output, profile application, filter chains)
+- **Wave 27 — game adapters, HID protocol deep, infrastructure deep** (~15,000 → 15,444+ tests):
+  - Game adapter deep tests: iRacing, ACC, BeamNG
+  - Game adapter deep tests: DiRT Rally, ETS2, GT7
+  - 9 HID protocol crate deep tests (comprehensive encoding/decoding coverage)
+  - Tracing, support, core, and streams deep tests (infrastructure coverage)
+  - Trybuild compile-fail tests expanded
+- **Wave 28 — telemetry-config-writers, streams, snapshot expansion** (15,444 → ~15,650+ tests):
+  - Telemetry-config-writers and telemetry-streams coverage tests
+  - Snapshot tests for FFB, profile, pipeline, and engine crates
+  - Stale proptest regression file cleanup
+- **Wave 29 — BDD behavior scenarios, final hardening** (~15,650 → 15,820+ tests):
+  - 15 BDD Given/When/Then behavior scenario tests
+  - Final test suite verification: 14,933 tests verified passing (566 test binaries), 44 ignored
+- **Wave 30 — device hot-swap, CLI E2E, safety invariants** (15,820 → ~16,000+ tests):
+  - Device hot-swap simulation tests (32 tests): engine resilience under device connect/disconnect
+  - CLI comprehensive end-to-end tests (112 tests): full subcommand coverage
+  - Safety property-based invariant tests (23 tests, 256+ cases each): interlock and watchdog invariants
+- **Wave 31 — plugin lifecycle, fuzz expansion, protocol verification** (~16,000 → ~16,300+ tests):
+  - Plugin system lifecycle + security deep tests (99 tests): WASM/native plugin loading, isolation, capability enforcement
+  - 4 new fuzz targets (104 total): telemetry packet, profile, calibration, filter pipeline
+  - Protocol verification: SimuCube + OpenFFBoard cross-verified against pid.codes and firmware
+  - Protocol verification: Moza (49 tests), Fanatec (45 tests), Logitech (45 tests), Thrustmaster (59 tests) — all cross-verified against Linux kernel drivers and community sources
+- **Wave 32 — telemetry verification, schemas deep, peripherals verification** (~16,300 → ~16,500+ tests):
+  - Telemetry adapter constants cross-verified against game APIs (76 tests)
+  - Schemas, IPC, service roundtrip + wire format + integration deep tests
+  - Heusinkveld + PXN protocol verification (38 tests)
+  - Deep firmware update process tests
+- **Wave 33 — remaining protocol verification, FFB pipeline, compat deep** (~16,500 → 16,742+ tests):
+  - Protocol verification for ALL remaining HID crates: AccuForce, Asetek, Button Box, Cammus, Cube Controls, FFBeast, Leo Bodnar, VRS — all VID/PID constants verified against web sources
+  - FFB pipeline end-to-end tests (41 tests): complete force feedback pipeline validation
+  - Compat + config deep migration and validation tests (133 tests)
+- **Wave 34 — concurrency stress, performance validation, capture, telemetry verification** (16,742 → ~17,000+ tests):
+  - Concurrency stress tests (23 multi-threaded scenarios): 8+ threads, 1000+ iterations, barrier sync — device state, telemetry, profiles, safety, IPC, atomics, channels, filter chains, watchdog, memory ordering
+  - Performance validation tests (12 RT timing checks): filter processing, pipeline latency, telemetry normalization, safety evaluation, 1kHz sustained throughput, memory allocation tracking
+  - Device capture tooling tests (83 tests): HID descriptor parsing, USB enumeration, VID/PID lookup, device fingerprinting, capture sessions, classification heuristics
+  - Extended telemetry adapter verification (110 tests): 9 adapters (PCars2, AMS2, RaceRoom, RBR, rFactor2, LFS, Automobilista, KartKraft, MudRunner/EA WRC) verified against authoritative SDK sources
+- **Wave 35 — service diagnostics, profile, tracing/curves/calibration deep** (~17,000 → 17,696+ tests):
+  - Service diagnostics deep tests (40 tests): diagnostic types, results, categories, timing, history, health scoring, export, error rate tracking
+  - Comprehensive profile system tests (64 tests): creation, inheritance, validation, import/export, migration, comparison, merge, templates, tags, search, game/device overrides, versioning, conflict resolution
+  - Tracing + curves + calibration deep tests + snapshots (86 tests): tracing spans/events/formats/async/rate-limiting (21 tests), curves interpolation/bezier/fitting/monotonicity/stability (45 tests), calibration workflows/recalibration/validation/migration/pedal curves (24 tests)
+- **Wave 36 — core infrastructure deep, input/KS, SMV2 verification, doc-tests** (17,696 → ~18,300+ tests):
+  - Property-based tests for FFB (17), pipeline (11), schemas (29), IPC (15) — 72 proptests covering serde roundtrips, torque sign preservation, gain monotonicity, output bounds, domain type conversion bounds, codec validation
+  - HID common deep tests (72): device info, report parser/builder, mock devices, error handling
+  - Scheduler deep tests (79): RT setup, PLL, jitter metrics, adaptive scheduling
+  - Atomic deep tests (100): counters, snapshots, streaming stats, concurrent queues
+  - Input maps (67) + KS representation (83) deep tests: button/axis/rotary/LED/display binding, compilation, KS axis/bit/byte sources, report layout stability
+  - SimpleMotion V2 protocol verification (79 tests): command encoding/decoding, CRC polynomial, status/fault registers, known command sequences, parameter types, streaming mode, VID/PID verification
+  - Doc-tests added across 5 crates (~58 examples): openracing-ffb, openracing-filters, openracing-pipeline, openracing-calibration, openracing-ipc
+- **Wave 37 — telemetry deep, protocol deep, peripherals, BDD scenarios** (~18,300 → 18,645+ tests):
+  - Telemetry core (58), integration (59), rate-limiter (35) deep tests: GameTelemetry, NormalizedTelemetry, ConnectionState, flags, thread safety, RegistryCoverage, CoveragePolicy, game detection, ID normalization, drop-rate arithmetic, burst patterns, adaptive CPU limits
+  - HBP protocol (43) + Moza wheelbase report (59) deep tests: layout inference, LE byte order, axis decoding, normalization, report ID validation, endianness, all fields, proptests
+  - Peripherals deep test expansion: handbrake position encoding/calibration/axis mapping/deadzones, shifter gear encoding/multi-gate patterns/sequential/clutch parsing, device-types identification/capability flags/telemetry/hat directions
+  - 13 BDD device + game behavior scenarios: 8 device scenarios (Moza, Fanatec, Logitech, Thrustmaster, SimuCube, OpenFFBoard), 5 game scenarios (iRacing, ACC telemetry, game switching, NaN filtering, standby)
+- **Wave 38 — Simagic verification, WASM, diagnostics, Forza deep** (18,645 → ~19,171+ tests):
+  - Simagic protocol verification (38 tests) + comprehensive deep tests (68 tests): protocol encoding, device identification, wire-format validation
+  - WASM runtime deep tests (54 tests): plugin loading, execution, sandboxing, error recovery, resource limits
+  - Diagnostic + SRP + capture deep tests (251 tests): diagnostic infrastructure, SRP protocol handling, capture tooling expansion
+  - Forza adapter deep tests (90 tests) + support utility deep tests (25 tests)
+- **Wave 39 — plugin safety, filters, watchdog deep** (~19,171 → ~19,746+ tests):
+  - Native plugin (90) + plugin ABI (81) deep tests: loading, isolation, ABI compatibility, lifecycle management
+  - Crypto (52) + FMEA (50) deep tests: cryptographic verification, FMEA fault injection and recovery paths
+  - Filters (101) + pipeline (62) deep tests: filter processing chains, pipeline orchestration, edge cases
+  - Watchdog deep tests: software (58) + hardware (81) — timeout scenarios, recovery validation, keepalive
+- **Wave 40 — integration E2E, telemetry re-verification, profile deep** (~19,746 → ~20,551+ tests):
+  - Integration E2E expansion: plugin (23) + telemetry E2E (22) + device protocol E2E (22) cross-crate tests
+  - Telemetry adapter full re-verification: AMS2 (33), F1 (40), Rennsport (36), SimHub (60), RaceRoom (41), LFS (37), KartKraft (29), MudRunner (43), WRC (55) — 374 tests across 10 adapters
+  - Profile (97) + profile repository (94) + config writers (48) deep tests: inheritance chains, repo operations, writer formats
+  - Telemetry config (73) + streams (52) deep tests: configuration management, stream lifecycle
+- **Wave 41 — engine, schemas, FFB, infrastructure deep** (~20,551 → 21,043+ tests):
+  - FFB (107) + calibration (84) deep tests: force output precision, calibration workflows, profile application
+  - Service lifecycle (37) + IPC (37) deep tests: start/stop lifecycle, state machine, shutdown, IPC channels, auth/ACL
+  - Engine safety (76) + device management (53) deep tests: safety subsystem, device state management
+  - Schemas (97) + IPC protocol (76) deep tests: schema validation, IPC protocol encoding/decoding
+  - Compat (40) + firmware update (71) deep tests: migration compatibility, firmware update process
+  - Capture IDs (45) + test helpers (149) deep tests: capture ID lookup, shared test helper utilities
+- **Wave 43 — CI gate verification, game support matrix, packaging, example plugins** (21,043 → 21,374+ tests):
+  - CI gate verification: `cargo fmt`, `cargo deny`, ADR validation all passing
+  - Workspace-hack crate sync verified
+  - Game support matrix expanded to 61 telemetry adapters with full test coverage
+  - Udev rules expansion: +75 rules for new device support in `packaging/linux/99-racing-wheel-suite.rules`
+  - Example plugin tests (51 tests): lifecycle, loading, sandboxing, error recovery
+  - Documentation alignment fixes across ADRs and developer guides
+- **Wave 44 — RT no-allocation enforcement, safety fault injection, protocol roundtrip, IPC compat** (21,374 → 21,652+ tests):
+  - RT no-allocation enforcement tests (36 tests): dedicated tests verifying zero heap allocations in RT code paths
+  - Safety fault injection tests (74 tests): expanded fault injection framework covering interlock, watchdog, and FMEA scenarios
+  - Protocol roundtrip proptests (104 tests): property-based roundtrip verification across 9 protocol crates
+  - IPC schema compatibility tests (64 tests): backward/forward compatibility validation for IPC schema evolution
+- **Wave 45 — service lifecycle, cross-platform, telemetry adapters, error handling, device discovery** (21,652 → 22,088+ tests):
+  - Service lifecycle tests (87 tests): comprehensive start/stop/restart/recovery/state-machine coverage
+  - Cross-platform tests (60 tests): platform-specific behavior validation across Windows, Linux, macOS
+  - Telemetry adapter validation tests (119 tests): extended adapter verification with edge-case and error-path coverage
+  - Error handling tests (86 tests): exhaustive error propagation and recovery path validation
+  - Device discovery tests (84 tests): enumeration, hot-plug detection, and multi-vendor discovery scenarios
+- **Wave 46 — replay/diagnostics, calibration/FFB, crypto/signing, CLI deep, fuzz targets** (22,088 → 22,326+ tests):
+  - Replay + diagnostics tests (73 tests): session replay, diagnostic export, health scoring, timeline reconstruction
+  - Calibration + FFB tests (91 tests): calibration workflow edge cases, FFB force output precision, profile application
+  - Crypto + signing tests (47 tests): Ed25519 signing verification, key management, signature validation
+  - CLI deep tests (68 tests): extended subcommand coverage, argument parsing, output formatting, error reporting
+  - 9 new fuzz targets (113 total): replay parsing, diagnostic export, calibration input, FFB commands, crypto payloads, CLI argument parsing
+- **Wave 47 — compat deep, filter/pipeline deep, input maps + button box, telemetry recorder/core** (22,326 → 22,606+ tests):
+  - Compat deep tests (23 tests): migration compatibility, version negotiation, legacy API validation
+  - Filter/pipeline deep tests (101 tests): frequency response, proptest coverage, filter chain orchestration
+  - Input maps + button box tests (83 tests): binding compilation, button matrix, rotary encoders, LED mappings
+  - Telemetry recorder/core tests (73 tests): session recording, playback, core telemetry pipeline validation
+- **Wave 53 — mutation testing, device hotplug, config writer deep, plugin ABI, IPC wire compat, error quality, CLI UX, replay validation, cross-platform, support bundle, rate limiter fix** (23,841 → 24,366+ tests):
+  - Mutation testing expansion (86 tests): expanded cargo-mutants coverage beyond Moza/ks/input-maps/filters to safety, engine, and protocol crates — all surviving mutants killed
+  - Device hotplug deep tests (56 tests): rapid connect/disconnect cycles, multi-device hotplug, enumeration race conditions, recovery after device loss
+  - Config writer deep tests (30 tests): edge cases in config serialization, migration round-trips, writer format validation
+  - Plugin ABI stability tests (58 tests): ABI versioning, backward compatibility, struct layout verification, FFI boundary validation
+  - IPC wire compatibility tests (78 tests): wire format evolution, backward/forward compat across protocol versions, message framing edge cases
+  - Error quality tests (64 tests): error message clarity, error chain propagation, user-facing error formatting, diagnostic hints
+  - CLI UX tests (55 tests): help text verification, argument validation, output formatting, interactive prompt handling
+  - Replay validation tests (30 tests): replay file format verification, timeline integrity, session reconstruction accuracy
+  - Cross-platform tests (34 tests): platform-specific path handling, OS detection, conditional compilation verification
+  - Support bundle tests (36 tests): bundle completeness, privacy redaction, compression integrity, metadata accuracy
+  - Rate limiter fix: corrected token bucket algorithm edge case in telemetry rate limiting
+- **Wave 52 — safety compliance, torque safety, config/profile/migration edge cases, formatting cleanup** (23,699 → 23,841+ tests):
+  - Safety compliance tests (45 tests): interlock compliance verification, safety state machine coverage, fault response timing validation
+  - Torque safety tests (20 tests): torque limit enforcement, safety envelope boundary conditions, emergency stop verification
+  - Config/profile/migration edge case tests (77 tests): corrupt config recovery, profile version migration chains, schema upgrade/downgrade round-trips
+  - Formatting cleanup: `cargo fmt --all` pass, minor code style alignment across test files
+  - Temporary file removal: cleaned up stale test artifacts and intermediate build outputs
+- **Wave 51 — Moza+Fanatec+Logitech advanced, Thrustmaster+Simucube+Simagic, telemetry adapters, IPC transport** (23,245 → 23,699+ tests):
+  - Moza + Fanatec + Logitech advanced deep tests (139 tests): advanced proptest + deep wire-format + round-trip verification across 3 major protocol crates
+  - Thrustmaster + Simucube + Simagic advanced deep tests (134 tests): advanced proptest + deep protocol verification for remaining major vendors
+  - Telemetry adapter deep tests (95 tests): expanded coverage across all 61 game adapters with edge-case and regression verification
+  - IPC transport deep tests (86 tests): transport layer + wire format + compatibility verification for IPC subsystem
+- **Wave 50 — pedal protocols, support bundle, VRS+OpenFFBoard, ADR audit** (23,043 → 23,245+ tests):
+  - Pedal protocol deep tests (87 tests): Heusinkveld, Fanatec, Simagic, Cammus, VRS, Simucube ActivePedal — load cell, axis mapping, calibration
+  - Support bundle deep tests (63 tests): diagnostic bundle generation, export, privacy filtering, compression, metadata
+  - VRS + OpenFFBoard advanced deep tests (76 tests): PIDFF round-trip, vendor report encoding, configuration validation
+  - ADR audit complete: all 8 ADRs reviewed and cross-referenced against implementation
+- **Wave 49 — E2E integration, snapshot expansion, soak + stress hardening** (22,915 → 23,043+ tests):
+  - E2E integration tests (53 tests): complete user workflow coverage — device connect → game detect → telemetry → FFB → profile switch → disconnect
+  - Snapshot expansion (40 tests): new snapshots across protocol, telemetry, and pipeline crates (1,400+ total snapshot files)
+  - Soak + stress tests (35 tests): long-running stability verification — sustained 1kHz operation, memory leak detection, fault recovery under load
+- **Wave 48 — profile management, scheduler timing, HID capture + vendor, WASM runtime, firmware update** (22,606 → 22,915+ tests):
+  - Profile management tests (57 tests): CRUD operations, validation rules, inheritance chains
+  - Scheduler timing tests (69 tests): deadline accuracy, priority scheduling, timing edge cases
+  - HID capture + vendor tests (77 tests): capture session management, vendor-specific protocol handling
+  - WASM runtime tests (58 tests): budget enforcement, sandbox isolation, host function interface
+  - Firmware update tests (48 tests): full state machine coverage, rollback scenarios, update validation
 - **Web-verified VID/PIDs** for Thrustmaster, Logitech, Fanatec, Simucube, Moza, AccuForce, VRS, and OpenFFBoard — source citations added from linux-steering-wheels, kernel drivers (`hid-lg4ff`, `hid-fanatecff`, `simagic-ff`), pid.codes, and vendor documentation
 - **Safety interlock comprehensive test suite**: behavior tests for interlock state machine, watchdog timeout scenarios, and FMEA fault-injection coverage
 - **Protocol verification wave 16**: 6 vendors re-audited (VRS, Heusinkveld, Cube Controls, Cammus, Leo Bodnar, AccuForce) — PID accuracy and torque specs cross-checked against USB captures and vendor documentation
+- **Wave 17 — E2E protocol coverage**: 224 new E2E integration tests across all 16 HID protocol crates (asetek_e2e, cammus_e2e, vrs_e2e, simucube_e2e, heusinkveld_e2e, button_box_e2e, accuforce_e2e, cube_controls_e2e, leo_bodnar_e2e); FlashFire (VID 0x2F24) and Guillemot (VID 0x06F8) legacy vendors added; Logitech WingMan Formula Force (0xC291), Thrustmaster T80 Ferrari 488 GTB (0xB66A) and TX Racing original (0xB664) added from oversteer/kernel sources
+- **Wave 17 — kernel protocol verification**: Simucube HID PID protocol research (F-061 partial), Fanatec sign-fix inversion corrected (F-062), kernel-verified range command alternative added (F-063)
+- **Wave 18 — telemetry protocol verification**: GT7, rFactor 2, iRacing, ACC, and Codemasters/EA F1 protocols re-verified against authoritative sources (Nenkai/PDTools, rF2State.h, kutu/pyirsdk, Kunos ACC SDK, official F1 docs) — no discrepancies found
+- **Waves 19-20 — deep test expansion** (12,754 → 13,075 tests):
+  - Deep protocol tests: Fanatec (70), Logitech (69), Thrustmaster (83), Simagic, Moza (61), OpenFFBoard (53) comprehensive suites
+  - Property tests expanded across safety (scheduler, watchdog, FMEA), plugins (crypto, WASM, native), telemetry (7 adapters), and infrastructure (IPC, service, compat, tracing, curves, rate-limiter, firmware-update, config)
+  - Foundation tests: schemas (86), CLI (~75), service (74), config validation (51), device matrix (36), filter pipeline, E2E telemetry pipeline
+  - Integration tests: device lifecycle, multi-vendor dispatch, safety E2E, atomic stress, profile-repo
+  - Diagnostic crate insta snapshot tests; AMS2 fuzz target; seed corpus for all 96 fuzz targets
 - **New VRS PIDs**: Pedals V1 PID migrated `0xA357` → `0xA3BE`; DFP V2 PID `0xA356` added (unverified)
 - **New Cammus pedal PIDs**: identified from community sources, pending engine dispatch wiring
 - **Legacy device PIDs wired into engine dispatch**: FlashFire, Guillemot, WingMan FF, T80H, TX original, MOMO2, PXN, Ferrari 458 Italia — sourced from oversteer and linux-steering-wheels
@@ -58,7 +274,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Logitech C294 Driving Force/EX naming corrected**; MOMO rotation corrected to 270° per kernel `hid-lg4ff.c`
 - **CI compat tracker**: `integration-tests` and `telemetry-forza` excluded from compatibility tracker false positives
 - **Roadmap, ADR index, and development guide** updated for RC milestone
-- **Friction log updated** with wave 15+ RC hardening and wave 17+ progress
+- **Friction log updated** with wave 15+ RC hardening, waves 17-20 progress, and F-025/F-029 closures
 
 ### Fixed
 

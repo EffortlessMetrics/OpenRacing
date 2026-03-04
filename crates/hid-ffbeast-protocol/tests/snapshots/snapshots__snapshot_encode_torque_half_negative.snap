@@ -1,0 +1,11 @@
+---
+source: crates/hid-ffbeast-protocol/tests/snapshots.rs
+expression: enc.encode(-0.5)
+---
+[
+    1,
+    120,
+    236,
+    0,
+    0,
+]

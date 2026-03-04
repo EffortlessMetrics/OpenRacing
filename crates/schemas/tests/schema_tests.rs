@@ -1071,7 +1071,7 @@ fn profile_store_update_returns_previous() -> TestResult {
 
     let current = store.get(&id);
     assert!(current.is_some());
-    assert_eq!(current.map(|p| p.metadata.name.as_str()), Some("Updated"));
+    assert_eq!(current.map(|p| &*p.metadata.name), Some("Updated"));
     Ok(())
 }
 
@@ -2304,7 +2304,10 @@ fn normalized_telemetry_validated_handles_nan() -> TestResult {
 
 #[test]
 fn normalized_telemetry_rpm_fraction_zero_max() -> TestResult {
-    let t = NormalizedTelemetry::builder().rpm(5000.0).max_rpm(0.0).build();
+    let t = NormalizedTelemetry::builder()
+        .rpm(5000.0)
+        .max_rpm(0.0)
+        .build();
     assert!((t.rpm_fraction()).abs() < f32::EPSILON);
     Ok(())
 }
@@ -2317,7 +2320,10 @@ fn normalized_telemetry_has_rpm_display_data() -> TestResult {
     let partial = NormalizedTelemetry::builder().rpm(1000.0).build();
     assert!(!partial.has_rpm_display_data());
 
-    let full = NormalizedTelemetry::builder().rpm(6000.0).max_rpm(8000.0).build();
+    let full = NormalizedTelemetry::builder()
+        .rpm(6000.0)
+        .max_rpm(8000.0)
+        .build();
     assert!(full.has_rpm_display_data());
     Ok(())
 }
@@ -2328,15 +2334,7 @@ fn normalized_telemetry_has_rpm_display_data() -> TestResult {
 
 #[test]
 fn device_serde_roundtrip() -> TestResult {
-    let caps = DeviceCapabilities::new(
-        true,
-        true,
-        true,
-        false,
-        TorqueNm::new(20.0)?,
-        10000,
-        1000,
-    );
+    let caps = DeviceCapabilities::new(true, true, true, false, TorqueNm::new(20.0)?, 10000, 1000);
     let id: DeviceId = "moza-r9".parse()?;
     let mut device = Device::new(id, "Moza R9".to_string(), DeviceType::WheelBase, caps);
     device.firmware_version = Some("1.2.3".to_string());
@@ -2358,37 +2356,16 @@ fn device_serde_roundtrip() -> TestResult {
 
 #[test]
 fn device_capabilities_ffb_support() -> TestResult {
-    let no_ffb = DeviceCapabilities::new(
-        false,
-        false,
-        true,
-        false,
-        TorqueNm::new(0.0)?,
-        10000,
-        1000,
-    );
+    let no_ffb =
+        DeviceCapabilities::new(false, false, true, false, TorqueNm::new(0.0)?, 10000, 1000);
     assert!(!no_ffb.supports_ffb());
 
-    let pid_only = DeviceCapabilities::new(
-        true,
-        false,
-        false,
-        false,
-        TorqueNm::new(10.0)?,
-        10000,
-        1000,
-    );
+    let pid_only =
+        DeviceCapabilities::new(true, false, false, false, TorqueNm::new(10.0)?, 10000, 1000);
     assert!(pid_only.supports_ffb());
 
-    let raw_only = DeviceCapabilities::new(
-        false,
-        true,
-        false,
-        false,
-        TorqueNm::new(10.0)?,
-        10000,
-        1000,
-    );
+    let raw_only =
+        DeviceCapabilities::new(false, true, false, false, TorqueNm::new(10.0)?, 10000, 1000);
     assert!(raw_only.supports_ffb());
     Ok(())
 }
@@ -2562,7 +2539,10 @@ fn profile_without_parent_omits_parent_in_json() -> TestResult {
 
     let json = serde_json::to_string(&profile)?;
     let value: serde_json::Value = serde_json::from_str(&json)?;
-    assert!(value.get("parent").is_none(), "parent should be skipped when None");
+    assert!(
+        value.get("parent").is_none(),
+        "parent should be skipped when None"
+    );
     Ok(())
 }
 
@@ -2865,11 +2845,8 @@ fn profile_scope_specificity_levels() -> TestResult {
     let global = ProfileScope::global();
     let game = ProfileScope::for_game("iRacing".to_string());
     let car = ProfileScope::for_car("iRacing".to_string(), "GT3".to_string());
-    let track = ProfileScope::for_track(
-        "iRacing".to_string(),
-        "GT3".to_string(),
-        "Spa".to_string(),
-    );
+    let track =
+        ProfileScope::for_track("iRacing".to_string(), "GT3".to_string(), "Spa".to_string());
 
     assert_eq!(global.specificity_level(), 0);
     assert_eq!(game.specificity_level(), 1);
@@ -2892,8 +2869,7 @@ fn profile_scope_matches_correctly() -> TestResult {
     assert!(!game_scope.matches(Some("ACC"), None, None));
     assert!(!game_scope.matches(None, None, None));
 
-    let car_scope =
-        ProfileScope::for_car("iRacing".to_string(), "GT3".to_string());
+    let car_scope = ProfileScope::for_car("iRacing".to_string(), "GT3".to_string());
     assert!(car_scope.matches(Some("iRacing"), Some("GT3"), None));
     assert!(!car_scope.matches(Some("iRacing"), Some("LMP2"), None));
     assert!(!car_scope.matches(Some("ACC"), Some("GT3"), None));

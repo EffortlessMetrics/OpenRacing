@@ -1,0 +1,12 @@
+---
+source: crates/openracing-hid-common/tests/snapshot_expansion_tests.rs
+expression: info
+---
+HidDeviceInfo {
+    vendor_id: 13422,
+    product_id: 5,
+    serial_number: None,
+    manufacturer: None,
+    product_name: None,
+    path: "/dev/hidraw0",
+}

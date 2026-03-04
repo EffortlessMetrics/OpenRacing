@@ -1,0 +1,7 @@
+---
+source: crates/openracing-ipc/tests/ipc_snapshot_tests.rs
+expression: formatted
+---
+PROTOCOL_VERSION: 1.0.0
+MIN_CLIENT_VERSION: 1.0.0
+DEFAULT_TCP_PORT: 50051

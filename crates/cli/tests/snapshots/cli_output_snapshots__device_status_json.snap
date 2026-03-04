@@ -1,0 +1,30 @@
+---
+source: crates/cli/tests/cli_output_snapshots.rs
+expression: status
+---
+{
+  "active_faults": [],
+  "device": {
+    "capabilities": {
+      "encoder_cpr": 2048,
+      "max_torque_nm": 8.0,
+      "min_report_period_us": 1000,
+      "supports_health_stream": true,
+      "supports_led_bus": true,
+      "supports_pid": true,
+      "supports_raw_torque_1khz": true
+    },
+    "device_type": "WheelBase",
+    "id": "wheel-001",
+    "name": "Fanatec DD Pro",
+    "state": "Connected"
+  },
+  "success": true,
+  "telemetry": {
+    "fault_flags": 0,
+    "hands_on": true,
+    "temperature_c": 45,
+    "wheel_angle_deg": 0.0,
+    "wheel_speed_rad_s": 0.0
+  }
+}

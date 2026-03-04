@@ -1,0 +1,5 @@
+---
+source: crates/openracing-watchdog/tests/snapshot_expansion_tests.rs
+expression: "format!(\"{}\", err)"
+---
+Quarantine operation failed: isolation barrier unavailable

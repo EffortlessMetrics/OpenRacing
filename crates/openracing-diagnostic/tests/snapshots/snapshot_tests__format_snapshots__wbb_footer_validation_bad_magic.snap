@@ -1,0 +1,5 @@
+---
+source: crates/openracing-diagnostic/tests/snapshot_tests.rs
+expression: err.to_string()
+---
+Invalid magic number: expected [49, 66, 66, 87], got [90, 90, 90, 90]

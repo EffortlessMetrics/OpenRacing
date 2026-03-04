@@ -1,4 +1,25 @@
 //! FFB constants and limits
+//!
+//! This module defines the physical and protocol limits for force feedback
+//! processing, including torque ranges, sample rates, and effect boundaries.
+//!
+//! # Examples
+//!
+//! ```
+//! use openracing_ffb::constants::*;
+//!
+//! // Sample rate drives the RT loop timing
+//! assert_eq!(FFB_SAMPLE_RATE_HZ, 1000);
+//! assert_eq!(FFB_PERIOD_US, 1000);
+//!
+//! // Torque is specified in both Nm and cNm
+//! assert_eq!(MAX_TORQUE_CNM, 2500);
+//! assert!((MAX_TORQUE_NM - 25.0).abs() < f32::EPSILON);
+//!
+//! // Effect gain bounds
+//! assert_eq!(MAX_GAIN, 255);
+//! assert_eq!(MIN_GAIN, 0);
+//! ```
 
 /// Maximum torque value in cNm (centi-Newton-meters)
 pub const MAX_TORQUE_CNM: i32 = 2500;

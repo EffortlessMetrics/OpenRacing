@@ -1,0 +1,9 @@
+---
+source: crates/openracing-ffb/tests/snapshot_tests.rs
+expression: gain
+---
+{
+  "overall": 0.8,
+  "torque": 0.9,
+  "effects": 0.7
+}

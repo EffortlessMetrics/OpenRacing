@@ -1,0 +1,5 @@
+---
+source: crates/hid-accuforce-protocol/tests/snapshot_encoding.rs
+expression: "format!(\"0x{PID_ACCUFORCE_PRO:04X}\")"
+---
+0x804C

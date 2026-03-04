@@ -1,0 +1,7 @@
+---
+source: crates/openracing-calibration/tests/snapshot_expansion_tests.rs
+expression: "CalibrationError::DeviceError(\"sensor failure\".to_string())"
+---
+DeviceError(
+    "sensor failure",
+)

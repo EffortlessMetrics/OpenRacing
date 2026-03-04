@@ -336,7 +336,8 @@ pub mod vendor_ids {
     pub const HEUSINKVELD_SHIFTER: u16 = 0xA020;
     /// Cube Controls S.r.l. — STMicroelectronics shared VID (correct for STM32 devices).
     /// PROVISIONAL — estimated values, no USB captures available.
-    /// TODO: verify with hardware captures.
+    /// TODO(hw-verify): Obtain real USB descriptor captures and update
+    /// `crates/hid-cube-controls-protocol/src/ids.rs` with confirmed PIDs.
     pub const CUBE_CONTROLS: u16 = 0x0483; // same as SIMAGIC; see cube_controls.rs
     /// FlashFire (VID 0x2F24) — budget FFB wheels
     /// Source: oversteer wheel_ids.py
@@ -515,11 +516,7 @@ impl SupportedDevices {
             // NOTE: Thrustmaster pedal PIDs 0xB678/0xB679/0xB68D removed —
             // web research confirmed these are HOTAS peripherals, not pedals.
             // Thrustmaster standalone pedals — verified via JacKeTUs/simracing-hwdb
-            (
-                vendor_ids::THRUSTMASTER,
-                0xB68F,
-                "Thrustmaster TPR Pedals",
-            ),
+            (vendor_ids::THRUSTMASTER, 0xB68F, "Thrustmaster TPR Pedals"),
             (
                 vendor_ids::THRUSTMASTER,
                 0xB371,
@@ -556,16 +553,44 @@ impl SupportedDevices {
             (vendor_ids::SIMAGIC, 0xA3BE, "VRS Pedals (corrected)"),
             (vendor_ids::SIMAGIC, 0xA44C, "VRS R295"),
             // Heusinkveld pedals — current firmware (VID 0x30B7)
-            (vendor_ids::HEUSINKVELD_CURRENT, 0x1001, "Heusinkveld Sprint"),
-            (vendor_ids::HEUSINKVELD_CURRENT, 0x1002, "Heusinkveld Handbrake V2"),
-            (vendor_ids::HEUSINKVELD_CURRENT, 0x1003, "Heusinkveld Ultimate+"),
+            (
+                vendor_ids::HEUSINKVELD_CURRENT,
+                0x1001,
+                "Heusinkveld Sprint",
+            ),
+            (
+                vendor_ids::HEUSINKVELD_CURRENT,
+                0x1002,
+                "Heusinkveld Handbrake V2",
+            ),
+            (
+                vendor_ids::HEUSINKVELD_CURRENT,
+                0x1003,
+                "Heusinkveld Ultimate+",
+            ),
             // Heusinkveld pedals — legacy firmware (VID 0x04D8 — Microchip)
-            (vendor_ids::HEUSINKVELD, 0xF6D0, "Heusinkveld Sprint (legacy)"),
-            (vendor_ids::HEUSINKVELD, 0xF6D2, "Heusinkveld Ultimate+ (legacy)"),
+            (
+                vendor_ids::HEUSINKVELD,
+                0xF6D0,
+                "Heusinkveld Sprint (legacy)",
+            ),
+            (
+                vendor_ids::HEUSINKVELD,
+                0xF6D2,
+                "Heusinkveld Ultimate+ (legacy)",
+            ),
             (vendor_ids::HEUSINKVELD, 0xF6D3, "Heusinkveld Pro"),
             // Heusinkveld peripherals (different VIDs)
-            (vendor_ids::HEUSINKVELD_HANDBRAKE_V1, 0x8B82, "Heusinkveld Handbrake"),
-            (vendor_ids::HEUSINKVELD_SHIFTER, 0x3142, "Heusinkveld Sequential Shifter"),
+            (
+                vendor_ids::HEUSINKVELD_HANDBRAKE_V1,
+                0x8B82,
+                "Heusinkveld Handbrake",
+            ),
+            (
+                vendor_ids::HEUSINKVELD_SHIFTER,
+                0x3142,
+                "Heusinkveld Sequential Shifter",
+            ),
             // Simagic EVO generation (VID 0x3670 — verified via linux-steering-wheels)
             (vendor_ids::SIMAGIC_EVO, 0x0500, "Simagic EVO Sport"),
             (vendor_ids::SIMAGIC_EVO, 0x0501, "Simagic EVO"),
@@ -694,11 +719,7 @@ impl SupportedDevices {
                 0x100C,
                 "Leo Bodnar Pedals Controller",
             ),
-            (
-                vendor_ids::LEO_BODNAR,
-                0x22D0,
-                "Leo Bodnar LC Pedals",
-            ),
+            (vendor_ids::LEO_BODNAR, 0x22D0, "Leo Bodnar LC Pedals"),
             // SimExperience AccuForce Pro (NXP USB chip VID 0x1FC9)
             // Source: community USB captures, RetroBat Wheels.cs
             (
@@ -707,7 +728,8 @@ impl SupportedDevices {
                 "SimExperience AccuForce Pro",
             ),
             // Cube Controls S.r.l. — PROVISIONAL — estimated values, no USB captures available.
-            // TODO: verify with hardware captures. PIDs 0x0C73–0x0C75 are fabricated placeholders.
+            // TODO(hw-verify): PIDs 0x0C73–0x0C75 are fabricated placeholders — do NOT
+            // rely on for device matching. See crates/hid-cube-controls-protocol/src/ids.rs.
             // Uses STM shared VID 0x0483; dispatched in get_vendor_protocol() before Simagic.
             (
                 vendor_ids::SIMAGIC,
@@ -1704,7 +1726,8 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
                     capabilities.max_torque = TorqueNm::ZERO;
                 }
                 // Cube Controls PIDs — PROVISIONAL — estimated values, no USB captures available.
-                // TODO: verify with hardware captures. Input-only devices (button boxes), not wheelbases.
+                // TODO(hw-verify): Input-only devices (button boxes), not wheelbases.
+                // Confirm PIDs with real hardware. See crates/hid-cube-controls-protocol/src/ids.rs.
                 0x0C73..=0x0C75 => {
                     capabilities.max_torque = TorqueNm::ZERO;
                     capabilities.encoder_cpr = 0;

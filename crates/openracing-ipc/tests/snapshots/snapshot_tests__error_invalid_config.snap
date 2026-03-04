@@ -1,0 +1,5 @@
+---
+source: crates/openracing-ipc/tests/snapshot_tests.rs
+expression: "format!(\"{err}\")"
+---
+Invalid configuration: max_connections must be > 0

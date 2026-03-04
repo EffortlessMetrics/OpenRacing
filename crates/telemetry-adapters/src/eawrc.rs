@@ -141,6 +141,16 @@ impl EAWRCAdapter {
                 "powertrain_engine_rpm",
             ],
         );
+        let max_rpm = value_f32(
+            &packet.values,
+            &[
+                "max_rpm",
+                "engine_max_rpm",
+                "vehicle_engine_rpm_max",
+                "powertrain_engine_rpm_max",
+                "rpm_max",
+            ],
+        );
         let speed_ms = value_f32(
             &packet.values,
             &[
@@ -160,6 +170,96 @@ impl EAWRCAdapter {
             &packet.values,
             &["gear", "vehicle_gear", "gear_index", "vehicle_gear_index"],
         );
+        let throttle = value_f32(
+            &packet.values,
+            &[
+                "throttle",
+                "vehicle_throttle",
+                "throttle_input",
+                "accelerator",
+            ],
+        );
+        let brake = value_f32(
+            &packet.values,
+            &["brake", "vehicle_brake", "brake_input", "brakes"],
+        );
+        let clutch = value_f32(
+            &packet.values,
+            &["clutch", "vehicle_clutch", "clutch_input"],
+        );
+        let steering = value_f32(
+            &packet.values,
+            &[
+                "steering",
+                "steering_angle",
+                "vehicle_steering",
+                "steer_input",
+            ],
+        );
+        let lateral_g = value_f32(
+            &packet.values,
+            &[
+                "lateral_acceleration",
+                "lat_accel",
+                "gforce_lat",
+                "vehicle_acceleration_lateral",
+                "lateral_g",
+            ],
+        );
+        let longitudinal_g = value_f32(
+            &packet.values,
+            &[
+                "longitudinal_acceleration",
+                "lon_accel",
+                "gforce_lon",
+                "vehicle_acceleration_longitudinal",
+                "longitudinal_g",
+            ],
+        );
+        let lap = value_f32(
+            &packet.values,
+            &[
+                "lap_number",
+                "current_lap",
+                "lap",
+                "vehicle_lap",
+                "laps_completed",
+            ],
+        );
+        let position = value_f32(
+            &packet.values,
+            &["position", "race_position", "vehicle_position", "standing"],
+        );
+        let fuel_percent = value_f32(
+            &packet.values,
+            &["fuel_percent", "fuel_level", "fuel", "vehicle_fuel_level"],
+        );
+        let num_gears = value_f32(
+            &packet.values,
+            &["num_gears", "max_gears", "gear_count", "vehicle_num_gears"],
+        );
+        let current_lap_time = value_f32(
+            &packet.values,
+            &[
+                "current_lap_time",
+                "lap_time",
+                "lap_time_current",
+                "vehicle_lap_time",
+            ],
+        );
+        let best_lap_time = value_f32(
+            &packet.values,
+            &["best_lap_time", "lap_time_best", "personal_best_lap_time"],
+        );
+        let last_lap_time = value_f32(
+            &packet.values,
+            &[
+                "last_lap_time",
+                "lap_time_last",
+                "previous_lap_time",
+                "lap_time_previous",
+            ],
+        );
         let car_id = value_string(&packet.values, &["car_id", "vehicle_name", "vehicle_id"]);
         let track_id = value_string(
             &packet.values,
@@ -174,6 +274,9 @@ impl EAWRCAdapter {
         if let Some(value) = rpm {
             builder = builder.rpm(value);
         }
+        if let Some(value) = max_rpm {
+            builder = builder.max_rpm(value);
+        }
         if let Some(value) = speed_ms {
             builder = builder.speed_ms(value);
         }
@@ -182,6 +285,45 @@ impl EAWRCAdapter {
         }
         if let Some(value) = gear {
             builder = builder.gear(value);
+        }
+        if let Some(value) = throttle {
+            builder = builder.throttle(value);
+        }
+        if let Some(value) = brake {
+            builder = builder.brake(value);
+        }
+        if let Some(value) = clutch {
+            builder = builder.clutch(value);
+        }
+        if let Some(value) = steering {
+            builder = builder.steering_angle(value);
+        }
+        if let Some(value) = lateral_g {
+            builder = builder.lateral_g(value);
+        }
+        if let Some(value) = longitudinal_g {
+            builder = builder.longitudinal_g(value);
+        }
+        if let Some(value) = lap {
+            builder = builder.lap(value.max(0.0).round() as u16);
+        }
+        if let Some(value) = position {
+            builder = builder.position(value.clamp(0.0, 255.0).round() as u8);
+        }
+        if let Some(value) = fuel_percent {
+            builder = builder.fuel_percent(value);
+        }
+        if let Some(value) = num_gears {
+            builder = builder.num_gears(value.clamp(0.0, 255.0).round() as u8);
+        }
+        if let Some(value) = current_lap_time {
+            builder = builder.current_lap_time_s(value);
+        }
+        if let Some(value) = best_lap_time {
+            builder = builder.best_lap_time_s(value);
+        }
+        if let Some(value) = last_lap_time {
+            builder = builder.last_lap_time_s(value);
         }
         if let Some(value) = car_id {
             builder = builder.car_id(value);
@@ -1038,6 +1180,101 @@ mod tests {
             telemetry.extended.get("packet_uid"),
             Some(&TelemetryValue::String("SU01".to_string()))
         );
+        Ok(())
+    }
+
+    #[test]
+    fn test_normalize_decoded_enriched_fields() -> TestResult {
+        let channels: ChannelsFile = serde_json::from_value(serde_json::json!({
+            "versions": { "schema": 1, "data": 7 },
+            "channels": [
+                { "id": "packet_uid", "type": "fourCC" },
+                { "id": "ffb_scalar", "type": "f32" },
+                { "id": "engine_rpm", "type": "f32" },
+                { "id": "max_rpm", "type": "f32" },
+                { "id": "vehicle_speed", "type": "f32" },
+                { "id": "gear", "type": "i8" },
+                { "id": "throttle", "type": "f32" },
+                { "id": "brake", "type": "f32" },
+                { "id": "clutch", "type": "f32" },
+                { "id": "steering", "type": "f32" },
+                { "id": "lateral_acceleration", "type": "f32" },
+                { "id": "longitudinal_acceleration", "type": "f32" },
+                { "id": "current_lap", "type": "f32" },
+                { "id": "race_position", "type": "f32" },
+                { "id": "fuel_level", "type": "f32" },
+                { "id": "num_gears", "type": "f32" },
+                { "id": "current_lap_time", "type": "f32" },
+                { "id": "best_lap_time", "type": "f32" },
+                { "id": "last_lap_time", "type": "f32" }
+            ]
+        }))?;
+        let structure: StructureFile = serde_json::from_value(serde_json::json!({
+            "id": "openracing",
+            "packets": [{
+                "id": "session_update",
+                "header": { "channels": ["packet_uid"] },
+                "channels": [
+                    "ffb_scalar", "engine_rpm", "max_rpm", "vehicle_speed", "gear",
+                    "throttle", "brake", "clutch", "steering",
+                    "lateral_acceleration", "longitudinal_acceleration",
+                    "current_lap", "race_position", "fuel_level", "num_gears",
+                    "current_lap_time", "best_lap_time", "last_lap_time"
+                ]
+            }]
+        }))?;
+        let catalog: PacketsCatalogFile = serde_json::from_value(packets_json())?;
+
+        let plan = DecoderPlan::compile(
+            &channels,
+            &structure,
+            Some(&catalog),
+            "openracing".to_string(),
+        )?;
+
+        let mut packet = Vec::new();
+        packet.extend_from_slice(b"SU01"); // packet_uid
+        packet.extend_from_slice(&0.6f32.to_le_bytes()); // ffb_scalar
+        packet.extend_from_slice(&6400.0f32.to_le_bytes()); // engine_rpm
+        packet.extend_from_slice(&8000.0f32.to_le_bytes()); // max_rpm
+        packet.extend_from_slice(&51.0f32.to_le_bytes()); // vehicle_speed
+        packet.extend_from_slice(&4i8.to_le_bytes()); // gear
+        packet.extend_from_slice(&0.85f32.to_le_bytes()); // throttle
+        packet.extend_from_slice(&0.3f32.to_le_bytes()); // brake
+        packet.extend_from_slice(&0.05f32.to_le_bytes()); // clutch
+        packet.extend_from_slice(&(-0.2f32).to_le_bytes()); // steering
+        packet.extend_from_slice(&1.5f32.to_le_bytes()); // lateral_acceleration
+        packet.extend_from_slice(&(-0.3f32).to_le_bytes()); // longitudinal_acceleration
+        packet.extend_from_slice(&5.0f32.to_le_bytes()); // current_lap
+        packet.extend_from_slice(&3.0f32.to_le_bytes()); // race_position
+        packet.extend_from_slice(&0.65f32.to_le_bytes()); // fuel_level
+        packet.extend_from_slice(&6.0f32.to_le_bytes()); // num_gears
+        packet.extend_from_slice(&62.5f32.to_le_bytes()); // current_lap_time
+        packet.extend_from_slice(&60.1f32.to_le_bytes()); // best_lap_time
+        packet.extend_from_slice(&61.3f32.to_le_bytes()); // last_lap_time
+
+        let decoded = plan.decode("session_update", &packet)?;
+        let telemetry = EAWRCAdapter::normalize_decoded(&decoded);
+
+        assert_eq!(telemetry.ffb_scalar, 0.6);
+        assert_eq!(telemetry.rpm, 6400.0);
+        assert_eq!(telemetry.max_rpm, 8000.0);
+        assert_eq!(telemetry.speed_ms, 51.0);
+        assert_eq!(telemetry.gear, 4);
+        assert!((telemetry.throttle - 0.85).abs() < 0.001);
+        assert!((telemetry.brake - 0.3).abs() < 0.001);
+        assert!((telemetry.clutch - 0.05).abs() < 0.001);
+        assert!((telemetry.steering_angle - (-0.2)).abs() < 0.001);
+        assert!((telemetry.lateral_g - 1.5).abs() < 0.001);
+        assert!((telemetry.longitudinal_g - (-0.3)).abs() < 0.001);
+        assert_eq!(telemetry.lap, 5);
+        assert_eq!(telemetry.position, 3);
+        assert!((telemetry.fuel_percent - 0.65).abs() < 0.001);
+        assert_eq!(telemetry.num_gears, 6);
+        assert!((telemetry.current_lap_time_s - 62.5).abs() < 0.01);
+        assert!((telemetry.best_lap_time_s - 60.1).abs() < 0.01);
+        assert!((telemetry.last_lap_time_s - 61.3).abs() < 0.01);
+
         Ok(())
     }
 

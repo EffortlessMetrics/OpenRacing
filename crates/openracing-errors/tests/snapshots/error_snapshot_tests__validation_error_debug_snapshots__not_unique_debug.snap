@@ -1,0 +1,5 @@
+---
+source: crates/openracing-errors/tests/error_snapshot_tests.rs
+expression: "format!(\"{:?}\", ValidationError::NotUnique\n{ field: \"device_alias\".into(), value: \"my-wheel\".into(), })"
+---
+NotUnique { field: "device_alias", value: "my-wheel" }

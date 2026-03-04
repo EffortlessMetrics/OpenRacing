@@ -1,0 +1,5 @@
+---
+source: crates/openracing-diagnostic/tests/snapshot_tests.rs
+expression: "DiagnosticError::Deserialization(\"invalid StreamARecord length\".into()).to_string()"
+---
+Deserialization error: invalid StreamARecord length

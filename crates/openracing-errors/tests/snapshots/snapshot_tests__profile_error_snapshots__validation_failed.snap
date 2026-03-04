@@ -1,0 +1,5 @@
+---
+source: crates/openracing-errors/tests/snapshot_tests.rs
+expression: "ProfileError::ValidationFailed(\"torque_limit must be > 0\".into()).to_string()"
+---
+Profile validation failed: torque_limit must be > 0

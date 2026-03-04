@@ -1,0 +1,11 @@
+---
+source: crates/openracing-errors/tests/snapshot_tests.rs
+expression: "formatted.join(\"\\n\")"
+---
+RT: RT
+Device: Device
+Profile: Profile
+Validation: Validation
+Io: IO
+Config: Config
+Other: Other

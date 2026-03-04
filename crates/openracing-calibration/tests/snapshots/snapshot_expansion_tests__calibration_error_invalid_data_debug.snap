@@ -1,0 +1,5 @@
+---
+source: crates/openracing-calibration/tests/snapshot_expansion_tests.rs
+expression: "CalibrationError::InvalidData"
+---
+InvalidData

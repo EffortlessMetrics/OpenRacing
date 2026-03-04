@@ -1,0 +1,5 @@
+---
+source: crates/schemas/tests/snapshot_expansion_tests.rs
+expression: "format!(\"{}\", err)"
+---
+Circular inheritance detected: profile 'my-profile' appears multiple times in inheritance chain

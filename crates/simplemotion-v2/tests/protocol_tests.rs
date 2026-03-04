@@ -12,7 +12,7 @@ use racing_wheel_simplemotion_v2::commands::{
 };
 use racing_wheel_simplemotion_v2::error::SmError;
 use racing_wheel_simplemotion_v2::{
-    SmFeedbackState, SmMotorFeedback, TorqueCommandEncoder, TORQUE_COMMAND_LEN,
+    SmFeedbackState, SmMotorFeedback, TORQUE_COMMAND_LEN, TorqueCommandEncoder,
     build_device_enable, build_get_parameter, build_set_parameter, build_set_torque_command,
     build_set_torque_command_with_velocity, build_set_zero_position, identify_device,
     is_wheelbase_product, parse_feedback_report, sm_device_identity,
@@ -142,7 +142,10 @@ fn roundtrip_all_command_types_preserve_type() -> Result<(), Box<dyn std::error:
         let mut buf = [0u8; 15];
         encode_command(&cmd, &mut buf)?;
         let decoded = decode_command(&buf)?;
-        assert_eq!(decoded.cmd_type, cmd_type, "round-trip failed for {cmd_type:?}");
+        assert_eq!(
+            decoded.cmd_type, cmd_type,
+            "round-trip failed for {cmd_type:?}"
+        );
     }
     Ok(())
 }

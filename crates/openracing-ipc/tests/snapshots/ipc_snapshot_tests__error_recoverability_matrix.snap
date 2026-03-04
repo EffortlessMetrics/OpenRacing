@@ -1,0 +1,17 @@
+---
+source: crates/openracing-ipc/tests/ipc_snapshot_tests.rs
+expression: "formatted.join(\"\\n\")"
+---
+TransportInit: recoverable=false, fatal=true
+ConnectionFailed: recoverable=true, fatal=false
+EncodingFailed: recoverable=false, fatal=false
+DecodingFailed: recoverable=false, fatal=false
+VersionIncompatibility: recoverable=true, fatal=false
+FeatureNegotiation: recoverable=true, fatal=false
+ServerNotRunning: recoverable=false, fatal=true
+ConnectionLimitExceeded: recoverable=false, fatal=false
+Timeout: recoverable=true, fatal=false
+Grpc: recoverable=false, fatal=false
+InvalidConfig: recoverable=false, fatal=false
+PlatformNotSupported: recoverable=false, fatal=false
+ShutdownRequested: recoverable=false, fatal=true

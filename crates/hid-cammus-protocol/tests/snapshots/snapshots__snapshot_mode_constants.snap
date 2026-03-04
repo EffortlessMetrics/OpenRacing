@@ -1,0 +1,5 @@
+---
+source: crates/hid-cammus-protocol/tests/snapshots.rs
+expression: "format!(\"MODE_GAME={:#04X}, MODE_CONFIG={:#04X}, FFB_REPORT_ID={:#04X}, FFB_REPORT_LEN={}\",\ncammus::MODE_GAME, cammus::MODE_CONFIG, cammus::FFB_REPORT_ID,\ncammus::FFB_REPORT_LEN)"
+---
+"MODE_GAME=0x01, MODE_CONFIG=0x00, FFB_REPORT_ID=0x01, FFB_REPORT_LEN=8"

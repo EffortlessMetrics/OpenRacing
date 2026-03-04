@@ -3,14 +3,14 @@ source: crates/telemetry-ams2/tests/snapshot_tests.rs
 expression: norm
 ---
 speed_ms: 55.5
-steering_angle: 0
-throttle: 0
+steering_angle: 0.12
+throttle: 0.85
 brake: 0
 clutch: 0
 rpm: 7200
-max_rpm: 0
+max_rpm: 8500
 gear: 5
-num_gears: 0
+num_gears: 6
 lateral_g: 0
 longitudinal_g: 0
 vertical_g: 0
@@ -20,10 +20,10 @@ slip_angle_fr: 0
 slip_angle_rl: 0
 slip_angle_rr: 0
 tire_temps_c:
-  - 0
-  - 0
-  - 0
-  - 0
+  - 92
+  - 94
+  - 88
+  - 90
 tire_pressures_psi:
   - 0
   - 0
@@ -53,25 +53,19 @@ flags:
 car_id: mclaren_720s_gt3
 track_id: interlagos
 position: 0
-lap: 0
+lap: 8
 current_lap_time_s: 0
 best_lap_time_s: 0
 last_lap_time_s: 0
 delta_ahead_s: 0
 delta_behind_s: 0
-fuel_percent: 0
+fuel_percent: 0.38181818
 engine_temp_c: 0
 extended:
-  brake:
+  fuel_capacity_l:
     type: Float
-    value: 0
-  fuel_level:
+    value: 110
+  fuel_level_l:
     type: Float
     value: 42
-  lap_count:
-    type: Integer
-    value: 8
-  throttle:
-    type: Float
-    value: 0.85
 sequence: 0

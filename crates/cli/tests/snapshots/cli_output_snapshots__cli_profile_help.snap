@@ -1,0 +1,23 @@
+---
+source: crates/cli/tests/cli_output_snapshots.rs
+expression: stdout
+---
+Profile management commands
+
+Usage: wheelctl profile [OPTIONS] <COMMAND>
+
+Commands:
+  list      List available profiles
+  show      Show profile details
+  apply     Apply profile to device
+  create    Create new profile
+  edit      Edit profile interactively
+  validate  Validate profile
+  export    Export profile
+  import    Import profile
+  help      Print this message or the help of the given subcommand(s)
+
+Options:
+      --json        Output in JSON format for machine parsing
+  -v, --verbose...  Verbose logging
+  -h, --help        Print help

@@ -1,0 +1,5 @@
+---
+source: crates/hid-heusinkveld-protocol/tests/snapshots.rs
+expression: "format!(\"throttle={:.4}, brake={:.4}, clutch={:.4}\",\nreport.throttle_normalized(), report.brake_normalized(),\nreport.clutch_normalized())"
+---
+"throttle=0.5000, brake=0.2500, clutch=0.7500"

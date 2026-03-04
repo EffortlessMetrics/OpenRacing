@@ -1,0 +1,19 @@
+---
+source: crates/cli/tests/cli_output_snapshots.rs
+expression: stdout
+---
+Game integration commands
+
+Usage: wheelctl game [OPTIONS] <COMMAND>
+
+Commands:
+  list       List supported games
+  configure  Configure game for telemetry
+  status     Show game status
+  test       Test telemetry connection
+  help       Print this message or the help of the given subcommand(s)
+
+Options:
+      --json        Output in JSON format for machine parsing
+  -v, --verbose...  Verbose logging
+  -h, --help        Print help

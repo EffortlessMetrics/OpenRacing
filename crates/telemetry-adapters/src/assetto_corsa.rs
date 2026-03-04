@@ -138,10 +138,7 @@ fn parse_ac_packet(data: &[u8]) -> Result<NormalizedTelemetry> {
 
     // Overall slip ratio: average of per-wheel absolute values (guard at low speed).
     let slip_ratio = if speed_ms > 1.0 {
-        ((slip_ratio_fl.abs()
-            + slip_ratio_fr.abs()
-            + slip_ratio_rl.abs()
-            + slip_ratio_rr.abs())
+        ((slip_ratio_fl.abs() + slip_ratio_fr.abs() + slip_ratio_rl.abs() + slip_ratio_rr.abs())
             / 4.0)
             .min(1.0)
     } else {
@@ -393,12 +390,10 @@ mod tests {
         data[OFF_IN_PIT] = 1;
         data[OFF_ENGINE_LIMITER] = 0;
         // G-forces
-        data[OFF_ACCG_VERTICAL..OFF_ACCG_VERTICAL + 4]
-            .copy_from_slice(&1.02f32.to_le_bytes());
+        data[OFF_ACCG_VERTICAL..OFF_ACCG_VERTICAL + 4].copy_from_slice(&1.02f32.to_le_bytes());
         data[OFF_ACCG_HORIZONTAL..OFF_ACCG_HORIZONTAL + 4]
             .copy_from_slice(&(-0.35f32).to_le_bytes());
-        data[OFF_ACCG_FRONTAL..OFF_ACCG_FRONTAL + 4]
-            .copy_from_slice(&0.45f32.to_le_bytes());
+        data[OFF_ACCG_FRONTAL..OFF_ACCG_FRONTAL + 4].copy_from_slice(&0.45f32.to_le_bytes());
         // lap timing (i32 milliseconds)
         data[OFF_LAP_TIME..OFF_LAP_TIME + 4].copy_from_slice(&62500i32.to_le_bytes());
         data[OFF_LAST_LAP..OFF_LAST_LAP + 4].copy_from_slice(&61200i32.to_le_bytes());
@@ -415,21 +410,14 @@ mod tests {
         // gear at offset 76 (AC: 3 = 2nd gear; 0=R, 1=N, 2=1st, 3=2nd)
         data[OFF_GEAR..OFF_GEAR + 4].copy_from_slice(&3i32.to_le_bytes());
         // slip angles (f32[4])
-        data[OFF_SLIP_ANGLE_FL..OFF_SLIP_ANGLE_FL + 4]
-            .copy_from_slice(&0.5f32.to_le_bytes());
-        data[OFF_SLIP_ANGLE_FL + 4..OFF_SLIP_ANGLE_FL + 8]
-            .copy_from_slice(&0.6f32.to_le_bytes());
-        data[OFF_SLIP_ANGLE_FL + 8..OFF_SLIP_ANGLE_FL + 12]
-            .copy_from_slice(&0.7f32.to_le_bytes());
-        data[OFF_SLIP_ANGLE_FL + 12..OFF_SLIP_ANGLE_FL + 16]
-            .copy_from_slice(&0.8f32.to_le_bytes());
+        data[OFF_SLIP_ANGLE_FL..OFF_SLIP_ANGLE_FL + 4].copy_from_slice(&0.5f32.to_le_bytes());
+        data[OFF_SLIP_ANGLE_FL + 4..OFF_SLIP_ANGLE_FL + 8].copy_from_slice(&0.6f32.to_le_bytes());
+        data[OFF_SLIP_ANGLE_FL + 8..OFF_SLIP_ANGLE_FL + 12].copy_from_slice(&0.7f32.to_le_bytes());
+        data[OFF_SLIP_ANGLE_FL + 12..OFF_SLIP_ANGLE_FL + 16].copy_from_slice(&0.8f32.to_le_bytes());
         // slip ratios (f32[4])
-        data[OFF_SLIP_RATIO_FL..OFF_SLIP_RATIO_FL + 4]
-            .copy_from_slice(&0.02f32.to_le_bytes());
-        data[OFF_SLIP_RATIO_FL + 4..OFF_SLIP_RATIO_FL + 8]
-            .copy_from_slice(&0.03f32.to_le_bytes());
-        data[OFF_SLIP_RATIO_FL + 8..OFF_SLIP_RATIO_FL + 12]
-            .copy_from_slice(&0.04f32.to_le_bytes());
+        data[OFF_SLIP_RATIO_FL..OFF_SLIP_RATIO_FL + 4].copy_from_slice(&0.02f32.to_le_bytes());
+        data[OFF_SLIP_RATIO_FL + 4..OFF_SLIP_RATIO_FL + 8].copy_from_slice(&0.03f32.to_le_bytes());
+        data[OFF_SLIP_RATIO_FL + 8..OFF_SLIP_RATIO_FL + 12].copy_from_slice(&0.04f32.to_le_bytes());
         data[OFF_SLIP_RATIO_FL + 12..OFF_SLIP_RATIO_FL + 16]
             .copy_from_slice(&0.05f32.to_le_bytes());
         data
@@ -625,7 +613,10 @@ mod tests {
         let result = parse_ac_packet(&data)?;
         // Original fields must still parse correctly
         assert!((result.rpm - 6000.0).abs() < 0.01);
-        assert_eq!(result.gear, 2, "gear must still parse from oversized packet");
+        assert_eq!(
+            result.gear, 2,
+            "gear must still parse from oversized packet"
+        );
         Ok(())
     }
 
@@ -664,7 +655,10 @@ mod tests {
         let result = parse_ac_packet(&data)?;
         assert_eq!(result.speed_ms, 0.0, "Infinity speed must default to 0.0");
         assert_eq!(result.rpm, 0.0, "-Infinity RPM must default to 0.0");
-        assert_eq!(result.steering_angle, 0.0, "Infinity steer must default to 0.0");
+        assert_eq!(
+            result.steering_angle, 0.0,
+            "Infinity steer must default to 0.0"
+        );
         Ok(())
     }
 
@@ -681,7 +675,10 @@ mod tests {
         assert_eq!(result.clutch, 0.0);
         assert_eq!(result.steering_angle, 0.0);
         // gear: raw i32 0 → reverse (-1)
-        assert_eq!(result.gear, -1, "all-zeros gear (raw 0) must map to reverse (-1)");
+        assert_eq!(
+            result.gear, -1,
+            "all-zeros gear (raw 0) must map to reverse (-1)"
+        );
         Ok(())
     }
 }

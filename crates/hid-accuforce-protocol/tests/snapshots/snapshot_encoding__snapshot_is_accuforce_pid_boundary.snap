@@ -1,0 +1,5 @@
+---
+source: crates/hid-accuforce-protocol/tests/snapshot_encoding.rs
+expression: "pids.join(\", \")"
+---
+0x0000=false, 0x804C=true, 0x804B=false, 0x804D=false, 0xFFFF=false

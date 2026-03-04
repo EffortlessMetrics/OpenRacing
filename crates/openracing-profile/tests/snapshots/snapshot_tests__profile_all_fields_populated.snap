@@ -1,0 +1,41 @@
+---
+source: crates/openracing-profile/tests/snapshot_tests.rs
+expression: profile
+---
+{
+  "id": "[uuid]",
+  "name": "Competition Profile",
+  "device_id": "fanatec-dd1",
+  "version": 1,
+  "schema_version": 1,
+  "settings": {
+    "ffb": {
+      "overall_gain": 0.9,
+      "torque_limit": 20.0,
+      "spring_strength": 0.5,
+      "damper_strength": 0.5,
+      "friction_strength": 0.3,
+      "effects_enabled": true
+    },
+    "input": {
+      "steering_range": 720,
+      "steering_deadzone": 2,
+      "throttle_curve": "Exponential",
+      "brake_curve": "Exponential",
+      "clutch_curve": "Linear"
+    },
+    "limits": {
+      "max_speed": 200.0,
+      "max_temp": 65,
+      "emergency_stop": true
+    },
+    "advanced": {
+      "filter_enabled": true,
+      "filter_strength": 0.8,
+      "led_mode": "Speed",
+      "telemetry_enabled": true
+    }
+  },
+  "created_at": "[timestamp]",
+  "modified_at": "[timestamp]"
+}

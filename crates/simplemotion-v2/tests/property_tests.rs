@@ -3,13 +3,15 @@
 //! Uses proptest with 500 cases to verify invariants on command encoding,
 //! CRC integrity, torque encoding, and feedback parsing.
 
+#![allow(clippy::redundant_closure)]
+
 use proptest::prelude::*;
 use racing_wheel_simplemotion_v2::commands::{
-    SmCommand, SmCommandType, decode_command, encode_command,
+    SmCommand, SmCommandType, SmStatus, decode_command, encode_command,
 };
 use racing_wheel_simplemotion_v2::error::SmError;
 use racing_wheel_simplemotion_v2::{
-    SmFeedbackState, SmMotorFeedback, TorqueCommandEncoder, TORQUE_COMMAND_LEN,
+    SmFeedbackState, SmMotorFeedback, TORQUE_COMMAND_LEN, TorqueCommandEncoder,
     build_get_parameter, build_set_parameter, build_set_torque_command, identify_device,
     is_wheelbase_product, parse_feedback_report,
 };
@@ -321,4 +323,330 @@ proptest! {
         prop_assert_eq!(decoded.cmd_type, SmCommandType::SetTorque);
         prop_assert_eq!(decoded.data, Some(torque as i32));
     }
+
+    // ── Command type round-trip for all variants via proptest ────────────
+
+    /// Every SmCommandType variant round-trips through to_u16 / from_u16.
+    #[test]
+    fn prop_command_type_roundtrip(type_idx in 0usize..8) {
+        let types = [
+            SmCommandType::GetParameter,
+            SmCommandType::SetParameter,
+            SmCommandType::GetStatus,
+            SmCommandType::SetTorque,
+            SmCommandType::SetVelocity,
+            SmCommandType::SetPosition,
+            SmCommandType::SetZero,
+            SmCommandType::Reset,
+        ];
+        let ct = types[type_idx];
+        let raw = ct.to_u16();
+        let recovered = SmCommandType::from_u16(raw);
+        prop_assert_eq!(recovered, Some(ct));
+    }
+
+    /// Arbitrary u16 values that are NOT valid command types must return None.
+    #[test]
+    fn prop_invalid_command_type_returns_none(val in any::<u16>()) {
+        let valid = [0x0001, 0x0002, 0x0003, 0x0010, 0x0011, 0x0012, 0x0013, 0xFFFF];
+        if !valid.contains(&val) {
+            prop_assert!(SmCommandType::from_u16(val).is_none());
+        }
+    }
+
+    // ── CRC correctness: double-encode produces same CRC ────────────────
+
+    /// Encoding the same command twice must produce identical buffers (including CRC).
+    #[test]
+    fn prop_crc_deterministic(
+        seq in any::<u8>(),
+        data in any::<i32>(),
+        type_idx in 0usize..8,
+    ) {
+        let types = [
+            SmCommandType::GetParameter,
+            SmCommandType::SetParameter,
+            SmCommandType::GetStatus,
+            SmCommandType::SetTorque,
+            SmCommandType::SetVelocity,
+            SmCommandType::SetPosition,
+            SmCommandType::SetZero,
+            SmCommandType::Reset,
+        ];
+        let cmd = SmCommand::new(seq, types[type_idx]).with_data(data);
+        let mut buf1 = [0u8; 15];
+        let mut buf2 = [0u8; 15];
+        encode_command(&cmd, &mut buf1).expect("encode must succeed");
+        encode_command(&cmd, &mut buf2).expect("encode must succeed");
+        prop_assert_eq!(buf1, buf2, "CRC must be deterministic");
+    }
+
+    // ── Encode into oversized buffer ────────────────────────────────────
+
+    /// Encoding into a buffer larger than 15 must succeed and only
+    /// write 15 meaningful bytes (rest zeroed by fill).
+    #[test]
+    fn prop_encode_oversized_buffer(seq in any::<u8>(), extra in 0usize..50) {
+        let size = 15 + extra;
+        let mut buf = vec![0xFFu8; size];
+        let cmd = SmCommand::new(seq, SmCommandType::GetStatus);
+        let len = encode_command(&cmd, &mut buf).expect("encode must succeed");
+        prop_assert_eq!(len, 15);
+        // Bytes beyond 15 must be zero (encode fills then writes)
+        for &b in &buf[15..] {
+            prop_assert_eq!(b, 0u8, "bytes past 15 must be zeroed");
+        }
+    }
+}
+
+// ── State machine / SmStatus transitions ────────────────────────────────────
+
+/// SmStatus::from_u8 covers all defined values; everything else is Unknown.
+#[test]
+fn status_from_u8_all_defined() -> Result<(), Box<dyn std::error::Error>> {
+    assert_eq!(SmStatus::from_u8(0), SmStatus::Ok);
+    assert_eq!(SmStatus::from_u8(1), SmStatus::Error);
+    assert_eq!(SmStatus::from_u8(2), SmStatus::Busy);
+    assert_eq!(SmStatus::from_u8(3), SmStatus::NotReady);
+    for v in 4..=255 {
+        assert_eq!(
+            SmStatus::from_u8(v),
+            SmStatus::Unknown,
+            "value {v} must map to Unknown"
+        );
+    }
+    Ok(())
+}
+
+/// SmStatus default must be Unknown.
+#[test]
+fn status_default_is_unknown() {
+    assert_eq!(SmStatus::default(), SmStatus::Unknown);
+}
+
+// ── Error handling for all error codes ──────────────────────────────────────
+
+#[test]
+fn error_invalid_length_display() {
+    let err = SmError::InvalidLength {
+        expected: 15,
+        actual: 10,
+    };
+    assert!(err.to_string().contains("15"));
+    assert!(err.to_string().contains("10"));
+}
+
+#[test]
+fn error_invalid_command_type_display() {
+    let err = SmError::InvalidCommandType(0x99);
+    assert!(
+        err.to_string().contains("153")
+            || err.to_string().contains("0x99")
+            || err.to_string().contains("Invalid command type")
+    );
+}
+
+#[test]
+fn error_invalid_parameter_display() {
+    let err = SmError::InvalidParameter(0xBEEF);
+    assert!(err.to_string().contains("Invalid parameter address"));
+}
+
+#[test]
+fn error_device_error_display() {
+    let err = SmError::DeviceError("test fault".to_string());
+    assert!(err.to_string().contains("test fault"));
+}
+
+#[test]
+fn error_communication_error_display() {
+    let err = SmError::CommunicationError("timeout".to_string());
+    assert!(err.to_string().contains("timeout"));
+}
+
+#[test]
+fn error_crc_mismatch_display() {
+    let err = SmError::CrcMismatch {
+        expected: 0xAA,
+        actual: 0xBB,
+    };
+    assert!(err.to_string().contains("CRC mismatch"));
+}
+
+#[test]
+fn error_parse_error_display() {
+    let err = SmError::ParseError("bad data".to_string());
+    assert!(err.to_string().contains("bad data"));
+}
+
+#[test]
+fn error_encode_error_display() {
+    let err = SmError::EncodeError("overflow".to_string());
+    assert!(err.to_string().contains("overflow"));
+}
+
+#[test]
+fn error_from_io_preserves_message() {
+    let io_err = std::io::Error::new(std::io::ErrorKind::TimedOut, "serial timeout");
+    let sm_err: SmError = io_err.into();
+    assert!(matches!(sm_err, SmError::CommunicationError(ref s) if s.contains("serial timeout")));
+}
+
+// ── Edge cases: maximum payload, zero-length, boundary buffers ──────────────
+
+#[test]
+fn encode_with_exactly_15_byte_buffer() -> Result<(), Box<dyn std::error::Error>> {
+    let cmd = SmCommand::new(0xFF, SmCommandType::Reset)
+        .with_param(u16::MAX, i32::MAX)
+        .with_data(i32::MIN);
+    let mut buf = [0u8; 15];
+    let len = encode_command(&cmd, &mut buf)?;
+    assert_eq!(len, 15);
+    let decoded = decode_command(&buf)?;
+    assert_eq!(decoded.seq, 0xFF);
+    assert_eq!(decoded.cmd_type, SmCommandType::Reset);
+    assert_eq!(decoded.param_addr, Some(u16::MAX));
+    assert_eq!(decoded.param_value, Some(i32::MAX));
+    assert_eq!(decoded.data, Some(i32::MIN));
+    Ok(())
+}
+
+#[test]
+fn decode_zero_length_buffer_returns_error() {
+    let result = decode_command(&[]);
+    assert!(matches!(
+        result,
+        Err(SmError::InvalidLength {
+            expected: 15,
+            actual: 0
+        })
+    ));
+}
+
+#[test]
+fn encode_zero_length_buffer_returns_error() {
+    let cmd = SmCommand::new(0, SmCommandType::GetStatus);
+    let result = encode_command(&cmd, &mut []);
+    assert!(matches!(
+        result,
+        Err(SmError::InvalidLength {
+            expected: 15,
+            actual: 0
+        })
+    ));
+}
+
+#[test]
+fn decode_single_byte_buffer_returns_error() {
+    let result = decode_command(&[0x01]);
+    assert!(matches!(
+        result,
+        Err(SmError::InvalidLength {
+            expected: 15,
+            actual: 1
+        })
+    ));
+}
+
+#[test]
+fn encode_14_byte_buffer_returns_error() {
+    let cmd = SmCommand::new(0, SmCommandType::GetStatus);
+    let mut buf = [0u8; 14];
+    let result = encode_command(&cmd, &mut buf);
+    assert!(matches!(
+        result,
+        Err(SmError::InvalidLength {
+            expected: 15,
+            actual: 14
+        })
+    ));
+}
+
+/// Maximum payload: all fields at extreme values round-trip correctly.
+#[test]
+fn maximum_payload_roundtrip() -> Result<(), Box<dyn std::error::Error>> {
+    let cmd = SmCommand::new(255, SmCommandType::SetParameter)
+        .with_param(u16::MAX, i32::MIN)
+        .with_data(i32::MAX);
+    let mut buf = [0u8; 15];
+    encode_command(&cmd, &mut buf)?;
+    let decoded = decode_command(&buf)?;
+    assert_eq!(decoded.seq, 255);
+    assert_eq!(decoded.cmd_type, SmCommandType::SetParameter);
+    assert_eq!(decoded.param_addr, Some(u16::MAX));
+    assert_eq!(decoded.param_value, Some(i32::MIN));
+    assert_eq!(decoded.data, Some(i32::MAX));
+    Ok(())
+}
+
+/// Zero payload: all optional fields zeroed still round-trips.
+#[test]
+fn zero_payload_roundtrip() -> Result<(), Box<dyn std::error::Error>> {
+    let cmd = SmCommand::new(0, SmCommandType::GetStatus);
+    let mut buf = [0u8; 15];
+    encode_command(&cmd, &mut buf)?;
+    let decoded = decode_command(&buf)?;
+    assert_eq!(decoded.seq, 0);
+    assert_eq!(decoded.cmd_type, SmCommandType::GetStatus);
+    Ok(())
+}
+
+/// Feedback report at exactly 64 bytes is accepted.
+#[test]
+fn feedback_report_exact_64_bytes() -> Result<(), Box<dyn std::error::Error>> {
+    let mut data = vec![0u8; 64];
+    data[0] = 0x02;
+    let state = parse_feedback_report(&data)?;
+    assert_eq!(state.seq, 0);
+    Ok(())
+}
+
+/// Feedback report with 65+ bytes is also accepted (extra bytes ignored).
+#[test]
+fn feedback_report_oversized_accepted() -> Result<(), Box<dyn std::error::Error>> {
+    let mut data = vec![0xAA; 128];
+    data[0] = 0x02;
+    let state = parse_feedback_report(&data)?;
+    assert!(state.seq == 0xAA);
+    Ok(())
+}
+
+/// Feedback report with wrong report ID returns InvalidCommandType.
+#[test]
+fn feedback_report_wrong_report_id() {
+    let mut data = vec![0u8; 64];
+    data[0] = 0x01; // command ID, not feedback
+    let result = parse_feedback_report(&data);
+    assert!(matches!(result, Err(SmError::InvalidCommandType(0x01))));
+}
+
+/// Decode with valid CRC but unrecognized command type returns InvalidCommandType.
+#[test]
+fn decode_unknown_command_type_with_valid_crc() {
+    let mut buf = [0u8; 15];
+    buf[0] = 0x01;
+    buf[2] = 0x05; // Not a valid command type
+    buf[3] = 0x00;
+    // Compute CRC manually
+    let crc = compute_crc8_for_test(&buf[..14]);
+    buf[14] = crc;
+    let result = decode_command(&buf);
+    assert!(matches!(result, Err(SmError::InvalidCommandType(_))));
+}
+
+// ── Helper ──────────────────────────────────────────────────────────────────
+
+fn compute_crc8_for_test(data: &[u8]) -> u8 {
+    let mut crc: u8 = 0x00;
+    for &byte in data {
+        crc ^= byte;
+        for _ in 0..8 {
+            if crc & 0x80 != 0 {
+                crc = (crc << 1) ^ 0x07;
+            } else {
+                crc <<= 1;
+            }
+        }
+    }
+    crc
 }

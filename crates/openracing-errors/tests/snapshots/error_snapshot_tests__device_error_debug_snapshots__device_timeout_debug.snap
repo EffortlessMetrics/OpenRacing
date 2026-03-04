@@ -1,0 +1,5 @@
+---
+source: crates/openracing-errors/tests/error_snapshot_tests.rs
+expression: "format!(\"{:?}\", DeviceError::timeout(\"logitech-g29\", 3000))"
+---
+Timeout { device: "logitech-g29", timeout_ms: 3000 }

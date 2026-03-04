@@ -1,0 +1,5 @@
+---
+source: crates/hid-button-box-protocol/tests/snapshot_encoding.rs
+expression: "format!(\"{caps:?}\")"
+---
+ButtonBoxCapabilities { button_count: 32, analog_axis_count: 4, has_pov_hat: true, has_rotary_encoders: true, rotary_encoder_count: 8 }

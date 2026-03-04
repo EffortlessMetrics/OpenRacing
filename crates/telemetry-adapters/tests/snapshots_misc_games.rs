@@ -70,7 +70,7 @@ fn make_fh_freeroam_cardash() -> Vec<u8> {
     // CarDash section
     write_f32_le(&mut buf, OFF_DASH_SPEED, 33.3);
     write_f32_le(&mut buf, OFF_DASH_FUEL, 0.52);
-    buf[OFF_DASH_ACCEL] = 64;  // ~25% throttle (cruising)
+    buf[OFF_DASH_ACCEL] = 64; // ~25% throttle (cruising)
     buf[OFF_DASH_BRAKE] = 0;
     buf[OFF_DASH_CLUTCH] = 0;
     buf[OFF_DASH_GEAR] = 6; // 5th gear (0=R, 1=N, 2=1st, …)
@@ -98,7 +98,7 @@ fn forza_horizon_5_freeroam_snapshot() -> TestResult {
 // Hot-lap scenario: 4th gear, high RPM with shift light and ABS active,
 // moderate fuel, partial braking into a corner.
 
-const LFS_OUTGAUGE_SIZE: usize = 96;
+const LFS_OUTGAUGE_SIZE: usize = 92;
 const LFS_OFF_GEAR: usize = 10;
 const LFS_OFF_SPEED: usize = 12;
 const LFS_OFF_RPM: usize = 16;
@@ -167,9 +167,9 @@ fn acc2_stub_arbitrary_input_snapshot() -> TestResult {
 fn make_ams2_race_data() -> AMS2SharedMemory {
     let mut data = AMS2SharedMemory::default();
     data.version = 9;
-    data.game_state = 2;    // GAME_INGAME_PLAYING
+    data.game_state = 2; // GAME_INGAME_PLAYING
     data.session_state = 5; // SESSION_RACE
-    data.race_state = 2;    // RACESTATE_RACING
+    data.race_state = 2; // RACESTATE_RACING
 
     data.laps_completed = 4;
     data.laps_in_event = 15;

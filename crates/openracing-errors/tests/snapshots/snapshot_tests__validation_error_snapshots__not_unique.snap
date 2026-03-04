@@ -1,0 +1,5 @@
+---
+source: crates/openracing-errors/tests/snapshot_tests.rs
+expression: "ValidationError::NotUnique\n{ field: \"profile_name\".into(), value: \"drift-pro\".into(), }.to_string()"
+---
+Value for field 'profile_name' must be unique but 'drift-pro' already exists

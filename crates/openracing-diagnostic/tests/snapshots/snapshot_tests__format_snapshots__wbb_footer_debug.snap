@@ -1,0 +1,17 @@
+---
+source: crates/openracing-diagnostic/tests/snapshot_tests.rs
+expression: footer
+---
+WbbFooter {
+    duration_ms: 5000,
+    total_frames: 5000,
+    index_offset: 0,
+    index_count: 0,
+    file_crc32c: 0,
+    footer_magic: [
+        49,
+        66,
+        66,
+        87,
+    ],
+}

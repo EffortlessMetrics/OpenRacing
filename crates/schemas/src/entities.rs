@@ -824,21 +824,21 @@ impl ProfileScope {
     pub fn matches(&self, game: Option<&str>, car: Option<&str>, track: Option<&str>) -> bool {
         // Check game match
         if let Some(ref scope_game) = self.game
-            && game != Some(scope_game.as_str())
+            && game != Some(&**scope_game)
         {
             return false;
         }
 
         // Check car match
         if let Some(ref scope_car) = self.car
-            && car != Some(scope_car.as_str())
+            && car != Some(&**scope_car)
         {
             return false;
         }
 
         // Check track match
         if let Some(ref scope_track) = self.track
-            && track != Some(scope_track.as_str())
+            && track != Some(&**scope_track)
         {
             return false;
         }

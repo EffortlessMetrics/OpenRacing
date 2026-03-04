@@ -1,0 +1,5 @@
+---
+source: crates/hid-heusinkveld-protocol/tests/snapshot_encoding.rs
+expression: "format!(\"throttle=0x{:04X}, norm={:.6}\", report.throttle,\nreport.throttle_normalized())"
+---
+throttle=0x7FFF, norm=0.499992

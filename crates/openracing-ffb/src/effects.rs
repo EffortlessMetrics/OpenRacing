@@ -74,12 +74,30 @@ impl EffectParams {
     }
 
     /// Sets the effect gain (0–255).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_ffb::{EffectParams, EffectType};
+    ///
+    /// let params = EffectParams::new(EffectType::Sine, 500).with_gain(128);
+    /// assert_eq!(params.gain, 128);
+    /// ```
     pub fn with_gain(mut self, gain: u8) -> Self {
         self.gain = gain;
         self
     }
 
     /// Sets the effect direction.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_ffb::{EffectParams, EffectType};
+    ///
+    /// let params = EffectParams::new(EffectType::Spring, 0).with_direction(180);
+    /// assert_eq!(params.direction, 180);
+    /// ```
     pub fn with_direction(mut self, direction: u16) -> Self {
         self.direction = direction;
         self
@@ -110,6 +128,16 @@ pub struct ConstantEffect {
 
 impl ConstantEffect {
     /// Creates a constant-force effect with the given magnitude.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_ffb::ConstantEffect;
+    ///
+    /// let effect = ConstantEffect::new(5000);
+    /// assert_eq!(effect.magnitude, 5000);
+    /// assert_eq!(effect.apply_gain(1.0), 5000);
+    /// ```
     pub fn new(magnitude: i16) -> Self {
         Self {
             params: EffectParams::new(EffectType::Constant, 0),
@@ -118,6 +146,16 @@ impl ConstantEffect {
     }
 
     /// Scales the magnitude by `global_gain`, clamping to `i16` range.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_ffb::ConstantEffect;
+    ///
+    /// let effect = ConstantEffect::new(10000);
+    /// assert_eq!(effect.apply_gain(0.5), 5000);
+    /// assert_eq!(effect.apply_gain(0.0), 0);
+    /// ```
     pub fn apply_gain(&self, global_gain: f32) -> i16 {
         ((self.magnitude as f32) * global_gain).clamp(i16::MIN as f32, i16::MAX as f32) as i16
     }
@@ -154,6 +192,17 @@ pub struct SpringEffect {
 
 impl SpringEffect {
     /// Creates a spring effect with the given coefficient, centered at zero with no dead-band.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_ffb::SpringEffect;
+    ///
+    /// let spring = SpringEffect::new(500);
+    /// assert_eq!(spring.coefficient, 500);
+    /// assert_eq!(spring.offset, 0);
+    /// assert_eq!(spring.deadband, 0);
+    /// ```
     pub fn new(coefficient: i16) -> Self {
         Self {
             params: EffectParams::new(EffectType::Spring, 0),
@@ -202,6 +251,17 @@ pub struct DamperEffect {
 
 impl DamperEffect {
     /// Creates a damper effect with the given coefficient.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_ffb::DamperEffect;
+    ///
+    /// let damper = DamperEffect::new(1000);
+    /// assert_eq!(damper.coefficient, 1000);
+    /// // At velocity 0, damper produces no force
+    /// assert_eq!(damper.calculate(0), 0);
+    /// ```
     pub fn new(coefficient: i16) -> Self {
         Self {
             params: EffectParams::new(EffectType::Damper, 0),
@@ -246,6 +306,17 @@ pub struct FrictionEffect {
 
 impl FrictionEffect {
     /// Creates a friction effect with the given coefficient and zero offset.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_ffb::FrictionEffect;
+    ///
+    /// let friction = FrictionEffect::new(200);
+    /// assert_eq!(friction.coefficient, 200);
+    /// // No friction at zero velocity
+    /// assert_eq!(friction.calculate(0), 0);
+    /// ```
     pub fn new(coefficient: i16) -> Self {
         Self {
             params: EffectParams::new(EffectType::Friction, 0),
@@ -294,6 +365,17 @@ impl SineEffect {
     /// Creates a sine-wave vibration at the given frequency and duration.
     ///
     /// Phase defaults to `0.0`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_ffb::SineEffect;
+    ///
+    /// let sine = SineEffect::new(50.0, 2000);
+    /// assert!((sine.frequency_hz - 50.0).abs() < f32::EPSILON);
+    /// // At time 0 with phase 0, sine output is 0
+    /// assert_eq!(sine.calculate(0), 0);
+    /// ```
     pub fn new(frequency_hz: f32, duration_ms: u32) -> Self {
         Self {
             params: EffectParams::new(EffectType::Sine, duration_ms),
@@ -303,6 +385,19 @@ impl SineEffect {
     }
 
     /// Samples the sine wave at `time_ms`, returning a force value scaled by the effect gain.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_ffb::SineEffect;
+    ///
+    /// let sine = SineEffect::new(10.0, 1000);
+    /// // At time 0, sin(0) = 0
+    /// assert_eq!(sine.calculate(0), 0);
+    /// // At a non-zero time, the wave produces a non-zero sample
+    /// let sample = sine.calculate(25);
+    /// assert_ne!(sample, 0);
+    /// ```
     pub fn calculate(&self, time_ms: u32) -> i16 {
         let t = time_ms as f32 / 1000.0;
         let angle = 2.0 * std::f32::consts::PI * self.frequency_hz * t + self.phase;

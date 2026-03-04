@@ -127,10 +127,16 @@ fn parse_outgauge_packet(data: &[u8]) -> Result<NormalizedTelemetry> {
         .extended("turbo_bar", TelemetryValue::Float(turbo))
         .extended("oil_pressure_bar", TelemetryValue::Float(oil_pressure))
         .extended("oil_temp_c", TelemetryValue::Float(oil_temp))
-        .extended("shift_light", TelemetryValue::Boolean(show_lights & DL_SHIFT != 0));
+        .extended(
+            "shift_light",
+            TelemetryValue::Boolean(show_lights & DL_SHIFT != 0),
+        );
 
     if show_lights != 0 {
-        builder = builder.extended("dash_lights_raw", TelemetryValue::Integer(show_lights as i32));
+        builder = builder.extended(
+            "dash_lights_raw",
+            TelemetryValue::Integer(show_lights as i32),
+        );
     }
 
     Ok(builder.build())
@@ -303,7 +309,9 @@ mod tests {
         brake: f32,
         clutch: f32,
     ) -> Vec<u8> {
-        make_outgauge_packet_full(speed, rpm, gear, throttle, brake, clutch, 0.0, 0.0, 0.0, 0.0, 0.0, 0)
+        make_outgauge_packet_full(
+            speed, rpm, gear, throttle, brake, clutch, 0.0, 0.0, 0.0, 0.0, 0.0, 0,
+        )
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -426,7 +434,8 @@ mod tests {
 
     #[test]
     fn test_fuel_and_engine_temp() -> TestResult {
-        let data = make_outgauge_packet_full(30.0, 4500.0, 3, 0.6, 0.0, 0.0, 0.75, 92.5, 0.0, 0.0, 0.0, 0);
+        let data =
+            make_outgauge_packet_full(30.0, 4500.0, 3, 0.6, 0.0, 0.0, 0.75, 92.5, 0.0, 0.0, 0.0, 0);
         let result = parse_outgauge_packet(&data)?;
         assert!((result.fuel_percent - 0.75).abs() < 0.001);
         assert!((result.engine_temp_c - 92.5).abs() < 0.1);
@@ -435,17 +444,41 @@ mod tests {
 
     #[test]
     fn test_turbo_and_oil_in_extended() -> TestResult {
-        let data = make_outgauge_packet_full(30.0, 4500.0, 3, 0.6, 0.0, 0.0, 0.5, 90.0, 1.2, 3.5, 105.0, 0);
+        let data = make_outgauge_packet_full(
+            30.0, 4500.0, 3, 0.6, 0.0, 0.0, 0.5, 90.0, 1.2, 3.5, 105.0, 0,
+        );
         let result = parse_outgauge_packet(&data)?;
-        assert_eq!(result.extended.get("turbo_bar"), Some(&TelemetryValue::Float(1.2)));
-        assert_eq!(result.extended.get("oil_pressure_bar"), Some(&TelemetryValue::Float(3.5)));
-        assert_eq!(result.extended.get("oil_temp_c"), Some(&TelemetryValue::Float(105.0)));
+        assert_eq!(
+            result.extended.get("turbo_bar"),
+            Some(&TelemetryValue::Float(1.2))
+        );
+        assert_eq!(
+            result.extended.get("oil_pressure_bar"),
+            Some(&TelemetryValue::Float(3.5))
+        );
+        assert_eq!(
+            result.extended.get("oil_temp_c"),
+            Some(&TelemetryValue::Float(105.0))
+        );
         Ok(())
     }
 
     #[test]
     fn test_dashboard_flags_pit_limiter() -> TestResult {
-        let data = make_outgauge_packet_full(20.0, 3000.0, 2, 0.5, 0.0, 0.0, 0.5, 85.0, 0.0, 0.0, 0.0, DL_PITSPEED);
+        let data = make_outgauge_packet_full(
+            20.0,
+            3000.0,
+            2,
+            0.5,
+            0.0,
+            0.0,
+            0.5,
+            85.0,
+            0.0,
+            0.0,
+            0.0,
+            DL_PITSPEED,
+        );
         let result = parse_outgauge_packet(&data)?;
         assert!(result.flags.pit_limiter);
         assert!(!result.flags.traction_control);
@@ -455,7 +488,20 @@ mod tests {
 
     #[test]
     fn test_dashboard_flags_tc_and_abs() -> TestResult {
-        let data = make_outgauge_packet_full(20.0, 3000.0, 2, 0.5, 0.0, 0.0, 0.5, 85.0, 0.0, 0.0, 0.0, DL_TC | DL_ABS);
+        let data = make_outgauge_packet_full(
+            20.0,
+            3000.0,
+            2,
+            0.5,
+            0.0,
+            0.0,
+            0.5,
+            85.0,
+            0.0,
+            0.0,
+            0.0,
+            DL_TC | DL_ABS,
+        );
         let result = parse_outgauge_packet(&data)?;
         assert!(result.flags.traction_control);
         assert!(result.flags.abs_active);
@@ -465,9 +511,14 @@ mod tests {
 
     #[test]
     fn test_shift_light_in_extended() -> TestResult {
-        let data = make_outgauge_packet_full(30.0, 7000.0, 3, 1.0, 0.0, 0.0, 0.5, 90.0, 0.0, 0.0, 0.0, DL_SHIFT);
+        let data = make_outgauge_packet_full(
+            30.0, 7000.0, 3, 1.0, 0.0, 0.0, 0.5, 90.0, 0.0, 0.0, 0.0, DL_SHIFT,
+        );
         let result = parse_outgauge_packet(&data)?;
-        assert_eq!(result.extended.get("shift_light"), Some(&TelemetryValue::Boolean(true)));
+        assert_eq!(
+            result.extended.get("shift_light"),
+            Some(&TelemetryValue::Boolean(true))
+        );
         Ok(())
     }
 }

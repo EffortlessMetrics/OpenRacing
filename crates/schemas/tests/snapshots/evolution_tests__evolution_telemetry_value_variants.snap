@@ -1,0 +1,22 @@
+---
+source: crates/schemas/tests/evolution_tests.rs
+expression: value
+---
+{
+  "bool_val": {
+    "type": "Boolean",
+    "value": true
+  },
+  "float_val": {
+    "type": "Float",
+    "value": 42.5
+  },
+  "int_val": {
+    "type": "Integer",
+    "value": -99
+  },
+  "str_val": {
+    "type": "String",
+    "value": "hello world"
+  }
+}

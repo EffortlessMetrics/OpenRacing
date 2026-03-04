@@ -1,0 +1,12 @@
+---
+source: crates/engine/tests/snapshot_tests.rs
+expression: frame
+---
+{
+  "ffb_in": -0.5,
+  "torque_out": -0.45,
+  "wheel_speed": -1.2,
+  "hands_off": true,
+  "ts_mono_ns": 5000000,
+  "seq": 100
+}

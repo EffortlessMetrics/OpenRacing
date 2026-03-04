@@ -1,0 +1,35 @@
+---
+source: crates/compat/tests/migration_tests.rs
+expression: value
+---
+{
+  "base": {
+    "dorDeg": 540,
+    "ffbGain": 0.75,
+    "filters": {
+      "curvePoints": [
+        {
+          "input": 0.0,
+          "output": 0.0
+        },
+        {
+          "input": 1.0,
+          "output": 1.0
+        }
+      ],
+      "damper": 0.0,
+      "friction": 0.0,
+      "inertia": 0.0,
+      "notchFilters": [],
+      "reconstruction": 0,
+      "slewRate": 1.0
+    },
+    "torqueCapNm": 8.0
+  },
+  "schema": "wheel.profile/1",
+  "scope": {
+    "car": null,
+    "game": null,
+    "track": null
+  }
+}

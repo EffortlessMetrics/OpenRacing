@@ -1,0 +1,5 @@
+---
+source: crates/schemas/tests/snapshot_expansion_tests.rs
+expression: "format!(\"{}\", err)"
+---
+Backup creation failed: disk full

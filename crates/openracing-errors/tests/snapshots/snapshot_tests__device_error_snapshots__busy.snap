@@ -1,0 +1,5 @@
+---
+source: crates/openracing-errors/tests/snapshot_tests.rs
+expression: "DeviceError::Busy(\"fanatec-dd-pro\".into()).to_string()"
+---
+Device fanatec-dd-pro is busy

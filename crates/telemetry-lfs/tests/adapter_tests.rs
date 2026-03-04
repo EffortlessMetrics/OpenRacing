@@ -6,8 +6,8 @@ use racing_wheel_telemetry_lfs::{LFSAdapter, TelemetryAdapter};
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 
-/// Minimum valid OutGauge packet size.
-const OUTGAUGE_PACKET_SIZE: usize = 96;
+/// Minimum valid OutGauge packet size (92 without optional ID field).
+const OUTGAUGE_PACKET_SIZE: usize = 92;
 
 /// Field byte offsets in the OutGauge packet.
 const OFF_GEAR: usize = 10;
@@ -134,10 +134,10 @@ fn test_fuel_percent_in_valid_range() -> TestResult {
 // Struct size / layout verification
 // ---------------------------------------------------------------------------
 
-/// The OutGauge packet size constant must be 96 bytes.
+/// The OutGauge packet size constant must be 92 bytes (without optional ID).
 #[test]
-fn test_outgauge_packet_size_is_96() {
-    assert_eq!(OUTGAUGE_PACKET_SIZE, 96);
+fn test_outgauge_packet_size_is_92() {
+    assert_eq!(OUTGAUGE_PACKET_SIZE, 92);
 }
 
 /// Packet exactly at the minimum size must parse without error.
@@ -156,7 +156,7 @@ fn test_one_byte_short_returns_error() {
     let data = vec![0u8; OUTGAUGE_PACKET_SIZE - 1];
     assert!(
         adapter.normalize(&data).is_err(),
-        "95 bytes must return error"
+        "91 bytes must return error"
     );
 }
 

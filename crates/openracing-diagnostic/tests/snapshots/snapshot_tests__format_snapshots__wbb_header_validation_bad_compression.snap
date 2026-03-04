@@ -1,0 +1,5 @@
+---
+source: crates/openracing-diagnostic/tests/snapshot_tests.rs
+expression: err.to_string()
+---
+Invalid configuration: Invalid compression level: 10

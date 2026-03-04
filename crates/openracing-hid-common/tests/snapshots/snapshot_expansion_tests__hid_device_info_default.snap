@@ -1,0 +1,12 @@
+---
+source: crates/openracing-hid-common/tests/snapshot_expansion_tests.rs
+expression: "HidDeviceInfo::default()"
+---
+HidDeviceInfo {
+    vendor_id: 0,
+    product_id: 0,
+    serial_number: None,
+    manufacturer: None,
+    product_name: None,
+    path: "",
+}

@@ -1,0 +1,5 @@
+---
+source: crates/openracing-errors/tests/snapshot_tests.rs
+expression: "ProfileError::InvalidDeviceMapping\n{ profile: \"my-profile\".into(), device: \"phantom-wheel\".into(), }.to_string()"
+---
+Invalid device mapping in profile my-profile: device 'phantom-wheel' not found

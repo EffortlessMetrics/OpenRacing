@@ -67,11 +67,13 @@ num_cpus = { workspace = true }
 workspace-hack = { version = "0.1", path = "../../workspace-hack" }
 
 [dev-dependencies]
+insta = { version = "1.44.1", features = ["yaml", "json"] }
 rand = "0.8.5"
 tempfile = "3.24.0"
 tracing-test = "0.2.5"
 proptest = { workspace = true }
 racing-wheel-telemetry-support = { path = "../telemetry-support" }
+zip = "7.2.0"
 
 [target.'cfg(unix)'.dependencies]
 libudev = { workspace = true }

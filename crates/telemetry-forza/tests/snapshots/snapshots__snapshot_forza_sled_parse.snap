@@ -1,0 +1,5 @@
+---
+source: crates/telemetry-forza/tests/snapshots.rs
+expression: "format!(\"rpm={:.1}, speed_ms={:.1}\", telemetry.rpm, telemetry.speed_ms)"
+---
+"rpm=6200.0, speed_ms=30.0"

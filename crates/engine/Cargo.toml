@@ -66,7 +66,7 @@ tokio-stream = { version = "0.1.18", features = ["sync"] }
 workspace-hack = { version = "0.1", path = "../../workspace-hack" }
 
 [dev-dependencies]
-insta = { version = "1.44.1", features = ["yaml"] }
+insta = { version = "1.44.1", features = ["yaml", "json"] }
 tracing-test = "0.2.5"
 tokio-test = "0.4.5"
 tracing-subscriber = "0.3.22"
@@ -78,6 +78,9 @@ proptest = { workspace = true }
 num_cpus = { workspace = true }
 criterion = { workspace = true }
 openracing-test-helpers = { workspace = true }
+openracing-calibration = { workspace = true }
+openracing-ffb = { workspace = true }
+trybuild = "1.0.114"
 
 # Enable harness feature for integration tests and examples
 [dev-dependencies.racing-wheel-engine]

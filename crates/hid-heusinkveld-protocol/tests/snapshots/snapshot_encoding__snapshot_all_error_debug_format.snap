@@ -1,0 +1,7 @@
+---
+source: crates/hid-heusinkveld-protocol/tests/snapshot_encoding.rs
+expression: "errors.join(\"\\n\")"
+---
+InvalidReportSize { expected: 8, actual: 0 }
+InvalidPedalValue(0)
+DeviceNotFound("test")

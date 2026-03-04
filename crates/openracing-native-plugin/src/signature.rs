@@ -192,16 +192,23 @@ impl<'a> SignatureVerifier<'a> {
                         fingerprint: metadata.key_fingerprint.clone(),
                     });
                 }
+                // TODO(security): Fail-closed — cannot verify signature without
+                // the public key in the trust store. Mark as unverified so callers
+                // never treat an unchecked signature as valid.
                 tracing::warn!(
                     path = %library_path.display(),
-                    "Loading plugin with unverifiable signature (key not in trust store)"
+                    "Plugin signature NOT verified (signing key not in trust store)"
                 );
                 return Ok(SignatureVerificationResult {
                     is_signed: true,
                     metadata: Some(metadata),
                     trust_level,
-                    verified: true,
-                    warnings: vec!["Key not in trust store".to_string()],
+                    verified: false,
+                    warnings: vec![
+                        "Signature present but NOT cryptographically verified: \
+                         signing key not found in trust store"
+                            .to_string(),
+                    ],
                 });
             }
         };

@@ -1,0 +1,5 @@
+---
+source: crates/hid-accuforce-protocol/tests/snapshot_encoding.rs
+expression: "format!(\"vid=0x{:04X}, pid=0x{:04X}, model={:?}, name={}, torque={:.1}Nm\",\ninfo.vendor_id, info.product_id, info.model, info.model.display_name(),\ninfo.model.max_torque_nm())"
+---
+vid=0x1FC9, pid=0x804C, model=Pro, name=SimExperience AccuForce Pro, torque=7.0Nm

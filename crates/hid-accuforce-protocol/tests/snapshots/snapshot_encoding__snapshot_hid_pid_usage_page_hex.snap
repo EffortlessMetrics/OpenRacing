@@ -1,0 +1,5 @@
+---
+source: crates/hid-accuforce-protocol/tests/snapshot_encoding.rs
+expression: "format!(\"0x{HID_PID_USAGE_PAGE:04X}\")"
+---
+0x000F

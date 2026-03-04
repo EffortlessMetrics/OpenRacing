@@ -1,0 +1,5 @@
+---
+source: crates/openracing-errors/tests/snapshot_tests.rs
+expression: "ProfileError::Locked(\"factory-default\".into()).to_string()"
+---
+Profile factory-default is locked and cannot be modified

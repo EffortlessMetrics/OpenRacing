@@ -1,0 +1,12 @@
+---
+source: crates/service/tests/service_snapshot_tests.rs
+expression: config
+---
+{
+  "transport": "Native",
+  "bind_address": null,
+  "max_connections": 10,
+  "connection_timeout": 30,
+  "enable_acl": true,
+  "max_message_size": 1048576
+}

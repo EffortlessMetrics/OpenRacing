@@ -80,6 +80,17 @@ impl AxisCalibration {
     ///
     /// Center and dead-zone are unset; use [`with_center`](Self::with_center)
     /// and [`with_deadzone`](Self::with_deadzone) to configure them.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_calibration::AxisCalibration;
+    ///
+    /// let cal = AxisCalibration::new(100, 900);
+    /// assert_eq!(cal.min, 100);
+    /// assert_eq!(cal.max, 900);
+    /// assert!(cal.center.is_none());
+    /// ```
     pub fn new(min: u16, max: u16) -> Self {
         Self {
             min,
@@ -91,6 +102,15 @@ impl AxisCalibration {
     }
 
     /// Sets the center-point for this axis (e.g., steering wheel straight-ahead).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_calibration::AxisCalibration;
+    ///
+    /// let cal = AxisCalibration::new(0, 1000).with_center(500);
+    /// assert_eq!(cal.center, Some(500));
+    /// ```
     pub fn with_center(mut self, center: u16) -> Self {
         self.center = Some(center);
         self
@@ -99,6 +119,16 @@ impl AxisCalibration {
     /// Sets the dead-zone boundaries in raw units.
     ///
     /// Values below `min` map to `0.0`; values above `max` map to `1.0`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_calibration::AxisCalibration;
+    ///
+    /// let cal = AxisCalibration::new(0, 1000).with_deadzone(50, 950);
+    /// assert_eq!(cal.deadzone_min, 50);
+    /// assert_eq!(cal.deadzone_max, 950);
+    /// ```
     pub fn with_deadzone(mut self, min: u16, max: u16) -> Self {
         self.deadzone_min = min;
         self.deadzone_max = max;
@@ -107,6 +137,18 @@ impl AxisCalibration {
 
     /// Converts a raw sensor value to a normalized `[0.0, 1.0]` output,
     /// applying the configured range and dead-zone.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use openracing_calibration::AxisCalibration;
+    ///
+    /// // With deadzone matching the range, output is normalized
+    /// let cal = AxisCalibration::new(0, 1000).with_deadzone(0, 1000);
+    /// assert!((cal.apply(0) - 0.0).abs() < 0.01);
+    /// assert!((cal.apply(500) - 0.5).abs() < 0.01);
+    /// assert!((cal.apply(1000) - 1.0).abs() < 0.01);
+    /// ```
     pub fn apply(&self, raw: u16) -> f32 {
         let range = (self.max - self.min) as f32;
         if range <= 0.0 {
@@ -135,6 +177,25 @@ impl AxisCalibration {
 ///
 /// Holds the per-axis calibration data for an entire device (steering wheel,
 /// pedal set, etc.) along with a human-readable name and schema version.
+///
+/// # Examples
+///
+/// ```
+/// use openracing_calibration::{DeviceCalibration, AxisCalibration};
+///
+/// let mut device = DeviceCalibration::new("Fanatec CSL DD", 3);
+/// assert_eq!(device.axes.len(), 3);
+/// assert_eq!(device.name, "Fanatec CSL DD");
+/// assert_eq!(device.version, 1);
+///
+/// // Configure individual axes
+/// if let Some(steering) = device.axis(0) {
+///     *steering = AxisCalibration::new(0, 65535).with_center(32768);
+/// }
+///
+/// // Out-of-bounds access returns None
+/// assert!(device.axis(10).is_none());
+/// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeviceCalibration {
     /// Human-readable device name (e.g., `"Fanatec CSL DD"`).

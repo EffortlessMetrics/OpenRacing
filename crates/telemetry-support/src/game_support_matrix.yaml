@@ -17,7 +17,7 @@
 #   Live for Speed: https://www.lfs.net/programmer (InSim/OutGauge/OutSim protocols)
 #   ETS2/ATS:       https://modding.scssoft.com/wiki/Documentation/Engine/SDK/Telemetry (SCS SDK shared memory)
 #   RaceRoom:       https://github.com/sector3studios/r3e-api (shared memory API)
-#   KartKraft:      UDP telemetry (OutGauge-compatible, port 5601)
+#   KartKraft:      https://github.com/motorsportgames/kartkraft-telemetry (FlatBuffers UDP, port 5000)
 #   Rennsport:      https://www.rennsport.gg/ (in-development, UDP telemetry)
 #   Le Mans Ult.:   rFactor 2 shared memory plugin (same API as rF2)
 

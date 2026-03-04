@@ -178,9 +178,13 @@ pub mod mock {
 mod tests {
     use super::*;
 
+    /// Platform-neutral mock device path for tests that don't test path format.
+    const MOCK_DEVICE_PATH: &str = "mock://hid/test-device-0";
+    const MOCK_DEVICE_PATH_1: &str = "mock://hid/test-device-1";
+
     #[test]
     fn test_mock_device_basic() {
-        let device = mock::MockHidDevice::new(0x1234, 0x5678, "/dev/hidraw0");
+        let device = mock::MockHidDevice::new(0x1234, 0x5678, MOCK_DEVICE_PATH);
 
         assert_eq!(device.get_device_info().vendor_id, 0x1234);
         assert_eq!(device.get_device_info().product_id, 0x5678);
@@ -188,33 +192,33 @@ mod tests {
     }
 
     #[test]
-    fn test_mock_device_write() {
-        let mut device = mock::MockHidDevice::new(0x1234, 0x5678, "/dev/hidraw0");
+    fn test_mock_device_write() -> Result<(), HidCommonError> {
+        let mut device = mock::MockHidDevice::new(0x1234, 0x5678, MOCK_DEVICE_PATH);
 
-        let result = device.write_report(&[0x01, 0x02, 0x03]);
-        assert!(result.is_ok());
-        assert_eq!(result.expect("write should succeed"), 3);
+        let written = device.write_report(&[0x01, 0x02, 0x03])?;
+        assert_eq!(written, 3);
 
         let history = device.get_write_history();
         assert_eq!(history.len(), 1);
         assert_eq!(history[0], vec![0x01, 0x02, 0x03]);
+        Ok(())
     }
 
     #[test]
-    fn test_mock_device_read() {
-        let device = mock::MockHidDevice::new(0x1234, 0x5678, "/dev/hidraw0");
+    fn test_mock_device_read() -> Result<(), HidCommonError> {
+        let device = mock::MockHidDevice::new(0x1234, 0x5678, MOCK_DEVICE_PATH);
 
         device.queue_read(vec![0xAA, 0xBB, 0xCC]);
 
         let mut device = device;
-        let result = device.read_report(100);
-        assert!(result.is_ok());
-        assert_eq!(result.expect("read should succeed"), vec![0xAA, 0xBB, 0xCC]);
+        let data = device.read_report(100)?;
+        assert_eq!(data, vec![0xAA, 0xBB, 0xCC]);
+        Ok(())
     }
 
     #[test]
     fn test_mock_device_disconnect() {
-        let device = mock::MockHidDevice::new(0x1234, 0x5678, "/dev/hidraw0");
+        let device = mock::MockHidDevice::new(0x1234, 0x5678, MOCK_DEVICE_PATH);
 
         device.disconnect();
 
@@ -229,8 +233,8 @@ mod tests {
     fn test_mock_port() {
         let mut port = mock::MockHidPort::new();
 
-        port.add_device(mock::MockHidDevice::new(0x1234, 0x5678, "/dev/hidraw0"));
-        port.add_device(mock::MockHidDevice::new(0xABCD, 0xEF01, "/dev/hidraw1"));
+        port.add_device(mock::MockHidDevice::new(0x1234, 0x5678, MOCK_DEVICE_PATH));
+        port.add_device(mock::MockHidDevice::new(0xABCD, 0xEF01, MOCK_DEVICE_PATH_1));
 
         assert_eq!(port.device_count(), 2);
     }

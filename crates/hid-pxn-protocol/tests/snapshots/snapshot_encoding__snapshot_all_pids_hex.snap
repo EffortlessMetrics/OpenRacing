@@ -1,0 +1,5 @@
+---
+source: crates/hid-pxn-protocol/tests/snapshot_encoding.rs
+expression: "formatted.join(\", \")"
+---
+V10: 0x3245, V12: 0x1212, V12 Lite: 0x1112, V12 Lite 2: 0x1211, GT987: 0x2141

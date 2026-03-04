@@ -1,0 +1,16 @@
+---
+source: crates/engine/tests/engine_snapshot_tests.rs
+expression: output
+---
+[
+    "Device disconnected",
+    "Torque limit exceeded",
+    "Pipeline processing fault",
+    "Real-time timing violation",
+    "Failed to apply real-time setup",
+    "Invalid configuration parameter",
+    "Safety interlock triggered",
+    "RT buffer overflow",
+    "RT deadline missed",
+    "RT resource unavailable",
+]

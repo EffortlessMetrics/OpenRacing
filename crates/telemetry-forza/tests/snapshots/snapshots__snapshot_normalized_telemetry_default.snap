@@ -1,0 +1,5 @@
+---
+source: crates/telemetry-forza/tests/snapshots.rs
+expression: "format!(\"rpm={}, speed_ms={}, gear={}, throttle={}, brake={}, steering_angle={}\",\nt.rpm, t.speed_ms, t.gear, t.throttle, t.brake, t.steering_angle)"
+---
+"rpm=0, speed_ms=0, gear=0, throttle=0, brake=0, steering_angle=0"

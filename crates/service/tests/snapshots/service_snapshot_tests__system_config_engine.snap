@@ -1,0 +1,13 @@
+---
+source: crates/service/tests/service_snapshot_tests.rs
+expression: config.engine
+---
+{
+  "tick_rate_hz": 1000,
+  "max_jitter_us": 250,
+  "force_ffb_mode": null,
+  "disable_realtime": false,
+  "rt_cpu_affinity": null,
+  "memory_lock_all": true,
+  "processing_budget_us": 200
+}

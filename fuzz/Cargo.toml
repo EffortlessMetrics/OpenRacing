@@ -32,12 +32,23 @@ racing-wheel-moza-wheelbase-report = { path = "../crates/moza-wheelbase-report" 
 
 racing-wheel-hid-pxn-protocol = { path = "../crates/hid-pxn-protocol" }
 openracing-hid-common = { path = "../crates/openracing-hid-common" }
+openracing-ipc = { path = "../crates/openracing-ipc", default-features = false }
 
 racing-wheel-hid-button-box-protocol = { path = "../crates/hid-button-box-protocol", package = "hid-button-box-protocol" }
 racing-wheel-hid-cube-controls-protocol = { path = "../crates/hid-cube-controls-protocol", package = "hid-cube-controls-protocol" }
 racing-wheel-hid-leo-bodnar-protocol = { path = "../crates/hid-leo-bodnar-protocol" }
 racing-wheel-hid-accuforce-protocol = { path = "../crates/hid-accuforce-protocol" }
 racing-wheel-simplemotion-v2 = { path = "../crates/simplemotion-v2" }
+openracing-firmware-update = { path = "../crates/openracing-firmware-update" }
+openracing-diagnostic = { path = "../crates/openracing-diagnostic" }
+openracing-calibration = { path = "../crates/openracing-calibration" }
+openracing-pipeline = { path = "../crates/openracing-pipeline" }
+openracing-profile = { path = "../crates/openracing-profile" }
+racing-wheel-schemas = { path = "../crates/schemas" }
+racing-wheel-telemetry-recorder = { path = "../crates/telemetry-recorder" }
+prost = "0.14.3"
+serde_json = "1"
+serde_yaml = { package = "serde_yaml_ng", version = "0.10.0" }
 
 # Fuzzing requires nightly and release-like optimizations.
 [[bin]]
@@ -541,6 +552,180 @@ doc = false
 [[bin]]
 name = "fuzz_hid_common_report_parser"
 path = "fuzz_targets/fuzz_hid_common_report_parser.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_hbp_usb_report"
+path = "fuzz_targets/fuzz_hbp_usb_report.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_moza_wheelbase_input"
+path = "fuzz_targets/fuzz_moza_wheelbase_input.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_ks_report_variants"
+path = "fuzz_targets/fuzz_ks_report_variants.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_simplemotion_command"
+path = "fuzz_targets/fuzz_simplemotion_command.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_ipc_header"
+path = "fuzz_targets/fuzz_ipc_header.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_ipc_message"
+path = "fuzz_targets/fuzz_ipc_message.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_acc2_udp"
+path = "fuzz_targets/fuzz_acc2_udp.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_f1_manager"
+path = "fuzz_targets/fuzz_f1_manager.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_pcars3_udp"
+path = "fuzz_targets/fuzz_pcars3_udp.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_ac_evo"
+path = "fuzz_targets/fuzz_ac_evo.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_seb_loeb_rally"
+path = "fuzz_targets/fuzz_seb_loeb_rally.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_ams2_udp"
+path = "fuzz_targets/fuzz_ams2_udp.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_firmware_bundle"
+path = "fuzz_targets/fuzz_firmware_bundle.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_hardware_version"
+path = "fuzz_targets/fuzz_hardware_version.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_wbb_header"
+path = "fuzz_targets/fuzz_wbb_header.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_diagnostic_stream_codec"
+path = "fuzz_targets/fuzz_diagnostic_stream_codec.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_telemetry_packet"
+path = "fuzz_targets/fuzz_telemetry_packet.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_profile_load"
+path = "fuzz_targets/fuzz_profile_load.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_calibration_curve"
+path = "fuzz_targets/fuzz_calibration_curve.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_filter_pipeline"
+path = "fuzz_targets/fuzz_filter_pipeline.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_fanatec_command"
+path = "fuzz_targets/fuzz_fanatec_command.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_logitech_report"
+path = "fuzz_targets/fuzz_logitech_report.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_thrustmaster_packet"
+path = "fuzz_targets/fuzz_thrustmaster_packet.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_simucube_frame"
+path = "fuzz_targets/fuzz_simucube_frame.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_config_parse"
+path = "fuzz_targets/fuzz_config_parse.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_replay_format"
+path = "fuzz_targets/fuzz_replay_format.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_telemetry_f1"
+path = "fuzz_targets/fuzz_telemetry_f1.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_telemetry_acc"
+path = "fuzz_targets/fuzz_telemetry_acc.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_proto_decode"
+path = "fuzz_targets/fuzz_proto_decode.rs"
 test = false
 doc = false
 
