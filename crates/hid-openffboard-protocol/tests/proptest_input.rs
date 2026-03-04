@@ -7,12 +7,10 @@ use racing_wheel_hid_openffboard_protocol::input::{
 
 /// Strategy producing valid 25-byte input reports.
 fn valid_report() -> impl Strategy<Value = Vec<u8>> {
-    proptest::collection::vec(any::<u8>(), INPUT_REPORT_LEN..=INPUT_REPORT_LEN).prop_map(
-        |mut r| {
-            r[0] = INPUT_REPORT_ID;
-            r
-        },
-    )
+    proptest::collection::vec(any::<u8>(), INPUT_REPORT_LEN..=INPUT_REPORT_LEN).prop_map(|mut r| {
+        r[0] = INPUT_REPORT_ID;
+        r
+    })
 }
 
 /// Strategy producing an 8-byte button array.
