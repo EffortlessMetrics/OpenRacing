@@ -11,7 +11,7 @@ categories = ["rust-patterns", "no-std"]
 
 
 [package.metadata.cargo-udeps.ignore]
-normal = ["workspace-hack"]
+normal = ["workspace-hack", "thiserror"]
 
 [dependencies]
 thiserror = { workspace = true }
