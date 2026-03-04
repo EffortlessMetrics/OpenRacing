@@ -38,10 +38,10 @@ pub use commands::{
     VENDOR_CMD_REPORT_ID, VENDOR_CMD_REPORT_LEN,
 };
 pub use effects::{
-    encode_block_free, encode_create_effect, encode_device_control, encode_device_gain,
-    encode_effect_operation, encode_set_condition, encode_set_constant_force, encode_set_effect,
-    encode_set_envelope, encode_set_periodic, encode_set_ramp, parse_block_load, parse_pid_pool,
-    BlockLoadStatus, EffectOp, EffectType, DURATION_INFINITE, MAX_EFFECTS,
+    encode_block_free, encode_device_control, encode_device_gain, encode_effect_operation,
+    encode_set_condition, encode_set_constant_force, encode_set_effect, encode_set_envelope,
+    encode_set_periodic, encode_set_ramp_force, parse_block_load, parse_pid_pool, BlockLoadStatus,
+    EffectOp, EffectType, DURATION_INFINITE, MAX_EFFECTS,
 };
 pub use ids::{
     is_openffboard_product, OpenFFBoardVariant, OPENFFBOARD_PRODUCT_ID, OPENFFBOARD_PRODUCT_ID_ALT,
