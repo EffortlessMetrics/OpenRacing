@@ -51,6 +51,7 @@ pub mod ids;
 pub mod input;
 pub mod output;
 pub mod slots;
+pub mod tuning;
 pub mod types;
 
 pub use ids::led_commands;
