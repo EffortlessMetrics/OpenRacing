@@ -1,7 +1,9 @@
 //! Live For Speed (LFS) telemetry adapter.
 //!
 //! LFS exposes telemetry via the OutGauge UDP protocol on a configurable port (default 30000).
-//! The 96-byte OutGauge packet format is the same as used by BeamNG.drive.
+//! The OutGauge packet is 92 bytes without the optional `id` field, or 96 bytes with it
+//! (configured via `OutGauge ID` in LFS cfg.txt; default 0 = no id).  The format is the
+//! same as used by BeamNG.drive.
 #![cfg_attr(not(windows), allow(unused, dead_code))]
 
 use crate::{
@@ -18,8 +20,10 @@ use tracing::{debug, info, warn};
 
 /// Verified: LFS OutGauge default (en.lfsmanual.net/wiki/OutGauge example binds 30000).
 const DEFAULT_LFS_PORT: u16 = 30000;
-/// Standard LFS OutGauge packet size.
-const OUTGAUGE_PACKET_SIZE: usize = 96;
+/// Base LFS OutGauge packet size (without optional `id` field).
+/// Verified against LFS InSim.txt and en.lfsmanual.net/wiki/OutGauge.
+/// With `id` (i32) the packet is 96 bytes; without it, 92 bytes.
+const OUTGAUGE_PACKET_SIZE: usize = 92;
 const MAX_PACKET_SIZE: usize = 256;
 
 // OutGauge byte offsets (shared with BeamNG.drive OutGauge format)

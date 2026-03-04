@@ -136,7 +136,7 @@ fn beamng_realistic_snapshot() -> TestResult {
 }
 
 // ─── LFS (Live for Speed) ────────────────────────────────────────────────────
-// OutGauge 96-byte packet (same layout as BeamNG), plus fuel@28(f32 0..1).
+// OutGauge 92-byte packet (same layout as BeamNG), plus fuel@28(f32 0..1).
 
 fn make_lfs_data() -> Vec<u8> {
     let mut buf = vec![0u8; 96];

@@ -951,11 +951,11 @@ mod lfs_verification {
         assert_eq!(adapter.expected_update_rate(), Duration::from_millis(16));
     }
 
-    /// Packets shorter than 96 bytes must be rejected.
+    /// Packets shorter than 92 bytes must be rejected.
     #[test]
     fn rejects_short_packets() {
         let adapter = LFSAdapter::new();
-        for size in [0, 50, 91, 95] {
+        for size in [0, 50, 91] {
             let pkt = vec![0u8; size];
             assert!(adapter.normalize(&pkt).is_err());
         }

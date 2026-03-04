@@ -1,8 +1,8 @@
 //! Deep protocol-level tests for the Live For Speed (LFS) OutGauge UDP adapter.
 //!
 //! Exercises packet parsing, endianness, gear encoding, dashboard light flags,
-//! boundary values, and corrupted-packet handling against the 96-byte OutGauge
-//! protocol (port 30000).
+//! boundary values, and corrupted-packet handling against the 92-byte OutGauge
+//! protocol (port 30000).  With optional OutGauge ID the packet is 96 bytes.
 
 use racing_wheel_telemetry_adapters::{LFSAdapter, TelemetryAdapter, TelemetryValue};
 use std::time::Duration;
@@ -24,7 +24,7 @@ const OFF_THROTTLE: usize = 48; // f32, 0..1
 const OFF_BRAKE: usize = 52; // f32, 0..1
 const OFF_CLUTCH: usize = 56; // f32, 0..1
 
-const OUTGAUGE_PACKET_SIZE: usize = 96;
+const OUTGAUGE_PACKET_SIZE: usize = 92;
 
 // Dashboard light bitmasks
 const DL_SHIFT: u32 = 0x0001;
@@ -87,7 +87,7 @@ fn lfs_one_byte_short_rejected() -> TestResult {
 }
 
 #[test]
-fn lfs_exact_96_bytes_accepted() -> TestResult {
+fn lfs_exact_92_bytes_accepted() -> TestResult {
     let buf = make_packet();
     let t = adapter().normalize(&buf)?;
     assert_eq!(t.speed_ms, 0.0);

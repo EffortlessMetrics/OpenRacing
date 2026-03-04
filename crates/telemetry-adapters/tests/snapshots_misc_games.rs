@@ -98,7 +98,7 @@ fn forza_horizon_5_freeroam_snapshot() -> TestResult {
 // Hot-lap scenario: 4th gear, high RPM with shift light and ABS active,
 // moderate fuel, partial braking into a corner.
 
-const LFS_OUTGAUGE_SIZE: usize = 96;
+const LFS_OUTGAUGE_SIZE: usize = 92;
 const LFS_OFF_GEAR: usize = 10;
 const LFS_OFF_SPEED: usize = 12;
 const LFS_OFF_RPM: usize = 16;

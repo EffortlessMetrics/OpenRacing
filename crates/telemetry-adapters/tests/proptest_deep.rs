@@ -144,7 +144,7 @@ macro_rules! adapter_normalize_fuzz {
 // ── Per-adapter fuzz tests ───────────────────────────────────────────────────
 
 adapter_normalize_fuzz!(fuzz_beamng, BeamNGAdapter::new(), 512, 92);
-adapter_normalize_fuzz!(fuzz_lfs, LFSAdapter::new(), 256, 96);
+adapter_normalize_fuzz!(fuzz_lfs, LFSAdapter::new(), 256, 92);
 adapter_normalize_fuzz!(fuzz_nascar, NascarAdapter::new(), 512, 92);
 adapter_normalize_fuzz!(fuzz_wreckfest, WreckfestAdapter::new(), 512, 28);
 adapter_normalize_fuzz!(fuzz_rennsport, RennsportAdapter::new(), 512, 24);
