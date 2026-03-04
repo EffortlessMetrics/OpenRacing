@@ -8,6 +8,7 @@
 #![deny(unsafe_op_in_unsafe_fn)]
 #![deny(clippy::unwrap_used)]
 
+pub mod effects;
 pub mod ids;
 pub mod input;
 pub mod lifecycle;
