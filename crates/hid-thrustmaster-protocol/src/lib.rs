@@ -13,6 +13,7 @@ pub mod input;
 pub mod output;
 pub mod protocol;
 pub mod t150;
+pub mod t300rs;
 pub mod types;
 
 pub use ids::THRUSTMASTER_VENDOR_ID;
