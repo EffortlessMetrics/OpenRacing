@@ -34,6 +34,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Mutation testing** via `cargo-mutants` covering safety, engine, and protocol crates — all surviving mutants killed
 - **Protocol documentation**: SIMUCUBE, VRS, HEUSINKVELD, ASETEK, CUBE_CONTROLS protocol docs; VID/PID sources in `docs/protocols/SOURCES.md`
 - **Rustdoc**: public API documentation added to `openracing-ffb` and `openracing-calibration`
+- **10 community-verified sim racing peripheral vendors** from JacKeTUs/simracing-hwdb: MMOS FFB controller (0xF055:0x0FFB), SHH Shifters, Oddor Handbrake, SimGrade Pedals, SimJack Pedals, SimLab Handbrake, SimNet Pedals, SimRuito Pedals, SimSonn Pedals, SimTrecs Pedals
+- **CHANGELOG update** for PRs #24-55 (PR #56)
 
 ### Changed
 
