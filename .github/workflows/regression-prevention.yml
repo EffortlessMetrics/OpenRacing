@@ -379,7 +379,7 @@ jobs:
           -A clippy::expect_used
     
     - name: Check for unused dependencies
-      continue-on-error: ${{ github.event_name == 'pull_request' }}
+      continue-on-error: true  # Soft-fail: cargo-udeps has known false positives with derive macros and optional features
       run: |
         echo "Checking for unused dependencies..."
         cargo +nightly udeps --workspace --all-targets --exclude workspace-hack
