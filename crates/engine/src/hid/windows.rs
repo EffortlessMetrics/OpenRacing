@@ -585,7 +585,11 @@ impl SupportedDevices {
             // VRS DirectForce Pro devices (share VID 0x0483 with Simagic)
             (vendor_ids::SIMAGIC, 0xA355, "VRS DirectForce Pro"),
             (vendor_ids::SIMAGIC, 0xA356, "VRS DirectForce Pro V2"),
-            (vendor_ids::SIMAGIC, 0xA357, "VRS Pedals V1 (deprecated — use 0xA3BE)"),
+            (
+                vendor_ids::SIMAGIC,
+                0xA357,
+                "VRS Pedals V1 (deprecated — use 0xA3BE)",
+            ),
             (vendor_ids::SIMAGIC, 0xA358, "VRS Pedals V2"),
             (vendor_ids::SIMAGIC, 0xA359, "VRS Handbrake"),
             (vendor_ids::SIMAGIC, 0xA35A, "VRS Shifter"),
@@ -1126,7 +1130,12 @@ fn enumerate_hid_devices(
         let manufacturer = device_info
             .manufacturer_string()
             .map(|s| s.to_string())
-            .or_else(|| Some(SupportedDevices::get_manufacturer_name_for_device(vendor_id, product_id).to_string()));
+            .or_else(|| {
+                Some(
+                    SupportedDevices::get_manufacturer_name_for_device(vendor_id, product_id)
+                        .to_string(),
+                )
+            });
         let product_name = device_info
             .product_string()
             .map(|s| s.to_string())
@@ -1358,7 +1367,12 @@ impl WindowsHidPort {
                     .manufacturer_string()
                     .map(|s| s.to_string())
                     .or_else(|| {
-                        Some(SupportedDevices::get_manufacturer_name_for_device(vendor_id, product_id).to_string())
+                        Some(
+                            SupportedDevices::get_manufacturer_name_for_device(
+                                vendor_id, product_id,
+                            )
+                            .to_string(),
+                        )
                     });
 
                 let product_name =
@@ -2085,8 +2099,12 @@ pub(crate) fn determine_device_capabilities(vendor_id: u16, product_id: u16) -> 
             capabilities.min_report_period_us = 8000; // 125Hz
         }
         // ── Community-verified non-FFB peripherals (simracing-hwdb) ──
-        vendor_ids::SHH | vendor_ids::ODDOR | vendor_ids::SIMJACK
-        | vendor_ids::SIMNET | vendor_ids::SIMRUITO | vendor_ids::SIMSONN
+        vendor_ids::SHH
+        | vendor_ids::ODDOR
+        | vendor_ids::SIMJACK
+        | vendor_ids::SIMNET
+        | vendor_ids::SIMRUITO
+        | vendor_ids::SIMSONN
         | vendor_ids::SIMTRECS => {
             // Pedals, handbrakes, and shifters — input-only, no FFB
             capabilities.supports_pid = false;

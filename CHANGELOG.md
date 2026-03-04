@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **30 new authoritative PID cross-validation checks**: Simucube (VID + 4 PIDs), AccuForce (VID + Pro), FFBeast (VID + Wheel), Asetek (VID + 4 wheelbases), Cammus (VID + 4 devices), PXN (VID + 3 models) — all sourced from linux-steering-wheels and simracing-hwdb
 - **openracing-pidff-common shared crate**: canonical PIDFF encoder library (678 lines, 37 unit tests + 8 proptest suites) used by 5 device crates
 - **PIDFF effects for all devices**: Fanatec slot 1-4 effects, Logitech slot 1-4 effects, Thrustmaster full T300RS protocol
 - **VRS R295 wheelbase** (PID 0xA44C): confirmed via Linux kernel `hid-ids.h`
@@ -57,6 +58,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **README VID corrections**: PXN (0x3767→0x11FF), FlashFire (0x0079→0x2F24), Oddor (0x3853→0x1021), MMOS (0x1209→0xF055), SHH (0x1209→0x16C0) — all verified against actual crate constants and linux-steering-wheels
 - **VRS devices reported as "Simagic"**: manufacturer name now correctly resolves to "VRS" for VID 0x0483 devices with VRS PIDs
 - **GT Sport telemetry port**: corrected port configuration
 - **Logitech DFP range encoding**: rewritten to match kernel `lg4ff_set_range_dfp` implementation

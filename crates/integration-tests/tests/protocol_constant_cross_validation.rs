@@ -1152,6 +1152,350 @@ fn authoritative_pid_cross_validation() -> TestResult {
         "hid-tmff2.h: TMTS_PC_RACER_ID"
     );
 
+    // ── Simucube (source: linux-steering-wheels compat table) ────────────
+    check_pid!(
+        hid_simucube_protocol::VENDOR_ID,
+        0x16D0_u16,
+        "Simucube VID",
+        "linux-steering-wheels: VID 16D0"
+    );
+    check_pid!(
+        hid_simucube_protocol::SIMUCUBE_1_PID,
+        0x0D5A_u16,
+        "Simucube 1",
+        "linux-steering-wheels: PID 0d5a"
+    );
+    check_pid!(
+        hid_simucube_protocol::SIMUCUBE_2_SPORT_PID,
+        0x0D61_u16,
+        "Simucube 2 Sport",
+        "linux-steering-wheels: PID 0d61"
+    );
+    check_pid!(
+        hid_simucube_protocol::SIMUCUBE_2_PRO_PID,
+        0x0D60_u16,
+        "Simucube 2 Pro",
+        "linux-steering-wheels: PID 0d60"
+    );
+    check_pid!(
+        hid_simucube_protocol::SIMUCUBE_2_ULTIMATE_PID,
+        0x0D5F_u16,
+        "Simucube 2 Ultimate",
+        "linux-steering-wheels: PID 0d5f"
+    );
+
+    // ── AccuForce (source: linux-steering-wheels compat table) ────────────
+    check_pid!(
+        racing_wheel_hid_accuforce_protocol::VENDOR_ID,
+        0x1FC9_u16,
+        "AccuForce VID",
+        "linux-steering-wheels: VID 1fc9"
+    );
+    check_pid!(
+        racing_wheel_hid_accuforce_protocol::PID_ACCUFORCE_PRO,
+        0x804C_u16,
+        "AccuForce Pro",
+        "linux-steering-wheels: PID 804c"
+    );
+
+    // ── FFBeast (source: linux-steering-wheels compat table) ──────────────
+    check_pid!(
+        racing_wheel_hid_ffbeast_protocol::FFBEAST_VENDOR_ID,
+        0x045B_u16,
+        "FFBeast VID",
+        "linux-steering-wheels: VID 045b"
+    );
+    check_pid!(
+        racing_wheel_hid_ffbeast_protocol::FFBEAST_PRODUCT_ID_WHEEL,
+        0x59D7_u16,
+        "FFBeast Wheel",
+        "linux-steering-wheels: PID 59d7"
+    );
+
+    // ── Asetek (source: linux-steering-wheels + simracing-hwdb) ───────────
+    check_pid!(
+        hid_asetek_protocol::VENDOR_ID,
+        0x2433_u16,
+        "Asetek VID",
+        "linux-steering-wheels: VID 2433"
+    );
+    check_pid!(
+        hid_asetek_protocol::ASETEK_INVICTA_PID,
+        0xF300_u16,
+        "Asetek Invicta",
+        "linux-steering-wheels: PID f300"
+    );
+    check_pid!(
+        hid_asetek_protocol::ASETEK_FORTE_PID,
+        0xF301_u16,
+        "Asetek Forte",
+        "linux-steering-wheels: PID f301"
+    );
+    check_pid!(
+        hid_asetek_protocol::ASETEK_LAPRIMA_PID,
+        0xF303_u16,
+        "Asetek La Prima",
+        "linux-steering-wheels: PID f303"
+    );
+    check_pid!(
+        hid_asetek_protocol::ASETEK_TONY_KANAAN_PID,
+        0xF306_u16,
+        "Asetek Tony Kanaan",
+        "linux-steering-wheels: PID f306"
+    );
+
+    // ── Cammus (source: simracing-hwdb 90-cammus.hwdb) ───────────────────
+    check_pid!(
+        racing_wheel_hid_cammus_protocol::VENDOR_ID,
+        0x3416_u16,
+        "Cammus VID",
+        "simracing-hwdb: VID 3416"
+    );
+    check_pid!(
+        racing_wheel_hid_cammus_protocol::PRODUCT_C5,
+        0x0301_u16,
+        "Cammus C5",
+        "simracing-hwdb + linux-steering-wheels: PID 0301"
+    );
+    check_pid!(
+        racing_wheel_hid_cammus_protocol::PRODUCT_C12,
+        0x0302_u16,
+        "Cammus C12",
+        "simracing-hwdb + linux-steering-wheels: PID 0302"
+    );
+    check_pid!(
+        racing_wheel_hid_cammus_protocol::PRODUCT_CP5_PEDALS,
+        0x1018_u16,
+        "Cammus CP5 Pedals",
+        "simracing-hwdb: PID 1018"
+    );
+    check_pid!(
+        racing_wheel_hid_cammus_protocol::PRODUCT_LC100_PEDALS,
+        0x1019_u16,
+        "Cammus LC100 Pedals",
+        "simracing-hwdb: PID 1019"
+    );
+
+    // ── PXN (source: Linux kernel hid-ids.h) ─────────────────────────────
+    check_pid!(
+        racing_wheel_hid_pxn_protocol::VENDOR_ID,
+        0x11FF_u16,
+        "PXN VID",
+        "kernel hid-ids.h: USB_VENDOR_ID_LITE_STAR 0x11ff"
+    );
+    check_pid!(
+        racing_wheel_hid_pxn_protocol::PRODUCT_V10,
+        0x3245_u16,
+        "PXN V10",
+        "kernel hid-ids.h: USB_DEVICE_ID_PXN_V10 0x3245"
+    );
+    check_pid!(
+        racing_wheel_hid_pxn_protocol::PRODUCT_V12,
+        0x1212_u16,
+        "PXN V12",
+        "kernel hid-ids.h: USB_DEVICE_ID_PXN_V12 0x1212"
+    );
+    check_pid!(
+        racing_wheel_hid_pxn_protocol::PRODUCT_V12_LITE,
+        0x1112_u16,
+        "PXN V12 Lite",
+        "kernel hid-ids.h: USB_DEVICE_ID_PXN_V12_LITE 0x1112"
+    );
+    check_pid!(
+        racing_wheel_hid_pxn_protocol::PRODUCT_V12_LITE_2,
+        0x1211_u16,
+        "PXN V12 Lite 2",
+        "kernel hid-ids.h: USB_DEVICE_ID_PXN_V12_LITE_2 0x1211"
+    );
+    check_pid!(
+        racing_wheel_hid_pxn_protocol::PRODUCT_GT987,
+        0x2141_u16,
+        "Lite Star GT987",
+        "kernel hid-ids.h: USB_DEVICE_ID_LITE_STAR_GT987 0x2141"
+    );
+
+    // ── Logitech (source: Linux kernel hid-ids.h + hid-lg4ff.c) ──────────
+    check_pid!(
+        racing_wheel_hid_logitech_protocol::LOGITECH_VENDOR_ID,
+        0x046D_u16,
+        "Logitech VID",
+        "kernel hid-ids.h: USB_VENDOR_ID_LOGITECH 0x046d"
+    );
+    check_pid!(
+        racing_wheel_hid_logitech_protocol::product_ids::G29_PS,
+        0xC24F_u16,
+        "Logitech G29 (PS)",
+        "kernel hid-ids.h: USB_DEVICE_ID_LOGITECH_G29_WHEEL 0xc24f"
+    );
+    check_pid!(
+        racing_wheel_hid_logitech_protocol::product_ids::G920,
+        0xC262_u16,
+        "Logitech G920",
+        "kernel hid-ids.h: USB_DEVICE_ID_LOGITECH_G920_WHEEL 0xc262"
+    );
+    check_pid!(
+        racing_wheel_hid_logitech_protocol::product_ids::G923_XBOX,
+        0xC26E_u16,
+        "Logitech G923 (Xbox)",
+        "kernel hid-ids.h: USB_DEVICE_ID_LOGITECH_G923_XBOX_WHEEL 0xc26e"
+    );
+    check_pid!(
+        racing_wheel_hid_logitech_protocol::product_ids::DRIVING_FORCE_EX,
+        0xC294_u16,
+        "Logitech Driving Force / Formula EX",
+        "kernel hid-ids.h: USB_DEVICE_ID_LOGITECH_WHEEL 0xc294"
+    );
+    check_pid!(
+        racing_wheel_hid_logitech_protocol::product_ids::MOMO,
+        0xC295_u16,
+        "Logitech MOMO",
+        "kernel hid-ids.h: USB_DEVICE_ID_LOGITECH_MOMO_WHEEL 0xc295"
+    );
+    check_pid!(
+        racing_wheel_hid_logitech_protocol::product_ids::DRIVING_FORCE_PRO,
+        0xC298_u16,
+        "Logitech Driving Force Pro",
+        "kernel hid-ids.h: USB_DEVICE_ID_LOGITECH_DFP_WHEEL 0xc298"
+    );
+    check_pid!(
+        racing_wheel_hid_logitech_protocol::product_ids::G25,
+        0xC299_u16,
+        "Logitech G25",
+        "kernel hid-ids.h: USB_DEVICE_ID_LOGITECH_G25_WHEEL 0xc299"
+    );
+    check_pid!(
+        racing_wheel_hid_logitech_protocol::product_ids::DRIVING_FORCE_GT,
+        0xC29A_u16,
+        "Logitech Driving Force GT",
+        "kernel hid-ids.h: USB_DEVICE_ID_LOGITECH_DFGT_WHEEL 0xc29a"
+    );
+    check_pid!(
+        racing_wheel_hid_logitech_protocol::product_ids::G27,
+        0xC29B_u16,
+        "Logitech G27",
+        "kernel hid-ids.h: USB_DEVICE_ID_LOGITECH_G27_WHEEL 0xc29b"
+    );
+    check_pid!(
+        racing_wheel_hid_logitech_protocol::product_ids::SPEED_FORCE_WIRELESS,
+        0xC29C_u16,
+        "Logitech Speed Force Wireless",
+        "kernel hid-ids.h: USB_DEVICE_ID_LOGITECH_WII_WHEEL 0xc29c"
+    );
+    check_pid!(
+        racing_wheel_hid_logitech_protocol::product_ids::MOMO_2,
+        0xCA03_u16,
+        "Logitech MOMO Racing",
+        "kernel hid-ids.h: USB_DEVICE_ID_LOGITECH_MOMO_WHEEL2 0xca03"
+    );
+    check_pid!(
+        racing_wheel_hid_logitech_protocol::product_ids::G923,
+        0xC266_u16,
+        "Logitech G923 (PS/Trueforce)",
+        "oversteer: LG_G923P 046d:c266"
+    );
+    check_pid!(
+        racing_wheel_hid_logitech_protocol::product_ids::G923_PS,
+        0xC267_u16,
+        "Logitech G923 (PS alt)",
+        "linux-steering-wheels: PID c267"
+    );
+    check_pid!(
+        racing_wheel_hid_logitech_protocol::product_ids::G_PRO,
+        0xC268_u16,
+        "Logitech G Pro (PS)",
+        "oversteer: LG_GPRO_PS 046d:c268"
+    );
+    check_pid!(
+        racing_wheel_hid_logitech_protocol::product_ids::G_PRO_XBOX,
+        0xC272_u16,
+        "Logitech G Pro (Xbox)",
+        "oversteer: LG_GPRO_XBOX 046d:c272"
+    );
+    check_pid!(
+        racing_wheel_hid_logitech_protocol::product_ids::WINGMAN_FORMULA_FORCE,
+        0xC291_u16,
+        "Logitech Wingman Formula Force",
+        "oversteer: LG_WFF 046d:c291"
+    );
+    check_pid!(
+        racing_wheel_hid_logitech_protocol::product_ids::WINGMAN_FORMULA_FORCE_GP,
+        0xC293_u16,
+        "Logitech Wingman FFG",
+        "oversteer: LG_WFFG 046d:c293 + kernel hid-ids.h: LOGITECH_WINGMAN_FFG"
+    );
+    check_pid!(
+        racing_wheel_hid_logitech_protocol::product_ids::VIBRATION_WHEEL,
+        0xCA04_u16,
+        "Logitech Vibration Wheel",
+        "kernel hid-ids.h: USB_DEVICE_ID_LOGITECH_VIBRATION_WHEEL 0xca04"
+    );
+
+    // ── Moza (source: linux-steering-wheels compat table) ─────────────────
+    check_pid!(
+        racing_wheel_hid_moza_protocol::MOZA_VENDOR_ID,
+        0x346E_u16,
+        "Moza VID",
+        "linux-steering-wheels: VID 346e"
+    );
+    check_pid!(
+        racing_wheel_hid_moza_protocol::product_ids::R16_R21_V1,
+        0x0000_u16,
+        "Moza R16/R21 V1",
+        "linux-steering-wheels: PID 0000"
+    );
+    check_pid!(
+        racing_wheel_hid_moza_protocol::product_ids::R9_V1,
+        0x0002_u16,
+        "Moza R9 V1",
+        "linux-steering-wheels: PID 0002"
+    );
+    check_pid!(
+        racing_wheel_hid_moza_protocol::product_ids::R5_V1,
+        0x0004_u16,
+        "Moza R5 V1",
+        "linux-steering-wheels: PID 0004"
+    );
+    check_pid!(
+        racing_wheel_hid_moza_protocol::product_ids::R3_V1,
+        0x0005_u16,
+        "Moza R3 V1",
+        "linux-steering-wheels: PID 0005"
+    );
+    check_pid!(
+        racing_wheel_hid_moza_protocol::product_ids::R12_V1,
+        0x0006_u16,
+        "Moza R12 V1",
+        "linux-steering-wheels: PID 0006"
+    );
+
+    // ── VRS (source: linux-steering-wheels compat table) ──────────────────
+    check_pid!(
+        racing_wheel_hid_vrs_protocol::VRS_VENDOR_ID,
+        0x0483_u16,
+        "VRS VID (shared STM VID)",
+        "linux-steering-wheels: VID 0483"
+    );
+    check_pid!(
+        racing_wheel_hid_vrs_protocol::VRS_PRODUCT_ID,
+        0xA355_u16,
+        "VRS DirectForce Pro",
+        "linux-steering-wheels: PID a355"
+    );
+
+    // ── OpenFFBoard (source: berarma/oversteer wheel_ids.py) ──────────────
+    check_pid!(
+        racing_wheel_hid_openffboard_protocol::OPENFFBOARD_VENDOR_ID,
+        0x1209_u16,
+        "OpenFFBoard VID",
+        "oversteer wheel_ids.py + pid.codes registry"
+    );
+    check_pid!(
+        racing_wheel_hid_openffboard_protocol::OPENFFBOARD_PRODUCT_ID,
+        0xFFB0_u16,
+        "OpenFFBoard Main",
+        "oversteer wheel_ids.py: Open FFBoard PID 0xFFB0"
+    );
+
     assert!(
         failures.is_empty(),
         "PID cross-validation failures against authoritative sources:\n  {}",

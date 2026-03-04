@@ -15,9 +15,9 @@ use libfuzzer_sys::fuzz_target;
 use racing_wheel_hid_fanatec_protocol::{
     CONSTANT_FORCE_REPORT_LEN, FanatecConstantForceEncoder, FanatecModel, FanatecPedalModel,
     build_display_report, build_kernel_range_sequence, build_led_report,
-    build_rotation_range_report, build_rumble_report, build_set_gain_report,
-    fix_report_values, is_pedal_product, is_wheelbase_product, parse_extended_report,
-    parse_pedal_report, parse_standard_report,
+    build_rotation_range_report, build_rumble_report, build_set_gain_report, fix_report_values,
+    is_pedal_product, is_wheelbase_product, parse_extended_report, parse_pedal_report,
+    parse_standard_report,
 };
 
 fuzz_target!(|data: &[u8]| {

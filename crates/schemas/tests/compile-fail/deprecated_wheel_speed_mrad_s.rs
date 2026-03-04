@@ -6,7 +6,7 @@ fn main() {
     // This should fail because wheel_speed_mrad_s is not a field in TelemetryData
     let _data = TelemetryData {
         wheel_angle_deg: 0.0,
-        wheel_speed_mrad_s: 0,  // Should be wheel_speed_rad_s
+        wheel_speed_mrad_s: 0, // Should be wheel_speed_rad_s
         temperature_c: 45,
         fault_flags: 0,
         hands_on: true,

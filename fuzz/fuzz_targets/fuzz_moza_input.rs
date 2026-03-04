@@ -11,8 +11,8 @@
 
 use libfuzzer_sys::fuzz_target;
 use racing_wheel_hid_moza_protocol::{
-    DeviceSignature, MOZA_VENDOR_ID, MozaDirectTorqueEncoder, MozaModel, MozaProtocol,
-    REPORT_LEN, identify_device, is_wheelbase_product, product_ids, verify_signature,
+    DeviceSignature, MOZA_VENDOR_ID, MozaDirectTorqueEncoder, MozaModel, MozaProtocol, REPORT_LEN,
+    identify_device, is_wheelbase_product, product_ids, verify_signature,
 };
 
 /// All known Moza product IDs exercised on every fuzz iteration.

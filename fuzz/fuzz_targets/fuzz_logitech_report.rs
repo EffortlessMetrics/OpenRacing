@@ -11,10 +11,10 @@
 
 use libfuzzer_sys::fuzz_target;
 use racing_wheel_hid_logitech_protocol::{
-    CONSTANT_FORCE_REPORT_LEN, LogitechConstantForceEncoder, LogitechModel, is_wheel_product,
-    build_gain_report, build_mode_switch_report, build_native_mode_report,
-    build_set_autocenter_report, build_set_leds_report, build_set_range_dfp_report,
-    build_set_range_report, parse_input_report,
+    CONSTANT_FORCE_REPORT_LEN, LogitechConstantForceEncoder, LogitechModel, build_gain_report,
+    build_mode_switch_report, build_native_mode_report, build_set_autocenter_report,
+    build_set_leds_report, build_set_range_dfp_report, build_set_range_report, is_wheel_product,
+    parse_input_report,
 };
 
 fuzz_target!(|data: &[u8]| {

@@ -1261,8 +1261,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_service_creation_requires_trust_store_when_signatures_required(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    async fn test_service_creation_requires_trust_store_when_signatures_required()
+    -> Result<(), Box<dyn std::error::Error>> {
         let config = PluginRegistryServiceConfig::new("https://test-registry.example.com")
             .with_require_signatures(true);
         // Explicitly clear trust store path to simulate invalid config
@@ -1378,8 +1378,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_install_plugin_rejects_unsigned_when_signatures_required(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    async fn test_install_plugin_rejects_unsigned_when_signatures_required()
+    -> Result<(), Box<dyn std::error::Error>> {
         let temp_dir = TempDir::new()?;
         let config = PluginRegistryServiceConfig::new("https://test-registry.example.com")
             .with_cache_dir(temp_dir.path().join("cache"))

@@ -17,7 +17,7 @@ impl GoodAsyncTrait for MyImpl {
     async fn do_work(&self) -> String {
         "work done".to_string()
     }
-    
+
     async fn process_data(&self, data: &[u8]) -> Result<Vec<u8>, String> {
         Ok(data.to_vec())
     }

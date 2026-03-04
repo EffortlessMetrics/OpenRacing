@@ -9,9 +9,8 @@
 #![no_main]
 use libfuzzer_sys::fuzz_target;
 use racing_wheel_hid_moza_protocol::{
-    MozaDirectTorqueEncoder, MozaProtocol, REPORT_LEN, parse_axis,
-    parse_srp_report, parse_wheelbase_input_report, parse_wheelbase_pedal_axes,
-    parse_wheelbase_report, product_ids,
+    MozaDirectTorqueEncoder, MozaProtocol, REPORT_LEN, parse_axis, parse_srp_report,
+    parse_wheelbase_input_report, parse_wheelbase_pedal_axes, parse_wheelbase_report, product_ids,
 };
 
 fuzz_target!(|data: &[u8]| {

@@ -485,9 +485,18 @@ mod tests {
 
     #[test]
     fn angle_lock_strength_from_byte() {
-        assert_eq!(AngleLockStrength::from_byte(0), Some(AngleLockStrength::Soft));
-        assert_eq!(AngleLockStrength::from_byte(1), Some(AngleLockStrength::Normal));
-        assert_eq!(AngleLockStrength::from_byte(2), Some(AngleLockStrength::Firm));
+        assert_eq!(
+            AngleLockStrength::from_byte(0),
+            Some(AngleLockStrength::Soft)
+        );
+        assert_eq!(
+            AngleLockStrength::from_byte(1),
+            Some(AngleLockStrength::Normal)
+        );
+        assert_eq!(
+            AngleLockStrength::from_byte(2),
+            Some(AngleLockStrength::Firm)
+        );
         assert_eq!(AngleLockStrength::from_byte(3), None);
     }
 
@@ -705,7 +714,7 @@ mod tests {
         };
         let buf = encode_settings2(&s, 900);
         assert_eq!(buf[4], 75); // feedback_detail
-        assert_eq!(buf[6], 2);  // angle_lock_strength
+        assert_eq!(buf[6], 2); // angle_lock_strength
         assert_eq!(buf[8], 40); // mechanical_inertia
     }
 
@@ -779,7 +788,7 @@ mod tests {
     #[test]
     fn encode_settings4_sanitize_filter_level() {
         let s = Settings4 {
-            filter_level: 50, // max is 20
+            filter_level: 50,       // max is 20
             slew_rate_control: 200, // max is 100
         };
         let buf = encode_settings4(&s);
@@ -814,9 +823,9 @@ mod tests {
         let neg: u16 = (-50i16) as u16;
         data[4] = neg as u8;
         data[5] = (neg >> 8) as u8;
-        data[7] = 30;  // wheel_rotation_speed
-        data[8] = 40;  // mechanical_centering
-        data[9] = 50;  // mechanical_damper
+        data[7] = 30; // wheel_rotation_speed
+        data[8] = 40; // mechanical_centering
+        data[9] = 50; // mechanical_damper
         data[10] = 60; // center_damper
         data[11] = 70; // mechanical_friction
         data[12] = 100; // game_centering
@@ -826,12 +835,12 @@ mod tests {
         // angle_lock = 540 at offset 16-17
         data[16] = 0x1C;
         data[17] = 0x02;
-        data[18] = 75;  // feedback_detail
-        data[20] = 2;   // angle_lock_strength
-        data[22] = 45;  // mechanical_inertia
+        data[18] = 75; // feedback_detail
+        data[20] = 2; // angle_lock_strength
+        data[22] = 45; // mechanical_inertia
         data[47] = 0x80 | 50; // ring_light: enabled, brightness 50
-        data[50] = 10;  // filter_level
-        data[52] = 80;  // slew_rate_control
+        data[50] = 10; // filter_level
+        data[52] = 80; // slew_rate_control
 
         if let Some(s) = parse_status1(&data) {
             assert_eq!(s.max_angle, 900);
@@ -1019,14 +1028,32 @@ mod tests {
     #[test]
     fn all_reports_are_64_bytes() {
         let s1 = Settings1 {
-            max_angle: 900, ff_strength: 0, wheel_rotation_speed: 0,
-            mechanical_centering: 0, mechanical_damper: 0, center_damper: 0,
-            mechanical_friction: 0, game_centering: 0, game_inertia: 0,
-            game_damper: 0, game_friction: 0,
+            max_angle: 900,
+            ff_strength: 0,
+            wheel_rotation_speed: 0,
+            mechanical_centering: 0,
+            mechanical_damper: 0,
+            center_damper: 0,
+            mechanical_friction: 0,
+            game_centering: 0,
+            game_inertia: 0,
+            game_damper: 0,
+            game_friction: 0,
         };
-        let s2 = Settings2 { angle_lock: 540, feedback_detail: 0, angle_lock_strength: 0, mechanical_inertia: 0 };
-        let s3 = Settings3 { ring_light_enabled: true, ring_light_brightness: 50 };
-        let s4 = Settings4 { filter_level: 10, slew_rate_control: 50 };
+        let s2 = Settings2 {
+            angle_lock: 540,
+            feedback_detail: 0,
+            angle_lock_strength: 0,
+            mechanical_inertia: 0,
+        };
+        let s3 = Settings3 {
+            ring_light_enabled: true,
+            ring_light_brightness: 50,
+        };
+        let s4 = Settings4 {
+            filter_level: 10,
+            slew_rate_control: 50,
+        };
 
         assert_eq!(encode_settings1(&s1).len(), REPORT_SIZE);
         assert_eq!(encode_settings2(&s2, 900).len(), REPORT_SIZE);

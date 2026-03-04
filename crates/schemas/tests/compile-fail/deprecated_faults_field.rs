@@ -8,7 +8,7 @@ fn main() {
         wheel_angle_deg: 0.0,
         wheel_speed_rad_s: 0.0,
         temperature_c: 45,
-        faults: 0,  // Should be fault_flags
+        faults: 0, // Should be fault_flags
         hands_on: true,
         timestamp: 0,
     };

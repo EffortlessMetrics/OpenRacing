@@ -4,7 +4,9 @@
 //!   cargo +nightly fuzz run fuzz_forza_horizon
 #![no_main]
 use libfuzzer_sys::fuzz_target;
-use racing_wheel_telemetry_adapters::{ForzaHorizon4Adapter, ForzaHorizon5Adapter, TelemetryAdapter};
+use racing_wheel_telemetry_adapters::{
+    ForzaHorizon4Adapter, ForzaHorizon5Adapter, TelemetryAdapter,
+};
 
 fuzz_target!(|data: &[u8]| {
     // Must never panic on arbitrary bytes — errors are expected, panics are not.

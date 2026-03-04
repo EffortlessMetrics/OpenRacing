@@ -7,7 +7,7 @@ fn main() {
     let _data = TelemetryData {
         wheel_angle_deg: 0.0,
         wheel_speed_rad_s: 0.0,
-        temp_c: 45,  // Should be temperature_c
+        temp_c: 45, // Should be temperature_c
         fault_flags: 0,
         hands_on: true,
         timestamp: 0,

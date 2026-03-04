@@ -31,8 +31,7 @@ fuzz_target!(|data: &[u8]| {
         device_id: String::from_utf8_lossy(&data[11..19]).into_owned(),
         engine_version: String::from_utf8_lossy(&data[19..24]).into_owned(),
         start_time_unix: u64::from_le_bytes([
-            data[24], data[25], data[26], data[27],
-            data[28], data[29], data[30], data[31],
+            data[24], data[25], data[26], data[27], data[28], data[29], data[30], data[31],
         ]),
         timebase_ns: 1_000_000,
         ffb_mode,

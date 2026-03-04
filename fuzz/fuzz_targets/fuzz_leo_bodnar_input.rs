@@ -4,7 +4,9 @@
 //!   cargo +nightly fuzz run fuzz_leo_bodnar_input
 #![no_main]
 use libfuzzer_sys::fuzz_target;
-use racing_wheel_hid_leo_bodnar_protocol::{is_leo_bodnar, is_leo_bodnar_device, is_leo_bodnar_ffb_pid};
+use racing_wheel_hid_leo_bodnar_protocol::{
+    is_leo_bodnar, is_leo_bodnar_device, is_leo_bodnar_ffb_pid,
+};
 
 fuzz_target!(|data: &[u8]| {
     // Must never panic on arbitrary bytes — errors are expected, panics are not.

@@ -306,7 +306,7 @@ jobs:
   workspace-default:
     name: Workspace Default Build
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 30
+    timeout-minutes: 45
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest]

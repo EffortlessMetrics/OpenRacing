@@ -5,7 +5,7 @@ use racing_wheel_schemas::prelude::*;
 
 fn main() {
     let telemetry = TelemetryData::default();
-    
+
     // These should fail to compile - deprecated field names
     let _old_angle = telemetry.wheel_angle_mdeg; //~ ERROR
     let _old_speed = telemetry.wheel_speed_mrad_s; //~ ERROR  

@@ -375,10 +375,10 @@ pub mod wheel_service_client {
         dead_code,
         missing_docs,
         clippy::wildcard_imports,
-        clippy::let_unit_value,
+        clippy::let_unit_value
     )]
-    use tonic::codegen::*;
     use tonic::codegen::http::Uri;
+    use tonic::codegen::*;
     /// Main wheel service for IPC communication
     #[derive(Debug, Clone)]
     pub struct WheelServiceClient<T> {
@@ -418,14 +418,13 @@ pub mod wheel_service_client {
             F: tonic::service::Interceptor,
             T::ResponseBody: Default,
             T: tonic::codegen::Service<
-                http::Request<tonic::body::BoxBody>,
-                Response = http::Response<
-                    <T as tonic::client::GrpcService<tonic::body::BoxBody>>::ResponseBody,
+                    http::Request<tonic::body::BoxBody>,
+                    Response = http::Response<
+                        <T as tonic::client::GrpcService<tonic::body::BoxBody>>::ResponseBody,
+                    >,
                 >,
-            >,
-            <T as tonic::codegen::Service<
-                http::Request<tonic::body::BoxBody>,
-            >>::Error: Into<StdError> + std::marker::Send + std::marker::Sync,
+            <T as tonic::codegen::Service<http::Request<tonic::body::BoxBody>>>::Error:
+                Into<StdError> + std::marker::Send + std::marker::Sync,
         {
             WheelServiceClient::new(InterceptedService::new(inner, interceptor))
         }
@@ -464,25 +463,19 @@ pub mod wheel_service_client {
         pub async fn negotiate_features(
             &mut self,
             request: impl tonic::IntoRequest<super::FeatureNegotiationRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::FeatureNegotiationResponse>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+        ) -> std::result::Result<tonic::Response<super::FeatureNegotiationResponse>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/wheel.v1.WheelService/NegotiateFeatures",
-            );
+            let path =
+                http::uri::PathAndQuery::from_static("/wheel.v1.WheelService/NegotiateFeatures");
             let mut req = request.into_request();
-            req.extensions_mut()
-                .insert(GrpcMethod::new("wheel.v1.WheelService", "NegotiateFeatures"));
+            req.extensions_mut().insert(GrpcMethod::new(
+                "wheel.v1.WheelService",
+                "NegotiateFeatures",
+            ));
             self.inner.unary(req, path, codec).await
         }
         /// Device management
@@ -493,18 +486,11 @@ pub mod wheel_service_client {
             tonic::Response<tonic::codec::Streaming<super::DeviceInfo>>,
             tonic::Status,
         > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/wheel.v1.WheelService/ListDevices",
-            );
+            let path = http::uri::PathAndQuery::from_static("/wheel.v1.WheelService/ListDevices");
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("wheel.v1.WheelService", "ListDevices"));
@@ -514,18 +500,12 @@ pub mod wheel_service_client {
             &mut self,
             request: impl tonic::IntoRequest<super::DeviceId>,
         ) -> std::result::Result<tonic::Response<super::DeviceStatus>, tonic::Status> {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/wheel.v1.WheelService/GetDeviceStatus",
-            );
+            let path =
+                http::uri::PathAndQuery::from_static("/wheel.v1.WheelService/GetDeviceStatus");
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("wheel.v1.WheelService", "GetDeviceStatus"));
@@ -536,18 +516,12 @@ pub mod wheel_service_client {
             &mut self,
             request: impl tonic::IntoRequest<super::DeviceId>,
         ) -> std::result::Result<tonic::Response<super::Profile>, tonic::Status> {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/wheel.v1.WheelService/GetActiveProfile",
-            );
+            let path =
+                http::uri::PathAndQuery::from_static("/wheel.v1.WheelService/GetActiveProfile");
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("wheel.v1.WheelService", "GetActiveProfile"));
@@ -557,18 +531,11 @@ pub mod wheel_service_client {
             &mut self,
             request: impl tonic::IntoRequest<super::ApplyProfileRequest>,
         ) -> std::result::Result<tonic::Response<super::OpResult>, tonic::Status> {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/wheel.v1.WheelService/ApplyProfile",
-            );
+            let path = http::uri::PathAndQuery::from_static("/wheel.v1.WheelService/ApplyProfile");
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("wheel.v1.WheelService", "ApplyProfile"));
@@ -578,18 +545,11 @@ pub mod wheel_service_client {
             &mut self,
             request: impl tonic::IntoRequest<()>,
         ) -> std::result::Result<tonic::Response<super::ProfileList>, tonic::Status> {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/wheel.v1.WheelService/ListProfiles",
-            );
+            let path = http::uri::PathAndQuery::from_static("/wheel.v1.WheelService/ListProfiles");
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("wheel.v1.WheelService", "ListProfiles"));
@@ -600,18 +560,12 @@ pub mod wheel_service_client {
             &mut self,
             request: impl tonic::IntoRequest<super::DeviceId>,
         ) -> std::result::Result<tonic::Response<super::OpResult>, tonic::Status> {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/wheel.v1.WheelService/StartHighTorque",
-            );
+            let path =
+                http::uri::PathAndQuery::from_static("/wheel.v1.WheelService/StartHighTorque");
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("wheel.v1.WheelService", "StartHighTorque"));
@@ -621,18 +575,11 @@ pub mod wheel_service_client {
             &mut self,
             request: impl tonic::IntoRequest<super::DeviceId>,
         ) -> std::result::Result<tonic::Response<super::OpResult>, tonic::Status> {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/wheel.v1.WheelService/EmergencyStop",
-            );
+            let path = http::uri::PathAndQuery::from_static("/wheel.v1.WheelService/EmergencyStop");
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("wheel.v1.WheelService", "EmergencyStop"));
@@ -646,18 +593,12 @@ pub mod wheel_service_client {
             tonic::Response<tonic::codec::Streaming<super::HealthEvent>>,
             tonic::Status,
         > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/wheel.v1.WheelService/SubscribeHealth",
-            );
+            let path =
+                http::uri::PathAndQuery::from_static("/wheel.v1.WheelService/SubscribeHealth");
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("wheel.v1.WheelService", "SubscribeHealth"));
@@ -667,18 +608,12 @@ pub mod wheel_service_client {
             &mut self,
             request: impl tonic::IntoRequest<super::DeviceId>,
         ) -> std::result::Result<tonic::Response<super::DiagnosticInfo>, tonic::Status> {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/wheel.v1.WheelService/GetDiagnostics",
-            );
+            let path =
+                http::uri::PathAndQuery::from_static("/wheel.v1.WheelService/GetDiagnostics");
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("wheel.v1.WheelService", "GetDiagnostics"));
@@ -689,39 +624,28 @@ pub mod wheel_service_client {
             &mut self,
             request: impl tonic::IntoRequest<super::ConfigureTelemetryRequest>,
         ) -> std::result::Result<tonic::Response<super::OpResult>, tonic::Status> {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/wheel.v1.WheelService/ConfigureTelemetry",
-            );
+            let path =
+                http::uri::PathAndQuery::from_static("/wheel.v1.WheelService/ConfigureTelemetry");
             let mut req = request.into_request();
-            req.extensions_mut()
-                .insert(GrpcMethod::new("wheel.v1.WheelService", "ConfigureTelemetry"));
+            req.extensions_mut().insert(GrpcMethod::new(
+                "wheel.v1.WheelService",
+                "ConfigureTelemetry",
+            ));
             self.inner.unary(req, path, codec).await
         }
         pub async fn get_game_status(
             &mut self,
             request: impl tonic::IntoRequest<()>,
         ) -> std::result::Result<tonic::Response<super::GameStatus>, tonic::Status> {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/wheel.v1.WheelService/GetGameStatus",
-            );
+            let path = http::uri::PathAndQuery::from_static("/wheel.v1.WheelService/GetGameStatus");
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("wheel.v1.WheelService", "GetGameStatus"));
@@ -736,7 +660,7 @@ pub mod wheel_service_server {
         dead_code,
         missing_docs,
         clippy::wildcard_imports,
-        clippy::let_unit_value,
+        clippy::let_unit_value
     )]
     use tonic::codegen::*;
     /// Generated trait containing gRPC methods that should be implemented for use with WheelServiceServer.
@@ -746,24 +670,17 @@ pub mod wheel_service_server {
         async fn negotiate_features(
             &self,
             request: tonic::Request<super::FeatureNegotiationRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::FeatureNegotiationResponse>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::FeatureNegotiationResponse>, tonic::Status>;
         /// Server streaming response type for the ListDevices method.
         type ListDevicesStream: tonic::codegen::tokio_stream::Stream<
                 Item = std::result::Result<super::DeviceInfo, tonic::Status>,
-            >
-            + std::marker::Send
+            > + std::marker::Send
             + 'static;
         /// Device management
         async fn list_devices(
             &self,
             request: tonic::Request<()>,
-        ) -> std::result::Result<
-            tonic::Response<Self::ListDevicesStream>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<Self::ListDevicesStream>, tonic::Status>;
         async fn get_device_status(
             &self,
             request: tonic::Request<super::DeviceId>,
@@ -793,17 +710,13 @@ pub mod wheel_service_server {
         /// Server streaming response type for the SubscribeHealth method.
         type SubscribeHealthStream: tonic::codegen::tokio_stream::Stream<
                 Item = std::result::Result<super::HealthEvent, tonic::Status>,
-            >
-            + std::marker::Send
+            > + std::marker::Send
             + 'static;
         /// Monitoring and diagnostics
         async fn subscribe_health(
             &self,
             request: tonic::Request<()>,
-        ) -> std::result::Result<
-            tonic::Response<Self::SubscribeHealthStream>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<Self::SubscribeHealthStream>, tonic::Status>;
         async fn get_diagnostics(
             &self,
             request: tonic::Request<super::DeviceId>,
@@ -840,10 +753,7 @@ pub mod wheel_service_server {
                 max_encoding_message_size: None,
             }
         }
-        pub fn with_interceptor<F>(
-            inner: T,
-            interceptor: F,
-        ) -> InterceptedService<Self, F>
+        pub fn with_interceptor<F>(inner: T, interceptor: F) -> InterceptedService<Self, F>
         where
             F: tonic::service::Interceptor,
         {
@@ -898,23 +808,19 @@ pub mod wheel_service_server {
                 "/wheel.v1.WheelService/NegotiateFeatures" => {
                     #[allow(non_camel_case_types)]
                     struct NegotiateFeaturesSvc<T: WheelService>(pub Arc<T>);
-                    impl<
-                        T: WheelService,
-                    > tonic::server::UnaryService<super::FeatureNegotiationRequest>
-                    for NegotiateFeaturesSvc<T> {
+                    impl<T: WheelService>
+                        tonic::server::UnaryService<super::FeatureNegotiationRequest>
+                        for NegotiateFeaturesSvc<T>
+                    {
                         type Response = super::FeatureNegotiationResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::FeatureNegotiationRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as WheelService>::negotiate_features(&inner, request)
-                                    .await
+                                <T as WheelService>::negotiate_features(&inner, request).await
                             };
                             Box::pin(fut)
                         }
@@ -944,14 +850,11 @@ pub mod wheel_service_server {
                 "/wheel.v1.WheelService/ListDevices" => {
                     #[allow(non_camel_case_types)]
                     struct ListDevicesSvc<T: WheelService>(pub Arc<T>);
-                    impl<T: WheelService> tonic::server::ServerStreamingService<()>
-                    for ListDevicesSvc<T> {
+                    impl<T: WheelService> tonic::server::ServerStreamingService<()> for ListDevicesSvc<T> {
                         type Response = super::DeviceInfo;
                         type ResponseStream = T::ListDevicesStream;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::ResponseStream>,
-                            tonic::Status,
-                        >;
+                        type Future =
+                            BoxFuture<tonic::Response<Self::ResponseStream>, tonic::Status>;
                         fn call(&mut self, request: tonic::Request<()>) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
@@ -985,21 +888,16 @@ pub mod wheel_service_server {
                 "/wheel.v1.WheelService/GetDeviceStatus" => {
                     #[allow(non_camel_case_types)]
                     struct GetDeviceStatusSvc<T: WheelService>(pub Arc<T>);
-                    impl<T: WheelService> tonic::server::UnaryService<super::DeviceId>
-                    for GetDeviceStatusSvc<T> {
+                    impl<T: WheelService> tonic::server::UnaryService<super::DeviceId> for GetDeviceStatusSvc<T> {
                         type Response = super::DeviceStatus;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::DeviceId>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as WheelService>::get_device_status(&inner, request)
-                                    .await
+                                <T as WheelService>::get_device_status(&inner, request).await
                             };
                             Box::pin(fut)
                         }
@@ -1029,21 +927,16 @@ pub mod wheel_service_server {
                 "/wheel.v1.WheelService/GetActiveProfile" => {
                     #[allow(non_camel_case_types)]
                     struct GetActiveProfileSvc<T: WheelService>(pub Arc<T>);
-                    impl<T: WheelService> tonic::server::UnaryService<super::DeviceId>
-                    for GetActiveProfileSvc<T> {
+                    impl<T: WheelService> tonic::server::UnaryService<super::DeviceId> for GetActiveProfileSvc<T> {
                         type Response = super::Profile;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::DeviceId>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as WheelService>::get_active_profile(&inner, request)
-                                    .await
+                                <T as WheelService>::get_active_profile(&inner, request).await
                             };
                             Box::pin(fut)
                         }
@@ -1073,15 +966,11 @@ pub mod wheel_service_server {
                 "/wheel.v1.WheelService/ApplyProfile" => {
                     #[allow(non_camel_case_types)]
                     struct ApplyProfileSvc<T: WheelService>(pub Arc<T>);
-                    impl<
-                        T: WheelService,
-                    > tonic::server::UnaryService<super::ApplyProfileRequest>
-                    for ApplyProfileSvc<T> {
+                    impl<T: WheelService> tonic::server::UnaryService<super::ApplyProfileRequest>
+                        for ApplyProfileSvc<T>
+                    {
                         type Response = super::OpResult;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::ApplyProfileRequest>,
@@ -1118,13 +1007,9 @@ pub mod wheel_service_server {
                 "/wheel.v1.WheelService/ListProfiles" => {
                     #[allow(non_camel_case_types)]
                     struct ListProfilesSvc<T: WheelService>(pub Arc<T>);
-                    impl<T: WheelService> tonic::server::UnaryService<()>
-                    for ListProfilesSvc<T> {
+                    impl<T: WheelService> tonic::server::UnaryService<()> for ListProfilesSvc<T> {
                         type Response = super::ProfileList;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(&mut self, request: tonic::Request<()>) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
@@ -1158,21 +1043,16 @@ pub mod wheel_service_server {
                 "/wheel.v1.WheelService/StartHighTorque" => {
                     #[allow(non_camel_case_types)]
                     struct StartHighTorqueSvc<T: WheelService>(pub Arc<T>);
-                    impl<T: WheelService> tonic::server::UnaryService<super::DeviceId>
-                    for StartHighTorqueSvc<T> {
+                    impl<T: WheelService> tonic::server::UnaryService<super::DeviceId> for StartHighTorqueSvc<T> {
                         type Response = super::OpResult;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::DeviceId>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as WheelService>::start_high_torque(&inner, request)
-                                    .await
+                                <T as WheelService>::start_high_torque(&inner, request).await
                             };
                             Box::pin(fut)
                         }
@@ -1202,13 +1082,9 @@ pub mod wheel_service_server {
                 "/wheel.v1.WheelService/EmergencyStop" => {
                     #[allow(non_camel_case_types)]
                     struct EmergencyStopSvc<T: WheelService>(pub Arc<T>);
-                    impl<T: WheelService> tonic::server::UnaryService<super::DeviceId>
-                    for EmergencyStopSvc<T> {
+                    impl<T: WheelService> tonic::server::UnaryService<super::DeviceId> for EmergencyStopSvc<T> {
                         type Response = super::OpResult;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::DeviceId>,
@@ -1245,14 +1121,11 @@ pub mod wheel_service_server {
                 "/wheel.v1.WheelService/SubscribeHealth" => {
                     #[allow(non_camel_case_types)]
                     struct SubscribeHealthSvc<T: WheelService>(pub Arc<T>);
-                    impl<T: WheelService> tonic::server::ServerStreamingService<()>
-                    for SubscribeHealthSvc<T> {
+                    impl<T: WheelService> tonic::server::ServerStreamingService<()> for SubscribeHealthSvc<T> {
                         type Response = super::HealthEvent;
                         type ResponseStream = T::SubscribeHealthStream;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::ResponseStream>,
-                            tonic::Status,
-                        >;
+                        type Future =
+                            BoxFuture<tonic::Response<Self::ResponseStream>, tonic::Status>;
                         fn call(&mut self, request: tonic::Request<()>) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
@@ -1286,13 +1159,9 @@ pub mod wheel_service_server {
                 "/wheel.v1.WheelService/GetDiagnostics" => {
                     #[allow(non_camel_case_types)]
                     struct GetDiagnosticsSvc<T: WheelService>(pub Arc<T>);
-                    impl<T: WheelService> tonic::server::UnaryService<super::DeviceId>
-                    for GetDiagnosticsSvc<T> {
+                    impl<T: WheelService> tonic::server::UnaryService<super::DeviceId> for GetDiagnosticsSvc<T> {
                         type Response = super::DiagnosticInfo;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::DeviceId>,
@@ -1329,23 +1198,19 @@ pub mod wheel_service_server {
                 "/wheel.v1.WheelService/ConfigureTelemetry" => {
                     #[allow(non_camel_case_types)]
                     struct ConfigureTelemetrySvc<T: WheelService>(pub Arc<T>);
-                    impl<
-                        T: WheelService,
-                    > tonic::server::UnaryService<super::ConfigureTelemetryRequest>
-                    for ConfigureTelemetrySvc<T> {
+                    impl<T: WheelService>
+                        tonic::server::UnaryService<super::ConfigureTelemetryRequest>
+                        for ConfigureTelemetrySvc<T>
+                    {
                         type Response = super::OpResult;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::ConfigureTelemetryRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as WheelService>::configure_telemetry(&inner, request)
-                                    .await
+                                <T as WheelService>::configure_telemetry(&inner, request).await
                             };
                             Box::pin(fut)
                         }
@@ -1375,13 +1240,9 @@ pub mod wheel_service_server {
                 "/wheel.v1.WheelService/GetGameStatus" => {
                     #[allow(non_camel_case_types)]
                     struct GetGameStatusSvc<T: WheelService>(pub Arc<T>);
-                    impl<T: WheelService> tonic::server::UnaryService<()>
-                    for GetGameStatusSvc<T> {
+                    impl<T: WheelService> tonic::server::UnaryService<()> for GetGameStatusSvc<T> {
                         type Response = super::GameStatus;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(&mut self, request: tonic::Request<()>) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
@@ -1412,23 +1273,19 @@ pub mod wheel_service_server {
                     };
                     Box::pin(fut)
                 }
-                _ => {
-                    Box::pin(async move {
-                        let mut response = http::Response::new(empty_body());
-                        let headers = response.headers_mut();
-                        headers
-                            .insert(
-                                tonic::Status::GRPC_STATUS,
-                                (tonic::Code::Unimplemented as i32).into(),
-                            );
-                        headers
-                            .insert(
-                                http::header::CONTENT_TYPE,
-                                tonic::metadata::GRPC_CONTENT_TYPE,
-                            );
-                        Ok(response)
-                    })
-                }
+                _ => Box::pin(async move {
+                    let mut response = http::Response::new(empty_body());
+                    let headers = response.headers_mut();
+                    headers.insert(
+                        tonic::Status::GRPC_STATUS,
+                        (tonic::Code::Unimplemented as i32).into(),
+                    );
+                    headers.insert(
+                        http::header::CONTENT_TYPE,
+                        tonic::metadata::GRPC_CONTENT_TYPE,
+                    );
+                    Ok(response)
+                }),
             }
         }
     }

@@ -1,4 +1,4 @@
-﻿//! Insta snapshot tests for the OpenFFBoard HID protocol encoding.
+//! Insta snapshot tests for the OpenFFBoard HID protocol encoding.
 //!
 //! These tests pin the exact wire-format bytes for all key protocol inputs
 //! and lock in the protocol constants to prevent accidental regressions.

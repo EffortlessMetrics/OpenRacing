@@ -1,13 +1,13 @@
 //! Standalone tests for telemetry module
-//! 
+//!
 //! These tests can run independently of the rest of the service
 
 #[cfg(test)]
 mod tests {
     use super::super::*;
     use racing_wheel_telemetry_support::matrix_game_ids;
-    use std::time::Duration;
     use std::collections::HashSet;
+    use std::time::Duration;
     use tempfile::tempdir;
     type TestResult = Result<(), Box<dyn std::error::Error>>;
 
@@ -21,7 +21,7 @@ mod tests {
             .with_gear(4)
             .with_car_id("gt3_bmw".to_string())
             .with_track_id("spa".to_string());
-        
+
         assert_eq!(telemetry.ffb_scalar, Some(0.75));
         assert_eq!(telemetry.rpm, Some(6500.0));
         assert_eq!(telemetry.speed_ms, Some(45.0));
@@ -35,7 +35,7 @@ mod tests {
     fn test_ffb_scalar_clamping() {
         let telemetry1 = NormalizedTelemetry::new().with_ffb_scalar(1.5);
         assert_eq!(telemetry1.ffb_scalar, Some(1.0));
-        
+
         let telemetry2 = NormalizedTelemetry::new().with_ffb_scalar(-1.5);
         assert_eq!(telemetry2.ffb_scalar, Some(-1.0));
     }
@@ -43,15 +43,15 @@ mod tests {
     #[test]
     fn test_rate_limiter_basic() {
         let mut limiter = RateLimiter::new(100); // 100 Hz
-        
+
         // First call should be allowed
         assert!(limiter.should_process());
         assert_eq!(limiter.processed_count(), 1);
-        
+
         // Immediate second call should be dropped
         assert!(!limiter.should_process());
         assert_eq!(limiter.dropped_count(), 1);
-        
+
         // Check statistics
         assert_eq!(limiter.drop_rate_percent(), 50.0);
     }
@@ -62,18 +62,18 @@ mod tests {
         let output_path = temp_dir.path().join("test_recording.json");
 
         let mut recorder = TelemetryRecorder::new(output_path.clone())?;
-        
+
         // Start recording
         recorder.start_recording("test_game".to_string());
         assert!(recorder.is_recording());
-        
+
         // Record some frames
         let telemetry = NormalizedTelemetry::new().with_rpm(5000.0);
         let frame = TelemetryFrame::new(telemetry, 1000000, 0, 64);
         recorder.record_frame(frame);
-        
+
         assert_eq!(recorder.frame_count(), 1);
-        
+
         // Stop recording
         let recording = recorder.stop_recording(Some("Test recording".to_string()))?;
         assert!(!recorder.is_recording());
@@ -89,14 +89,14 @@ mod tests {
     fn test_synthetic_fixture_generation() {
         let recording = TestFixtureGenerator::generate_racing_session(
             "test_game".to_string(),
-            2.0, // 2 seconds
+            2.0,  // 2 seconds
             60.0, // 60 FPS
         );
-        
+
         assert_eq!(recording.metadata.game_id, "test_game");
         assert_eq!(recording.metadata.frame_count, 120); // 2 * 60
         assert_eq!(recording.frames.len(), 120);
-        
+
         // Check that frames have reasonable data
         for frame in &recording.frames {
             assert!(frame.data.rpm.is_some());
@@ -109,20 +109,20 @@ mod tests {
     fn test_telemetry_playback() {
         let recording = TestFixtureGenerator::generate_racing_session(
             "test_game".to_string(),
-            1.0, // 1 second
+            1.0,  // 1 second
             10.0, // 10 FPS
         );
-        
+
         let mut player = TelemetryPlayer::new(recording);
-        
+
         // Start playback
         player.start_playback();
         assert_eq!(player.progress(), 0.0);
         assert!(!player.is_finished());
-        
+
         // Should have frames to play
         assert!(player.get_next_frame().is_some());
-        
+
         // Progress should increase
         assert!(player.progress() > 0.0);
     }
@@ -186,14 +186,14 @@ mod tests {
     #[test]
     fn test_adaptive_rate_limiter() {
         let mut adaptive = AdaptiveRateLimiter::new(1000, 50.0);
-        
+
         // Test CPU usage adjustment
         adaptive.update_cpu_usage(80.0); // High CPU
         let stats_high = adaptive.stats();
-        
+
         adaptive.update_cpu_usage(20.0); // Low CPU
         let stats_low = adaptive.stats();
-        
+
         // Rate should be adjusted based on CPU usage
         assert!(stats_low.max_rate_hz >= stats_high.max_rate_hz);
     }
@@ -204,9 +204,9 @@ mod tests {
         flags.yellow_flag = true;
         flags.pit_limiter = true;
         flags.drs_available = true;
-        
+
         let telemetry = NormalizedTelemetry::new().with_flags(flags);
-        
+
         assert!(telemetry.has_active_flags());
         assert!(telemetry.flags.yellow_flag);
         assert!(telemetry.flags.pit_limiter);
@@ -219,7 +219,10 @@ mod tests {
         let telemetry = NormalizedTelemetry::new()
             .with_extended("fuel_level".to_string(), TelemetryValue::Float(45.5))
             .with_extended("lap_count".to_string(), TelemetryValue::Integer(12))
-            .with_extended("session_type".to_string(), TelemetryValue::String("Race".to_string()))
+            .with_extended(
+                "session_type".to_string(),
+                TelemetryValue::String("Race".to_string()),
+            )
             .with_extended("drs_enabled".to_string(), TelemetryValue::Boolean(true));
 
         assert_eq!(telemetry.extended.len(), 4);
@@ -258,7 +261,7 @@ mod tests {
         // Create a synthetic recording
         let recording = TestFixtureGenerator::generate_racing_session(
             "test_game".to_string(),
-            1.0, // 1 second
+            1.0,  // 1 second
             60.0, // 60 FPS
         );
 
