@@ -1,18 +1,18 @@
 # Now · Next · Later
 
-One-screen execution plan for OpenRacing. Updated after PR #61.
+One-screen execution plan for OpenRacing. Updated after PR #62.
 
 ---
 
 ## NOW (actively in flight)
 
-- **PIDFF deduplication complete**: 5 device crates refactored to re-export from shared `openracing-pidff-common` library (PR #52)
-- **All vendor slot/effect encoders exposed**: Fanatec 5-slot, Logitech 4-slot, all PIDFF devices (PRs #46-51)
+- **Authoritative PID cross-validation**: 87 checks across 14 vendors against kernel hid-ids.h, hid-lg4ff.c, hid-tmff2, hid-fanatecff, simracing-hwdb, oversteer (PR #62)
+- **README VID accuracy**: corrected 5 incorrect VIDs (PXN, FlashFire, Oddor, MMOS, SHH) — all verified against actual crate constants and kernel sources (PR #62)
 - **CI green maintenance**: Continuous fix-forward on any regressions
 - **Progressive PR strategy**: Small, focused PRs (≤50 files, ≤5K LOC) landed incrementally
-- **Authoritative PID cross-validation**: 40+ checks against kernel drivers (PRs #60-61)
 
-**Merged recently (PRs #24-61):**
+**Merged recently (PRs #24-62):**
+- PR #62: README VID corrections + 66 new cross-validation checks (Logitech, Simucube, AccuForce, FFBeast, Asetek, Cammus, PXN, Moza, VRS, OpenFFBoard)
 - PR #61: Thrustmaster cross-validation expansion + CHANGELOG/docs update
 - PR #60: Authoritative PID cross-validation test (35+ kernel-sourced checks)
 - PR #59: README accuracy — games (14→50+), tests (600→25,500+), crates (8→84)
