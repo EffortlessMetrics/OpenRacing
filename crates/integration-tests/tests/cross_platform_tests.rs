@@ -491,7 +491,7 @@ fn unix_hid_device_path_format() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn hid_device_info_converts_to_device_info() -> Result<(), Box<dyn std::error::Error>> {
-    let hid = make_hid_device("/test/device")?;
+    let hid = make_hid_device("mock://hid/test-device")?;
     let device_info = hid.to_device_info();
 
     assert_eq!(device_info.vendor_id, 0x0EB7);
@@ -499,13 +499,13 @@ fn hid_device_info_converts_to_device_info() -> Result<(), Box<dyn std::error::E
     assert_eq!(device_info.serial_number, Some("SN-001".to_string()));
     assert_eq!(device_info.manufacturer, Some("TestVendor".to_string()));
     assert!(device_info.is_connected);
-    assert_eq!(device_info.path, "/test/device");
+    assert_eq!(device_info.path, "mock://hid/test-device");
     Ok(())
 }
 
 #[test]
 fn hid_device_info_fallback_name() -> Result<(), Box<dyn std::error::Error>> {
-    let mut hid = make_hid_device("/dev/hidraw0")?;
+    let mut hid = make_hid_device("mock://hid/test-device")?;
     hid.product_name = None;
     let device_info = hid.to_device_info();
 
@@ -525,7 +525,7 @@ fn hid_device_info_fallback_name() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn hid_device_info_interface_and_usage() -> Result<(), Box<dyn std::error::Error>> {
-    let hid = make_hid_device("/dev/hidraw0")?;
+    let hid = make_hid_device("mock://hid/test-device")?;
     assert_eq!(hid.interface_number, Some(0));
     assert_eq!(hid.usage_page, Some(0x01)); // Generic Desktop
     assert_eq!(hid.usage, Some(0x04)); // Joystick
