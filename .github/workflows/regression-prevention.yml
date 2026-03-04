@@ -351,8 +351,10 @@ jobs:
         key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
     
     - name: Check formatting
+      env:
+        RUSTUP_TOOLCHAIN: stable
       run: |
-        echo "Checking code formatting..."
+        echo "Checking code formatting with stable toolchain..."
         cargo fmt --all -- --check
     
     - name: Run clippy with strict lints for non-test code

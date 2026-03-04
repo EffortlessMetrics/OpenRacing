@@ -2,7 +2,7 @@
 
 use proptest::prelude::*;
 use racing_wheel_hid_openffboard_protocol::input::{
-    BUTTON_BYTES, INPUT_REPORT_ID, INPUT_REPORT_LEN, MAX_BUTTONS, OpenFFBoardInputReport,
+    OpenFFBoardInputReport, BUTTON_BYTES, INPUT_REPORT_ID, INPUT_REPORT_LEN, MAX_BUTTONS,
 };
 
 /// Strategy producing valid 25-byte input reports.

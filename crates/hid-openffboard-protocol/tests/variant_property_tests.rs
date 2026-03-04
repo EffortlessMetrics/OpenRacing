@@ -5,8 +5,8 @@
 
 use proptest::prelude::*;
 use racing_wheel_hid_openffboard_protocol::{
-    OPENFFBOARD_PRODUCT_ID, OPENFFBOARD_PRODUCT_ID_ALT, OPENFFBOARD_VENDOR_ID, OpenFFBoardVariant,
-    is_openffboard_product,
+    is_openffboard_product, OpenFFBoardVariant, OPENFFBOARD_PRODUCT_ID, OPENFFBOARD_PRODUCT_ID_ALT,
+    OPENFFBOARD_VENDOR_ID,
 };
 
 proptest! {
