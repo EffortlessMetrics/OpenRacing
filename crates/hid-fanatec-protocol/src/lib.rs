@@ -46,6 +46,7 @@
 
 #![deny(static_mut_refs)]
 
+pub mod display;
 pub mod ids;
 pub mod input;
 pub mod output;
