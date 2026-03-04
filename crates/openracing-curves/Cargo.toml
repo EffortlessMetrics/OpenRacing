@@ -15,7 +15,7 @@ categories = ["embedded", "game-development", "mathematics"]
 
 
 [package.metadata.cargo-udeps.ignore]
-normal = ["workspace-hack"]
+normal = ["workspace-hack", "thiserror"]
 
 [dependencies]
 serde = { workspace = true }

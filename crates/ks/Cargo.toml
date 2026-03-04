@@ -16,6 +16,7 @@ unwrap_used = "deny"
 
 [package.metadata.cargo-udeps.ignore]
 normal = ["workspace-hack"]
+dev = ["serde_json"]
 
 [features]
 serde = ["dep:serde"]

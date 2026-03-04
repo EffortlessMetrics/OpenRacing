@@ -15,8 +15,6 @@ normal = ["workspace-hack"]
 openracing-plugin-abi = { workspace = true }
 wasmtime = "41.0.0"
 wasmtime-wasi = "41.0.0"
-wasi-common = "41.0.0"
-cap-std = "4.0.0"
 tokio = { workspace = true, features = ["sync", "time", "fs"] }
 tracing = { workspace = true }
 thiserror = { workspace = true }
@@ -26,7 +24,6 @@ workspace-hack = { version = "0.1", path = "../../workspace-hack" }
 [dev-dependencies]
 wat = "1.230.0"
 tempfile = "3.24.0"
-tracing-test = "0.2.5"
 proptest = { workspace = true }
 criterion = { workspace = true }
 

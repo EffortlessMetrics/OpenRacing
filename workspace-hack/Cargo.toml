@@ -44,6 +44,7 @@ futures-sink = { version = "0.3" }
 futures-task = { version = "0.3", default-features = false, features = ["std"] }
 futures-util = { version = "0.3", default-features = false, features = ["async-await-macro", "channel", "io", "sink"] }
 getrandom-468e82937335b1c9 = { package = "getrandom", version = "0.3", default-features = false, features = ["std"] }
+gimli = { version = "0.32", default-features = false, features = ["read", "std", "write"] }
 hashbrown-3575ec1268b04181 = { package = "hashbrown", version = "0.15", default-features = false, features = ["default-hasher", "inline-more"] }
 hashbrown-986da7b5efc2b80e = { package = "hashbrown", version = "0.16" }
 hyper = { version = "1", features = ["full"] }
@@ -55,10 +56,12 @@ log = { version = "0.4", default-features = false, features = ["std"] }
 memchr = { version = "2" }
 miniz_oxide = { version = "0.8", features = ["simd"] }
 num-traits = { version = "0.2", features = ["i128"] }
+object = { version = "0.37", default-features = false, features = ["read_core", "unaligned", "write"] }
 once_cell = { version = "1" }
 percent-encoding = { version = "2" }
 phf_shared-93f6ce9d446188ac = { package = "phf_shared", version = "0.10", default-features = false, features = ["std"] }
 phf_shared-a6292c17cd707f01 = { package = "phf_shared", version = "0.11" }
+postcard = { version = "1", default-features = false, features = ["use-std"] }
 ppv-lite86 = { version = "0.2", default-features = false, features = ["simd", "std"] }
 predicates = { version = "3" }
 proc-macro2 = { version = "1", features = ["span-locations"] }
@@ -94,6 +97,9 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 url = { version = "2", features = ["serde"] }
 uuid = { version = "1", features = ["serde", "v4"] }
 wasmparser = { version = "0.243", default-features = false, features = ["component-model", "features", "serde", "simd", "std", "validate"] }
+wasmtime = { version = "41" }
+wasmtime-environ = { version = "41", default-features = false, features = ["compile", "component-model", "demangle", "gc-drc", "gc-null", "stack-switching", "threads"] }
+wiggle = { version = "41", default-features = false, features = ["tracing_log", "wasmtime"] }
 zerocopy = { version = "0.8", default-features = false, features = ["derive", "simd"] }
 zeroize = { version = "1", features = ["zeroize_derive"] }
 
