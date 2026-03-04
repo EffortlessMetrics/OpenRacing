@@ -35,12 +35,21 @@
 #![deny(static_mut_refs)]
 #![deny(clippy::unwrap_used)]
 
+pub mod effects;
 pub mod ids;
 pub mod input;
 pub mod output;
 pub mod quirks;
 pub mod types;
 
+pub use effects::{
+    DURATION_INFINITE, EFFECT_OPERATION_REPORT_LEN, ENVELOPE_REPORT_LEN, EffectOperation,
+    EnvelopeParams, PERIODIC_REPORT_LEN, PeriodicParams, PidEffectType, RAMP_REPORT_LEN,
+    SET_EFFECT_REPORT_LEN, SetEffectParams, create_constant_force_effect, create_periodic_effect,
+    encode_effect_operation, encode_envelope, encode_ramp, encode_sawtooth_down,
+    encode_sawtooth_up, encode_set_effect, encode_sine, encode_square, encode_triangle,
+    stop_effect,
+};
 pub use ids::{VRS_PRODUCT_ID, VRS_VENDOR_ID, product_ids};
 pub use input::{VrsInputState, parse_input_report};
 pub use output::{
