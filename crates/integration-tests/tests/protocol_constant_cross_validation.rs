@@ -866,6 +866,265 @@ fn shared_stm_vid_pids_do_not_collide() -> TestResult {
     Ok(())
 }
 
+// ═════════════════════════════════════════════════════════════════════════════
+// 6. Authoritative PID cross-validation against kernel driver sources
+// ═════════════════════════════════════════════════════════════════════════════
+
+/// Cross-validate our VID/PID constants against hardcoded values extracted from
+/// authoritative sources (Linux kernel drivers, community driver repos).
+///
+/// Each entry encodes: (crate_constant_value, expected_hex, source_description).
+/// If any crate constant drifts from the kernel-sourced value, this test fails.
+///
+/// Sources:
+/// - `gotzl/hid-fanatecff` `hid-ftec.h` (Fanatec)
+/// - `JacKeTUs/simagic-ff` `hid-simagic.h` (Simagic)
+/// - `JacKeTUs/simracing-hwdb` (Leo Bodnar, Fanatec peripherals)
+/// - Linux kernel `drivers/hid/hid-ids.h` (Logitech, Thrustmaster)
+/// - `berarma/oversteer` `wheel_ids.py` (OpenFFBoard)
+#[test]
+fn authoritative_pid_cross_validation() -> TestResult {
+    let mut failures: Vec<String> = Vec::new();
+
+    // Helper macro: checks constant == expected and records failures
+    macro_rules! check_pid {
+        ($constant:expr, $expected:expr, $label:expr, $source:expr) => {
+            if $constant != $expected {
+                failures.push(format!(
+                    "{}: got 0x{:04X}, expected 0x{:04X} (source: {})",
+                    $label, $constant, $expected, $source
+                ));
+            }
+        };
+    }
+
+    // ── Fanatec (source: gotzl/hid-fanatecff hid-ftec.h) ──────────────────
+    check_pid!(
+        racing_wheel_hid_fanatec_protocol::FANATEC_VENDOR_ID,
+        0x0EB7_u16,
+        "Fanatec VID",
+        "hid-ftec.h: FANATEC_VENDOR_ID"
+    );
+    check_pid!(
+        racing_wheel_hid_fanatec_protocol::product_ids::CLUBSPORT_V2,
+        0x0001_u16,
+        "Fanatec CS V2",
+        "hid-ftec.h: CLUBSPORT_V2_WHEELBASE_DEVICE_ID"
+    );
+    check_pid!(
+        racing_wheel_hid_fanatec_protocol::product_ids::CLUBSPORT_V2_5,
+        0x0004_u16,
+        "Fanatec CS V2.5",
+        "hid-ftec.h: CLUBSPORT_V25_WHEELBASE_DEVICE_ID"
+    );
+    check_pid!(
+        racing_wheel_hid_fanatec_protocol::product_ids::CSL_ELITE_PS4,
+        0x0005_u16,
+        "Fanatec CSL Elite PS4",
+        "hid-ftec.h: CSL_ELITE_PS4_WHEELBASE_DEVICE_ID"
+    );
+    check_pid!(
+        racing_wheel_hid_fanatec_protocol::product_ids::DD1,
+        0x0006_u16,
+        "Fanatec DD1",
+        "hid-ftec.h: PODIUM_WHEELBASE_DD1_DEVICE_ID"
+    );
+    check_pid!(
+        racing_wheel_hid_fanatec_protocol::product_ids::DD2,
+        0x0007_u16,
+        "Fanatec DD2",
+        "hid-ftec.h: PODIUM_WHEELBASE_DD2_DEVICE_ID"
+    );
+    check_pid!(
+        racing_wheel_hid_fanatec_protocol::product_ids::CSR_ELITE,
+        0x0011_u16,
+        "Fanatec CSR Elite",
+        "hid-ftec.h: CSR_ELITE_WHEELBASE_DEVICE_ID"
+    );
+    check_pid!(
+        racing_wheel_hid_fanatec_protocol::product_ids::CSL_DD,
+        0x0020_u16,
+        "Fanatec CSL DD",
+        "hid-ftec.h: CSL_DD_WHEELBASE_DEVICE_ID"
+    );
+    check_pid!(
+        racing_wheel_hid_fanatec_protocol::product_ids::CSL_ELITE,
+        0x0E03_u16,
+        "Fanatec CSL Elite",
+        "hid-ftec.h: CSL_ELITE_WHEELBASE_DEVICE_ID"
+    );
+    check_pid!(
+        racing_wheel_hid_fanatec_protocol::product_ids::CLUBSPORT_PEDALS_V3,
+        0x183B_u16,
+        "Fanatec CS Pedals V3",
+        "hid-ftec.h: CLUBSPORT_PEDALS_V3_DEVICE_ID"
+    );
+    check_pid!(
+        racing_wheel_hid_fanatec_protocol::product_ids::CSL_ELITE_PEDALS,
+        0x6204_u16,
+        "Fanatec CSL Elite Pedals",
+        "hid-ftec.h: CSL_ELITE_PEDALS_DEVICE_ID"
+    );
+    check_pid!(
+        racing_wheel_hid_fanatec_protocol::product_ids::CSL_PEDALS_LC,
+        0x6205_u16,
+        "Fanatec CSL Pedals LC",
+        "hid-ftec.h: CSL_LC_PEDALS_DEVICE_ID"
+    );
+    check_pid!(
+        racing_wheel_hid_fanatec_protocol::product_ids::CSL_PEDALS_V2,
+        0x6206_u16,
+        "Fanatec CSL Pedals V2",
+        "hid-ftec.h: CSL_LC_V2_PEDALS_DEVICE_ID"
+    );
+
+    // ── Simagic (source: JacKeTUs/simagic-ff hid-simagic.h) ───────────────
+    check_pid!(
+        racing_wheel_hid_simagic_protocol::SIMAGIC_VENDOR_ID,
+        0x3670_u16,
+        "Simagic VID",
+        "simagic-ff README: VID 0x3670"
+    );
+    check_pid!(
+        racing_wheel_hid_simagic_protocol::ids::SIMAGIC_LEGACY_PID,
+        0x0522_u16,
+        "Simagic Alpha/M10",
+        "hid-simagic.h: SIMAGIC_ALPHA 0x0522"
+    );
+    check_pid!(
+        racing_wheel_hid_simagic_protocol::product_ids::EVO_SPORT,
+        0x0500_u16,
+        "Simagic EVO Sport",
+        "hid-simagic.h: SIMAGIC_EVO 0x0500"
+    );
+    check_pid!(
+        racing_wheel_hid_simagic_protocol::product_ids::EVO,
+        0x0501_u16,
+        "Simagic EVO",
+        "hid-simagic.h: SIMAGIC_EVO_1 0x0501"
+    );
+    check_pid!(
+        racing_wheel_hid_simagic_protocol::product_ids::EVO_PRO,
+        0x0502_u16,
+        "Simagic EVO Pro",
+        "hid-simagic.h: SIMAGIC_EVO_2 0x0502"
+    );
+
+    // ── Leo Bodnar (source: JacKeTUs/simracing-hwdb 90-leo-bodnar.hwdb) ───
+    check_pid!(
+        racing_wheel_hid_leo_bodnar_protocol::VENDOR_ID,
+        0x1DD2_u16,
+        "Leo Bodnar VID",
+        "simracing-hwdb: Leo Bodnar VID"
+    );
+    check_pid!(
+        racing_wheel_hid_leo_bodnar_protocol::ids::PID_PEDALS,
+        0x100C_u16,
+        "Leo Bodnar Pedals",
+        "simracing-hwdb 90-leo-bodnar.hwdb"
+    );
+    check_pid!(
+        racing_wheel_hid_leo_bodnar_protocol::ids::PID_LC_PEDALS,
+        0x22D0_u16,
+        "Leo Bodnar LC Pedals",
+        "simracing-hwdb 90-leo-bodnar.hwdb"
+    );
+
+    // ── Moza (source: linux-steering-wheels compatibility table) ───────────
+    check_pid!(
+        racing_wheel_hid_moza_protocol::MOZA_VENDOR_ID,
+        0x346E_u16,
+        "Moza VID",
+        "linux-steering-wheels: VID 346E"
+    );
+    check_pid!(
+        racing_wheel_hid_moza_protocol::product_ids::R9_V1,
+        0x0002_u16,
+        "Moza R9",
+        "linux-steering-wheels: R9 PID 0002"
+    );
+    check_pid!(
+        racing_wheel_hid_moza_protocol::product_ids::R5_V1,
+        0x0004_u16,
+        "Moza R5",
+        "linux-steering-wheels: R5 PID 0004"
+    );
+    check_pid!(
+        racing_wheel_hid_moza_protocol::product_ids::R3_V1,
+        0x0005_u16,
+        "Moza R3",
+        "linux-steering-wheels: R3 PID 0005"
+    );
+    check_pid!(
+        racing_wheel_hid_moza_protocol::product_ids::R12_V1,
+        0x0006_u16,
+        "Moza R12",
+        "linux-steering-wheels: R12 PID 0006"
+    );
+
+    // ── OpenFFBoard (source: berarma/oversteer wheel_ids.py) ──────────────
+    check_pid!(
+        racing_wheel_hid_openffboard_protocol::OPENFFBOARD_VENDOR_ID,
+        0x1209_u16,
+        "OpenFFBoard VID",
+        "oversteer wheel_ids.py + pid.codes"
+    );
+    check_pid!(
+        racing_wheel_hid_openffboard_protocol::OPENFFBOARD_PRODUCT_ID,
+        0xFFB0_u16,
+        "OpenFFBoard PID",
+        "oversteer wheel_ids.py: 0xFFB0"
+    );
+
+    // ── Logitech (source: Linux kernel drivers/hid/hid-ids.h) ─────────────
+    check_pid!(
+        racing_wheel_hid_logitech_protocol::LOGITECH_VENDOR_ID,
+        0x046D_u16,
+        "Logitech VID",
+        "kernel hid-ids.h: USB_VENDOR_ID_LOGITECH"
+    );
+    check_pid!(
+        racing_wheel_hid_logitech_protocol::product_ids::G27,
+        0xC29B_u16,
+        "Logitech G27",
+        "kernel hid-ids.h: USB_DEVICE_ID_LOGITECH_G27_WHEEL"
+    );
+    check_pid!(
+        racing_wheel_hid_logitech_protocol::product_ids::G29_PS,
+        0xC24F_u16,
+        "Logitech G29",
+        "kernel hid-ids.h: USB_DEVICE_ID_LOGITECH_G29_WHEEL"
+    );
+    check_pid!(
+        racing_wheel_hid_logitech_protocol::product_ids::G920,
+        0xC262_u16,
+        "Logitech G920",
+        "kernel hid-ids.h: USB_DEVICE_ID_LOGITECH_G920_WHEEL"
+    );
+
+    // ── Thrustmaster (source: Linux kernel drivers/hid/hid-ids.h) ─────────
+    check_pid!(
+        racing_wheel_hid_thrustmaster_protocol::THRUSTMASTER_VENDOR_ID,
+        0x044F_u16,
+        "Thrustmaster VID",
+        "kernel hid-ids.h: USB_VENDOR_ID_THRUSTMASTER"
+    );
+    check_pid!(
+        racing_wheel_hid_thrustmaster_protocol::product_ids::T300_RS,
+        0xB66E_u16,
+        "Thrustmaster T300 RS",
+        "kernel hid-ids.h: USB_DEVICE_ID_THRUSTMASTER_T300RS"
+    );
+
+    assert!(
+        failures.is_empty(),
+        "PID cross-validation failures against authoritative sources:\n  {}",
+        failures.join("\n  ")
+    );
+
+    Ok(())
+}
+
 /// Telemetry adapter game IDs must be unique (no two adapters claim the
 /// same game ID).
 #[test]
