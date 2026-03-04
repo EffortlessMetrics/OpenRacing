@@ -1,18 +1,21 @@
 # Now · Next · Later
 
-One-screen execution plan for OpenRacing. Updated after PR #67.
+One-screen execution plan for OpenRacing. Updated after PR #70.
 
 ---
 
 ## NOW (actively in flight)
 
-- **PID quarantine PRs**: Removing fabricated/unverified PIDs from active dispatch (PRs #65, #66)
-- **Lint hardening**: Adding `#![deny(static_mut_refs)]` to 34 crates (PR #67)
-- **Toolchain pinning**: Pin nightly to 2026-03-04 for reproducibility (PR #68)
+- **CI reliability hardening**: Disk cleanup + soak test tolerance + stress test skip-list (PR #70)
 - **CI green maintenance**: Continuous fix-forward on any regressions
 - **Progressive PR strategy**: Small, focused PRs (≤50 files, ≤5K LOC) landed incrementally
 
-**Merged recently (PRs #24-64):**
+**Merged recently (PRs #24-69):**
+- PR #69: CHANGELOG + NOW_NEXT_LATER docs update
+- PR #68: Pin nightly toolchain to 2026-03-04 for reproducibility
+- PR #67: `#![deny(static_mut_refs)]` to 34 non-test crates
+- PR #66: Quarantine fabricated Simagic PIDs from active dispatch
+- PR #65: Quarantine fabricated OpenFFBoard/VRS PIDs from active dispatch
 - PR #64: CI disk space fix — exclude racing-wheel-ui, aggressive cleanup
 - PR #63: 85 authoritative PID cross-validation checks across 18 vendors + bezier LUT tolerance fix
 - PR #62: README VID corrections + 66 new cross-validation checks
@@ -64,7 +67,7 @@ One-screen execution plan for OpenRacing. Updated after PR #67.
 | Protocol crates | 17 HID vendor protocol microcrates + 1 shared PIDFF library |
 | Snapshot tests | 1,400+ snapshot files across 52+ snapshot directories |
 | Crate coverage | 80/87 crates have dedicated test files |
-| PRs merged | 64 total (PRs #1-64, plus #65-68 pending) |
+| PRs merged | 69 total (PRs #1-69, plus #70 in review) |
 
 ---
 

@@ -4,13 +4,13 @@ Running record of pain points, blockers, and technical debt encountered during d
 
 Each entry has: **date**, **severity** (Low/Medium/High), **status** (Open/Resolved/Won't Fix), and a description + proposed remedy.
 
-**Summary (68 items):** 14 Open · 49 Resolved · 1 Partially Resolved · 1 Investigating · 2 Noted · 1 Won't Fix
+**Summary (68 items):** 13 Open · 50 Resolved · 1 Partially Resolved · 1 Investigating · 2 Noted · 1 Won't Fix
 
 ---
 
 ## Active Issues
 
-### F-001 · Dual game support matrix sync (High · Open)
+### F-001 · Dual game support matrix sync (High · Partially Resolved)
 
 **Encountered:** RC sprint (multi-vendor/game push)
 

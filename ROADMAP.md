@@ -185,7 +185,7 @@ The following TODOs exist in the codebase and should be addressed before v1.0.0:
 | v0.1.0  | 2025-01-01 | ✅ Released | Core Engine & Linux Support |
 | v0.2.0  | 2026-02-01 | ✅ Released | Windows Support & Tauri UI |
 | v0.3.0  | 2026-02-01 | ✅ Released | WASM Plugins, Game Telemetry, Curve FFB |
-| v1.0 RC | 2026-Q3   | ✅ Feature complete | Multi-vendor devices, 56 telemetry adapter modules, safety hardening, 21,043+ tests |
+| v1.0 RC | 2026-Q3   | ✅ Feature complete | Multi-vendor devices, 56 telemetry adapter modules, safety hardening, 24,800+ tests |
 | v1.0.0  | 2026-10-15 | Planned | Production Release with Security Audit |
 
 ## Contributing
@@ -195,4 +195,4 @@ See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for development setup and contr
 Significant architectural changes require an ADR. See [docs/adr/README.md](docs/adr/README.md) for the process.
 
 ---
-*Last updated: 2026-Q3. This roadmap reflects the 1.0 RC feature-complete state with 21,043+ tests across waves 15-41.*
+*Last updated: 2026-Q3. This roadmap reflects the 1.0 RC feature-complete state with 24,800+ tests across PRs #23-69.*

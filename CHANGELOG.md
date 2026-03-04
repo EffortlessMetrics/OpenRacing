@@ -11,6 +11,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **85 authoritative PID cross-validation checks** across 18 vendor categories — Heusinkveld (8), Asetek (7), Cammus (5), VRS (3), Simucube (5), AccuForce (2), FFBeast (2), PXN (4), Logitech (8), Simagic Handbrake (1), Thrustmaster TMX (1), plus 30 from prior PR — all sourced from linux-steering-wheels, simracing-hwdb, and kernel drivers
 - **Bezier LUT fidelity tolerance** widened from 0.02 to 0.05 for curves with extreme control points (high-curvature regions cause expected LUT interpolation divergence)
+- **`#![deny(static_mut_refs)]`** added to 34 non-test crates — enforces safe static access patterns across the workspace (PR #67)
+- **Nightly toolchain pinned** to `nightly-2026-03-04` for reproducible builds (PR #68)
+
+### Changed
+
+- **Fabricated Simagic PIDs removed from active dispatch** — Alpha Mini alt (`0x0486`), Alpha (`0x0487`), FX Pro (`0x0488`), GT1 (`0x0489`), GT4 (`0x048A`), GT Pro (`0x048B`), GTC (`0x048C`), M10 (`0x048D`) all had zero external evidence; only Alpha (`0x0003`) and Alpha Mini (`0x0004`) are kernel-verified (PR #66)
+- **Fabricated OpenFFBoard/VRS PIDs removed from active dispatch** — OpenFFBoard alt `0xFFB1` (not registered on pid.codes), VRS DFP V2 `0xA356`, Pedals V1 `0xA357`, Pedals V2 `0xA358`, Handbrake `0xA359`, Shifter `0xA35A` (sequential guesses, zero external evidence) (PR #65)
 
 ### Fixed
 
