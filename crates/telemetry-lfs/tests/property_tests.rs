@@ -7,7 +7,7 @@
 use proptest::prelude::*;
 use racing_wheel_telemetry_lfs::{LFSAdapter, NormalizedTelemetry, TelemetryAdapter};
 
-const OUTGAUGE_PACKET_SIZE: usize = 96;
+const OUTGAUGE_PACKET_SIZE: usize = 92;
 
 // Byte offsets in OutGauge packet.
 const OFF_GEAR: usize = 10;
