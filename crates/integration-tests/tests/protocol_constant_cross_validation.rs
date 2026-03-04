@@ -1276,30 +1276,116 @@ fn authoritative_pid_cross_validation() -> TestResult {
         "simracing-hwdb: PID 1019"
     );
 
-    // ── PXN (source: linux-steering-wheels compat table) ──────────────────
+    // ── PXN (source: Linux kernel hid-ids.h) ─────────────────────────────
     check_pid!(
         racing_wheel_hid_pxn_protocol::VENDOR_ID,
         0x11FF_u16,
         "PXN VID",
-        "linux-steering-wheels: VID 11ff (Lite Star)"
+        "kernel hid-ids.h: USB_VENDOR_ID_LITE_STAR 0x11ff"
     );
     check_pid!(
         racing_wheel_hid_pxn_protocol::PRODUCT_V10,
         0x3245_u16,
         "PXN V10",
-        "linux-steering-wheels: PID 3245"
+        "kernel hid-ids.h: USB_DEVICE_ID_PXN_V10 0x3245"
     );
     check_pid!(
         racing_wheel_hid_pxn_protocol::PRODUCT_V12,
         0x1212_u16,
         "PXN V12",
-        "linux-steering-wheels: PID 1212"
+        "kernel hid-ids.h: USB_DEVICE_ID_PXN_V12 0x1212"
     );
     check_pid!(
         racing_wheel_hid_pxn_protocol::PRODUCT_V12_LITE,
         0x1112_u16,
         "PXN V12 Lite",
-        "linux-steering-wheels: PID 1112"
+        "kernel hid-ids.h: USB_DEVICE_ID_PXN_V12_LITE 0x1112"
+    );
+    check_pid!(
+        racing_wheel_hid_pxn_protocol::PRODUCT_V12_LITE_2,
+        0x1211_u16,
+        "PXN V12 Lite 2",
+        "kernel hid-ids.h: USB_DEVICE_ID_PXN_V12_LITE_2 0x1211"
+    );
+    check_pid!(
+        racing_wheel_hid_pxn_protocol::PRODUCT_GT987,
+        0x2141_u16,
+        "Lite Star GT987",
+        "kernel hid-ids.h: USB_DEVICE_ID_LITE_STAR_GT987 0x2141"
+    );
+
+    // ── Logitech (source: Linux kernel hid-ids.h + hid-lg4ff.c) ──────────
+    check_pid!(
+        racing_wheel_hid_logitech_protocol::LOGITECH_VENDOR_ID,
+        0x046D_u16,
+        "Logitech VID",
+        "kernel hid-ids.h: USB_VENDOR_ID_LOGITECH 0x046d"
+    );
+    check_pid!(
+        racing_wheel_hid_logitech_protocol::product_ids::G29_PS,
+        0xC24F_u16,
+        "Logitech G29 (PS)",
+        "kernel hid-ids.h: USB_DEVICE_ID_LOGITECH_G29_WHEEL 0xc24f"
+    );
+    check_pid!(
+        racing_wheel_hid_logitech_protocol::product_ids::G920,
+        0xC262_u16,
+        "Logitech G920",
+        "kernel hid-ids.h: USB_DEVICE_ID_LOGITECH_G920_WHEEL 0xc262"
+    );
+    check_pid!(
+        racing_wheel_hid_logitech_protocol::product_ids::G923_XBOX,
+        0xC26E_u16,
+        "Logitech G923 (Xbox)",
+        "kernel hid-ids.h: USB_DEVICE_ID_LOGITECH_G923_XBOX_WHEEL 0xc26e"
+    );
+    check_pid!(
+        racing_wheel_hid_logitech_protocol::product_ids::DRIVING_FORCE_EX,
+        0xC294_u16,
+        "Logitech Driving Force / Formula EX",
+        "kernel hid-ids.h: USB_DEVICE_ID_LOGITECH_WHEEL 0xc294"
+    );
+    check_pid!(
+        racing_wheel_hid_logitech_protocol::product_ids::MOMO,
+        0xC295_u16,
+        "Logitech MOMO",
+        "kernel hid-ids.h: USB_DEVICE_ID_LOGITECH_MOMO_WHEEL 0xc295"
+    );
+    check_pid!(
+        racing_wheel_hid_logitech_protocol::product_ids::DRIVING_FORCE_PRO,
+        0xC298_u16,
+        "Logitech Driving Force Pro",
+        "kernel hid-ids.h: USB_DEVICE_ID_LOGITECH_DFP_WHEEL 0xc298"
+    );
+    check_pid!(
+        racing_wheel_hid_logitech_protocol::product_ids::G25,
+        0xC299_u16,
+        "Logitech G25",
+        "kernel hid-ids.h: USB_DEVICE_ID_LOGITECH_G25_WHEEL 0xc299"
+    );
+    check_pid!(
+        racing_wheel_hid_logitech_protocol::product_ids::DRIVING_FORCE_GT,
+        0xC29A_u16,
+        "Logitech Driving Force GT",
+        "kernel hid-ids.h: USB_DEVICE_ID_LOGITECH_DFGT_WHEEL 0xc29a"
+    );
+    check_pid!(
+        racing_wheel_hid_logitech_protocol::product_ids::G27,
+        0xC29B_u16,
+        "Logitech G27",
+        "kernel hid-ids.h: USB_DEVICE_ID_LOGITECH_G27_WHEEL 0xc29b"
+    );
+    check_pid!(
+        racing_wheel_hid_logitech_protocol::product_ids::SPEED_FORCE_WIRELESS,
+        0xC29C_u16,
+        "Logitech Speed Force Wireless",
+        "kernel hid-ids.h: USB_DEVICE_ID_LOGITECH_WII_WHEEL 0xc29c"
+    );
+    check_pid!(
+        racing_wheel_hid_logitech_protocol::product_ids::MOMO_2,
+        0xCA03_u16,
+        "Logitech MOMO Racing",
+        "kernel hid-ids.h: USB_DEVICE_ID_LOGITECH_MOMO_WHEEL2 0xca03"
     );
 
     assert!(
