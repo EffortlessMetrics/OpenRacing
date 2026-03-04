@@ -16,7 +16,7 @@ This document outlines the development roadmap for OpenRacing. It tracks the imp
 - **Safety System**: Hardware watchdog, FMEA fault injection, fault quarantine, safe mode transitions, black box recording
 - **Multi-vendor Device Support**: 15 vendors supported — Logitech, Fanatec, Thrustmaster, Moza, Simagic, Simucube 2, VRS, Heusinkveld, Asetek, OpenFFBoard, FFBeast, Granite Devices IONI/ARGON, AccuForce, Leo Bodnar, PXN (PR #18), Cammus
 - **Protocol Documentation**: All supported devices documented in `docs/protocols/`; VID/PID constants locked to `docs/protocols/SOURCES.md` via `id_verification.rs` test suites in all 15 HID vendor crates
-- **Test Infrastructure**: 21,043+ tests, 104 fuzz targets, 1,327 snapshot files, property-based tests (proptest), E2E journey tests; all HID crates have cross-reference id_verification suites
+- **Test Infrastructure**: 24,800+ tests, 113 fuzz targets, 1,400+ snapshot files, property-based tests (proptest), E2E journey tests; all HID crates have cross-reference id_verification suites
 
 **Architecture**: Established via ADRs 0001-0008 (FFB Mode Matrix, IPC Transport, OWP-1 Protocol, RT Scheduling, Plugin Architecture, Safety Interlocks, Multi-Vendor HID Protocol Architecture, Game Auto-Configure and Telemetry Bridge)
 

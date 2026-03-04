@@ -1,29 +1,35 @@
-# Now $([char]0x00B7) Next $([char]0x00B7) Later
+# Now · Next · Later
 
-One-screen execution plan for OpenRacing. Updated post-merge of PR #23.
+One-screen execution plan for OpenRacing. Updated after PR #53.
 
 ---
 
 ## NOW (actively in flight)
 
-- **PR #24 -- CI docs & hardening**: Fix docs.yml (exclude UI crate), regression-prevention.yml (udeps soft-fail), mutation-tests.yml (system deps), remove fabricated Cube Controls PIDs from FFB dispatch, fix flaky scheduler test
-- **PR #25 -- Unused deps cleanup**: Remove 28 genuinely unused dependencies from 19 crates, add udeps ignore for false positives
-- **CI health on main**: Documentation and Regression Prevention workflows fixed in PR #24; Smoke Test flaky scheduler_under_cpu_busy_loop fixed in PR #24
-- **Progressive PR strategy**: Small, focused PRs (<=50 files, <=5K LOC) landed incrementally
+- **PIDFF deduplication complete**: 5 device crates refactored to re-export from shared `openracing-pidff-common` library (PR #52)
+- **All vendor slot/effect encoders exposed**: Fanatec 5-slot, Logitech 4-slot, all PIDFF devices (PRs #46-51)
+- **CI green maintenance**: Continuous fix-forward on any regressions
+- **Progressive PR strategy**: Small, focused PRs (≤50 files, ≤5K LOC) landed incrementally
 
-**Merged recently:**
-- PR #23: 253K LOC, 85 crates, 24,800+ tests -- complete device + game + safety + CI suite
-- Stale PRs #18 and #20 closed as SUPERSEDED (content landed in PR #23)
-- Fabricated Cube Controls PIDs removed from FFB dispatch (safety fix)
-- PID verification research: Cube Controls FABRICATED, VRS DFP V2 UNVERIFIED, OpenFFBoard 0xFFB1 SPECULATIVE
+**Merged recently (PRs #24-53):**
+- PR #52: PIDFF deduplication — 5 device crates use pidff-common, -1,717 lines
+- PR #51: `openracing-pidff-common` shared PIDFF encoder library (37 tests + 8 proptest suites)
+- PR #50: Fanatec + Logitech slot encoder public API exposure
+- PR #49: PIDFF effects for Asetek, FFBeast, Leo Bodnar, PXN
+- PR #48: PIDFF effects for AccuForce, Cammus
+- PR #47: Simucube PIDFF effects (complete effect lifecycle)
+- PR #46: VRS PIDFF effects (vendor-specific report IDs)
+- PRs #24-45: CI fixes, unused deps cleanup, telemetry enrichment, protocol improvements
+- PR #23: 253K LOC, 85 crates, 24,800+ tests — complete device + game + safety + CI suite
 
 ## NEXT (queued, ready to start)
 
-- **Docs accuracy pass**: Fix vendor count inconsistencies, verify all CLI commands work, update overclaims
+- **Simucube PIDFF refactoring**: Align `SetEffect` struct-based API with pidff-common
+- **Docs accuracy pass**: Fix vendor count inconsistencies, verify all CLI commands work
 - **macOS IOKit HID support**: Native macOS device communication (F-053)
 - **macOS CI runner**: Add macOS to GitHub Actions matrix
 - **Plugin security hardening**: Replace Ed25519 stubs with real verification
-- **Unverified PID resolution**: VRS DFP V2 `0xA356` (UNVERIFIED), OpenFFBoard `0xFFB1` (SPECULATIVE) -- need hardware captures
+- **Unverified PID resolution**: VRS DFP V2 `0xA356`, OpenFFBoard `0xFFB1` — need hardware captures
 - **Device capture tooling**: USB sniffer integration for protocol discovery
 - **Packaging hardening**: deb/rpm/flatpak improvements, macOS DMG with notarization
 - **Line-level code coverage**: Integrate llvm-cov or cargo-tarpaulin into CI
@@ -38,7 +44,6 @@ One-screen execution plan for OpenRacing. Updated post-merge of PR #23.
 - **Niche vendor support**: MMOS, Oddor, SHH, SimGrade, Turtle Beach, Simucube 3, SIMTAG, Gomez
 - **Full mutation testing coverage**: Expand beyond current safety/engine/protocol scope
 - **Performance benchmarking automation**: CI-integrated bench_results.json comparison
-- **ACC2 / AC EVO telemetry adapters**: Blocked on Kunos publishing protocol docs (F-022)
 
 ---
 
@@ -50,10 +55,11 @@ One-screen execution plan for OpenRacing. Updated post-merge of PR #23.
 | Supported games | 61 telemetry adapter modules |
 | Test count | 24,800+ (unit, integration, proptest, snapshot, E2E, compile-fail, golden-packet, doc-tests, trybuild, BDD, protocol-verification, concurrency-stress, performance-validation, soak-stress, mutation-testing) |
 | Fuzz targets | 113+ across all HID protocols, game adapters, replay, diagnostics, calibration, FFB, crypto, CLI |
-| Protocol crates | 17 HID vendor protocol microcrates |
+| Protocol crates | 17 HID vendor protocol microcrates + 1 shared PIDFF library |
 | Snapshot tests | 1,400+ snapshot files across 52+ snapshot directories |
-| Crate coverage | 79/82 crates have dedicated test files (exceptions: changelog, ui, workspace-hack) |
+| Crate coverage | 80/87 crates have dedicated test files |
+| PRs merged | 53 total (PRs #1-53) |
 
 ---
 
-*Source: [ROADMAP.md](../ROADMAP.md) -- [CHANGELOG.md](../CHANGELOG.md) -- [FRICTION_LOG.md](FRICTION_LOG.md)*
+*Source: [ROADMAP.md](../ROADMAP.md) · [CHANGELOG.md](../CHANGELOG.md) · [FRICTION_LOG.md](FRICTION_LOG.md)*
