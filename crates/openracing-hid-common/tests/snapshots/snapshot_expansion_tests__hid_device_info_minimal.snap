@@ -8,5 +8,5 @@ HidDeviceInfo {
     serial_number: None,
     manufacturer: None,
     product_name: None,
-    path: "\\\\.\\HID#VID_346E",
+    path: "/dev/hidraw0",
 }

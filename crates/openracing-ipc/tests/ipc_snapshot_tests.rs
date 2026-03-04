@@ -205,7 +205,8 @@ fn snapshot_transport_named_pipe_description() -> Result<(), BoxErr> {
 
 #[test]
 fn snapshot_transport_platform_default_description() -> Result<(), BoxErr> {
-    let transport = TransportType::platform_default();
+    // Use explicit TCP transport to keep snapshot platform-independent.
+    let transport = TransportType::tcp();
     insta::assert_snapshot!(
         "transport_platform_default_description",
         transport.description()

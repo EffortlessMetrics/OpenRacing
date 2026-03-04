@@ -2,4 +2,4 @@
 source: crates/openracing-ipc/tests/ipc_snapshot_tests.rs
 expression: transport.description()
 ---
-Named pipe \\.\pipe\openracing
+TCP 127.0.0.1:50051

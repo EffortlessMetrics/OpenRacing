@@ -14,5 +14,5 @@ HidDeviceInfo {
     product_name: Some(
         "MOZA R9 V2",
     ),
-    path: "\\\\.\\HID#VID_346E",
+    path: "/dev/hidraw0",
 }
