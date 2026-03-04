@@ -20,10 +20,16 @@
 #![deny(static_mut_refs)]
 #![deny(clippy::unwrap_used)]
 
+pub mod effects;
 pub mod ids;
 pub mod report;
 pub mod types;
 
+pub use effects::{
+    DURATION_INFINITE, EffectOp, EffectType, encode_block_free, encode_device_control,
+    encode_device_gain, encode_effect_operation, encode_set_condition, encode_set_constant_force,
+    encode_set_effect, encode_set_envelope, encode_set_periodic, encode_set_ramp_force,
+};
 pub use ids::{
     PID_BBI32, PID_BU0836_16BIT, PID_BU0836A, PID_BU0836X, PID_FFB_JOYSTICK, PID_SLI_M,
     PID_USB_JOYSTICK, PID_WHEEL_INTERFACE, VENDOR_ID, is_leo_bodnar, is_leo_bodnar_device,
