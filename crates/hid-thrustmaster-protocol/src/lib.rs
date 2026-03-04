@@ -10,6 +10,7 @@
 
 pub mod ids;
 pub mod input;
+pub mod lifecycle;
 pub mod output;
 pub mod protocol;
 pub mod t150;
