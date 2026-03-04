@@ -169,12 +169,12 @@ The following TODOs exist in the codebase and should be addressed before v1.0.0:
 
 | Location | Issue |
 |----------|-------|
-| `crates/service/src/security/signature.rs:111` | Replace stub with actual Ed25519 verification |
-| `crates/service/src/crypto/mod.rs:204-205` | Implement PE/ELF embedded signature checking |
+| ~~`crates/service/src/security/signature.rs:111`~~ | ~~Replace stub with actual Ed25519 verification~~ — **RESOLVED**: Full Ed25519 implementation with `ed25519-dalek` 2.2.0 |
+| ~~`crates/service/src/crypto/mod.rs:204-205`~~ | ~~Implement PE/ELF embedded signature checking~~ — **RESOLVED**: PE/ELF/Mach-O parsing implemented via `goblin` |
 | `crates/engine/src/diagnostic/blackbox.rs:152` | Index optimization for large recordings |
 | `crates/service/src/integration_tests.rs` | Re-enable disabled integration tests |
 | `crates/hid-pxn-protocol/src/output.rs` | PXN FFB_REPORT_ID 0x05 is estimated; verify with USB capture |
-| `docs/DEVICE_CAPABILITIES.md` | Cube Controls VID/PIDs provisional (0x0483:0x0C73–0x0C75); community capture needed |
+| ~~`docs/DEVICE_CAPABILITIES.md`~~ | ~~Cube Controls VID/PIDs provisional~~ — **RESOLVED**: Fabricated PIDs removed from FFB dispatch (PR #24) |
 | `docs/protocols/SOURCES.md` | Devices Under Investigation table (Turtle Beach, Cube Controls, Cammus C15, Simucube 3, Gomez, SIMTAG, PXN VD-series) |
 | `F-007 (FRICTION_LOG)` | Symbol rename pattern — `#[deprecated]` guidance added to DEVELOPMENT.md; no code changes yet |
 
