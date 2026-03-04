@@ -44,11 +44,11 @@ OpenRacing supports 100+ devices across 25+ vendors. VID/PIDs are sourced from k
 | **Cammus** | `0x3416` | C5, C12, CP5/LC100 pedals | ✅ HID PIDFF |
 | **Leo Bodnar** | `0x1DD2` | Wheel Interface, FFB Joystick, Pedals, LC Pedals | ⚠️ Partial FFB |
 | **Cube Controls** | `0x0483` | GT Pro, Formula CSX-3 (provisional) | Input only |
-| **MMOS** | `0x1209` | FFB Controller | ✅ HID PIDFF |
-| **SHH Shifter** | `0x1209` | SHH Newt, SHH Lite | Input only |
-| **Oddor** | `0x3853` | Wheelbases, pedals, handbrakes | ⚠️ Partial |
-| **PXN** | `0x3767` | V10, V9, V900 | ⚠️ Partial |
-| **FlashFire** | `0x0079` | 900R, ES900R | ⚠️ Partial |
+| **MMOS** | `0xF055` | FFB Controller | ✅ HID PIDFF |
+| **SHH Shifter** | `0x16C0` | SHH Newt, SHH Lite | Input only |
+| **Oddor** | `0x1021` | Wheelbases, pedals, handbrakes | ⚠️ Partial |
+| **PXN** | `0x11FF` | V10, V12, V12 Lite | ⚠️ Partial |
+| **FlashFire** | `0x2F24` | 900R, ES900R | ⚠️ Partial |
 | **Generic HID button box** | `0x1209` | Arduino DIY, BangButtons, SimRacingInputs | Input only |
 
 ## Supported Games

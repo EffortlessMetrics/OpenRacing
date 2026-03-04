@@ -1152,6 +1152,156 @@ fn authoritative_pid_cross_validation() -> TestResult {
         "hid-tmff2.h: TMTS_PC_RACER_ID"
     );
 
+    // ── Simucube (source: linux-steering-wheels compat table) ────────────
+    check_pid!(
+        hid_simucube_protocol::VENDOR_ID,
+        0x16D0_u16,
+        "Simucube VID",
+        "linux-steering-wheels: VID 16D0"
+    );
+    check_pid!(
+        hid_simucube_protocol::SIMUCUBE_1_PID,
+        0x0D5A_u16,
+        "Simucube 1",
+        "linux-steering-wheels: PID 0d5a"
+    );
+    check_pid!(
+        hid_simucube_protocol::SIMUCUBE_2_SPORT_PID,
+        0x0D61_u16,
+        "Simucube 2 Sport",
+        "linux-steering-wheels: PID 0d61"
+    );
+    check_pid!(
+        hid_simucube_protocol::SIMUCUBE_2_PRO_PID,
+        0x0D60_u16,
+        "Simucube 2 Pro",
+        "linux-steering-wheels: PID 0d60"
+    );
+    check_pid!(
+        hid_simucube_protocol::SIMUCUBE_2_ULTIMATE_PID,
+        0x0D5F_u16,
+        "Simucube 2 Ultimate",
+        "linux-steering-wheels: PID 0d5f"
+    );
+
+    // ── AccuForce (source: linux-steering-wheels compat table) ────────────
+    check_pid!(
+        racing_wheel_hid_accuforce_protocol::VENDOR_ID,
+        0x1FC9_u16,
+        "AccuForce VID",
+        "linux-steering-wheels: VID 1fc9"
+    );
+    check_pid!(
+        racing_wheel_hid_accuforce_protocol::PID_ACCUFORCE_PRO,
+        0x804C_u16,
+        "AccuForce Pro",
+        "linux-steering-wheels: PID 804c"
+    );
+
+    // ── FFBeast (source: linux-steering-wheels compat table) ──────────────
+    check_pid!(
+        racing_wheel_hid_ffbeast_protocol::FFBEAST_VENDOR_ID,
+        0x045B_u16,
+        "FFBeast VID",
+        "linux-steering-wheels: VID 045b"
+    );
+    check_pid!(
+        racing_wheel_hid_ffbeast_protocol::FFBEAST_PRODUCT_ID_WHEEL,
+        0x59D7_u16,
+        "FFBeast Wheel",
+        "linux-steering-wheels: PID 59d7"
+    );
+
+    // ── Asetek (source: linux-steering-wheels + simracing-hwdb) ───────────
+    check_pid!(
+        hid_asetek_protocol::VENDOR_ID,
+        0x2433_u16,
+        "Asetek VID",
+        "linux-steering-wheels: VID 2433"
+    );
+    check_pid!(
+        hid_asetek_protocol::ASETEK_INVICTA_PID,
+        0xF300_u16,
+        "Asetek Invicta",
+        "linux-steering-wheels: PID f300"
+    );
+    check_pid!(
+        hid_asetek_protocol::ASETEK_FORTE_PID,
+        0xF301_u16,
+        "Asetek Forte",
+        "linux-steering-wheels: PID f301"
+    );
+    check_pid!(
+        hid_asetek_protocol::ASETEK_LAPRIMA_PID,
+        0xF303_u16,
+        "Asetek La Prima",
+        "linux-steering-wheels: PID f303"
+    );
+    check_pid!(
+        hid_asetek_protocol::ASETEK_TONY_KANAAN_PID,
+        0xF306_u16,
+        "Asetek Tony Kanaan",
+        "linux-steering-wheels: PID f306"
+    );
+
+    // ── Cammus (source: simracing-hwdb 90-cammus.hwdb) ───────────────────
+    check_pid!(
+        racing_wheel_hid_cammus_protocol::VENDOR_ID,
+        0x3416_u16,
+        "Cammus VID",
+        "simracing-hwdb: VID 3416"
+    );
+    check_pid!(
+        racing_wheel_hid_cammus_protocol::PRODUCT_C5,
+        0x0301_u16,
+        "Cammus C5",
+        "simracing-hwdb + linux-steering-wheels: PID 0301"
+    );
+    check_pid!(
+        racing_wheel_hid_cammus_protocol::PRODUCT_C12,
+        0x0302_u16,
+        "Cammus C12",
+        "simracing-hwdb + linux-steering-wheels: PID 0302"
+    );
+    check_pid!(
+        racing_wheel_hid_cammus_protocol::PRODUCT_CP5_PEDALS,
+        0x1018_u16,
+        "Cammus CP5 Pedals",
+        "simracing-hwdb: PID 1018"
+    );
+    check_pid!(
+        racing_wheel_hid_cammus_protocol::PRODUCT_LC100_PEDALS,
+        0x1019_u16,
+        "Cammus LC100 Pedals",
+        "simracing-hwdb: PID 1019"
+    );
+
+    // ── PXN (source: linux-steering-wheels compat table) ──────────────────
+    check_pid!(
+        racing_wheel_hid_pxn_protocol::VENDOR_ID,
+        0x11FF_u16,
+        "PXN VID",
+        "linux-steering-wheels: VID 11ff (Lite Star)"
+    );
+    check_pid!(
+        racing_wheel_hid_pxn_protocol::PRODUCT_V10,
+        0x3245_u16,
+        "PXN V10",
+        "linux-steering-wheels: PID 3245"
+    );
+    check_pid!(
+        racing_wheel_hid_pxn_protocol::PRODUCT_V12,
+        0x1212_u16,
+        "PXN V12",
+        "linux-steering-wheels: PID 1212"
+    );
+    check_pid!(
+        racing_wheel_hid_pxn_protocol::PRODUCT_V12_LITE,
+        0x1112_u16,
+        "PXN V12 Lite",
+        "linux-steering-wheels: PID 1112"
+    );
+
     assert!(
         failures.is_empty(),
         "PID cross-validation failures against authoritative sources:\n  {}",
