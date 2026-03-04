@@ -2575,6 +2575,7 @@ version = "0.1.0"
 dependencies = [
  "insta",
  "openracing-hid-common",
+ "openracing-pidff-common",
  "proptest",
  "serde",
  "thiserror 2.0.18",
@@ -4485,6 +4486,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "openracing-pidff-common"
+version = "0.1.0"
+dependencies = [
+ "proptest",
+]
+
+[[package]]
 name = "openracing-pipeline"
 version = "0.1.0"
 dependencies = [
@@ -5664,6 +5672,7 @@ name = "racing-wheel-hid-accuforce-protocol"
 version = "0.1.0"
 dependencies = [
  "insta",
+ "openracing-pidff-common",
  "proptest",
  "workspace-hack",
 ]
@@ -5704,6 +5713,7 @@ name = "racing-wheel-hid-ffbeast-protocol"
 version = "0.1.0"
 dependencies = [
  "insta",
+ "openracing-pidff-common",
  "proptest",
  "workspace-hack",
 ]
@@ -5713,6 +5723,7 @@ name = "racing-wheel-hid-leo-bodnar-protocol"
 version = "0.1.0"
 dependencies = [
  "insta",
+ "openracing-pidff-common",
  "proptest",
  "workspace-hack",
 ]
@@ -5755,6 +5766,7 @@ name = "racing-wheel-hid-pxn-protocol"
 version = "0.1.0"
 dependencies = [
  "insta",
+ "openracing-pidff-common",
  "proptest",
  "workspace-hack",
 ]
