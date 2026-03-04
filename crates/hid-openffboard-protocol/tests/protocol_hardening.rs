@@ -11,9 +11,9 @@
 use proptest::prelude::*;
 use racing_wheel_hid_openffboard_protocol::output::{ENABLE_FFB_REPORT_ID, MAX_TORQUE_SCALE};
 use racing_wheel_hid_openffboard_protocol::{
-    build_enable_ffb, build_set_gain, is_openffboard_product, OpenFFBoardTorqueEncoder,
-    OpenFFBoardVariant, CONSTANT_FORCE_REPORT_ID, CONSTANT_FORCE_REPORT_LEN, GAIN_REPORT_ID,
-    OPENFFBOARD_PRODUCT_ID, OPENFFBOARD_PRODUCT_ID_ALT, OPENFFBOARD_VENDOR_ID,
+    CONSTANT_FORCE_REPORT_ID, CONSTANT_FORCE_REPORT_LEN, GAIN_REPORT_ID, OPENFFBOARD_PRODUCT_ID,
+    OPENFFBOARD_PRODUCT_ID_ALT, OPENFFBOARD_VENDOR_ID, OpenFFBoardTorqueEncoder,
+    OpenFFBoardVariant, build_enable_ffb, build_set_gain, is_openffboard_product,
 };
 
 // ---------------------------------------------------------------------------

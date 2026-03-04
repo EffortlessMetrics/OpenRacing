@@ -12,10 +12,10 @@ fn main() {
         hands_on: true,
         timestamp: 1234567890,
     };
-    
+
     // Correct FilterConfig usage with all required fields
     let config = FilterConfig::default();
-    
+
     // Correct DeviceId usage - must use fallible construction
     let device_id: DeviceId = match "test-device".parse() {
         Ok(id) => id,
@@ -25,7 +25,7 @@ fn main() {
         Ok(id) => id,
         Err(e) => panic!("Failed to create device_id2: {}", e),
     };
-    
+
     println!("All schema usage is correct!");
     println!("Telemetry angle: {}", telemetry.wheel_angle_deg);
     println!("Config reconstruction: {}", config.reconstruction);

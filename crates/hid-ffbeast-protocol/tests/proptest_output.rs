@@ -6,7 +6,7 @@
 use proptest::prelude::*;
 use racing_wheel_hid_ffbeast_protocol::output::MAX_TORQUE_SCALE;
 use racing_wheel_hid_ffbeast_protocol::{
-    FFBeastTorqueEncoder, CONSTANT_FORCE_REPORT_ID, CONSTANT_FORCE_REPORT_LEN,
+    CONSTANT_FORCE_REPORT_ID, CONSTANT_FORCE_REPORT_LEN, FFBeastTorqueEncoder,
 };
 
 proptest! {

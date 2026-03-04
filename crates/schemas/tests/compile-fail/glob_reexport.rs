@@ -11,6 +11,6 @@ fn main() {
         fault_flags: 0,
         hands_on: true,
         timestamp: 0,
-        sequence: 123,  // This field was removed
+        sequence: 123, // This field was removed
     };
 }

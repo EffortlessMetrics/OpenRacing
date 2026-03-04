@@ -5,8 +5,8 @@
 #![no_main]
 use libfuzzer_sys::fuzz_target;
 use racing_wheel_hid_thrustmaster_protocol::{
-    EFFECT_REPORT_LEN, Model, ThrustmasterConstantForceEncoder, identify_device, input::parse_pedal_report,
-    is_pedal_product, is_wheel_product, parse_input_report,
+    EFFECT_REPORT_LEN, Model, ThrustmasterConstantForceEncoder, identify_device,
+    input::parse_pedal_report, is_pedal_product, is_wheel_product, parse_input_report,
 };
 
 fuzz_target!(|data: &[u8]| {

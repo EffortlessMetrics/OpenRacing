@@ -5,8 +5,8 @@
 #![no_main]
 use libfuzzer_sys::fuzz_target;
 use racing_wheel_hid_simagic_protocol::{
-    SimagicConstantForceEncoder, CONSTANT_FORCE_REPORT_LEN, identify_device,
-    is_wheelbase_product, parse_input_report,
+    CONSTANT_FORCE_REPORT_LEN, SimagicConstantForceEncoder, identify_device, is_wheelbase_product,
+    parse_input_report,
 };
 
 fuzz_target!(|data: &[u8]| {

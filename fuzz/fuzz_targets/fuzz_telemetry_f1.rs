@@ -10,7 +10,7 @@
 
 use libfuzzer_sys::fuzz_target;
 use racing_wheel_telemetry_adapters::{
-    F1Adapter, F1ManagerAdapter, F1NativeAdapter, F1_25Adapter, TelemetryAdapter,
+    F1_25Adapter, F1Adapter, F1ManagerAdapter, F1NativeAdapter, TelemetryAdapter,
 };
 
 fuzz_target!(|data: &[u8]| {

@@ -10,9 +10,9 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use async_trait::async_trait;
-use tokio::sync::{broadcast, RwLock};
-use tokio_stream::{wrappers::BroadcastStream, Stream, StreamExt};
-use tonic::{transport::Server, Request, Response, Status, Streaming};
+use tokio::sync::{RwLock, broadcast};
+use tokio_stream::{Stream, StreamExt, wrappers::BroadcastStream};
+use tonic::{Request, Response, Status, Streaming, transport::Server};
 use tracing::{debug, error, info, warn};
 
 use racing_wheel_schemas::generated::wheel::v1::{
@@ -31,29 +31,29 @@ fn is_version_compatible(client_version: &str, min_version: &str) -> bool {
             .map(|s| s.parse().unwrap_or(0))
             .collect()
     };
-    
+
     let client_parts = parse_version(client_version);
     let min_parts = parse_version(min_version);
-    
+
     if client_parts.len() < 3 || min_parts.len() < 3 {
         return false;
     }
-    
+
     // Major version must match
     if client_parts[0] != min_parts[0] {
         return false;
     }
-    
+
     // Minor version must be >= minimum
     if client_parts[1] < min_parts[1] {
         return false;
     }
-    
+
     // If minor versions match, patch must be >= minimum
     if client_parts[1] == min_parts[1] && client_parts[2] < min_parts[2] {
         return false;
     }
-    
+
     true
 }
 
@@ -64,7 +64,9 @@ fn is_version_compatible(client_version: &str, min_version: &str) -> bool {
 pub struct DeviceService;
 
 impl DeviceService {
-    pub async fn list_devices(&self) -> Result<Vec<TestDevice>, Box<dyn std::error::Error + Send + Sync>> {
+    pub async fn list_devices(
+        &self,
+    ) -> Result<Vec<TestDevice>, Box<dyn std::error::Error + Send + Sync>> {
         Ok(vec![TestDevice {
             id: "test-device-1".to_string(),
             name: "Test Wheel Base".to_string(),
@@ -82,7 +84,10 @@ impl DeviceService {
         }])
     }
 
-    pub async fn get_device_status(&self, _device_id: &str) -> Result<TestDeviceStatus, Box<dyn std::error::Error + Send + Sync>> {
+    pub async fn get_device_status(
+        &self,
+        _device_id: &str,
+    ) -> Result<TestDeviceStatus, Box<dyn std::error::Error + Send + Sync>> {
         Ok(TestDeviceStatus {
             device: TestDevice {
                 id: "test-device-1".to_string(),
@@ -116,7 +121,9 @@ impl DeviceService {
 pub struct ProfileService;
 
 impl ProfileService {
-    pub async fn list_profiles(&self) -> Result<Vec<TestProfile>, Box<dyn std::error::Error + Send + Sync>> {
+    pub async fn list_profiles(
+        &self,
+    ) -> Result<Vec<TestProfile>, Box<dyn std::error::Error + Send + Sync>> {
         Ok(vec![TestProfile {
             schema_version: "wheel.profile/1".to_string(),
             scope: TestProfileScope {
@@ -136,8 +143,14 @@ impl ProfileService {
                     notch_filters: vec![],
                     slew_rate: 0.8,
                     curve_points: vec![
-                        TestCurvePoint { input: 0.0, output: 0.0 },
-                        TestCurvePoint { input: 1.0, output: 1.0 },
+                        TestCurvePoint {
+                            input: 0.0,
+                            output: 0.0,
+                        },
+                        TestCurvePoint {
+                            input: 1.0,
+                            output: 1.0,
+                        },
                     ],
                 },
             },
@@ -155,7 +168,10 @@ impl ProfileService {
         }])
     }
 
-    pub async fn get_active_profile(&self, _device_id: &str) -> Result<TestProfile, Box<dyn std::error::Error + Send + Sync>> {
+    pub async fn get_active_profile(
+        &self,
+        _device_id: &str,
+    ) -> Result<TestProfile, Box<dyn std::error::Error + Send + Sync>> {
         Ok(TestProfile {
             schema_version: "wheel.profile/1".to_string(),
             scope: TestProfileScope {
@@ -175,8 +191,14 @@ impl ProfileService {
                     notch_filters: vec![],
                     slew_rate: 0.8,
                     curve_points: vec![
-                        TestCurvePoint { input: 0.0, output: 0.0 },
-                        TestCurvePoint { input: 1.0, output: 1.0 },
+                        TestCurvePoint {
+                            input: 0.0,
+                            output: 0.0,
+                        },
+                        TestCurvePoint {
+                            input: 1.0,
+                            output: 1.0,
+                        },
                     ],
                 },
             },
@@ -194,7 +216,11 @@ impl ProfileService {
         })
     }
 
-    pub async fn apply_profile(&self, _device_id: &str, _profile: TestProfile) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    pub async fn apply_profile(
+        &self,
+        _device_id: &str,
+        _profile: TestProfile,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         Ok(())
     }
 }
@@ -203,11 +229,18 @@ impl ProfileService {
 pub struct GameService;
 
 impl GameService {
-    pub async fn configure_telemetry(&self, _game_id: &str, _install_path: &str, _enable_auto_config: bool) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    pub async fn configure_telemetry(
+        &self,
+        _game_id: &str,
+        _install_path: &str,
+        _enable_auto_config: bool,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         Ok(())
     }
 
-    pub async fn get_game_status(&self) -> Result<TestGameStatus, Box<dyn std::error::Error + Send + Sync>> {
+    pub async fn get_game_status(
+        &self,
+    ) -> Result<TestGameStatus, Box<dyn std::error::Error + Send + Sync>> {
         Ok(TestGameStatus {
             active_game: Some("iRacing".to_string()),
             telemetry_active: true,
@@ -221,11 +254,17 @@ impl GameService {
 pub struct SafetyService;
 
 impl SafetyService {
-    pub async fn start_high_torque(&self, _device_id: &str) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    pub async fn start_high_torque(
+        &self,
+        _device_id: &str,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         Ok(())
     }
 
-    pub async fn emergency_stop(&self, _device_id: &str) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    pub async fn emergency_stop(
+        &self,
+        _device_id: &str,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         Ok(())
     }
 }
@@ -449,7 +488,10 @@ impl IpcServer {
 
     /// Start the IPC server
     pub async fn start(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        info!("Starting IPC server with transport: {:?}", self.config.transport);
+        info!(
+            "Starting IPC server with transport: {:?}",
+            self.config.transport
+        );
 
         let service = WheelServiceImpl {
             device_service: self.device_service.clone(),
@@ -484,19 +526,19 @@ impl IpcServer {
         pipe_name: &str,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         use tonic::transport::server::TcpIncoming;
-        use winapi::um::winnt::{GENERIC_READ, GENERIC_WRITE, FILE_SHARE_READ, FILE_SHARE_WRITE};
-        
+        use winapi::um::winnt::{FILE_SHARE_READ, FILE_SHARE_WRITE, GENERIC_READ, GENERIC_WRITE};
+
         info!("Starting Named Pipe server on: {}", pipe_name);
-        
+
         // For now, use TCP as a fallback until we implement proper Named Pipe support
         // This is a simplified implementation that will be enhanced with proper Named Pipe transport
         let addr = "127.0.0.1:50051".parse()?;
-        
+
         Server::builder()
             .add_service(WheelServiceServer::new(service))
             .serve(addr)
             .await?;
-            
+
         Ok(())
     }
 
@@ -508,22 +550,22 @@ impl IpcServer {
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         use tokio::net::UnixListener;
         use tonic::transport::server::UdsConnectInfo;
-        
+
         info!("Starting Unix Domain Socket server on: {:?}", socket_path);
-        
+
         // Remove existing socket file if it exists
         if socket_path.exists() {
             std::fs::remove_file(socket_path)?;
         }
-        
+
         // Create parent directory if it doesn't exist
         if let Some(parent) = socket_path.parent() {
             std::fs::create_dir_all(parent)?;
         }
-        
+
         let uds = UnixListener::bind(socket_path)?;
         let uds_stream = tokio_stream::wrappers::UnixListenerStream::new(uds);
-        
+
         // Set socket permissions (readable/writable by owner only)
         #[cfg(unix)]
         {
@@ -532,12 +574,12 @@ impl IpcServer {
             perms.set_mode(0o600); // rw-------
             std::fs::set_permissions(socket_path, perms)?;
         }
-        
+
         Server::builder()
             .add_service(WheelServiceServer::new(service))
             .serve_with_incoming(uds_stream)
             .await?;
-            
+
         Ok(())
     }
 
@@ -584,7 +626,7 @@ impl WheelService for WheelServiceImpl {
         debug!("ListDevices called");
 
         let device_service = self.device_service.clone();
-        
+
         let stream = async_stream::stream! {
             // Get initial device list
             match device_service.list_devices().await {
@@ -634,8 +676,14 @@ impl WheelService for WheelServiceImpl {
                         r#type: status.device.device_type as i32,
                         capabilities: Some(DeviceCapabilities {
                             supports_pid: status.device.capabilities.supports_pid,
-                            supports_raw_torque_1khz: status.device.capabilities.supports_raw_torque_1khz,
-                            supports_health_stream: status.device.capabilities.supports_health_stream,
+                            supports_raw_torque_1khz: status
+                                .device
+                                .capabilities
+                                .supports_raw_torque_1khz,
+                            supports_health_stream: status
+                                .device
+                                .capabilities
+                                .supports_health_stream,
                             supports_led_bus: status.device.capabilities.supports_led_bus,
                             max_torque_cnm: status.device.capabilities.max_torque_cnm,
                             encoder_cpr: status.device.capabilities.encoder_cpr,
@@ -689,16 +737,28 @@ impl WheelService for WheelServiceImpl {
                             friction: profile.base.filters.friction,
                             damper: profile.base.filters.damper,
                             inertia: profile.base.filters.inertia,
-                            notch_filters: profile.base.filters.notch_filters.into_iter().map(|nf| NotchFilter {
-                                hz: nf.hz,
-                                q: nf.q,
-                                gain_db: nf.gain_db,
-                            }).collect(),
+                            notch_filters: profile
+                                .base
+                                .filters
+                                .notch_filters
+                                .into_iter()
+                                .map(|nf| NotchFilter {
+                                    hz: nf.hz,
+                                    q: nf.q,
+                                    gain_db: nf.gain_db,
+                                })
+                                .collect(),
                             slew_rate: profile.base.filters.slew_rate,
-                            curve_points: profile.base.filters.curve_points.into_iter().map(|cp| CurvePoint {
-                                input: cp.input,
-                                output: cp.output,
-                            }).collect(),
+                            curve_points: profile
+                                .base
+                                .filters
+                                .curve_points
+                                .into_iter()
+                                .map(|cp| CurvePoint {
+                                    input: cp.input,
+                                    output: cp.output,
+                                })
+                                .collect(),
                         }),
                     }),
                     leds: profile.leds.map(|led| LedConfig {
@@ -739,43 +799,75 @@ impl WheelService for WheelServiceImpl {
                 },
                 base: TestBaseSettings {
                     ffb_gain: profile.base.as_ref().map(|b| b.ffb_gain).unwrap_or(0.5),
-                    dor_deg: profile.base.as_ref().map(|b| b.dor_deg as u16).unwrap_or(900),
-                    torque_cap_nm: profile.base.as_ref().map(|b| b.torque_cap_nm).unwrap_or(10.0),
+                    dor_deg: profile
+                        .base
+                        .as_ref()
+                        .map(|b| b.dor_deg as u16)
+                        .unwrap_or(900),
+                    torque_cap_nm: profile
+                        .base
+                        .as_ref()
+                        .map(|b| b.torque_cap_nm)
+                        .unwrap_or(10.0),
                     filters: TestFilterConfig {
-                        reconstruction: profile.base.as_ref()
+                        reconstruction: profile
+                            .base
+                            .as_ref()
                             .and_then(|b| b.filters.as_ref())
                             .map(|f| f.reconstruction as u8)
                             .unwrap_or(4),
-                        friction: profile.base.as_ref()
+                        friction: profile
+                            .base
+                            .as_ref()
                             .and_then(|b| b.filters.as_ref())
                             .map(|f| f.friction)
                             .unwrap_or(0.1),
-                        damper: profile.base.as_ref()
+                        damper: profile
+                            .base
+                            .as_ref()
                             .and_then(|b| b.filters.as_ref())
                             .map(|f| f.damper)
                             .unwrap_or(0.1),
-                        inertia: profile.base.as_ref()
+                        inertia: profile
+                            .base
+                            .as_ref()
                             .and_then(|b| b.filters.as_ref())
                             .map(|f| f.inertia)
                             .unwrap_or(0.1),
-                        notch_filters: profile.base.as_ref()
+                        notch_filters: profile
+                            .base
+                            .as_ref()
                             .and_then(|b| b.filters.as_ref())
-                            .map(|f| f.notch_filters.iter().map(|nf| TestNotchFilter {
-                                hz: nf.hz,
-                                q: nf.q,
-                                gain_db: nf.gain_db,
-                            }).collect())
+                            .map(|f| {
+                                f.notch_filters
+                                    .iter()
+                                    .map(|nf| TestNotchFilter {
+                                        hz: nf.hz,
+                                        q: nf.q,
+                                        gain_db: nf.gain_db,
+                                    })
+                                    .collect()
+                            })
                             .unwrap_or_default(),
-                        slew_rate: profile.base.as_ref()
+                        slew_rate: profile
+                            .base
+                            .as_ref()
                             .and_then(|b| b.filters.as_ref())
                             .map(|f| f.slew_rate)
                             .unwrap_or(0.8),
-                        curve_points: profile.base.as_ref()
+                        curve_points: profile
+                            .base
+                            .as_ref()
                             .and_then(|b| b.filters.as_ref())
-                            .map(|f| f.curve_points.iter().map(|cp| TestCurvePoint {
-                                input: cp.input,
-                                output: cp.output,
-                            }).collect())
+                            .map(|f| {
+                                f.curve_points
+                                    .iter()
+                                    .map(|cp| TestCurvePoint {
+                                        input: cp.input,
+                                        output: cp.output,
+                                    })
+                                    .collect()
+                            })
                             .unwrap_or_default(),
                     },
                 },
@@ -789,10 +881,18 @@ impl WheelService for WheelServiceImpl {
                     intensity: haptics.intensity,
                     frequency_hz: haptics.frequency_hz,
                 }),
-                signature: if profile.signature.is_empty() { None } else { Some(profile.signature) },
+                signature: if profile.signature.is_empty() {
+                    None
+                } else {
+                    Some(profile.signature)
+                },
             };
 
-            match self.profile_service.apply_profile(&device_id, test_profile).await {
+            match self
+                .profile_service
+                .apply_profile(&device_id, test_profile)
+                .await
+            {
                 Ok(()) => Ok(Response::new(OpResult {
                     success: true,
                     error_message: String::new(),
@@ -810,54 +910,66 @@ impl WheelService for WheelServiceImpl {
     }
 
     /// List all available profiles
-    async fn list_profiles(
-        &self,
-        _request: Request<()>,
-    ) -> Result<Response<ProfileList>, Status> {
+    async fn list_profiles(&self, _request: Request<()>) -> Result<Response<ProfileList>, Status> {
         debug!("ListProfiles called");
 
         match self.profile_service.list_profiles().await {
             Ok(profiles) => {
-                let proto_profiles = profiles.into_iter().map(|profile| Profile {
-                    schema_version: profile.schema_version,
-                    scope: Some(ProfileScope {
-                        game: profile.scope.game.unwrap_or_default(),
-                        car: profile.scope.car.unwrap_or_default(),
-                        track: profile.scope.track.unwrap_or_default(),
-                    }),
-                    base: Some(BaseSettings {
-                        ffb_gain: profile.base.ffb_gain,
-                        dor_deg: profile.base.dor_deg as u32,
-                        torque_cap_nm: profile.base.torque_cap_nm,
-                        filters: Some(FilterConfig {
-                            reconstruction: profile.base.filters.reconstruction as u32,
-                            friction: profile.base.filters.friction,
-                            damper: profile.base.filters.damper,
-                            inertia: profile.base.filters.inertia,
-                            notch_filters: profile.base.filters.notch_filters.into_iter().map(|nf| NotchFilter {
-                                hz: nf.hz,
-                                q: nf.q,
-                                gain_db: nf.gain_db,
-                            }).collect(),
-                            slew_rate: profile.base.filters.slew_rate,
-                            curve_points: profile.base.filters.curve_points.into_iter().map(|cp| CurvePoint {
-                                input: cp.input,
-                                output: cp.output,
-                            }).collect(),
+                let proto_profiles = profiles
+                    .into_iter()
+                    .map(|profile| Profile {
+                        schema_version: profile.schema_version,
+                        scope: Some(ProfileScope {
+                            game: profile.scope.game.unwrap_or_default(),
+                            car: profile.scope.car.unwrap_or_default(),
+                            track: profile.scope.track.unwrap_or_default(),
                         }),
-                    }),
-                    leds: profile.leds.map(|led| LedConfig {
-                        rpm_bands: led.rpm_bands,
-                        pattern: led.pattern,
-                        brightness: led.brightness,
-                    }),
-                    haptics: profile.haptics.map(|haptics| HapticsConfig {
-                        enabled: haptics.enabled,
-                        intensity: haptics.intensity,
-                        frequency_hz: haptics.frequency_hz,
-                    }),
-                    signature: profile.signature.unwrap_or_default(),
-                }).collect();
+                        base: Some(BaseSettings {
+                            ffb_gain: profile.base.ffb_gain,
+                            dor_deg: profile.base.dor_deg as u32,
+                            torque_cap_nm: profile.base.torque_cap_nm,
+                            filters: Some(FilterConfig {
+                                reconstruction: profile.base.filters.reconstruction as u32,
+                                friction: profile.base.filters.friction,
+                                damper: profile.base.filters.damper,
+                                inertia: profile.base.filters.inertia,
+                                notch_filters: profile
+                                    .base
+                                    .filters
+                                    .notch_filters
+                                    .into_iter()
+                                    .map(|nf| NotchFilter {
+                                        hz: nf.hz,
+                                        q: nf.q,
+                                        gain_db: nf.gain_db,
+                                    })
+                                    .collect(),
+                                slew_rate: profile.base.filters.slew_rate,
+                                curve_points: profile
+                                    .base
+                                    .filters
+                                    .curve_points
+                                    .into_iter()
+                                    .map(|cp| CurvePoint {
+                                        input: cp.input,
+                                        output: cp.output,
+                                    })
+                                    .collect(),
+                            }),
+                        }),
+                        leds: profile.leds.map(|led| LedConfig {
+                            rpm_bands: led.rpm_bands,
+                            pattern: led.pattern,
+                            brightness: led.brightness,
+                        }),
+                        haptics: profile.haptics.map(|haptics| HapticsConfig {
+                            enabled: haptics.enabled,
+                            intensity: haptics.intensity,
+                            frequency_hz: haptics.frequency_hz,
+                        }),
+                        signature: profile.signature.unwrap_or_default(),
+                    })
+                    .collect();
 
                 Ok(Response::new(ProfileList {
                     profiles: proto_profiles,
@@ -919,7 +1031,7 @@ impl WheelService for WheelServiceImpl {
         debug!("SubscribeHealth called");
 
         let mut health_receiver = self.health_broadcaster.subscribe();
-        
+
         let stream = async_stream::stream! {
             while let Ok(event) = health_receiver.recv().await {
                 let health_event = HealthEvent {
@@ -972,7 +1084,11 @@ impl WheelService for WheelServiceImpl {
         let req = request.into_inner();
         debug!("ConfigureTelemetry called for game: {}", req.game_id);
 
-        match self.game_service.configure_telemetry(&req.game_id, &req.install_path, req.enable_auto_config).await {
+        match self
+            .game_service
+            .configure_telemetry(&req.game_id, &req.install_path, req.enable_auto_config)
+            .await
+        {
             Ok(()) => Ok(Response::new(OpResult {
                 success: true,
                 error_message: String::new(),
@@ -987,10 +1103,7 @@ impl WheelService for WheelServiceImpl {
     }
 
     /// Get current game status
-    async fn get_game_status(
-        &self,
-        _request: Request<()>,
-    ) -> Result<Response<GameStatus>, Status> {
+    async fn get_game_status(&self, _request: Request<()>) -> Result<Response<GameStatus>, Status> {
         debug!("GetGameStatus called");
 
         match self.game_service.get_game_status().await {
@@ -1000,7 +1113,10 @@ impl WheelService for WheelServiceImpl {
                 car_id: status.car_id.unwrap_or_default(),
                 track_id: status.track_id.unwrap_or_default(),
             })),
-            Err(e) => Err(Status::internal(format!("Failed to get game status: {}", e))),
+            Err(e) => Err(Status::internal(format!(
+                "Failed to get game status: {}",
+                e
+            ))),
         }
     }
 
@@ -1010,12 +1126,15 @@ impl WheelService for WheelServiceImpl {
         request: Request<FeatureNegotiationRequest>,
     ) -> Result<Response<FeatureNegotiationResponse>, Status> {
         let req = request.into_inner();
-        debug!("NegotiateFeatures called - client version: {}, namespace: {}", req.client_version, req.namespace);
+        debug!(
+            "NegotiateFeatures called - client version: {}, namespace: {}",
+            req.client_version, req.namespace
+        );
 
         // Current server version and supported features
         const SERVER_VERSION: &str = "0.1.0";
         const MIN_CLIENT_VERSION: &str = "0.1.0";
-        
+
         let server_features = vec![
             "device_management".to_string(),
             "profile_management".to_string(),
@@ -1028,7 +1147,7 @@ impl WheelService for WheelServiceImpl {
 
         // Check namespace compatibility
         let compatible = req.namespace == "wheel.v1" || req.namespace.is_empty();
-        
+
         if !compatible {
             return Ok(Response::new(FeatureNegotiationResponse {
                 server_version: SERVER_VERSION.to_string(),
@@ -1041,9 +1160,10 @@ impl WheelService for WheelServiceImpl {
 
         // Check version compatibility (simplified semantic versioning)
         let client_compatible = is_version_compatible(&req.client_version, MIN_CLIENT_VERSION);
-        
+
         // Determine enabled features (intersection of client and server features)
-        let enabled_features: Vec<String> = req.supported_features
+        let enabled_features: Vec<String> = req
+            .supported_features
             .iter()
             .filter(|feature| server_features.contains(feature))
             .cloned()
@@ -1057,8 +1177,11 @@ impl WheelService for WheelServiceImpl {
             features: enabled_features.clone(),
             version: req.client_version.clone(),
         };
-        
-        self.connected_clients.write().await.insert(client_id, client_info);
+
+        self.connected_clients
+            .write()
+            .await
+            .insert(client_id, client_info);
 
         Ok(Response::new(FeatureNegotiationResponse {
             server_version: SERVER_VERSION.to_string(),

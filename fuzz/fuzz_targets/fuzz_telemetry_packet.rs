@@ -11,21 +11,17 @@
 
 use libfuzzer_sys::fuzz_target;
 use racing_wheel_telemetry_adapters::{
-    ACCAdapter, ACC2Adapter, ACEvoAdapter, ACRallyAdapter, AMS2Adapter,
-    AssettoCorsaAdapter, Automobilista1Adapter, BeamNGAdapter,
-    DakarDesertRallyAdapter, Dirt3Adapter, Dirt4Adapter, Dirt5Adapter,
-    DirtRally2Adapter, DirtShowdownAdapter, EAWRCAdapter, Ets2Adapter,
-    F1Adapter, F1ManagerAdapter, F1NativeAdapter, F1_25Adapter, FlatOutAdapter,
-    ForzaAdapter, ForzaHorizon4Adapter, ForzaHorizon5Adapter,
-    GranTurismo7Adapter, GranTurismo7SportsAdapter, GravelAdapter,
-    Grid2019Adapter, GridAutosportAdapter, GridLegendsAdapter, IRacingAdapter,
-    KartKraftAdapter, LFSAdapter, LeMansUltimateAdapter, MotoGPAdapter,
-    MudRunnerAdapter, Nascar21Adapter, NascarAdapter, PCars2Adapter,
-    PCars3Adapter, RBRAdapter, RaceDriverGridAdapter, RaceRoomAdapter,
-    RFactor1Adapter, RFactor2Adapter, RennsportAdapter, Ride5Adapter,
-    SebLoebRallyAdapter, SimHubAdapter, TrackmaniaAdapter, VRally4Adapter,
+    ACC2Adapter, ACCAdapter, ACEvoAdapter, ACRallyAdapter, AMS2Adapter, AssettoCorsaAdapter,
+    Automobilista1Adapter, BeamNGAdapter, DakarDesertRallyAdapter, Dirt3Adapter, Dirt4Adapter,
+    Dirt5Adapter, DirtRally2Adapter, DirtShowdownAdapter, EAWRCAdapter, Ets2Adapter, F1_25Adapter,
+    F1Adapter, F1ManagerAdapter, F1NativeAdapter, FlatOutAdapter, ForzaAdapter,
+    ForzaHorizon4Adapter, ForzaHorizon5Adapter, GranTurismo7Adapter, GranTurismo7SportsAdapter,
+    GravelAdapter, Grid2019Adapter, GridAutosportAdapter, GridLegendsAdapter, IRacingAdapter,
+    KartKraftAdapter, LFSAdapter, LeMansUltimateAdapter, MotoGPAdapter, MudRunnerAdapter,
+    Nascar21Adapter, NascarAdapter, PCars2Adapter, PCars3Adapter, RBRAdapter, RFactor1Adapter,
+    RFactor2Adapter, RaceDriverGridAdapter, RaceRoomAdapter, RennsportAdapter, Ride5Adapter,
+    SebLoebRallyAdapter, SimHubAdapter, TelemetryAdapter, TrackmaniaAdapter, VRally4Adapter,
     WrcGenerationsAdapter, WrcKylotonnAdapter, WreckfestAdapter, WtcrAdapter,
-    TelemetryAdapter,
 };
 
 fuzz_target!(|data: &[u8]| {

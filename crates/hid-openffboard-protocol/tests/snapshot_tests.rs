@@ -1,4 +1,4 @@
-﻿//! Insta snapshot tests for the OpenFFBoard HID protocol encoding.
+//! Insta snapshot tests for the OpenFFBoard HID protocol encoding.
 //!
 //! These tests pin the exact wire-format bytes for all key protocol inputs
 //! and lock in the protocol constants to prevent accidental regressions.
@@ -103,7 +103,7 @@ fn test_snapshot_protocol_constants() {
 #[test]
 fn test_snapshot_is_openffboard_product() {
     use racing_wheel_hid_openffboard_protocol::{
-        is_openffboard_product, OPENFFBOARD_PRODUCT_ID, OPENFFBOARD_PRODUCT_ID_ALT,
+        OPENFFBOARD_PRODUCT_ID, OPENFFBOARD_PRODUCT_ID_ALT, is_openffboard_product,
     };
     let results = [
         ("main", is_openffboard_product(OPENFFBOARD_PRODUCT_ID)),
