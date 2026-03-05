@@ -239,7 +239,8 @@ fn safe_to_challenge_transition() -> Result<(), String> {
     let mut s = svc();
     let ch = s.request_high_torque("dev")?;
     assert!(matches!(s.state(), SafetyState::HighTorqueChallenge { .. }));
-    assert!(ch.challenge_token != 0 || ch.challenge_token == 0); // token is valid
+    // Verify we received a valid challenge (token can be any u64 value)
+    let _token = ch.challenge_token;
     Ok(())
 }
 
