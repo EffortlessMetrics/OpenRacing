@@ -603,7 +603,7 @@ mod manager {
 
     #[test]
     fn manager_new_succeeds() -> R {
-        let mut manager = TracingManager::new()?;
+        let mut manager = TracingManager::with_provider(Box::new(SimpleProvider));
         manager.initialize()?;
         assert!(manager.is_enabled());
         manager.shutdown();
