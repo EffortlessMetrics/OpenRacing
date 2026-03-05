@@ -19,7 +19,7 @@
 | Compat migration tests | ✅ Fixed |
 | CI: Linux (ubuntu-latest/22.04/24.04) | ✅ Passing |
 | CI: Windows (windows-latest) | ✅ Passing |
-| CI: macOS (macos-latest) | ⏳ Added (PR #84), first results pending |
+| CI: macOS (macos-latest) | ✅ Passing | Compilation fixed (PR #97), RT test ignores (PR #106) |
 | Proptest timeout configs (1000-case suites) | ✅ Added (PR #86) |
 | Linux packaging (deb/rpm/tarball) | ✅ Complete — udev rules, hwdb (133 devices), kernel quirks (ALWAYS_POLL) |
 
@@ -27,12 +27,12 @@
 
 | Metric | Count |
 |--------|------:|
-| **Total tests** | **24,000+** |
-| **Test files** | **662** |
-| Unit tests | 17,000+ |
-| Snapshot tests | 1,400+ |
-| Property tests (proptest) | 2,600+ |
-| End-to-end (E2E) tests | 1,100+ |
+| **Total tests** | **26,000+** |
+| **Test files** | **700+** |
+| Unit tests | 18,500+ |
+| Snapshot tests | 1,487+ |
+| Property tests (proptest) | 2,800+ |
+| End-to-end (E2E) tests | 1,200+ |
 | Golden-packet tests | 72+ |
 | Safety soak tests | 10K+ tick suites |
 | Compile-fail (trybuild) | 20 |
@@ -43,7 +43,7 @@
 | Performance validation | 12 |
 | Mutation testing | 86+ |
 | Fuzz targets | 113+ |
-| Integration test files | 48+ |
+| Integration test files | 73+ |
 | Workspace crates | 85 |
 
 ## Test Types Present
@@ -51,8 +51,8 @@
 | Type | Files | Notes |
 |------|------:|-------|
 | Proptest files | 360+ | Property-based testing across all 17 protocol & engine crates |
-| Snapshot test files | 1,400+ | `insta` snapshots for protocol encoding & telemetry (52+ directories) |
-| Integration test files | 48+ | `crates/integration-tests/tests/*.rs` |
+| Snapshot test files | 1,487+ | `insta` snapshots for protocol encoding & telemetry (52+ directories) |
+| Integration test files | 73+ | `crates/integration-tests/tests/*.rs` |
 | Fuzz targets | 113+ | `fuzz/fuzz_targets/` — covers all protocols, telemetry parsers, replay, diagnostics, crypto, CLI |
 | Compile-fail (trybuild) | 20 | Type-safety and API misuse prevention via `trybuild` |
 | Golden-packet tests | 72+ | End-to-end adapter validation against known-good captures |
@@ -68,15 +68,15 @@
 
 | Category | Tests | Key crates |
 |----------|------:|------------|
-| Telemetry | 3,600+ | `telemetry-adapters`, `telemetry-core`, `telemetry-config`, `telemetry-orchestrator`, `telemetry-contracts`, `telemetry-config-writers`, `telemetry-streams` — extended verification for 9 adapters (wave 34), core/integration/rate-limiter deep (wave 37), full adapter re-verification + config/streams deep (waves 40-41), adapter validation (wave 45), all 61 adapters deep (wave 51) |
+| Telemetry | 3,800+ | `telemetry-adapters`, `telemetry-core`, `telemetry-config`, `telemetry-orchestrator`, `telemetry-contracts`, `telemetry-config-writers`, `telemetry-streams` — extended verification for 9 adapters (wave 34), core/integration/rate-limiter deep (wave 37), full adapter re-verification + config/streams deep (waves 40-41), adapter validation (wave 45), all 61 adapters deep (wave 51), pipeline expansion (PR #99), game telemetry integration (PR #113) |
 | Engine | 1,740+ | `engine` (RT pipeline, filters, HID, safety, device/game tests, FFB, calibration, pipeline deep, HID common deep — wave 36, safety + device management deep — wave 41, RT no-allocation enforcement — wave 44, torque safety — wave 52) |
 | Protocols | 4,100+ | `hid-*-protocol`, `simplemotion-v2`, `hbp`, `moza-wheelbase-report` — all 15 HID protocol crates with advanced proptest + deep tests, VRS+OpenFFBoard advanced (wave 50), Moza+Fanatec+Logitech advanced (wave 51), Thrustmaster+Simucube+Simagic advanced (wave 51) |
-| Plugins | 1,092+ | `plugins`, `openracing-wasm-runtime`, `openracing-native-plugin`, `openracing-plugin-abi` — WASM deep (wave 38), native plugin + ABI deep (wave 39), WASM runtime budget + sandbox + host function tests (wave 48), ABI stability + versioning (wave 53) |
-| Service | 818+ | `service` (daemon, IPC, crypto, firmware updates, lifecycle tests, diagnostics deep — wave 35, lifecycle + IPC deep — wave 41, service lifecycle — wave 45, IPC wire compat — wave 53) |
-| Schemas | 720+ | `schemas` (JSON schema validation, migration, profile inheritance, evolution, domain type proptests — wave 36, validation deep — wave 41, IPC schema compat — wave 44) |
-| Integration tests | 500+ | `integration-tests` (E2E device pipelines, RC validation, golden packets, full-stack E2E, concurrency stress, performance validation, plugin + telemetry E2E + device protocol — wave 40) |
-| Safety | 745+ | `openracing-fmea`, `openracing-watchdog`, `openracing-hardware-watchdog`, soak tests (10K+ ticks), crypto + FMEA deep (wave 39), watchdog deep (wave 39), fault injection expansion (wave 44), safety compliance + torque safety (wave 52) |
-| Profile | 639+ | `openracing-profile`, `openracing-profile-repository` — inheritance, validation, comprehensive system tests (wave 35), profile + repo deep (wave 40), CRUD + validation + inheritance tests (wave 48), config/profile/migration edge cases (wave 52) |
+| Plugins | 1,150+ | `plugins`, `openracing-wasm-runtime`, `openracing-native-plugin`, `openracing-plugin-abi` — WASM deep (wave 38), native plugin + ABI deep (wave 39), WASM runtime budget + sandbox + host function tests (wave 48), ABI stability + versioning (wave 53), WASM timeout enforcement (PR #108) |
+| Service | 900+ | `service` (daemon, IPC, crypto, firmware updates, lifecycle tests, diagnostics deep — wave 35, lifecycle + IPC deep — wave 41, service lifecycle — wave 45, IPC wire compat — wave 53, service integration hardening — PR #100, device connection lifecycle — PR #110) |
+| Schemas | 785+ | `schemas` (JSON schema validation, migration, profile inheritance, evolution, domain type proptests — wave 36, validation deep — wave 41, IPC schema compat — wave 44, IPC backward/forward compat — PR #107) |
+| Integration tests | 700+ | `integration-tests` (E2E device pipelines, RC validation, golden packets, full-stack E2E, concurrency stress, performance validation, plugin + telemetry E2E + device protocol — wave 40, motor runaway FMEA — PR #103, game telemetry integration — PR #113) |
+| Safety | 850+ | `openracing-fmea`, `openracing-watchdog`, `openracing-hardware-watchdog`, soak tests (10K+ ticks), crypto + FMEA deep (wave 39), watchdog deep (wave 39), fault injection expansion (wave 44), safety compliance + torque safety (wave 52), motor runaway + power-loss FMEA (PR #103), watchdog + safety interlock hardening (PR #112), anticheat + audit crypto (PR #111) |
+| Profile | 750+ | `openracing-profile`, `openracing-profile-repository` — inheritance, validation, comprehensive system tests (wave 35), profile + repo deep (wave 40), CRUD + validation + inheritance tests (wave 48), config/profile/migration edge cases (wave 52), profile management + repository hardening (PR #114) |
 | Filters | 436+ | `openracing-filters` — snapshot + property tests, SM-V2 deep, filters deep (wave 39), frequency response + proptest coverage (wave 47) |
 | Capture | 330+ | `hid-capture` — device capture tooling, fingerprinting, classification (wave 34), diagnostic + SRP + capture deep (wave 38), capture IDs (wave 41) |
 | Curves | 169+ | `openracing-curves` — LUT fidelity, interpolation, bezier, fitting, property tests (wave 35) |
@@ -84,7 +84,7 @@
 | Tracing | 120+ | `openracing-tracing` — drop rate, emission verification, spans, formats, snapshots (wave 35) |
 | FFB | 365+ | `openracing-ffb` — force output, profile application, serde proptests (wave 36), FFB deep (wave 41), FFB precision (wave 46) |
 | Pipeline | 180+ | `openracing-pipeline` — filter chains, edge cases, proptests (wave 36), pipeline deep (wave 39) |
-| Crypto | 178+ | `openracing-crypto` — signing property tests, crypto deep (wave 39), crypto + signing verification (wave 46) |
+| Crypto | 195+ | `openracing-crypto` — signing property tests, crypto deep (wave 39), crypto + signing verification (wave 46), Ed25519 trust store (PR #105) |
 | Other / utilities | 6,500+ | Crypto, errors, scheduler, IPC, CLI, config, firmware, atomic, doc-tests, streams, support, core, peripherals, BDD, compat, input-maps, KS representation, test helpers, etc. — scheduler (79), atomic (100), input/KS (150), peripherals deep (wave 36-37), compat + firmware deep (wave 41), test helpers (wave 41), error handling (wave 45), device discovery (wave 45), replay + diagnostics (wave 46), CLI deep (wave 46) |
 
 ## Strengths
@@ -140,7 +140,7 @@
 - **Service diagnostics deep tests**: 40 tests covering diagnostic types, health scoring, export, error rate tracking, device/telemetry/safety/performance diagnostics (wave 35).
 - **Comprehensive profile system tests**: 64 tests covering creation, inheritance, validation, import/export, migration, merge, templates, versioning, conflict resolution (wave 35).
 - **Tracing, curves, calibration deep tests**: 86 tests — tracing spans/events/async/rate-limiting with snapshots (21), curves interpolation/bezier/fitting/monotonicity (45), calibration workflows/recalibration/migration (24) (wave 35).
-- **Snapshot tests expanded to 11+ crates**: 1,400+ snapshot files across 52+ directories (up from 1,327 across 52).
+- **Snapshot tests expanded to 11+ crates**: 1,487+ snapshot files across 52+ directories (up from 1,400 across 52).
 - **Core infrastructure deep tests**: HID common (72), scheduler (79), atomic (100) — comprehensive coverage of RT core subsystems (wave 36).
 - **Input system deep tests**: input maps (67) + KS representation (83) — binding compilation, report layout stability (wave 36).
 - **SimpleMotion V2 protocol verification**: 79 tests covering command encoding, CRC polynomial, status/fault registers, USB VID/PID (wave 36).
@@ -222,6 +222,20 @@
 - **CI fixes for platform-independent snapshots**: snapshot tests now produce consistent output across platforms, compat migration tests fixed, `cargo fmt` cleanup (wave 55).
 - **PID verification research findings**: Cube Controls PIDs `0x0C73`–`0x0C75` confirmed FABRICATED (zero external evidence), VRS DFP V2 UNVERIFIED, OpenFFBoard `0xFFB1` SPECULATIVE — documented for transparency (wave 55).
 - **Crypto stubs fail-closed**: Ed25519 signature stubs now return rejection by default instead of acceptance — security improvement preventing unsigned code from passing validation (wave 55).
+- **macOS compilation fixed**: libudev dependency gated to Linux-only, macOS daemon stubs added (PR #97).
+- **macOS CI operational**: RT scheduling tests ignored on macOS runners (PR #106), compilation clean.
+- **Telemetry pipeline expansion**: 104 tests across telemetry-core, telemetry-adapters, telemetry-recorder, telemetry-config — timestamp monotonicity, serde roundtrips, adapter edge cases, config roundtrips (PR #99).
+- **Service integration hardening**: 44 tests covering device service, game service, profile service, diagnostic service, safety service, anticheat, cross-service concurrency (PR #100).
+- **API documentation for safety-critical crates**: rustdoc added to HID drivers (Windows/Linux), firmware update manager, delta/staged rollout — includes `# Errors`, `# Safety` sections, platform behavior docs (PR #102).
+- **Motor runaway and power-loss FMEA tests**: 40 tests covering motor runaway detection, current/torque limiting, stall detection, power loss, brownout recovery, watchdog timeout, concurrent safety events, recovery after fault, torque direction validation (PR #103).
+- **Ed25519 trust store implemented**: production-ready fail-closed trust store replacing stub — real keypair generation, signing, verification, tamper detection, hex key import, 15+ tests (PR #105).
+- **IPC backward compatibility tests**: 65 tests covering protocol version negotiation, feature negotiation, backward/forward compatibility, wire format stability, error handling, graceful degradation, connection lifecycle, property-based roundtrips (PR #107).
+- **WASM timeout enforcement improved**: epoch-based wall-clock timeouts, compilation timeouts, precise fuel exhaustion detection, graceful termination — 27 tests (PR #108).
+- **Device connection lifecycle tests**: 41 tests for DeviceService — discovery, connect/disconnect, hot-plug, multi-device, error recovery, state transitions, calibration, stress testing (PR #110).
+- **Anticheat and audit crypto hardening**: 63 tests covering HMAC-SHA256 (RFC 4231 vectors), audit log signing/verification, tamper detection, chain rotation, concurrent access, anticheat reports, state machines, game integration (PR #111).
+- **Watchdog and safety interlock hardening**: comprehensive tests for software + hardware watchdog — feed timing, timeout triggering, reset lifecycle, multi-channel coordination, concurrent load, safety state machine interaction, error injection, exhaustive state transitions, metrics tracking (PR #112).
+- **Game telemetry integration tests**: 67 tests covering packet parsing (Forza, LFS, Rennsport, WRC, SimHub, MudRunner), adapter registration, packet routing, config generation, game auto-detection, multi-game concurrency, rate limiting, error handling, data invariants, normalization consistency (PR #113).
+- **Profile management and repository hardening**: 101 tests across openracing-profile (14), openracing-profile-repository (46), openracing-calibration (41) — CRUD, cache, persistence, concurrent access, hierarchy, migration, Ed25519 signatures, axis calibration, pedal/joystick calibrators, proptest fuzzing (PR #114).
 
 ## Overall RC Readiness Assessment
 
@@ -242,21 +256,21 @@ coverage. Several known gaps remain (see Blockers below).
 | Device hotplug | ✅ RC-ready | 56 tests for rapid connect/disconnect, multi-device, enumeration races |
 | Error quality | ✅ RC-ready | 64 tests for error message clarity, chain propagation, user-facing formatting |
 | CI: Linux + Windows | ✅ RC-ready | Full matrix passing |
-| CI: macOS | ⏳ Pending | Added (PR #84), first results not yet available |
+| CI: macOS | ✅ RC-ready | Compilation fixed (PR #97), RT test ignores (PR #106), clean CI runs |
 | Linux packaging | ✅ RC-ready | deb/rpm/tarball with udev rules, hwdb (133 devices), kernel quirks |
-| Ed25519 trust store | ⚠️ Stub | Framework exists, trust store is stub — fail-closed (secure but not functional) |
+| Ed25519 trust store | ✅ RC-ready | Fail-closed trust store implemented (PR #105) — real signing/verification functional |
 | Code coverage | ❌ Not in CI | No line-level code coverage tool configured |
 | Hardware verification | ❌ None | All device work based on public sources; no real hardware tested |
 
 ### Known Blockers / Gaps
 
-1. **macOS CI results pending**: macOS target added in PR #84 but first CI run has not completed yet.
-2. **Ed25519 trust store is a stub**: The signature framework exists and is fail-closed (rejects by default), which is secure but means native plugin signing is not yet functional end-to-end.
+1. ~~**macOS CI results pending**~~: **RESOLVED** — macOS compilation fixed (PR #97), RT test ignores added (PR #106), CI passing.
+2. ~~**Ed25519 trust store is a stub**~~: **RESOLVED** — Production-ready fail-closed trust store implemented (PR #105) with real signing/verification.
 3. **Cube Controls PIDs fabricated**: PIDs `0x0C73`–`0x0C75` have zero external evidence and have been removed from dispatch. Documented for transparency.
 4. **Some PIDs unverified**: Certain VRS and Leo Bodnar PIDs are marked PROVISIONAL — not confirmed against real hardware or authoritative sources.
 5. **No line-level code coverage in CI**: Test counts are high but there is no tool measuring line/branch coverage.
 6. **No real hardware verification**: All protocol implementations are based on public sources (kernel drivers, community databases, vendor docs). No physical devices have been tested.
-7. **Service integration tests incomplete**: `connect_device` and `game_service` integration tests are not fully implemented.
+7. ~~**Service integration tests incomplete**~~: **RESOLVED** — 44 service integration tests added (PR #100), 41 device connection lifecycle tests added (PR #110).
 
 ## PID Verification Status
 
@@ -296,8 +310,8 @@ coverage. Several known gaps remain (see Blockers below).
 | Gap | Severity | Notes |
 |-----|----------|-------|
 | Cube Controls PIDs still provisional | Medium | `0x0C73`–`0x0C75` FABRICATED — zero external evidence; need hardware captures |
-| Ed25519 stub needs real implementation | Medium | `signature.rs:111` is a stub; now fail-closed (rejects by default) — safer but still needs real implementation before v1.0.0 |
-| macOS CI not yet in matrix | Medium | macOS runner not added to GitHub Actions (F-053) |
+| ~~Ed25519 stub needs real implementation~~ | ~~Medium~~ | **RESOLVED**: Fail-closed trust store implemented (PR #105) |
+| ~~macOS CI not yet in matrix~~ | ~~Medium~~ | **RESOLVED**: macOS compilation fixed (PR #97), RT test ignores (PR #106) |
 | Some telemetry adapters need golden-packet tests | Low | 6 of ~56 adapters now have golden-packet tests; remaining adapters use snapshot-only coverage |
 | No physical hardware verification yet | Medium | All PIDs verified against docs/kernel sources only, no USB captures |
 | No line-level code coverage (e.g., `llvm-cov`) | Medium | Test count is high but uncovered branches are unknown |

@@ -6,32 +6,32 @@ One-screen execution plan for OpenRacing. Updated each sprint.
 
 ## NOW (Active — this sprint)
 
-- macOS CI results review — first run ever; check for compilation issues and fix-forward
-- Dead code cleanup — `engine/profile_service.rs` is a dead duplicate of the service layer
-- Remove commented-out code in old `game_integration.rs`
-- Service integration test stabilization — re-enable disabled tests for `connect_device` and `game_service`
-- FMEA coverage expansion — fault injection acceptance tests for new interlock paths
+- Plugin ABI stabilization — finalize native plugin ABI for v1.0 freeze
+- Diagnostics dashboard — wire diagnostic service data into Tauri UI
+- CLI test expansion — remaining subcommand coverage gaps
+- Service integration test stabilization — re-enable remaining disabled tests
+- Code coverage in CI — configure line-level coverage reporting (llvm-cov)
 
 ## NEXT (Queued — next 2–4 sprints)
 
-- macOS IOKit HID driver implementation (`crates/hid-macos`)
-- Simucube output module rewrite — move from speculative format to USB HID PID protocol
 - Linux packaging CI automation — deb/rpm in CI with signing
-- Ed25519 trust store replacement — currently a stub, fail-closed; wire to real key store
-- Code coverage in CI — line-level coverage reporting
-- Plugin example crate for ecosystem adoption
+- Real hardware verification — USB capture validation against physical devices
+- Performance tuning — benchmark suite expansion, profiling under load
+- Plugin example crate — ecosystem adoption starter kit
+- Simucube output module rewrite — move from speculative format to USB HID PID protocol
+- Windows MSI signing automation
 
 ## LATER (Backlog — future work)
 
-- Flatpak packaging
+- macOS IOKit HID driver implementation (`crates/hid-macos`)
 - macOS DMG + notarization
-- Windows MSI signing automation
-- Adaptive RT scheduling based on system load (CPU governor integration)
+- Flatpak packaging
+- Adaptive RT scheduling (CPU governor integration)
 - Plugin marketplace / repository
 - Telemetry replay visualization tools
 - BeamNG.drive deep protocol integration (native shared-memory path)
 - Community device capture contribution workflow
-- Real hardware verification program
+- Mobile companion app (iOS/Android)
 
 ---
 
