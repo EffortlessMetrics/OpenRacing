@@ -864,3 +864,243 @@ mod proptest_tests {
         }
     }
 }
+
+/// Protocol constant verification tests for RaceRoom Racing Experience (R3E).
+///
+/// These tests lock down the R3E SDK byte offsets, shared memory name, and version
+/// information against the official Sector3 r3e.h header (version 3.4).
+/// Ref: <https://github.com/sector3studios/r3e-api> (sample-c/src/r3e.h)
+#[cfg(test)]
+mod protocol_constant_tests {
+    use super::*;
+
+    type TestResult = Result<(), Box<dyn std::error::Error>>;
+
+    /// R3E shared memory file mapping name.
+    /// Ref: r3e.h `#define R3E_SHARED_MEMORY_NAME "$R3E"`
+    #[cfg(windows)]
+    #[test]
+    fn test_shared_memory_name() -> TestResult {
+        assert_eq!(R3E_SHARED_MEMORY_NAME, "Local\\$R3E");
+        assert!(
+            R3E_SHARED_MEMORY_NAME.contains("$R3E"),
+            "must reference the $R3E shared memory mapping"
+        );
+        Ok(())
+    }
+
+    /// R3E SDK major version = 3 (v3.4 as of 2024).
+    #[test]
+    fn test_version_major() -> TestResult {
+        assert_eq!(R3E_VERSION_MAJOR, 3);
+        Ok(())
+    }
+
+    /// View size must be large enough to cover all field offsets.
+    #[test]
+    fn test_view_size_covers_all_offsets() -> TestResult {
+        let max_offset = *[
+            OFF_TIRE_TEMP_RR_CENTER + 4,
+            OFF_TIRE_PRESSURE_RR + 4,
+            OFF_PIT_LIMITER + 4,
+            OFF_AID_TC + 4,
+            OFF_STEER_INPUT + 4,
+            OFF_CLUTCH + 4,
+        ]
+        .iter()
+        .max()
+        .ok_or("no offsets")?;
+        assert!(
+            R3E_VIEW_SIZE >= max_offset,
+            "R3E_VIEW_SIZE ({R3E_VIEW_SIZE}) must be >= max offset end ({max_offset})"
+        );
+        Ok(())
+    }
+
+    /// Gravity constant used for G-force conversion.
+    #[test]
+    fn test_gravity_constant() -> TestResult {
+        assert!(
+            (G_ACCEL - 9.80665).abs() < 0.0001,
+            "standard gravity = 9.80665 m/s²"
+        );
+        Ok(())
+    }
+
+    /// Vehicle state core offsets: speed, engine_rps, max_engine_rps, gear.
+    /// Ref: r3e.h r3e_shared struct, pack(push,1)
+    #[test]
+    fn test_vehicle_core_offsets() -> TestResult {
+        assert_eq!(OFF_SPEED, 1392, "car_speed at byte 1392");
+        assert_eq!(OFF_ENGINE_RPS, 1396, "engine_rps at byte 1396");
+        assert_eq!(OFF_MAX_ENGINE_RPS, 1400, "max_engine_rps at byte 1400");
+        assert_eq!(OFF_GEAR, 1408, "gear at byte 1408");
+        // speed → engine_rps → max_engine_rps are contiguous f32
+        assert_eq!(OFF_ENGINE_RPS - OFF_SPEED, 4);
+        assert_eq!(OFF_MAX_ENGINE_RPS - OFF_ENGINE_RPS, 4);
+        Ok(())
+    }
+
+    /// Pedal offsets: throttle, brake, clutch, steer_input.
+    #[test]
+    fn test_pedal_offsets() -> TestResult {
+        assert_eq!(OFF_THROTTLE, 1500, "throttle at byte 1500");
+        assert_eq!(OFF_BRAKE, 1508, "brake at byte 1508");
+        assert_eq!(OFF_CLUTCH, 1516, "clutch at byte 1516");
+        assert_eq!(OFF_STEER_INPUT, 1524, "steer_input_raw at byte 1524");
+        // throttle → brake → clutch → steer all 8 bytes apart (f32 + 4-byte gap)
+        assert_eq!(OFF_BRAKE - OFF_THROTTLE, 8);
+        assert_eq!(OFF_CLUTCH - OFF_BRAKE, 8);
+        assert_eq!(OFF_STEER_INPUT - OFF_CLUTCH, 8);
+        Ok(())
+    }
+
+    /// Fuel offsets: fuel_left and fuel_capacity contiguous.
+    #[test]
+    fn test_fuel_offsets() -> TestResult {
+        assert_eq!(OFF_FUEL_LEFT, 1456);
+        assert_eq!(OFF_FUEL_CAPACITY, 1460);
+        assert_eq!(OFF_FUEL_CAPACITY - OFF_FUEL_LEFT, 4, "contiguous f32 pair");
+        Ok(())
+    }
+
+    /// Local acceleration (G-force) vector offsets: X, Y, Z contiguous f32.
+    /// Convention: +X = left, +Y = up, +Z = back.
+    #[test]
+    fn test_local_acceleration_offsets() -> TestResult {
+        assert_eq!(OFF_LOCAL_ACCEL_X, 1440);
+        assert_eq!(OFF_LOCAL_ACCEL_Y, 1444);
+        assert_eq!(OFF_LOCAL_ACCEL_Z, 1448);
+        // Must be contiguous f32 triplet
+        assert_eq!(OFF_LOCAL_ACCEL_Y - OFF_LOCAL_ACCEL_X, 4);
+        assert_eq!(OFF_LOCAL_ACCEL_Z - OFF_LOCAL_ACCEL_Y, 4);
+        Ok(())
+    }
+
+    /// Engine temperature offset.
+    #[test]
+    fn test_engine_temp_offset() -> TestResult {
+        assert_eq!(OFF_ENGINE_TEMP, 1480, "engine_temp at byte 1480");
+        Ok(())
+    }
+
+    /// Gear encoding: -2=N/A, -1=Reverse, 0=Neutral, 1+=Forward.
+    /// Ref: r3e.h gear field convention. Adapter clamps to [-1, 127].
+    #[test]
+    fn test_gear_encoding() -> TestResult {
+        let test_cases: &[(i32, i8)] = &[
+            (-2, -1), // N/A → clamped to -1 by adapter
+            (-1, -1), // reverse
+            (0, 0),   // neutral
+            (1, 1),   // 1st
+            (6, 6),   // 6th
+        ];
+        for &(raw, expected_gear) in test_cases {
+            let mut data = vec![0u8; R3E_VIEW_SIZE];
+            data[OFF_VERSION_MAJOR..OFF_VERSION_MAJOR + 4]
+                .copy_from_slice(&R3E_VERSION_MAJOR.to_le_bytes());
+            data[OFF_GEAR..OFF_GEAR + 4].copy_from_slice(&raw.to_le_bytes());
+            let t = parse_r3e_memory(&data)?;
+            assert_eq!(
+                t.gear, expected_gear,
+                "R3E gear raw {raw} should map to {expected_gear}, got {}",
+                t.gear
+            );
+        }
+        Ok(())
+    }
+
+    /// RPS-to-RPM conversion: RPM = rps × 60 / (2π) = rps × 30 / π.
+    #[test]
+    fn test_rps_to_rpm_conversion() -> TestResult {
+        let rps: f32 = 100.0 * std::f32::consts::PI / 30.0; // 100 RPM in rad/s
+        let mut data = vec![0u8; R3E_VIEW_SIZE];
+        data[OFF_VERSION_MAJOR..OFF_VERSION_MAJOR + 4]
+            .copy_from_slice(&R3E_VERSION_MAJOR.to_le_bytes());
+        data[OFF_ENGINE_RPS..OFF_ENGINE_RPS + 4].copy_from_slice(&rps.to_le_bytes());
+        let t = parse_r3e_memory(&data)?;
+        // Should be approximately 100 RPM
+        assert!(
+            (t.rpm - 100.0).abs() < 1.0,
+            "100 RPM in rad/s should convert back to ~100 RPM, got {}",
+            t.rpm
+        );
+        Ok(())
+    }
+
+    /// ABS and TC active indicator value = 5 in R3E.
+    #[test]
+    fn test_abs_tc_active_value() -> TestResult {
+        assert_eq!(OFF_AID_ABS, 1536, "aid_settings.abs at byte 1536");
+        assert_eq!(OFF_AID_TC, 1540, "aid_settings.tc at byte 1540");
+        // Verify that value 5 triggers active flag
+        let mut data = vec![0u8; R3E_VIEW_SIZE];
+        data[OFF_VERSION_MAJOR..OFF_VERSION_MAJOR + 4]
+            .copy_from_slice(&R3E_VERSION_MAJOR.to_le_bytes());
+        data[OFF_AID_ABS..OFF_AID_ABS + 4].copy_from_slice(&5_i32.to_le_bytes());
+        data[OFF_AID_TC..OFF_AID_TC + 4].copy_from_slice(&5_i32.to_le_bytes());
+        let t = parse_r3e_memory(&data)?;
+        assert!(t.flags.abs_active, "ABS must be active when aid value = 5");
+        assert!(
+            t.flags.traction_control,
+            "TC must be active when aid value = 5"
+        );
+        Ok(())
+    }
+
+    /// Tire temperature offsets: 4 tires, each 24 bytes apart (FL, FR, RL, RR).
+    #[test]
+    fn test_tire_temp_offsets() -> TestResult {
+        assert_eq!(OFF_TIRE_TEMP_FL_CENTER, 1748);
+        assert_eq!(OFF_TIRE_TEMP_FR_CENTER, 1772);
+        assert_eq!(OFF_TIRE_TEMP_RL_CENTER, 1796);
+        assert_eq!(OFF_TIRE_TEMP_RR_CENTER, 1820);
+        // Each tire is 24 bytes apart (24 bytes of tire struct per corner)
+        assert_eq!(OFF_TIRE_TEMP_FR_CENTER - OFF_TIRE_TEMP_FL_CENTER, 24);
+        assert_eq!(OFF_TIRE_TEMP_RL_CENTER - OFF_TIRE_TEMP_FR_CENTER, 24);
+        assert_eq!(OFF_TIRE_TEMP_RR_CENTER - OFF_TIRE_TEMP_RL_CENTER, 24);
+        Ok(())
+    }
+
+    /// Tire pressure offsets: 4 tires, contiguous f32 (FL, FR, RL, RR).
+    #[test]
+    fn test_tire_pressure_offsets() -> TestResult {
+        assert_eq!(OFF_TIRE_PRESSURE_FL, 1712);
+        assert_eq!(OFF_TIRE_PRESSURE_FR, 1716);
+        assert_eq!(OFF_TIRE_PRESSURE_RL, 1720);
+        assert_eq!(OFF_TIRE_PRESSURE_RR, 1724);
+        assert_eq!(OFF_TIRE_PRESSURE_FR - OFF_TIRE_PRESSURE_FL, 4);
+        assert_eq!(OFF_TIRE_PRESSURE_RL - OFF_TIRE_PRESSURE_FR, 4);
+        assert_eq!(OFF_TIRE_PRESSURE_RR - OFF_TIRE_PRESSURE_RL, 4);
+        Ok(())
+    }
+
+    /// Flag offsets in the R3E flags sub-struct (starting around byte 932).
+    /// R3E uses i32 flags: -1 = N/A, 0 = inactive, 1 = active.
+    #[test]
+    fn test_flag_offsets() -> TestResult {
+        assert_eq!(OFF_FLAG_YELLOW, 932);
+        assert_eq!(OFF_FLAG_BLUE, 964);
+        assert_eq!(OFF_FLAG_GREEN, 972);
+        assert_eq!(OFF_FLAG_CHECKERED, 976);
+        Ok(())
+    }
+
+    /// Pit lane offset.
+    #[test]
+    fn test_pit_offsets() -> TestResult {
+        assert_eq!(OFF_IN_PITLANE, 848, "in_pitlane at byte 848");
+        assert_eq!(OFF_PIT_LIMITER, 1572, "pit_limiter at byte 1572");
+        Ok(())
+    }
+
+    /// Process names used for auto-detection.
+    #[test]
+    fn test_process_names() -> TestResult {
+        assert!(
+            RACEROOM_PROCESS_NAMES.contains(&"rrre.exe"),
+            "must detect rrre.exe"
+        );
+        Ok(())
+    }
+}

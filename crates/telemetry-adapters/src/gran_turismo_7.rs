@@ -2037,3 +2037,244 @@ mod tests {
         assert_eq!(a.packet_type, b.packet_type);
     }
 }
+
+/// Protocol constant verification tests for Gran Turismo 7.
+///
+/// These tests lock down the GT7 Salsa20-encrypted UDP protocol constants:
+/// packet sizes, XOR keys, Salsa20 key, field byte offsets, SimulatorFlags,
+/// and gear encoding against the Nenkai/PDTools reference.
+/// Ref: <https://github.com/Nenkai/PDTools> (SimulatorPacket.cs)
+#[cfg(test)]
+mod protocol_constant_tests {
+    use super::*;
+
+    type TestResult = Result<(), Box<dyn std::error::Error>>;
+
+    // ---- XOR keys per packet type (used in Salsa20 counter/nonce) ----
+
+    /// Type1 XOR key: 0xDEADBEAF (note: intentional typo in GT7 protocol — "BEAF" not "BEEF").
+    #[test]
+    fn test_xor_key_type1() -> TestResult {
+        assert_eq!(XOR_KEY_TYPE1, 0xDEAD_BEAF);
+        Ok(())
+    }
+
+    /// Type2 XOR key: 0xDEADBEEF.
+    #[test]
+    fn test_xor_key_type2() -> TestResult {
+        assert_eq!(XOR_KEY_TYPE2, 0xDEAD_BEEF);
+        Ok(())
+    }
+
+    /// Type3 XOR key: 0x55FABB4F.
+    #[test]
+    fn test_xor_key_type3() -> TestResult {
+        assert_eq!(XOR_KEY_TYPE3, 0x55FA_BB4F);
+        Ok(())
+    }
+
+    /// Salsa20 key: first 32 bytes of "Simulator Interface Packet GT7 ver 0.0".
+    /// Ref: PDTools SimulatorPacket.cs SALSA20_KEY
+    #[test]
+    fn test_salsa20_key_content() -> TestResult {
+        assert_eq!(SALSA_KEY.len(), 32);
+        let expected_prefix = b"Simulator Interface Packet GT7 v";
+        assert_eq!(
+            SALSA_KEY, expected_prefix,
+            "Salsa20 key must be the first 32 bytes of the known seed string"
+        );
+        Ok(())
+    }
+
+    // ---- Field byte offsets (hex and decimal from PDTools SimulatorPacket.cs) ----
+
+    /// Magic field at offset 0x00.
+    #[test]
+    fn test_magic_offset() -> TestResult {
+        assert_eq!(OFF_MAGIC, 0x00);
+        Ok(())
+    }
+
+    /// Engine RPM at offset 0x3C (60).
+    #[test]
+    fn test_engine_rpm_offset() -> TestResult {
+        assert_eq!(OFF_ENGINE_RPM, 0x3C);
+        assert_eq!(OFF_ENGINE_RPM, 60);
+        Ok(())
+    }
+
+    /// Fuel level and capacity at offsets 0x44, 0x48 (contiguous f32 pair).
+    #[test]
+    fn test_fuel_offsets() -> TestResult {
+        assert_eq!(OFF_FUEL_LEVEL, 0x44);
+        assert_eq!(OFF_FUEL_CAPACITY, 0x48);
+        assert_eq!(OFF_FUEL_CAPACITY - OFF_FUEL_LEVEL, 4, "contiguous f32");
+        Ok(())
+    }
+
+    /// Speed (m/s) at offset 0x4C (76).
+    #[test]
+    fn test_speed_offset() -> TestResult {
+        assert_eq!(OFF_SPEED_MS, 0x4C);
+        Ok(())
+    }
+
+    /// Water temperature at offset 0x58 (88).
+    #[test]
+    fn test_water_temp_offset() -> TestResult {
+        assert_eq!(OFF_WATER_TEMP, 0x58);
+        Ok(())
+    }
+
+    /// Tire temperatures: FL/FR/RL/RR at 0x60/0x64/0x68/0x6C (contiguous f32 quad).
+    #[test]
+    fn test_tire_temp_offsets() -> TestResult {
+        assert_eq!(OFF_TIRE_TEMP_FL, 0x60);
+        assert_eq!(OFF_TIRE_TEMP_FR, 0x64);
+        assert_eq!(OFF_TIRE_TEMP_RL, 0x68);
+        assert_eq!(OFF_TIRE_TEMP_RR, 0x6C);
+        // 4-byte stride
+        assert_eq!(OFF_TIRE_TEMP_FR - OFF_TIRE_TEMP_FL, 4);
+        assert_eq!(OFF_TIRE_TEMP_RL - OFF_TIRE_TEMP_FR, 4);
+        assert_eq!(OFF_TIRE_TEMP_RR - OFF_TIRE_TEMP_RL, 4);
+        Ok(())
+    }
+
+    /// Lap count at offset 0x74 (116), i16.
+    #[test]
+    fn test_lap_count_offset() -> TestResult {
+        assert_eq!(OFF_LAP_COUNT, 0x74);
+        Ok(())
+    }
+
+    /// Best/last/current lap times at offsets 0x78/0x7C/0x80 (contiguous i32 triplet).
+    #[test]
+    fn test_lap_time_offsets() -> TestResult {
+        assert_eq!(OFF_BEST_LAP_MS, 0x78);
+        assert_eq!(OFF_LAST_LAP_MS, 0x7C);
+        assert_eq!(OFF_CURRENT_LAP_MS, 0x80);
+        assert_eq!(OFF_LAST_LAP_MS - OFF_BEST_LAP_MS, 4);
+        assert_eq!(OFF_CURRENT_LAP_MS - OFF_LAST_LAP_MS, 4);
+        Ok(())
+    }
+
+    /// Gear byte at 0x90 (144) — low nibble = current gear, high nibble = suggested gear.
+    #[test]
+    fn test_gear_byte_offset() -> TestResult {
+        assert_eq!(OFF_GEAR_BYTE, 0x90);
+        assert_eq!(OFF_GEAR_BYTE, 144);
+        Ok(())
+    }
+
+    /// Throttle and brake at 0x91/0x92 (u8 values, 0–255).
+    #[test]
+    fn test_throttle_brake_offsets() -> TestResult {
+        assert_eq!(OFF_THROTTLE, 0x91);
+        assert_eq!(OFF_BRAKE, 0x92);
+        assert_eq!(
+            OFF_THROTTLE - OFF_GEAR_BYTE,
+            1,
+            "gear→throttle→brake are contiguous u8s"
+        );
+        assert_eq!(OFF_BRAKE - OFF_THROTTLE, 1);
+        Ok(())
+    }
+
+    /// SimulatorFlags bitmask at offset 0x8E (142), i16.
+    #[test]
+    fn test_flags_offset() -> TestResult {
+        assert_eq!(OFF_FLAGS, 0x8E);
+        Ok(())
+    }
+
+    /// Car code at offset 0x124 (292), i32.
+    #[test]
+    fn test_car_code_offset() -> TestResult {
+        assert_eq!(OFF_CAR_CODE, 0x124);
+        assert_eq!(OFF_CAR_CODE, 292);
+        Ok(())
+    }
+
+    // ---- SimulatorFlags bitmask values ----
+    // Ref: PDTools SimulatorFlags enum
+
+    /// FLAG_PAUSED = bit 1 (0x02).
+    #[test]
+    fn test_flag_paused() -> TestResult {
+        assert_eq!(FLAG_PAUSED, 0x02);
+        assert_eq!(FLAG_PAUSED, 1 << 1);
+        Ok(())
+    }
+
+    /// FLAG_REV_LIMIT = bit 5 (0x20).
+    #[test]
+    fn test_flag_rev_limit() -> TestResult {
+        assert_eq!(FLAG_REV_LIMIT, 0x20);
+        assert_eq!(FLAG_REV_LIMIT, 1 << 5);
+        Ok(())
+    }
+
+    /// FLAG_ASM_ACTIVE (stability management) = bit 10 (0x400).
+    #[test]
+    fn test_flag_asm_active() -> TestResult {
+        assert_eq!(FLAG_ASM_ACTIVE, 0x400);
+        assert_eq!(FLAG_ASM_ACTIVE, 1 << 10);
+        Ok(())
+    }
+
+    /// FLAG_TCS_ACTIVE (traction control) = bit 11 (0x800).
+    #[test]
+    fn test_flag_tcs_active() -> TestResult {
+        assert_eq!(FLAG_TCS_ACTIVE, 0x800);
+        assert_eq!(FLAG_TCS_ACTIVE, 1 << 11);
+        Ok(())
+    }
+
+    // ---- Type2/Type3 extended field offsets ----
+
+    /// Wheel rotation at 0x128 (296), f32 — start of Type2 extension.
+    #[test]
+    fn test_type2_extension_offsets() -> TestResult {
+        assert_eq!(OFF_WHEEL_ROTATION, 0x128);
+        assert_eq!(OFF_WHEEL_ROTATION, 296, "starts right after Type1 packet");
+        assert_eq!(OFF_SWAY, 0x130);
+        assert_eq!(OFF_HEAVE, 0x134);
+        assert_eq!(OFF_SURGE, 0x138);
+        Ok(())
+    }
+
+    /// Type3 extension offsets (energy recovery, car type).
+    #[test]
+    fn test_type3_extension_offsets() -> TestResult {
+        assert_eq!(OFF_CAR_TYPE_BYTE3, 0x13E);
+        assert_eq!(OFF_ENERGY_RECOVERY, 0x150);
+        Ok(())
+    }
+
+    /// Gear encoding: low nibble of gear byte.
+    /// 0=Reverse, 1=Neutral, 2=1st, ... 15=gear 14.
+    #[test]
+    fn test_gear_nibble_encoding() -> TestResult {
+        let test_cases: &[(u8, i8)] = &[
+            (0x00, -1), // 0 = reverse
+            (0x01, 0),  // 1 = neutral
+            (0x02, 1),  // 2 = 1st gear
+            (0x03, 2),  // 3 = 2nd gear
+            (0x07, 6),  // 7 = 6th gear
+            (0x08, 7),  // 8 = 7th gear
+        ];
+        for &(raw_byte, expected) in test_cases {
+            let low_nibble = raw_byte & 0x0F;
+            let gear: i8 = if low_nibble == 0 {
+                -1 // reverse
+            } else {
+                (low_nibble as i8) - 1
+            };
+            assert_eq!(
+                gear, expected,
+                "gear byte 0x{raw_byte:02X} low nibble {low_nibble} should map to {expected}"
+            );
+        }
+        Ok(())
+    }
+}
