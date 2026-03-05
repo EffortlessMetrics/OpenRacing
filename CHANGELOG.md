@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- 29 RT hot-path zero-allocation verification tests: counting allocator, pipeline/safety/torque allocation-free verification, bounded execution timing, fixed-size type verification, proptest RT chain (#180)
+- 80 IPC transport stress tests: codec roundtrip, large messages, rapid connect/disconnect, concurrent clients, backpressure, feature negotiation, error propagation, graceful shutdown, state machine, message ordering, proptest (#179)
+- 57 watchdog and safety interlock deep tests: concurrent SharedWatchdog, recovery sequences, rapid state oscillation, simultaneous faults, timing guarantees, challenge-response edge cases, state machine invariants, proptest (#178)
+- 53 telemetry session recording tests: CSV/JSON/binary export, recording lifecycle, import/export roundtrip, synthetic fixture generation, metadata validation (#177)
+- 46 device auto-detection tests: VID/PID matching, capability discovery, multi-device enumeration, hot-plug detection, device priority ordering (#176)
+- 53 game support matrix tests: adapter registration, game-specific field mapping, multi-game concurrent telemetry, config generation validation (#175)
+- 14 documentation build and accuracy verification tests: cross-reference validation, command accuracy, doc example compilation (#174)
+- 60 wheeld service lifecycle tests: startup/shutdown sequences, signal handling, IPC server lifecycle, config reload, device connect/disconnect during operation (#173)
 - 127 CLI end-to-end tests: command parsing, help text snapshots, error output validation, all subcommands covered (#171)
 - 80 cross-platform HID transport tests: trait implementation, mock backends, VID/PID matching, hot-plug, report descriptor parsing (#170)
 - 75 filter pipeline RT tests: individual filters, chain composition, boundary conditions, determinism, frequency response, zero-alloc RT compliance (#169)
