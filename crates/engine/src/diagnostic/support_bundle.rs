@@ -313,7 +313,7 @@ impl SupportBundle {
     }
 
     /// Collect system information
-    fn collect_system_info() -> Result<SystemInfo, String> {
+    pub(crate) fn collect_system_info() -> Result<SystemInfo, String> {
         let mut system = System::new_all();
         system.refresh_all();
 
@@ -388,7 +388,7 @@ impl SupportBundle {
     }
 
     /// Check if environment variable is safe to include
-    fn is_safe_env_var(key: &str) -> bool {
+    pub(crate) fn is_safe_env_var(key: &str) -> bool {
         let safe_prefixes = [
             "CARGO_",
             "RUST_",
@@ -427,7 +427,7 @@ impl SupportBundle {
     }
 
     /// Find log files in directory
-    fn find_log_files(log_dir: &Path) -> Result<Vec<PathBuf>, String> {
+    pub(crate) fn find_log_files(log_dir: &Path) -> Result<Vec<PathBuf>, String> {
         if !log_dir.exists() {
             return Ok(Vec::new());
         }
@@ -452,7 +452,7 @@ impl SupportBundle {
     }
 
     /// Find profile files in directory
-    fn find_profile_files(profile_dir: &Path) -> Result<Vec<PathBuf>, String> {
+    pub(crate) fn find_profile_files(profile_dir: &Path) -> Result<Vec<PathBuf>, String> {
         if !profile_dir.exists() {
             return Ok(Vec::new());
         }
@@ -477,7 +477,7 @@ impl SupportBundle {
     }
 
     /// Find recent recording files
-    fn find_recent_recordings(
+    pub(crate) fn find_recent_recordings(
         recording_dir: &Path,
         max_count: usize,
     ) -> Result<Vec<PathBuf>, String> {

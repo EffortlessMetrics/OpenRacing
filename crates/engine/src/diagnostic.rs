@@ -10,6 +10,9 @@ pub mod support_bundle;
 
 pub(crate) mod bincode_compat;
 
+#[cfg(test)]
+mod support_bundle_tests;
+
 pub use blackbox::{BlackboxConfig, BlackboxRecorder, RecordingStats};
 pub use replay::{BlackboxReplay, ReplayConfig, ReplayResult};
 pub use streams::{StreamA, StreamB, StreamC, StreamType};
