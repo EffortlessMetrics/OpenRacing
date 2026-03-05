@@ -1147,3 +1147,284 @@ fn install_script_references_hwdb() -> Result<(), Box<dyn std::error::Error>> {
     );
     Ok(())
 }
+
+// ============================================================================
+// Additional packaging infrastructure validation
+// ============================================================================
+
+#[test]
+fn systemd_service_template_placeholder_consistency() -> Result<(), Box<dyn std::error::Error>> {
+    let content = read_packaging_file("packaging/linux/wheeld.service.template")?;
+    // All %INSTALL_PATH% placeholders should be substitutable
+    let placeholder_count = content.matches("%INSTALL_PATH%").count();
+    assert!(
+        placeholder_count >= 2,
+        "Service template should reference %INSTALL_PATH% in ExecStart and WorkingDirectory, found {placeholder_count}"
+    );
+    // No stale/mixed placeholder styles
+    assert!(
+        !content.contains("${INSTALL_PATH}") && !content.contains("$INSTALL_PATH"),
+        "Service template should use %INSTALL_PATH% consistently, not shell variable syntax"
+    );
+    Ok(())
+}
+
+#[test]
+fn systemd_service_template_no_absolute_hardcoded_paths() -> Result<(), Box<dyn std::error::Error>>
+{
+    let content = read_packaging_file("packaging/linux/wheeld.service.template")?;
+    // ExecStart should not hardcode /usr or /opt
+    let exec_lines: Vec<&str> = content
+        .lines()
+        .filter(|l| l.starts_with("ExecStart="))
+        .collect();
+    for line in &exec_lines {
+        assert!(
+            !line.contains("/usr/") && !line.contains("/opt/"),
+            "ExecStart should use %INSTALL_PATH% placeholder, not hardcoded paths: {line}"
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn systemd_service_memory_deny_write_execute() -> Result<(), Box<dyn std::error::Error>> {
+    let content = read_packaging_file("packaging/linux/wheeld.service.template")?;
+    assert!(
+        content.contains("MemoryDenyWriteExecute=true"),
+        "Service must enable MemoryDenyWriteExecute for security"
+    );
+    Ok(())
+}
+
+#[test]
+fn systemd_service_protect_home() -> Result<(), Box<dyn std::error::Error>> {
+    let content = read_packaging_file("packaging/linux/wheeld.service.template")?;
+    assert!(
+        content.contains("ProtectHome="),
+        "Service must set ProtectHome directive"
+    );
+    Ok(())
+}
+
+#[test]
+fn systemd_service_supplementary_groups() -> Result<(), Box<dyn std::error::Error>> {
+    let content = read_packaging_file("packaging/linux/wheeld.service.template")?;
+    assert!(
+        content.contains("SupplementaryGroups=") && content.contains("input"),
+        "Service must add 'input' supplementary group for HID access"
+    );
+    Ok(())
+}
+
+#[test]
+fn udev_rules_all_lines_well_formed() -> Result<(), Box<dyn std::error::Error>> {
+    let content = read_packaging_file("packaging/linux/99-racing-wheel-suite.rules")?;
+    let mut errors = Vec::new();
+    for (i, line) in content.lines().enumerate() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() || trimmed.starts_with('#') {
+            continue;
+        }
+        // Each rule line must contain SUBSYSTEM or ACTION or ATTR
+        let has_key = trimmed.contains("SUBSYSTEM")
+            || trimmed.contains("ACTION")
+            || trimmed.contains("ATTR")
+            || trimmed.contains("ENV")
+            || trimmed.contains("TAG")
+            || trimmed.contains("RUN")
+            || trimmed.contains("IMPORT")
+            || trimmed.contains("KERNEL");
+        if !has_key {
+            errors.push(format!(
+                "Line {}: no valid udev key found: {trimmed}",
+                i + 1
+            ));
+        }
+    }
+    assert!(
+        errors.is_empty(),
+        "udev rules have malformed lines:\n{}",
+        errors.join("\n")
+    );
+    Ok(())
+}
+
+#[test]
+fn udev_rules_mode_is_octal() -> Result<(), Box<dyn std::error::Error>> {
+    let content = read_packaging_file("packaging/linux/99-racing-wheel-suite.rules")?;
+    let mode_re = regex::Regex::new(r#"MODE="([^"]*)""#)?;
+    for (i, line) in content.lines().enumerate() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() || trimmed.starts_with('#') {
+            continue;
+        }
+        for caps in mode_re.captures_iter(trimmed) {
+            if let Some(mode) = caps.get(1) {
+                let val = mode.as_str();
+                assert!(
+                    val.len() == 4 && val.chars().all(|c| c.is_ascii_digit()),
+                    "Line {}: MODE value must be 4-digit octal, got '{val}'",
+                    i + 1
+                );
+            }
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn hwdb_quirks_conf_format_valid() -> Result<(), Box<dyn std::error::Error>> {
+    let content = read_packaging_file("packaging/linux/90-racing-wheel-quirks.conf")?;
+    // Should be a single 'options' line for usbhid
+    let options_lines: Vec<&str> = content
+        .lines()
+        .filter(|l| !l.trim().is_empty() && !l.trim().starts_with('#'))
+        .collect();
+    assert!(
+        !options_lines.is_empty(),
+        "Quirks conf must have at least one options line"
+    );
+    for line in &options_lines {
+        assert!(
+            line.starts_with("options "),
+            "Non-comment lines must start with 'options': {line}"
+        );
+    }
+    // Validate quirk format: VID:PID:QUIRK comma-separated
+    let quirk_re = regex::Regex::new(r"0x[0-9A-Fa-f]{4}:0x[0-9A-Fa-f]{4}:0x[0-9A-Fa-f]{4}")?;
+    let quirk_count = quirk_re.find_iter(&content).count();
+    assert!(
+        quirk_count >= 1,
+        "Quirks conf must contain at least one VID:PID:QUIRK entry, found {quirk_count}"
+    );
+    Ok(())
+}
+
+#[test]
+fn package_name_consistent_across_formats() -> Result<(), Box<dyn std::error::Error>> {
+    let build_script = read_packaging_file("packaging/linux/build-packages.sh")?;
+    let wxs = read_packaging_file("packaging/windows/wheel-suite.wxs")?;
+    let service = read_packaging_file("packaging/linux/wheeld.service.template")?;
+
+    // The package name "openracing" or "OpenRacing" should appear across all formats
+    assert!(
+        build_script.contains("openracing"),
+        "Build script must use 'openracing' package name"
+    );
+    assert!(
+        wxs.contains("OpenRacing"),
+        "WXS must reference 'OpenRacing'"
+    );
+    assert!(
+        service.contains("OpenRacing")
+            || service.contains("openracing")
+            || service.contains("racing-wheel-suite"),
+        "Service template must reference project name"
+    );
+    Ok(())
+}
+
+#[test]
+fn package_description_present_in_all_formats() -> Result<(), Box<dyn std::error::Error>> {
+    let build_script = read_packaging_file("packaging/linux/build-packages.sh")?;
+    let wxs = read_packaging_file("packaging/windows/wheel-suite.wxs")?;
+
+    // Both should have a human-readable description
+    assert!(
+        build_script.contains("force feedback") || build_script.contains("racing wheel"),
+        "Build script must include product description"
+    );
+    assert!(
+        wxs.contains("force feedback") || wxs.contains("racing wheel"),
+        "WXS must include product description"
+    );
+    Ok(())
+}
+
+#[test]
+fn linux_file_paths_use_fhs_layout() -> Result<(), Box<dyn std::error::Error>> {
+    let build_script = read_packaging_file("packaging/linux/build-packages.sh")?;
+    // DEB packages should install to /usr/bin
+    assert!(
+        build_script.contains("/usr/bin"),
+        "DEB package should install binaries to /usr/bin"
+    );
+    // Udev rules to standard location
+    assert!(
+        build_script.contains("udev/rules.d") || build_script.contains("udevrulesdir"),
+        "Package must install udev rules to standard rules.d directory"
+    );
+    Ok(())
+}
+
+#[test]
+fn windows_install_path_uses_program_files() -> Result<(), Box<dyn std::error::Error>> {
+    let wxs = read_packaging_file("packaging/windows/wheel-suite.wxs")?;
+    assert!(
+        wxs.contains("ProgramFiles64Folder") || wxs.contains("ProgramFilesFolder"),
+        "WXS must install to Program Files directory"
+    );
+    Ok(())
+}
+
+#[test]
+fn install_script_has_error_handling() -> Result<(), Box<dyn std::error::Error>> {
+    let content = read_packaging_file("packaging/linux/install.sh")?;
+    assert!(
+        content.contains("set -e") || content.contains("set -euo"),
+        "Install script must use 'set -e' for error handling"
+    );
+    Ok(())
+}
+
+#[test]
+fn build_script_has_error_handling() -> Result<(), Box<dyn std::error::Error>> {
+    let content = read_packaging_file("packaging/linux/build-packages.sh")?;
+    assert!(
+        content.contains("set -e") || content.contains("set -euo"),
+        "Build script must use 'set -e' for error handling"
+    );
+    Ok(())
+}
+
+#[test]
+fn wix_manifest_has_directory_structure() -> Result<(), Box<dyn std::error::Error>> {
+    let content = read_packaging_file("packaging/windows/wheel-suite.wxs")?;
+    let required_dirs = ["bin", "config", "profiles", "plugins", "logs"];
+    let mut missing = Vec::new();
+    for dir in &required_dirs {
+        if !content.to_lowercase().contains(&dir.to_lowercase()) {
+            missing.push(*dir);
+        }
+    }
+    assert!(
+        missing.is_empty(),
+        "WXS missing directory definitions: {missing:?}"
+    );
+    Ok(())
+}
+
+#[test]
+fn wix_manifest_installer_version_minimum() -> Result<(), Box<dyn std::error::Error>> {
+    let content = read_packaging_file("packaging/windows/wheel-suite.wxs")?;
+    let re = regex::Regex::new(r#"InstallerVersion="(\d+)""#)?;
+    if let Some(caps) = re.captures(&content) {
+        let version: u32 = caps.get(1).map(|m| m.as_str()).unwrap_or("0").parse()?;
+        assert!(
+            version >= 500,
+            "WXS InstallerVersion should be >= 500 for Windows 10+ features, got {version}"
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn wix_manifest_per_machine_install() -> Result<(), Box<dyn std::error::Error>> {
+    let content = read_packaging_file("packaging/windows/wheel-suite.wxs")?;
+    assert!(
+        content.contains("perMachine"),
+        "WXS must use perMachine install scope for service registration"
+    );
+    Ok(())
+}
