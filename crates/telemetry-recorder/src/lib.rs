@@ -385,6 +385,193 @@ pub enum TestScenario {
     PitStop,
 }
 
+// ---------------------------------------------------------------------------
+// Export / Import
+// ---------------------------------------------------------------------------
+
+impl TelemetryRecording {
+    /// Export the recording as a CSV string.
+    ///
+    /// Columns: `timestamp_ns,sequence,raw_size,ffb_scalar,rpm,speed_ms,slip_ratio,gear`
+    pub fn to_csv(&self) -> String {
+        let mut buf = String::from(
+            "timestamp_ns,sequence,raw_size,ffb_scalar,rpm,speed_ms,slip_ratio,gear\n",
+        );
+        for f in &self.frames {
+            use std::fmt::Write;
+            let _ = writeln!(
+                buf,
+                "{},{},{},{},{},{},{},{}",
+                f.timestamp_ns,
+                f.sequence,
+                f.raw_size,
+                f.data.ffb_scalar,
+                f.data.rpm,
+                f.data.speed_ms,
+                f.data.slip_ratio,
+                f.data.gear,
+            );
+        }
+        buf
+    }
+
+    /// Export the recording as compact (non-pretty) JSON bytes.
+    pub fn to_compact_json(&self) -> anyhow::Result<Vec<u8>> {
+        Ok(serde_json::to_vec(self)?)
+    }
+
+    /// Export the recording as compact binary bytes (length-prefixed JSON).
+    ///
+    /// Format: 4-byte little-endian metadata length, metadata JSON, frames JSON.
+    /// This is more compact than pretty-printed JSON and suitable for binary
+    /// storage / transport.
+    pub fn to_binary(&self) -> anyhow::Result<Vec<u8>> {
+        let meta_bytes = serde_json::to_vec(&self.metadata)?;
+        let frames_bytes = serde_json::to_vec(&self.frames)?;
+
+        let meta_len = (meta_bytes.len() as u32).to_le_bytes();
+        let mut out = Vec::with_capacity(4 + meta_bytes.len() + frames_bytes.len());
+        out.extend_from_slice(&meta_len);
+        out.extend_from_slice(&meta_bytes);
+        out.extend_from_slice(&frames_bytes);
+        Ok(out)
+    }
+
+    /// Import a recording from the compact binary format produced by [`to_binary`].
+    pub fn from_binary(bytes: &[u8]) -> anyhow::Result<Self> {
+        if bytes.len() < 4 {
+            return Err(anyhow::anyhow!("binary data too short"));
+        }
+        let meta_len = u32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]) as usize;
+        if bytes.len() < 4 + meta_len {
+            return Err(anyhow::anyhow!("binary data truncated (metadata)"));
+        }
+        let metadata: RecordingMetadata = serde_json::from_slice(&bytes[4..4 + meta_len])?;
+        let frames: Vec<TelemetryFrame> = serde_json::from_slice(&bytes[4 + meta_len..])?;
+        Ok(Self { metadata, frames })
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Session comparison / diff
+// ---------------------------------------------------------------------------
+
+/// A single field-level difference between two frames.
+#[derive(Debug, Clone)]
+pub struct FieldDiff {
+    pub frame_index: usize,
+    pub field: String,
+    pub left: String,
+    pub right: String,
+}
+
+/// Result of comparing two `TelemetryRecording` sessions.
+#[derive(Debug, Clone)]
+pub struct SessionDiff {
+    /// Human-readable metadata differences.
+    pub metadata_diffs: Vec<String>,
+    /// Difference in frame count (`left.len() as i64 - right.len() as i64`).
+    pub frame_count_delta: i64,
+    /// Per-frame field differences (only for overlapping indices).
+    pub field_diffs: Vec<FieldDiff>,
+}
+
+impl SessionDiff {
+    /// `true` when the two recordings are considered identical.
+    pub fn is_identical(&self) -> bool {
+        self.metadata_diffs.is_empty() && self.frame_count_delta == 0 && self.field_diffs.is_empty()
+    }
+}
+
+impl TelemetryRecording {
+    /// Compare this recording with another, returning a [`SessionDiff`].
+    pub fn diff(&self, other: &Self) -> SessionDiff {
+        let mut metadata_diffs = Vec::new();
+
+        if self.metadata.game_id != other.metadata.game_id {
+            metadata_diffs.push(format!(
+                "game_id: {} vs {}",
+                self.metadata.game_id, other.metadata.game_id
+            ));
+        }
+        if self.metadata.car_id != other.metadata.car_id {
+            metadata_diffs.push(format!(
+                "car_id: {:?} vs {:?}",
+                self.metadata.car_id, other.metadata.car_id
+            ));
+        }
+        if self.metadata.track_id != other.metadata.track_id {
+            metadata_diffs.push(format!(
+                "track_id: {:?} vs {:?}",
+                self.metadata.track_id, other.metadata.track_id
+            ));
+        }
+        if self.metadata.description != other.metadata.description {
+            metadata_diffs.push(format!(
+                "description: {:?} vs {:?}",
+                self.metadata.description, other.metadata.description
+            ));
+        }
+
+        let frame_count_delta = self.frames.len() as i64 - other.frames.len() as i64;
+
+        let overlap = self.frames.len().min(other.frames.len());
+        let mut field_diffs = Vec::new();
+
+        for i in 0..overlap {
+            let a = &self.frames[i];
+            let b = &other.frames[i];
+
+            if a.timestamp_ns != b.timestamp_ns {
+                field_diffs.push(FieldDiff {
+                    frame_index: i,
+                    field: "timestamp_ns".to_string(),
+                    left: a.timestamp_ns.to_string(),
+                    right: b.timestamp_ns.to_string(),
+                });
+            }
+            if (a.data.rpm - b.data.rpm).abs() > f32::EPSILON {
+                field_diffs.push(FieldDiff {
+                    frame_index: i,
+                    field: "rpm".to_string(),
+                    left: a.data.rpm.to_string(),
+                    right: b.data.rpm.to_string(),
+                });
+            }
+            if (a.data.speed_ms - b.data.speed_ms).abs() > f32::EPSILON {
+                field_diffs.push(FieldDiff {
+                    frame_index: i,
+                    field: "speed_ms".to_string(),
+                    left: a.data.speed_ms.to_string(),
+                    right: b.data.speed_ms.to_string(),
+                });
+            }
+            if (a.data.ffb_scalar - b.data.ffb_scalar).abs() > f32::EPSILON {
+                field_diffs.push(FieldDiff {
+                    frame_index: i,
+                    field: "ffb_scalar".to_string(),
+                    left: a.data.ffb_scalar.to_string(),
+                    right: b.data.ffb_scalar.to_string(),
+                });
+            }
+            if a.data.gear != b.data.gear {
+                field_diffs.push(FieldDiff {
+                    frame_index: i,
+                    field: "gear".to_string(),
+                    left: a.data.gear.to_string(),
+                    right: b.data.gear.to_string(),
+                });
+            }
+        }
+
+        SessionDiff {
+            metadata_diffs,
+            frame_count_delta,
+            field_diffs,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
