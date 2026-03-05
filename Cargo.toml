@@ -77,6 +77,7 @@ members = [
     "crates/telemetry-raceroom",
     "crates/telemetry-recorder",
     "crates/telemetry-config-writers",
+    "crates/telemetry-connection",
     "crates/telemetry-rate-limiter",
     "crates/telemetry-orchestrator",
     "crates/telemetry-bdd-metrics",
@@ -195,6 +196,7 @@ chrono = { version = "0.4.43", features = ["serde"] }
 
 # Workspace-local crates (prefer workspace deps over per-crate path deps)
 racing-wheel-telemetry-config-writers = { path = "crates/telemetry-config-writers" }
+racing-wheel-telemetry-connection = { path = "crates/telemetry-connection" }
 racing-wheel-hbp = { path = "crates/hbp" }
 racing-wheel-hid-fanatec-protocol = { path = "crates/hid-fanatec-protocol" }
 racing-wheel-hid-logitech-protocol = { path = "crates/hid-logitech-protocol" }

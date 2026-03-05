@@ -6142,6 +6142,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "racing-wheel-telemetry-connection"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "tokio",
+ "workspace-hack",
+]
+
+[[package]]
 name = "racing-wheel-telemetry-contracts"
 version = "0.1.0"
 dependencies = [
@@ -6159,6 +6168,7 @@ dependencies = [
  "proptest",
  "racing-wheel-schemas",
  "racing-wheel-telemetry-config",
+ "racing-wheel-telemetry-connection",
  "racing-wheel-telemetry-recorder",
  "serde",
  "serde_json",

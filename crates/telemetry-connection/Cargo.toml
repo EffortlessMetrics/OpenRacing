@@ -1,0 +1,20 @@
+[package]
+name = "racing-wheel-telemetry-connection"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage = "https://github.com/EffortlessMetrics/OpenRacing"
+documentation = "https://docs.rs/racing-wheel-telemetry-connection"
+publish = true
+description = "Connection state and disconnection tracking primitives for telemetry adapters"
+keywords = ["telemetry", "connection", "state", "tracking"]
+
+[package.metadata.cargo-udeps.ignore]
+normal = ["workspace-hack"]
+
+[dependencies]
+serde = { workspace = true }
+tokio = { workspace = true }
+workspace-hack = { version = "0.1", path = "../../workspace-hack" }
