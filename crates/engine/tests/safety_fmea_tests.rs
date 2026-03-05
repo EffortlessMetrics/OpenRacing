@@ -151,7 +151,10 @@ fn fault_safety_interlock_violation_enters_faulted() -> Result<(), String> {
     s.report_fault(FaultType::SafetyInterlockViolation);
     assert!(matches!(
         s.state(),
-        SafetyState::Faulted { fault: FaultType::SafetyInterlockViolation, .. }
+        SafetyState::Faulted {
+            fault: FaultType::SafetyInterlockViolation,
+            ..
+        }
     ));
     Ok(())
 }
@@ -496,7 +499,10 @@ fn interlock_emergency_stop_zeroes_torque() -> Result<(), String> {
     let result = sys.emergency_stop();
     assert_eq!(result.torque_command, 0.0);
     assert!(result.fault_occurred);
-    assert!(matches!(result.state, SafetyInterlockState::EmergencyStop { .. }));
+    assert!(matches!(
+        result.state,
+        SafetyInterlockState::EmergencyStop { .. }
+    ));
     Ok(())
 }
 
