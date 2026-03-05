@@ -35,6 +35,8 @@ pub mod device;
 pub mod diagnostic;
 pub mod engine;
 pub mod ffb;
+#[cfg(test)]
+mod filter_pipeline_deep_tests;
 pub mod filters;
 pub mod hid;
 #[cfg(test)]
