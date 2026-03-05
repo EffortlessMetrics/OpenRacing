@@ -50,6 +50,8 @@ pub mod ports;
 pub mod prelude;
 pub mod profile_merge;
 pub mod protocol;
+#[cfg(test)]
+pub mod replay_diag_deep_tests;
 pub mod rt;
 #[cfg(test)]
 mod rt_alloc_verify_tests;
