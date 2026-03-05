@@ -46,6 +46,9 @@ pub const OPENFFBOARD_PRODUCT_ID: u16 = 0xFFB0;
 /// registered on pid.codes, absent from firmware/configurator/kernel/community
 /// databases. Consider removing or gating behind a `speculative-pids` feature
 /// flag if no evidence surfaces.
+///
+/// SAFETY NOTE: If matched, this could dispatch FFB commands to an unknown
+/// device. Only 0xFFB0 is confirmed for OpenFFBoard force feedback.
 pub const OPENFFBOARD_PRODUCT_ID_ALT: u16 = 0xFFB1;
 
 /// Known OpenFFBoard device variants.

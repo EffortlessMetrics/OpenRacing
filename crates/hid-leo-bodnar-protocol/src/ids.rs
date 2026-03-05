@@ -49,10 +49,11 @@ pub const PID_FFB_JOYSTICK: u16 = 0x000F;
 
 /// SLI-Pro Shift Light Indicator – output/display device with button inputs.
 ///
-/// PID `0x1301` is a community estimate from USB device reports and the
-/// OpenFlight compatibility database.  The previous value (`0xBEEF`) was a
-/// well-known hex magic-number placeholder.
+/// PROVISIONAL: PID `0x1301` is a community estimate from USB device reports
+/// and the OpenFlight compatibility database. Not confirmed by USB-IF or
+/// vendor documentation.
 ///
+/// The previous value (`0xBEEF`) was a well-known hex magic-number placeholder.
 /// Leo Bodnar's product catalogue (leobodnar.com, checked 2025-06) lists
 /// "SLI-Pro" and "SLI-F1" shift light indicators — **no** product called
 /// "SLI-M" exists.  The SLI-F1 enumerates as "SLI-Pro" on USB.
@@ -69,18 +70,23 @@ pub const PID_SLI_M: u16 = 0x1301;
 // ── Estimated product IDs (from community USB captures) ─────────────────────
 
 /// BU0836A – 12-bit joystick interface (8 analog axes, 32 buttons).
-/// PID estimated from community USB device reports; not independently
-/// confirmed from an official source.
+///
+/// PROVISIONAL: PID estimated from community USB device reports; not
+/// independently confirmed from an official source or USB-IF registry.
 pub const PID_BU0836A: u16 = 0x000B;
 
 /// BU0836X – 12-bit joystick interface with push-in wire connectors
-/// (8 analog axes, 32 buttons). PID estimated from community USB device
-/// reports; not independently confirmed from an official source.
+/// (8 analog axes, 32 buttons).
+///
+/// PROVISIONAL: PID estimated from community USB device reports; not
+/// independently confirmed from an official source or USB-IF registry.
 pub const PID_BU0836X: u16 = 0x0030;
 
 /// BU0836 16-bit – high-resolution joystick interface (16-bit ADC,
-/// 8 analog axes, 32 buttons). PID estimated from community USB device
-/// reports; not independently confirmed from an official source.
+/// 8 analog axes, 32 buttons).
+///
+/// PROVISIONAL: PID estimated from community USB device reports; not
+/// independently confirmed from an official source or USB-IF registry.
 pub const PID_BU0836_16BIT: u16 = 0x0031;
 
 // ── Community-confirmed product IDs (simracing-hwdb) ────────────────────────

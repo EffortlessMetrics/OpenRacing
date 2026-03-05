@@ -128,6 +128,9 @@ pub mod product_ids {
     /// evidence. The non-sequential pattern (DFP=0xA355, Pedals=0xA3BE,
     /// R295=0xA44C) suggests VRS does not use contiguous PIDs. Needs a
     /// real USB capture or vendor confirmation.
+    ///
+    /// SAFETY NOTE: This is an FFB wheelbase PID. Incorrect matching could
+    /// cause wrong force feedback dispatch. Do not trust without confirmation.
     pub const DIRECTFORCE_PRO_V2: u16 = 0xA356;
 
     /// VRS R295 wheelbase.
@@ -152,10 +155,25 @@ pub mod product_ids {
     )]
     pub const PEDALS_V1: u16 = 0xA357;
 
-    /// VRS Pedals (digital/load cell). ⚠ PID unverified.
+    /// VRS Pedals V2 (digital/load cell).
+    ///
+    /// UNVERIFIED: Sequential estimate from DFP=0xA355. Not present in Linux
+    /// kernel `hid-ids.h`, linux-steering-wheels, or simracing-hwdb (2025-07).
+    /// The non-contiguous pattern (Pedals=0xA3BE, R295=0xA44C) suggests this
+    /// guess may be incorrect.
     pub const PEDALS_V2: u16 = 0xA358;
-    /// VRS Handbrake. ⚠ PID unverified.
+
+    /// VRS Handbrake.
+    ///
+    /// UNVERIFIED: Sequential estimate from DFP=0xA355. Not present in any
+    /// external source (kernel, linux-steering-wheels, simracing-hwdb).
+    /// The non-contiguous VRS PID pattern undermines sequential assumptions.
     pub const HANDBRAKE: u16 = 0xA359;
-    /// VRS Shifter. ⚠ PID unverified.
+
+    /// VRS Shifter.
+    ///
+    /// UNVERIFIED: Sequential estimate from DFP=0xA355. Not present in any
+    /// external source (kernel, linux-steering-wheels, simracing-hwdb).
+    /// The non-contiguous VRS PID pattern undermines sequential assumptions.
     pub const SHIFTER: u16 = 0xA35A;
 }
