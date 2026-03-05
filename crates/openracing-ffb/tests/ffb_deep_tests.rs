@@ -560,7 +560,7 @@ mod prop_tests {
     use proptest::prelude::*;
 
     proptest! {
-        #![proptest_config(ProptestConfig::with_cases(1000))]
+        #![proptest_config(ProptestConfig { cases: 1000, timeout: 60_000, ..ProptestConfig::default() })]
 
         #[test]
         fn any_effect_any_position_bounded_torque(

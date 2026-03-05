@@ -825,7 +825,7 @@ mod proptest_deep {
     use proptest::prelude::*;
 
     proptest! {
-        #![proptest_config(proptest::test_runner::Config::with_cases(1000))]
+        #![proptest_config(proptest::test_runner::Config { cases: 1000, timeout: 60_000, ..proptest::test_runner::Config::default() })]
 
         /// Any valid torque value within [-max, max] round-trips correctly
         /// through encode → decode with bounded error.

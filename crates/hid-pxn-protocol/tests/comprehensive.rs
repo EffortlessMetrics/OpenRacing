@@ -220,7 +220,7 @@ mod property_tests {
     use proptest::prelude::*;
 
     proptest! {
-        #![proptest_config(proptest::test_runner::Config::with_cases(1000))]
+        #![proptest_config(proptest::test_runner::Config { cases: 1000, timeout: 60_000, ..proptest::test_runner::Config::default() })]
 
         #[test]
         fn prop_is_pxn_requires_correct_vid(vid in 0u16..=65535u16, pid in 0u16..=65535u16) {

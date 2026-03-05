@@ -888,7 +888,7 @@ fn rim_id_unknown_byte_values() -> Result<(), Box<dyn std::error::Error>> {
 // ═══════════════════════════════════════════════════════════════════════════
 
 proptest! {
-    #![proptest_config(ProptestConfig::with_cases(1000))]
+    #![proptest_config(ProptestConfig { cases: 1000, timeout: 60_000, ..ProptestConfig::default() })]
 
     /// Steering normalization must always produce values in [-1.0, 1.0].
     #[test]

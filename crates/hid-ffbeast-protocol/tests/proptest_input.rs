@@ -6,7 +6,7 @@ use racing_wheel_hid_ffbeast_protocol::input::{
 };
 
 proptest! {
-    #![proptest_config(ProptestConfig::with_cases(1000))]
+    #![proptest_config(ProptestConfig { cases: 1000, timeout: 60_000, ..ProptestConfig::default() })]
 
     #[test]
     fn parse_never_panics(data in proptest::collection::vec(any::<u8>(), 0..100)) {
