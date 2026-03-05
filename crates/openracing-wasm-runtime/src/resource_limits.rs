@@ -86,6 +86,14 @@ pub struct ResourceLimits {
     /// by incrementing the epoch. This is useful for implementing
     /// cancellation or timeouts.
     pub epoch_interruption: bool,
+
+    /// Maximum time allowed for module compilation.
+    ///
+    /// Default: None (no compilation timeout)
+    ///
+    /// When set, module compilation that exceeds this duration will
+    /// be aborted and return a `CompilationTimeout` error.
+    pub compilation_timeout: Option<Duration>,
 }
 
 impl Default for ResourceLimits {
@@ -97,6 +105,7 @@ impl Default for ResourceLimits {
             max_instances: 32,
             max_execution_time: None,
             epoch_interruption: true,
+            compilation_timeout: None,
         }
     }
 }
@@ -124,6 +133,7 @@ impl ResourceLimits {
             max_instances,
             max_execution_time: None,
             epoch_interruption: true,
+            compilation_timeout: None,
         }
     }
 
@@ -169,6 +179,13 @@ impl ResourceLimits {
         self
     }
 
+    /// Create resource limits with a specific compilation timeout.
+    #[must_use]
+    pub fn with_compilation_timeout(mut self, timeout: Duration) -> Self {
+        self.compilation_timeout = Some(timeout);
+        self
+    }
+
     /// Create conservative limits for untrusted plugins.
     ///
     /// These limits are suitable for plugins from untrusted sources:
@@ -185,6 +202,7 @@ impl ResourceLimits {
             max_instances: 8,
             max_execution_time: Some(Duration::from_secs(1)),
             epoch_interruption: true,
+            compilation_timeout: Some(Duration::from_secs(5)),
         }
     }
 
@@ -204,6 +222,7 @@ impl ResourceLimits {
             max_instances: 128,
             max_execution_time: None,
             epoch_interruption: true,
+            compilation_timeout: None,
         }
     }
 

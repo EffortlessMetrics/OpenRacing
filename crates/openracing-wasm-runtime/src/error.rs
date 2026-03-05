@@ -83,6 +83,20 @@ pub enum WasmError {
     /// Module compilation failed
     #[error("Module compilation failed: {0}")]
     CompilationFailed(String),
+
+    /// Module compilation timed out
+    #[error("Module compilation timed out after {duration:?}")]
+    CompilationTimeout {
+        /// How long compilation was allowed to run
+        duration: Duration,
+    },
+
+    /// Plugin fuel exhausted (instruction budget exceeded)
+    #[error("Plugin fuel exhausted (limit: {fuel_limit} instructions)")]
+    FuelExhausted {
+        /// The fuel limit that was configured
+        fuel_limit: u64,
+    },
 }
 
 impl WasmError {
@@ -101,13 +115,28 @@ impl WasmError {
     /// Check if this error indicates a budget violation
     #[must_use]
     pub fn is_budget_violation(&self) -> bool {
-        matches!(self, Self::BudgetViolation { .. })
+        matches!(
+            self,
+            Self::BudgetViolation { .. } | Self::FuelExhausted { .. }
+        )
     }
 
     /// Check if this error indicates a capability violation
     #[must_use]
     pub fn is_capability_violation(&self) -> bool {
         matches!(self, Self::CapabilityViolation { .. })
+    }
+
+    /// Check if this error indicates fuel exhaustion
+    #[must_use]
+    pub fn is_fuel_exhausted(&self) -> bool {
+        matches!(self, Self::FuelExhausted { .. })
+    }
+
+    /// Check if this error indicates a compilation timeout
+    #[must_use]
+    pub fn is_compilation_timeout(&self) -> bool {
+        matches!(self, Self::CompilationTimeout { .. })
     }
 
     /// Create a loading failed error with context

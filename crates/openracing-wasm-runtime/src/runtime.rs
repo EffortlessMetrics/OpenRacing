@@ -5,7 +5,9 @@
 
 use std::collections::HashMap;
 use std::path::Path;
-use std::time::Instant;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::{Duration, Instant};
 
 use wasmtime::{Config, Engine, Instance, Linker, Module, Store};
 
@@ -46,6 +48,10 @@ pub struct WasmRuntime {
     instances: HashMap<PluginId, WasmPluginInstance>,
     /// Resource limits applied to all plugins
     resource_limits: ResourceLimits,
+    /// Signal to stop the epoch ticker thread
+    epoch_ticker_running: Arc<AtomicBool>,
+    /// Handle to the epoch ticker background thread
+    epoch_ticker_handle: Option<std::thread::JoinHandle<()>>,
 }
 
 impl WasmRuntime {
@@ -84,11 +90,29 @@ impl WasmRuntime {
         let mut linker = Linker::new(&engine);
         Self::register_host_functions(&mut linker)?;
 
+        // Start epoch ticker thread for wall-clock timeout enforcement
+        let epoch_ticker_running = Arc::new(AtomicBool::new(true));
+        let epoch_ticker_handle =
+            if resource_limits.epoch_interruption && resource_limits.max_execution_time.is_some() {
+                let engine_clone = engine.clone();
+                let running = epoch_ticker_running.clone();
+                Some(std::thread::spawn(move || {
+                    while running.load(Ordering::Relaxed) {
+                        std::thread::sleep(Duration::from_millis(1));
+                        engine_clone.increment_epoch();
+                    }
+                }))
+            } else {
+                None
+            };
+
         Ok(Self {
             engine,
             linker,
             instances: HashMap::new(),
             resource_limits,
+            epoch_ticker_running,
+            epoch_ticker_handle,
         })
     }
 
@@ -125,6 +149,35 @@ impl WasmRuntime {
     #[must_use]
     pub fn engine(&self) -> &Engine {
         &self.engine
+    }
+
+    /// Compile a WASM module, respecting the configured compilation timeout.
+    fn compile_module(&self, wasm_bytes: &[u8]) -> WasmResult<Module> {
+        match self.resource_limits.compilation_timeout {
+            Some(timeout) => {
+                let engine = self.engine.clone();
+                let bytes = wasm_bytes.to_vec();
+                let (tx, rx) = std::sync::mpsc::sync_channel(1);
+
+                std::thread::spawn(move || {
+                    let result = Module::new(&engine, &bytes);
+                    let _ = tx.send(result);
+                });
+
+                match rx.recv_timeout(timeout) {
+                    Ok(Ok(module)) => Ok(module),
+                    Ok(Err(e)) => Err(WasmError::CompilationFailed(e.to_string())),
+                    Err(_) => {
+                        tracing::warn!(
+                            timeout = ?timeout,
+                            "WASM module compilation timed out"
+                        );
+                        Err(WasmError::CompilationTimeout { duration: timeout })
+                    }
+                }
+            }
+            None => Ok(Module::new(&self.engine, wasm_bytes)?),
+        }
     }
 
     /// Validate WASM module exports.
@@ -187,7 +240,7 @@ impl WasmRuntime {
             ));
         }
 
-        let module = Module::new(&self.engine, wasm_bytes)?;
+        let module = self.compile_module(wasm_bytes)?;
 
         let wasi = wasmtime_wasi::WasiCtxBuilder::new().build_p1();
 
@@ -347,10 +400,17 @@ impl WasmRuntime {
             }
 
             instance.store.set_fuel(self.resource_limits.max_fuel)?;
-            instance.store.set_epoch_deadline(100);
-        }
 
-        self.engine.increment_epoch();
+            // Set epoch deadline for wall-clock timeout enforcement.
+            // The epoch ticker thread increments the epoch every ~1ms,
+            // so deadline_ticks ≈ timeout in milliseconds.
+            let epoch_deadline = if let Some(timeout) = self.resource_limits.max_execution_time {
+                timeout.as_millis().max(1) as u64
+            } else {
+                u64::MAX
+            };
+            instance.store.set_epoch_deadline(epoch_deadline);
+        }
 
         // Get the process function and call it
         let call_result = {
@@ -384,24 +444,55 @@ impl WasmRuntime {
                 Ok(result)
             }
             Err(trap) => {
+                let elapsed = start_time.elapsed();
                 let trap_reason = trap.to_string();
-                let trap_location = Self::extract_trap_location(&trap);
 
-                tracing::error!(
-                    plugin_id = %id,
-                    trap_reason = %trap_reason,
-                    trap_location = ?trap_location,
-                    "WASM plugin trapped during execution, disabling plugin"
-                );
+                // Detect specific trap types for precise error reporting
+                let is_out_of_fuel = trap
+                    .downcast_ref::<wasmtime::Trap>()
+                    .is_some_and(|t| matches!(t, wasmtime::Trap::OutOfFuel));
+                let is_epoch_interrupt = trap
+                    .downcast_ref::<wasmtime::Trap>()
+                    .is_some_and(|t| matches!(t, wasmtime::Trap::Interrupt));
 
-                instance.mark_disabled(trap_reason.clone(), trap_location.clone());
-
-                if instance.store.get_fuel().unwrap_or(0) == 0 {
-                    Err(WasmError::BudgetViolation {
-                        used_us: 0,
-                        budget_us: 0,
+                if is_epoch_interrupt {
+                    tracing::warn!(
+                        plugin_id = %id,
+                        elapsed_ms = elapsed.as_millis(),
+                        timeout = ?self.resource_limits.max_execution_time,
+                        "WASM plugin exceeded execution timeout, disabling plugin"
+                    );
+                    instance.mark_disabled(
+                        format!("Execution timeout after {}ms", elapsed.as_millis()),
+                        None,
+                    );
+                    Err(WasmError::ExecutionTimeout { duration: elapsed })
+                } else if is_out_of_fuel {
+                    tracing::warn!(
+                        plugin_id = %id,
+                        fuel_limit = self.resource_limits.max_fuel,
+                        elapsed_ms = elapsed.as_millis(),
+                        "WASM plugin exhausted fuel budget, disabling plugin"
+                    );
+                    instance.mark_disabled(
+                        format!(
+                            "Fuel exhausted (limit: {} instructions)",
+                            self.resource_limits.max_fuel
+                        ),
+                        None,
+                    );
+                    Err(WasmError::FuelExhausted {
+                        fuel_limit: self.resource_limits.max_fuel,
                     })
                 } else {
+                    let trap_location = Self::extract_trap_location(&trap);
+                    tracing::error!(
+                        plugin_id = %id,
+                        trap_reason = %trap_reason,
+                        trap_location = ?trap_location,
+                        "WASM plugin trapped during execution, disabling plugin"
+                    );
+                    instance.mark_disabled(trap_reason.clone(), trap_location.clone());
                     Err(WasmError::crashed(format!(
                         "Plugin trapped: {}{}",
                         trap_reason,
@@ -599,7 +690,7 @@ impl WasmRuntime {
     ) -> WasmResult<()> {
         let preserved_state = self.instances.get(id).map(Self::extract_preserved_state);
 
-        let module = match Module::new(&self.engine, wasm_bytes) {
+        let module = match self.compile_module(wasm_bytes) {
             Ok(m) => m,
             Err(e) => {
                 tracing::warn!(
@@ -607,7 +698,7 @@ impl WasmRuntime {
                     error = %e,
                     "Failed to compile new WASM module during reload, keeping old plugin"
                 );
-                return Err(WasmError::from(e));
+                return Err(e);
             }
         };
 
@@ -758,6 +849,15 @@ impl WasmRuntime {
         })?;
 
         self.reload_plugin(id, &wasm_bytes, capabilities)
+    }
+}
+
+impl Drop for WasmRuntime {
+    fn drop(&mut self) {
+        self.epoch_ticker_running.store(false, Ordering::Relaxed);
+        if let Some(handle) = self.epoch_ticker_handle.take() {
+            let _ = handle.join();
+        }
     }
 }
 
