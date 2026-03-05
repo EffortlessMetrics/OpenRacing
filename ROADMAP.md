@@ -18,9 +18,9 @@ This document outlines the development roadmap for OpenRacing. It tracks the imp
 - **Safety System**: FMEA analysis, fault injection tests, safety interlocks, hardware watchdog, safe mode transitions, black box recording
 - **Multi-vendor Device Support**: 28 vendors (15 wheelbase manufacturers + 13 peripheral-only), 159 unique VID/PID pairs across all device protocol crates
 - **Protocol Documentation**: All supported devices documented in `docs/protocols/`; VID/PID constants locked to `docs/protocols/SOURCES.md` via `id_verification.rs` test suites
-- **Test Infrastructure**: 24,000+ tests across unit, integration, property-based (proptest), snapshot, and acceptance tests; 113 fuzz targets; all HID crates have cross-reference id_verification suites
+- **Test Infrastructure**: 26,000+ tests across unit, integration, property-based (proptest), snapshot, and acceptance tests; 113 fuzz targets; all HID crates have cross-reference id_verification suites
 - **Linux Packaging**: udev rules for all devices, hwdb for joystick classification (133 entries), kernel quirks (ALWAYS_POLL) for Asetek and Simagic
-- **CI Matrix**: Linux (ubuntu-latest/22.04/24.04) + Windows (windows-latest) + macOS (macos-latest, being added)
+- **CI Matrix**: Linux (ubuntu-latest/22.04/24.04) + Windows (windows-latest) + macOS (macos-latest) — macOS compilation fixed (PR #97), RT test ignores added (PR #106)
 
 **Architecture**: Established via ADRs 0001-0008 (FFB Mode Matrix, IPC Transport, OWP-1 Protocol, RT Scheduling, Plugin Architecture, Safety Interlocks, Multi-Vendor HID Protocol Architecture, Game Auto-Configure and Telemetry Bridge)
 
@@ -98,8 +98,10 @@ This document outlines the development roadmap for OpenRacing. It tracks the imp
     - [x] udev rules for all supported devices
     - [x] hwdb for joystick classification (133 entries)
     - [x] Kernel quirks (ALWAYS_POLL) for Asetek and Simagic
-- [ ] **macOS Support**
+- [x] **macOS Support** (compilation)
     - [x] CI matrix added (macos-latest)
+    - [x] Compilation fixes — libudev gated to Linux-only (PR #97)
+    - [x] RT scheduling tests ignored on macOS CI (PR #106)
     - [ ] IOKit HID driver implementation
     - [ ] thread_policy_set RT scheduling
     - [ ] DMG with notarization
@@ -114,7 +116,7 @@ This document outlines the development roadmap for OpenRacing. It tracks the imp
 
 ### Phase 5: Polish & 1.0 RC 🔄 In Progress
 
-- [x] **Test Coverage**: 24,000+ tests across unit, integration, property-based, snapshot, and acceptance tests
+- [x] **Test Coverage**: 26,000+ tests across unit, integration, property-based, snapshot, and acceptance tests
 - [x] **Documentation**: Comprehensive (setup, user guide, device support, development)
 - [x] **Performance Gates**: CI-enforced benchmarks (P99 jitter ≤0.25ms, zero RT heap allocations)
 - [x] **Safety Hardening**
@@ -134,7 +136,7 @@ This document outlines the development roadmap for OpenRacing. It tracks the imp
 - [x] **Migration System**
     - [x] Automatic profile schema version detection
     - [x] Profile migration with backup creation (idempotent)
-- [ ] **Security**: Plugin signing framework exists; needs Ed25519 trust store for public key distribution
+- [x] **Security**: Ed25519 trust store implemented with fail-closed mode (PR #105); native plugin signing end-to-end functional
 
 ## Future Considerations
 
@@ -151,6 +153,7 @@ The following TODOs exist in the codebase and should be addressed before v1.0.0:
 | Location | Issue |
 |----------|-------|
 | ~~`crates/service/src/security/signature.rs:111`~~ | ~~Replace stub with actual Ed25519 verification~~ — **RESOLVED**: Full Ed25519 implementation with `ed25519-dalek` 2.2.0 |
+| ~~Ed25519 trust store~~ | ~~Needs trust store for public key distribution~~ — **RESOLVED**: Fail-closed trust store implemented (PR #105) |
 | ~~`crates/service/src/crypto/mod.rs:204-205`~~ | ~~Implement PE/ELF embedded signature checking~~ — **RESOLVED**: PE/ELF/Mach-O parsing implemented via `goblin` |
 | `crates/engine/src/diagnostic/blackbox.rs:152` | Index optimization for large recordings |
 | `crates/service/src/integration_tests.rs` | Re-enable disabled integration tests |
@@ -166,7 +169,7 @@ The following TODOs exist in the codebase and should be addressed before v1.0.0:
 | v0.1.0  | 2025-01-01 | ✅ Released | Core Engine & Linux Support |
 | v0.2.0  | 2026-02-01 | ✅ Released | Windows Support & Tauri UI |
 | v0.3.0  | 2026-02-01 | ✅ Released | WASM Plugins, Game Telemetry, Curve FFB |
-| v1.0 RC | 2026-Q3   | ✅ Feature complete | 28 vendors, 61 game integrations, safety hardening, 24,000+ tests |
+| v1.0 RC | 2026-Q3   | ✅ Feature complete | 28 vendors, 61 game integrations, safety hardening, 26,000+ tests |
 | v1.0.0  | 2026-10-15 | Planned | Production Release with Security Audit |
 
 ## Contributing
@@ -176,4 +179,4 @@ See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for development setup and contr
 Significant architectural changes require an ADR. See [docs/adr/README.md](docs/adr/README.md) for the process.
 
 ---
-*Last updated: 2026-Q3. This roadmap reflects the current project state: 85 crates, 28 vendors, 159 devices, 61 games, 24,000+ tests.*
+*Last updated: 2026-Q3. This roadmap reflects the current project state: 85 crates, 28 vendors, 159 devices, 61 games, 26,000+ tests.*
