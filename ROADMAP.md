@@ -4,7 +4,7 @@ This document outlines the development roadmap for OpenRacing. It tracks the imp
 
 ## Current Status (v1.0 RC - 2026)
 
-**Project Scale:** 85 workspace crates in the Rust workspace.
+**Project Scale:** 83 workspace crates in the Rust workspace.
 
 **Released Features:**
 - **Core FFB Engine**: Real-time force feedback processing at 1kHz with zero-allocation RT path (P99 jitter ≤0.25ms)
@@ -18,7 +18,7 @@ This document outlines the development roadmap for OpenRacing. It tracks the imp
 - **Safety System**: FMEA analysis, fault injection tests, safety interlocks, hardware watchdog, safe mode transitions, black box recording
 - **Multi-vendor Device Support**: 28 vendors (15 wheelbase manufacturers + 13 peripheral-only), 159 unique VID/PID pairs across all device protocol crates
 - **Protocol Documentation**: All supported devices documented in `docs/protocols/`; VID/PID constants locked to `docs/protocols/SOURCES.md` via `id_verification.rs` test suites
-- **Test Infrastructure**: 26,000+ tests across unit, integration, property-based (proptest), snapshot, and acceptance tests; 113 fuzz targets; all HID crates have cross-reference id_verification suites
+- **Test Infrastructure**: 26,900+ tests across unit, integration, property-based (proptest), snapshot, and acceptance tests; 113 fuzz targets; all HID crates have cross-reference id_verification suites
 - **Linux Packaging**: udev rules for all devices, hwdb for joystick classification (133 entries), kernel quirks (ALWAYS_POLL) for Asetek and Simagic
 - **CI Matrix**: Linux (ubuntu-latest/22.04/24.04) + Windows (windows-latest) + macOS (macos-latest) — macOS compilation fixed (PR #97), RT test ignores added (PR #106)
 
@@ -116,7 +116,7 @@ This document outlines the development roadmap for OpenRacing. It tracks the imp
 
 ### Phase 5: Polish & 1.0 RC 🔄 In Progress
 
-- [x] **Test Coverage**: 26,000+ tests across unit, integration, property-based, snapshot, and acceptance tests
+- [x] **Test Coverage**: 26,900+ tests across unit, integration, property-based, snapshot, and acceptance tests
 - [x] **Documentation**: Comprehensive (setup, user guide, device support, development)
 - [x] **Performance Gates**: CI-enforced benchmarks (P99 jitter ≤0.25ms, zero RT heap allocations)
 - [x] **Safety Hardening**
@@ -169,7 +169,7 @@ The following TODOs exist in the codebase and should be addressed before v1.0.0:
 | v0.1.0  | 2025-01-01 | ✅ Released | Core Engine & Linux Support |
 | v0.2.0  | 2026-02-01 | ✅ Released | Windows Support & Tauri UI |
 | v0.3.0  | 2026-02-01 | ✅ Released | WASM Plugins, Game Telemetry, Curve FFB |
-| v1.0 RC | 2026-Q3   | ✅ Feature complete | 28 vendors, 61 game integrations, safety hardening, 26,000+ tests |
+| v1.0 RC | 2026-Q3   | ✅ Feature complete | 28 vendors, 61 game integrations, safety hardening, 26,900+ tests |
 | v1.0.0  | 2026-10-15 | Planned | Production Release with Security Audit |
 
 ## Contributing
@@ -179,4 +179,4 @@ See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for development setup and contr
 Significant architectural changes require an ADR. See [docs/adr/README.md](docs/adr/README.md) for the process.
 
 ---
-*Last updated: 2026-Q3. This roadmap reflects the current project state: 85 crates, 28 vendors, 159 devices, 61 games, 26,000+ tests.*
+*Last updated: 2026-Q3. This roadmap reflects the current project state: 83 crates, 28 vendors, 159 devices, 61 games, 26,900+ tests.*
