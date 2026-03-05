@@ -12,8 +12,7 @@ use racing_wheel_schemas::config::{
     ProfileMigrator, ProfileValidator,
 };
 use racing_wheel_schemas::domain::{
-    CurvePoint, Degrees, DeviceId, FrequencyHz, Gain, ProfileId, TorqueNm,
-    validate_curve_monotonic,
+    CurvePoint, Degrees, DeviceId, FrequencyHz, Gain, ProfileId, TorqueNm, validate_curve_monotonic,
 };
 use racing_wheel_schemas::entities::{
     BaseSettings, BumpstopConfig, CalibrationData, CalibrationType, Device, DeviceCapabilities,
