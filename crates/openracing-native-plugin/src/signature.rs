@@ -293,4 +293,246 @@ mod tests {
         assert!(!config.require_signatures);
         assert!(config.allow_unsigned);
     }
+
+    #[test]
+    fn test_verify_signed_plugin_with_trusted_key() -> Result<(), Box<dyn std::error::Error>> {
+        use openracing_crypto::ed25519::{Ed25519Signer, KeyPair};
+        use openracing_crypto::verification::ContentType;
+
+        let temp_dir = tempfile::TempDir::new()?;
+        let plugin_path = temp_dir.path().join("test_plugin.dll");
+        let plugin_data = b"fake plugin binary content";
+        std::fs::write(&plugin_path, plugin_data)?;
+
+        // Generate keypair and sign the plugin
+        let keypair = KeyPair::generate()?;
+        let metadata = Ed25519Signer::sign_with_metadata(
+            plugin_data,
+            &keypair,
+            "Trusted Author",
+            ContentType::Plugin,
+            None,
+        )?;
+
+        // Write the .dll.sig file
+        let sig_path = plugin_path.with_extension("dll.sig");
+        let sig_json = serde_json::to_string_pretty(&metadata)?;
+        std::fs::write(&sig_path, sig_json)?;
+
+        // Build trust store with the keypair's public key
+        let mut trust_store = TrustStore::new_in_memory();
+        trust_store.add_key(
+            keypair.public_key.clone(),
+            TrustLevel::Trusted,
+            Some("Test trusted key".to_string()),
+        )?;
+
+        let verifier = SignatureVerifier::new(&trust_store, SignatureVerificationConfig::strict());
+        let result = verifier.verify(&plugin_path)?;
+
+        assert!(result.is_signed);
+        assert!(result.verified);
+        assert_eq!(result.trust_level, TrustLevel::Trusted);
+        assert!(result.warnings.is_empty());
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_reject_unsigned_plugin_in_strict_mode() -> Result<(), Box<dyn std::error::Error>> {
+        let temp_dir = tempfile::TempDir::new()?;
+        let plugin_path = temp_dir.path().join("unsigned_plugin.dll");
+        std::fs::write(&plugin_path, b"unsigned plugin")?;
+
+        let trust_store = TrustStore::new_in_memory();
+        let verifier = SignatureVerifier::new(&trust_store, SignatureVerificationConfig::strict());
+        let result = verifier.verify(&plugin_path);
+
+        assert!(result.is_err(), "strict mode must reject unsigned plugins");
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_allow_unsigned_plugin_in_dev_mode() -> Result<(), Box<dyn std::error::Error>> {
+        let temp_dir = tempfile::TempDir::new()?;
+        let plugin_path = temp_dir.path().join("dev_plugin.dll");
+        std::fs::write(&plugin_path, b"dev plugin")?;
+
+        let trust_store = TrustStore::new_in_memory();
+        let verifier =
+            SignatureVerifier::new(&trust_store, SignatureVerificationConfig::development());
+        let result = verifier.verify(&plugin_path)?;
+
+        assert!(!result.is_signed);
+        assert!(result.verified);
+        assert_eq!(result.trust_level, TrustLevel::Unknown);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_reject_plugin_signed_by_distrusted_key() -> Result<(), Box<dyn std::error::Error>> {
+        use openracing_crypto::ed25519::{Ed25519Signer, KeyPair};
+        use openracing_crypto::verification::ContentType;
+
+        let temp_dir = tempfile::TempDir::new()?;
+        let plugin_path = temp_dir.path().join("distrusted_plugin.so");
+        let plugin_data = b"plugin from distrusted source";
+        std::fs::write(&plugin_path, plugin_data)?;
+
+        let keypair = KeyPair::generate()?;
+        let metadata = Ed25519Signer::sign_with_metadata(
+            plugin_data,
+            &keypair,
+            "Evil Author",
+            ContentType::Plugin,
+            None,
+        )?;
+
+        let sig_path = plugin_path.with_extension("so.sig");
+        let sig_json = serde_json::to_string_pretty(&metadata)?;
+        std::fs::write(&sig_path, sig_json)?;
+
+        let mut trust_store = TrustStore::new_in_memory();
+        trust_store.add_key(
+            keypair.public_key.clone(),
+            TrustLevel::Distrusted,
+            Some("Compromised key".to_string()),
+        )?;
+
+        let verifier = SignatureVerifier::new(&trust_store, SignatureVerificationConfig::strict());
+        let result = verifier.verify(&plugin_path);
+
+        assert!(
+            result.is_err(),
+            "must reject plugins signed by distrusted key"
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_reject_plugin_with_tampered_content() -> Result<(), Box<dyn std::error::Error>> {
+        use openracing_crypto::ed25519::{Ed25519Signer, KeyPair};
+        use openracing_crypto::verification::ContentType;
+
+        let temp_dir = tempfile::TempDir::new()?;
+        let plugin_path = temp_dir.path().join("tampered_plugin.dll");
+        let original_data = b"original plugin binary";
+        std::fs::write(&plugin_path, original_data)?;
+
+        let keypair = KeyPair::generate()?;
+        let metadata = Ed25519Signer::sign_with_metadata(
+            original_data,
+            &keypair,
+            "Author",
+            ContentType::Plugin,
+            None,
+        )?;
+
+        let sig_path = plugin_path.with_extension("dll.sig");
+        let sig_json = serde_json::to_string_pretty(&metadata)?;
+        std::fs::write(&sig_path, sig_json)?;
+
+        // Tamper with the plugin file after signing
+        std::fs::write(&plugin_path, b"TAMPERED plugin binary")?;
+
+        let mut trust_store = TrustStore::new_in_memory();
+        trust_store.add_key(keypair.public_key.clone(), TrustLevel::Trusted, None)?;
+
+        let verifier = SignatureVerifier::new(&trust_store, SignatureVerificationConfig::strict());
+        let result = verifier.verify(&plugin_path);
+
+        assert!(result.is_err(), "tampered content must fail verification");
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_fail_closed_trust_store_rejects_signed_plugin() -> Result<(), Box<dyn std::error::Error>>
+    {
+        use openracing_crypto::ed25519::{Ed25519Signer, KeyPair};
+        use openracing_crypto::verification::ContentType;
+
+        let temp_dir = tempfile::TempDir::new()?;
+        let plugin_path = temp_dir.path().join("fc_plugin.dll");
+        let plugin_data = b"plugin for fail-closed test";
+        std::fs::write(&plugin_path, plugin_data)?;
+
+        let keypair = KeyPair::generate()?;
+        let metadata = Ed25519Signer::sign_with_metadata(
+            plugin_data,
+            &keypair,
+            "Author",
+            ContentType::Plugin,
+            None,
+        )?;
+
+        let sig_path = plugin_path.with_extension("dll.sig");
+        let sig_json = serde_json::to_string_pretty(&metadata)?;
+        std::fs::write(&sig_path, sig_json)?;
+
+        // Use fail-closed trust store — no key will be found
+        let trust_store = TrustStore::new_fail_closed("simulated failure");
+
+        let verifier = SignatureVerifier::new(&trust_store, SignatureVerificationConfig::strict());
+        let result = verifier.verify(&plugin_path);
+
+        // The verifier must either error or return verified=false
+        match result {
+            Err(_) => { /* expected: fail-closed store causes rejection */ }
+            Ok(r) => {
+                assert!(
+                    !r.verified || r.trust_level == TrustLevel::Distrusted,
+                    "fail-closed store must not produce a trusted+verified result"
+                );
+            }
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_unknown_key_strict_mode_rejects() -> Result<(), Box<dyn std::error::Error>> {
+        use openracing_crypto::ed25519::{Ed25519Signer, KeyPair};
+        use openracing_crypto::verification::ContentType;
+
+        let temp_dir = tempfile::TempDir::new()?;
+        let plugin_path = temp_dir.path().join("unknown_key_plugin.dll");
+        let plugin_data = b"plugin from unknown signer";
+        std::fs::write(&plugin_path, plugin_data)?;
+
+        let keypair = KeyPair::generate()?;
+        let metadata = Ed25519Signer::sign_with_metadata(
+            plugin_data,
+            &keypair,
+            "Unknown Author",
+            ContentType::Plugin,
+            None,
+        )?;
+
+        let sig_path = plugin_path.with_extension("dll.sig");
+        let sig_json = serde_json::to_string_pretty(&metadata)?;
+        std::fs::write(&sig_path, sig_json)?;
+
+        // Empty trust store (except default placeholder) — key is unknown
+        let trust_store = TrustStore::new_in_memory();
+
+        let verifier = SignatureVerifier::new(&trust_store, SignatureVerificationConfig::strict());
+        let result = verifier.verify(&plugin_path);
+
+        // Unknown key + strict + allow_unsigned=false → should reject or mark unverified
+        match result {
+            Err(_) => { /* rejection is correct */ }
+            Ok(r) => {
+                assert!(
+                    !r.verified,
+                    "unknown key in strict mode must not be marked verified"
+                );
+            }
+        }
+
+        Ok(())
+    }
 }
