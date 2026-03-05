@@ -85,14 +85,8 @@ pub struct WheelbaseInputRaw {
 }
 
 /// Parse a little-endian `u16` axis from `report` at `start`.
-///
-/// NOTE: This helper is intentionally duplicated in other tiny protocol microcrates
-/// (e.g. `racing-wheel-hbp`) to keep them dependency-minimal. Keep implementations in sync.
 pub fn parse_axis(report: &[u8], start: usize) -> Option<u16> {
-    if report.len() < start.saturating_add(2) {
-        return None;
-    }
-    Some(u16::from_le_bytes([report[start], report[start + 1]]))
+    racing_wheel_hid_axis_parse::parse_u16_le_at(report, start)
 }
 
 fn parse_wheelbase_pedal_axes_from_report(

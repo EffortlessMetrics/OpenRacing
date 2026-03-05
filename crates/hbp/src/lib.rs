@@ -44,14 +44,8 @@ impl HbpHandbrakeSampleRaw {
 }
 
 /// Parse a little-endian `u16` axis from `report` at `start`.
-///
-/// NOTE: Duplicated (by design) across tiny protocol microcrates to keep them
-/// dependency-minimal. Keep in sync with similar helpers (e.g. moza-wheelbase-report).
 pub fn parse_axis(report: &[u8], start: usize) -> Option<u16> {
-    if report.len() < start.saturating_add(2) {
-        return None;
-    }
-    Some(u16::from_le_bytes([report[start], report[start + 1]]))
+    racing_wheel_hid_axis_parse::parse_u16_le_at(report, start)
 }
 
 /// Parse a standalone HBP USB report using best-effort layout inference.

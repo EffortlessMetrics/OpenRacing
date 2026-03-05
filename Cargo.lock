@@ -5665,6 +5665,7 @@ name = "racing-wheel-hbp"
 version = "0.1.0"
 dependencies = [
  "proptest",
+ "racing-wheel-hid-axis-parse",
  "workspace-hack",
 ]
 
@@ -5677,6 +5678,10 @@ dependencies = [
  "proptest",
  "workspace-hack",
 ]
+
+[[package]]
+name = "racing-wheel-hid-axis-parse"
+version = "0.1.0"
 
 [[package]]
 name = "racing-wheel-hid-cammus-protocol"
@@ -5911,6 +5916,7 @@ name = "racing-wheel-moza-wheelbase-report"
 version = "0.1.0"
 dependencies = [
  "proptest",
+ "racing-wheel-hid-axis-parse",
  "workspace-hack",
 ]
 
@@ -6069,6 +6075,7 @@ name = "racing-wheel-srp"
 version = "0.1.0"
 dependencies = [
  "proptest",
+ "racing-wheel-hid-axis-parse",
  "workspace-hack",
 ]
 
