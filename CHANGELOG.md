@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- 187 test helpers validation and packaging infrastructure tests: assertion edge cases, mock device/telemetry/profile lifecycle, allocation tracking, template/udev/hwdb format validation (#130)
+- 89 compat layer migration and legacy API tests: migration roundtrips, version detection/negotiation, error handling, ProfileMigrationService, proptest fuzzing (#128)
+- 97 SimplemotionV2 protocol verification tests: encoding/decoding roundtrips, CRC-8/ITU validation, feedback parsing, known-good byte sequences, proptest fuzzing (#127)
+- 90+ HBP heartbeat and Moza wheelbase report tests: report layout roundtrips, axis decoding, timeout detection, known-good R9/R12/R16/R21 byte sequences, proptest fuzzing (#126)
+- 47 atomic/lock-free primitive correctness tests: concurrent increments, ordering guarantees, queue FIFO/wrap-around, quickcheck property-based, 32-thread contention stress (#125)
+- 126 schema/IPC validation tests: serde roundtrips, schema evolution, cross-format JSON↔protobuf, wire format stability, message framing, concurrent sequencing, proptest fuzzing (#124)
+- 102 telemetry hardening tests: telemetry-support normalization/field mapping (31), telemetry-config parsing/validation/diff (33), telemetry-recorder lifecycle/replay/serde (38) (#123)
+- 144 firmware update and device types hardening tests: bundle validation/roundtrip, version compatibility, rollback handling, Ed25519 signature preservation, delta patching, HatDirection/button/rotary edge cases, proptest fuzzing (#122)
+- 69 engine RT pipeline integration tests: filter chain compilation, signal processing, safety limit enforcement, zero-allocation RT compliance, hot-swap, multi-pipeline isolation, PLL/jitter metrics (#121)
+- 74 device protocol proptest fuzzing tests: arbitrary bytes, NaN/Inf/extreme values, boundary lengths, wrong report IDs, output range enforcement, roundtrip consistency across 6 vendor crates (#120)
 - 148 CLI and UI integration tests: command dispatch, TUI rendering, accessibility, error display (#118)
 - 138 diagnostic, telemetry stream, and pipeline tests: log export, snapshot diff, stream backpressure (#117)
 - Plugin ABI compatibility and orchestration tests: version negotiation, hot-reload, multi-plugin lifecycle (#116)
