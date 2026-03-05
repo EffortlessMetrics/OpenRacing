@@ -237,7 +237,6 @@ fn report_constants_golden() -> Result<(), Box<dyn std::error::Error>> {
     assert_eq!(MAX_REPORT_BYTES, 64);
     assert_eq!(HID_PID_USAGE_PAGE, 0x000F);
     assert_eq!(WHEEL_ENCODER_CPR, 65535);
-    assert!(WHEEL_DEFAULT_MAX_TORQUE_NM > 0.0);
     assert!((WHEEL_DEFAULT_MAX_TORQUE_NM - 10.0).abs() < 0.001);
     Ok(())
 }
