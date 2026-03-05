@@ -561,9 +561,9 @@ mod proptest_ffbeast {
             let s = i16::from_le_bytes([buf[1], buf[2]]);
             let c = i16::from_le_bytes([buf[3], buf[4]]);
             let p = i16::from_le_bytes([buf[5], buf[6]]);
-            prop_assert!(s >= -10000 && s <= 10000);
-            prop_assert!(c >= -10000 && c <= 10000);
-            prop_assert!(p >= -10000 && p <= 10000);
+            prop_assert!((-10000..=10000).contains(&s));
+            prop_assert!((-10000..=10000).contains(&c));
+            prop_assert!((-10000..=10000).contains(&p));
             prop_assert!(buf[7] <= 100);
         }
 
@@ -587,7 +587,7 @@ mod proptest_ffbeast {
             let data = make_state_report([0, 1, 0, 0], 1, position, 0);
             if let Some(report) = FFBeastStateReport::parse(&data) {
                 let n = report.position_normalized();
-                prop_assert!(n >= -1.0 && n <= 1.0, "normalized {n} out of [-1, 1]");
+                prop_assert!((-1.0..=1.0).contains(&n), "normalized {n} out of [-1, 1]");
             }
         }
 
