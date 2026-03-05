@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- 148 CLI and UI integration tests: command dispatch, TUI rendering, accessibility, error display (#118)
+- 138 diagnostic, telemetry stream, and pipeline tests: log export, snapshot diff, stream backpressure (#117)
+- Plugin ABI compatibility and orchestration tests: version negotiation, hot-reload, multi-plugin lifecycle (#116)
+- 101 profile management and calibration tests: CRUD, import/export, wheel/pedal calibration flows (#114)
+- 67 game telemetry integration tests: adapter lifecycle, protocol parse, session recording (#113)
+- 84+ watchdog and hardware watchdog safety tests: timeout detection, escalation, recovery paths (#112)
+- 63 anticheat and audit crypto hardening tests: tamper detection, signature verification, audit logging (#111)
+- 41 device connection lifecycle tests: enumeration, hot-plug, reconnect, graceful teardown (#110)
 - Ed25519 fail-closed trust store for native plugin signing with real keypair verification, hex key import, and 15+ tests (#105)
 - WASM plugin epoch-based timeout enforcement with compilation timeouts, fuel exhaustion detection, and 27 tests (#108)
 - 65 IPC backward compatibility tests: protocol versioning, feature negotiation, wire format stability, graceful degradation (#107)
