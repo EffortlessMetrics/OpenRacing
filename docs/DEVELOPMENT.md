@@ -89,6 +89,65 @@ cargo doc --all-features --workspace
 cargo hakari generate
 ```
 
+## Code Coverage
+
+The project uses [`cargo-llvm-cov`](https://github.com/taiki-e/cargo-llvm-cov) for source-based code coverage via LLVM instrumentation.
+
+### Prerequisites
+
+```bash
+# Install the llvm-tools component
+rustup component add llvm-tools-preview
+
+# Install cargo-llvm-cov
+cargo install cargo-llvm-cov
+```
+
+### Running Coverage Locally
+
+Use the helper script:
+```bash
+# Text summary (printed to terminal)
+./scripts/coverage.sh
+
+# HTML report (opens in browser)
+./scripts/coverage.sh --html
+
+# JSON report (codecov format, writes codecov.json)
+./scripts/coverage.sh --json
+
+# LCOV report (writes lcov.info, for IDE integration)
+./scripts/coverage.sh --lcov
+```
+
+Or run `cargo llvm-cov` directly:
+```bash
+cargo llvm-cov --workspace --all-features \
+  --exclude racing-wheel-ui \
+  --exclude racing-wheel-integration-tests \
+  --ignore-filename-regex '(\.pb\.rs$|/tests/|/benches/|/fuzz/|/build\.rs$|_test\.rs$|/target/)'
+```
+
+### What Is Excluded from Coverage
+
+| Pattern | Reason |
+|---------|--------|
+| `*.pb.rs` | Generated protobuf code |
+| `/tests/` | Test code itself |
+| `/benches/` | Benchmark harnesses |
+| `/fuzz/` | Fuzz targets |
+| `/build.rs` | Build scripts |
+| `*_test.rs` | Test modules |
+| `racing-wheel-ui` | Requires Tauri/GTK — not testable on CI |
+| `racing-wheel-integration-tests` | Integration tests are not coverage subjects |
+
+### CI Integration
+
+The [coverage workflow](../.github/workflows/coverage.yml) runs on every push to `main` and on PRs:
+1. Generates an LLVM-based coverage report
+2. Uploads results to [Codecov](https://codecov.io/gh/EffortlessMetrics/OpenRacing)
+3. Posts a coverage summary comment on PRs
+
 ## Real-Time Development Guidelines
 
 ### Critical Path Rules
