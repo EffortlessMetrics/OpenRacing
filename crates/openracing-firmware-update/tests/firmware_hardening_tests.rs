@@ -813,7 +813,10 @@ mod signature_tests {
         assert_eq!(sig.signer, "openracing-build-server");
         assert_eq!(sig.key_fingerprint, "SHA256:abcdef1234567890");
         assert!(
-            matches!(sig.content_type, openracing_crypto::verification::ContentType::Firmware),
+            matches!(
+                sig.content_type,
+                openracing_crypto::verification::ContentType::Firmware
+            ),
             "Expected Firmware content type"
         );
         Ok(())
