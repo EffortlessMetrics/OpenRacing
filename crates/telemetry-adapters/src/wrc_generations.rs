@@ -576,6 +576,298 @@ mod tests {
         assert_eq!(t.gear, -1, "raw -1.0 should map to reverse (-1)");
         Ok(())
     }
+
+    /// Speed fallback: when all wheel speeds are zero, body velocity is used.
+    #[test]
+    fn speed_falls_back_to_body_velocity() -> Result<(), Box<dyn std::error::Error>> {
+        let adapter = WrcGenerationsAdapter::new();
+        let mut raw = make_packet(MIN_PACKET_SIZE);
+        // Set velocity components: sqrt(3^2 + 4^2 + 0^2) = 5.0 m/s
+        write_f32(&mut raw, OFF_VEL_X, 3.0);
+        write_f32(&mut raw, OFF_VEL_Y, 4.0);
+        write_f32(&mut raw, OFF_VEL_Z, 0.0);
+        let t = adapter.normalize(&raw)?;
+        assert!(
+            (t.speed_ms - 5.0).abs() < 0.01,
+            "body velocity fallback: expected 5.0, got {}",
+            t.speed_ms
+        );
+        Ok(())
+    }
+
+    /// FFB scalar derived from lateral G: lat_g / FFB_LAT_G_MAX, clamped to [-1, 1].
+    #[test]
+    fn ffb_scalar_from_lateral_g() -> Result<(), Box<dyn std::error::Error>> {
+        let adapter = WrcGenerationsAdapter::new();
+        let mut raw = make_packet(MIN_PACKET_SIZE);
+        write_f32(&mut raw, OFF_GFORCE_LAT, 1.5);
+        let t = adapter.normalize(&raw)?;
+        // 1.5 / 3.0 = 0.5
+        assert!(
+            (t.ffb_scalar - 0.5).abs() < 0.001,
+            "ffb_scalar: 1.5G / 3.0 max = 0.5, got {}",
+            t.ffb_scalar
+        );
+        Ok(())
+    }
+
+    /// FFB scalar clamped when lateral G exceeds maximum.
+    #[test]
+    fn ffb_scalar_clamped_at_max_g() -> Result<(), Box<dyn std::error::Error>> {
+        let adapter = WrcGenerationsAdapter::new();
+        let mut raw = make_packet(MIN_PACKET_SIZE);
+        write_f32(&mut raw, OFF_GFORCE_LAT, 10.0);
+        let t = adapter.normalize(&raw)?;
+        assert!(
+            t.ffb_scalar <= 1.0,
+            "ffb_scalar should be clamped to 1.0, got {}",
+            t.ffb_scalar
+        );
+        Ok(())
+    }
+
+    /// Slip ratio derived from wheel speeds vs body velocity.
+    #[test]
+    fn slip_ratio_calculation() -> Result<(), Box<dyn std::error::Error>> {
+        let adapter = WrcGenerationsAdapter::new();
+        let mut raw = make_packet(MIN_PACKET_SIZE);
+        // Wheel speed 22 m/s, body speed sqrt(20^2) = 20 m/s
+        write_f32(&mut raw, OFF_WHEEL_SPEED_FL, 22.0);
+        write_f32(&mut raw, OFF_WHEEL_SPEED_FR, 22.0);
+        write_f32(&mut raw, OFF_WHEEL_SPEED_RL, 22.0);
+        write_f32(&mut raw, OFF_WHEEL_SPEED_RR, 22.0);
+        write_f32(&mut raw, OFF_VEL_X, 20.0);
+        let t = adapter.normalize(&raw)?;
+        // avg_wheel = 22, body_speed = 20, denom = max(22, 20) = 22
+        // slip = |22 - 20| / 22 ≈ 0.0909
+        assert!(
+            (t.slip_ratio - 0.0909).abs() < 0.01,
+            "slip_ratio: expected ~0.09, got {}",
+            t.slip_ratio
+        );
+        Ok(())
+    }
+
+    /// Slip ratio zero at low speed (denom ≤ 1.0 → slip = 0).
+    #[test]
+    fn slip_ratio_zero_at_low_speed() -> Result<(), Box<dyn std::error::Error>> {
+        let adapter = WrcGenerationsAdapter::new();
+        let mut raw = make_packet(MIN_PACKET_SIZE);
+        write_f32(&mut raw, OFF_WHEEL_SPEED_FL, 0.5);
+        write_f32(&mut raw, OFF_WHEEL_SPEED_FR, 0.5);
+        write_f32(&mut raw, OFF_WHEEL_SPEED_RL, 0.5);
+        write_f32(&mut raw, OFF_WHEEL_SPEED_RR, 0.5);
+        let t = adapter.normalize(&raw)?;
+        assert_eq!(t.slip_ratio, 0.0, "slip_ratio should be 0 at low speed");
+        Ok(())
+    }
+
+    /// Fuel percent: division by fuel_capacity with minimum clamped to 1.0.
+    #[test]
+    fn fuel_percent_calculation() -> Result<(), Box<dyn std::error::Error>> {
+        let adapter = WrcGenerationsAdapter::new();
+        let mut raw = make_packet(MIN_PACKET_SIZE);
+        write_f32(&mut raw, OFF_FUEL_IN_TANK, 30.0);
+        write_f32(&mut raw, OFF_FUEL_CAPACITY, 60.0);
+        let t = adapter.normalize(&raw)?;
+        assert!(
+            (t.fuel_percent - 0.5).abs() < 0.001,
+            "fuel_percent: 30/60 = 0.5, got {}",
+            t.fuel_percent
+        );
+        Ok(())
+    }
+
+    /// Fuel: zero capacity should not divide by zero (clamped to 1.0 minimum).
+    #[test]
+    fn fuel_zero_capacity_no_divide_by_zero() -> Result<(), Box<dyn std::error::Error>> {
+        let adapter = WrcGenerationsAdapter::new();
+        let mut raw = make_packet(MIN_PACKET_SIZE);
+        write_f32(&mut raw, OFF_FUEL_IN_TANK, 10.0);
+        write_f32(&mut raw, OFF_FUEL_CAPACITY, 0.0);
+        let t = adapter.normalize(&raw)?;
+        assert!(
+            t.fuel_percent.is_finite(),
+            "fuel_percent should be finite even with 0 capacity"
+        );
+        Ok(())
+    }
+
+    /// Tire temperatures are read and clamped to [0, 255].
+    #[test]
+    fn tire_temps_extracted() -> Result<(), Box<dyn std::error::Error>> {
+        let adapter = WrcGenerationsAdapter::new();
+        let mut raw = make_packet(MIN_PACKET_SIZE);
+        write_f32(&mut raw, OFF_BRAKES_TEMP_FL, 100.0);
+        write_f32(&mut raw, OFF_BRAKES_TEMP_FR, 150.0);
+        write_f32(&mut raw, OFF_BRAKES_TEMP_RL, 80.0);
+        write_f32(&mut raw, OFF_BRAKES_TEMP_RR, 200.0);
+        let t = adapter.normalize(&raw)?;
+        assert_eq!(t.tire_temps_c, [100, 150, 80, 200]);
+        Ok(())
+    }
+
+    /// Tire pressures are read from the correct offsets.
+    #[test]
+    fn tire_pressures_extracted() -> Result<(), Box<dyn std::error::Error>> {
+        let adapter = WrcGenerationsAdapter::new();
+        let mut raw = make_packet(MIN_PACKET_SIZE);
+        write_f32(&mut raw, OFF_TYRES_PRESSURE_FL, 30.0);
+        write_f32(&mut raw, OFF_TYRES_PRESSURE_FR, 31.0);
+        write_f32(&mut raw, OFF_TYRES_PRESSURE_RL, 29.5);
+        write_f32(&mut raw, OFF_TYRES_PRESSURE_RR, 30.5);
+        let t = adapter.normalize(&raw)?;
+        assert!((t.tire_pressures_psi[0] - 30.0).abs() < 0.01, "FL pressure");
+        assert!((t.tire_pressures_psi[1] - 31.0).abs() < 0.01, "FR pressure");
+        assert!((t.tire_pressures_psi[2] - 29.5).abs() < 0.01, "RL pressure");
+        assert!((t.tire_pressures_psi[3] - 30.5).abs() < 0.01, "RR pressure");
+        Ok(())
+    }
+
+    /// Lap: 0-based raw → 1-based output (adds 1).
+    #[test]
+    fn lap_zero_based_to_one_based() -> Result<(), Box<dyn std::error::Error>> {
+        let adapter = WrcGenerationsAdapter::new();
+        let mut raw = make_packet(MIN_PACKET_SIZE);
+        write_f32(&mut raw, OFF_CURRENT_LAP, 0.0); // lap 0 → 1
+        let t = adapter.normalize(&raw)?;
+        assert_eq!(t.lap, 1, "raw lap 0 should become lap 1");
+        Ok(())
+    }
+
+    /// Last lap time is extracted from correct offset.
+    #[test]
+    fn last_lap_time_extracted() -> Result<(), Box<dyn std::error::Error>> {
+        let adapter = WrcGenerationsAdapter::new();
+        let mut raw = make_packet(MIN_PACKET_SIZE);
+        write_f32(&mut raw, OFF_LAST_LAP_TIME, 65.5);
+        let t = adapter.normalize(&raw)?;
+        assert!(
+            (t.last_lap_time_s - 65.5).abs() < 0.01,
+            "last_lap_time_s: expected 65.5, got {}",
+            t.last_lap_time_s
+        );
+        Ok(())
+    }
+
+    /// Extended wheel_speed fields are populated.
+    #[test]
+    fn extended_wheel_speeds() -> Result<(), Box<dyn std::error::Error>> {
+        let adapter = WrcGenerationsAdapter::new();
+        let mut raw = make_packet(MIN_PACKET_SIZE);
+        write_f32(&mut raw, OFF_WHEEL_SPEED_FL, 18.0);
+        write_f32(&mut raw, OFF_WHEEL_SPEED_FR, 19.0);
+        write_f32(&mut raw, OFF_WHEEL_SPEED_RL, 17.0);
+        write_f32(&mut raw, OFF_WHEEL_SPEED_RR, 18.5);
+        let t = adapter.normalize(&raw)?;
+        assert_eq!(
+            t.extended.get("wheel_speed_fl"),
+            Some(&TelemetryValue::Float(18.0))
+        );
+        assert_eq!(
+            t.extended.get("wheel_speed_fr"),
+            Some(&TelemetryValue::Float(19.0))
+        );
+        assert_eq!(
+            t.extended.get("wheel_speed_rl"),
+            Some(&TelemetryValue::Float(17.0))
+        );
+        assert_eq!(
+            t.extended.get("wheel_speed_rr"),
+            Some(&TelemetryValue::Float(18.5))
+        );
+        Ok(())
+    }
+
+    /// NaN f32 values at field offsets are filtered by read_f32 → None → default.
+    #[test]
+    fn nan_values_filtered_to_defaults() -> Result<(), Box<dyn std::error::Error>> {
+        let adapter = WrcGenerationsAdapter::new();
+        let mut raw = make_packet(MIN_PACKET_SIZE);
+        write_f32(&mut raw, OFF_RPM, f32::NAN);
+        write_f32(&mut raw, OFF_THROTTLE, f32::NAN);
+        let t = adapter.normalize(&raw)?;
+        assert_eq!(t.rpm, 0.0, "NaN RPM should default to 0");
+        assert_eq!(t.throttle, 0.0, "NaN throttle should default to 0");
+        Ok(())
+    }
+
+    /// Infinity values at field offsets are filtered by read_f32 → None → default.
+    #[test]
+    fn infinity_values_filtered_to_defaults() -> Result<(), Box<dyn std::error::Error>> {
+        let adapter = WrcGenerationsAdapter::new();
+        let mut raw = make_packet(MIN_PACKET_SIZE);
+        write_f32(&mut raw, OFF_RPM, f32::INFINITY);
+        write_f32(&mut raw, OFF_BRAKE, f32::NEG_INFINITY);
+        let t = adapter.normalize(&raw)?;
+        assert_eq!(t.rpm, 0.0, "Infinity RPM should default to 0");
+        assert_eq!(t.brake, 0.0, "NegInfinity brake should default to 0");
+        Ok(())
+    }
+
+    /// Oversize packet (> MIN_PACKET_SIZE) should still parse correctly.
+    #[test]
+    fn oversize_packet_accepted() -> Result<(), Box<dyn std::error::Error>> {
+        let adapter = WrcGenerationsAdapter::new();
+        let mut raw = make_packet(MIN_PACKET_SIZE + 100);
+        write_f32(&mut raw, OFF_RPM, 6000.0);
+        let t = adapter.normalize(&raw)?;
+        assert!((t.rpm - 6000.0).abs() < 0.1);
+        Ok(())
+    }
+
+    /// Steering angle clamped to [-1, 1].
+    #[test]
+    fn steering_clamped() -> Result<(), Box<dyn std::error::Error>> {
+        let adapter = WrcGenerationsAdapter::new();
+        let mut raw = make_packet(MIN_PACKET_SIZE);
+        write_f32(&mut raw, OFF_STEER, 5.0);
+        let t = adapter.normalize(&raw)?;
+        assert!(t.steering_angle <= 1.0, "steering > 1.0 should be clamped");
+        Ok(())
+    }
+
+    /// Known-good Codemasters Mode 1 packet: full telemetry scenario.
+    #[test]
+    fn known_good_full_telemetry_packet() -> Result<(), Box<dyn std::error::Error>> {
+        let adapter = WrcGenerationsAdapter::new();
+        let mut raw = make_packet(MIN_PACKET_SIZE);
+        // Simulate a WRC car at 120 km/h, 6500 RPM, 4th gear, braking
+        let speed_ms = 120.0 / 3.6; // 33.33 m/s
+        write_f32(&mut raw, OFF_WHEEL_SPEED_FL, speed_ms);
+        write_f32(&mut raw, OFF_WHEEL_SPEED_FR, speed_ms);
+        write_f32(&mut raw, OFF_WHEEL_SPEED_RL, speed_ms);
+        write_f32(&mut raw, OFF_WHEEL_SPEED_RR, speed_ms);
+        write_f32(&mut raw, OFF_RPM, 6500.0);
+        write_f32(&mut raw, OFF_MAX_RPM, 8000.0);
+        write_f32(&mut raw, OFF_GEAR, 4.0);
+        write_f32(&mut raw, OFF_THROTTLE, 0.0);
+        write_f32(&mut raw, OFF_BRAKE, 0.7);
+        write_f32(&mut raw, OFF_STEER, -0.3);
+        write_f32(&mut raw, OFF_GFORCE_LAT, 0.8);
+        write_f32(&mut raw, OFF_GFORCE_LON, -1.2);
+        write_f32(&mut raw, OFF_FUEL_IN_TANK, 25.0);
+        write_f32(&mut raw, OFF_FUEL_CAPACITY, 50.0);
+        write_f32(&mut raw, OFF_CURRENT_LAP, 3.0);
+        write_f32(&mut raw, OFF_BRAKES_TEMP_FL, 120.0);
+        write_f32(&mut raw, OFF_BRAKES_TEMP_FR, 118.0);
+        write_f32(&mut raw, OFF_BRAKES_TEMP_RL, 95.0);
+        write_f32(&mut raw, OFF_BRAKES_TEMP_RR, 97.0);
+        let t = adapter.normalize(&raw)?;
+        assert!((t.speed_ms - speed_ms).abs() < 0.01, "speed_ms");
+        assert!((t.rpm - 6500.0).abs() < 0.1, "rpm");
+        assert!((t.max_rpm - 8000.0).abs() < 0.1, "max_rpm");
+        assert_eq!(t.gear, 4, "gear");
+        assert!((t.throttle).abs() < 0.001, "throttle");
+        assert!((t.brake - 0.7).abs() < 0.001, "brake");
+        assert!((t.steering_angle - (-0.3)).abs() < 0.001, "steering");
+        assert!((t.lateral_g - 0.8).abs() < 0.001, "lateral_g");
+        assert!((t.longitudinal_g - (-1.2)).abs() < 0.001, "longitudinal_g");
+        assert!((t.fuel_percent - 0.5).abs() < 0.001, "fuel_percent");
+        assert_eq!(t.lap, 4, "lap (0-based 3 → 1-based 4)");
+        assert_eq!(t.tire_temps_c, [120, 118, 95, 97], "tire_temps_c");
+        Ok(())
+    }
 }
 
 #[cfg(test)]

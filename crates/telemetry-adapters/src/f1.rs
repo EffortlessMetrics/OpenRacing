@@ -470,6 +470,328 @@ mod tests {
     fn test_game_id_is_f1() {
         assert_eq!(F1Adapter::new().game_id(), "f1");
     }
+
+    #[test]
+    fn test_update_rate() {
+        let adapter = F1Adapter::new();
+        assert_eq!(adapter.expected_update_rate(), Duration::from_millis(16));
+    }
+
+    /// `engine_rate` (rad/s) should be converted to RPM via `rate * 60 / 2π`.
+    #[test]
+    fn test_engine_rate_rad_s_to_rpm_conversion() -> Result<(), Box<dyn std::error::Error>> {
+        let mut values = HashMap::new();
+        // 100π rad/s → 3000 RPM
+        values.insert("enginerate".to_string(), 100.0 * PI);
+        let packet = DecodedCodemastersPacket {
+            values,
+            fourcc: None,
+        };
+        let t = F1Adapter::normalize_decoded(&packet);
+        assert!(
+            (t.rpm - 3000.0).abs() < 0.1,
+            "expected ~3000 RPM from 100π rad/s, got {}",
+            t.rpm
+        );
+        Ok(())
+    }
+
+    /// When both `rpm` and `engine_rate` are present, `rpm` takes priority.
+    #[test]
+    fn test_rpm_alias_priority_over_engine_rate() -> Result<(), Box<dyn std::error::Error>> {
+        let mut values = HashMap::new();
+        values.insert("rpm".to_string(), 7000.0);
+        values.insert("enginerate".to_string(), 100.0 * PI);
+        let packet = DecodedCodemastersPacket {
+            values,
+            fourcc: None,
+        };
+        let t = F1Adapter::normalize_decoded(&packet);
+        assert!(
+            (t.rpm - 7000.0).abs() < 0.1,
+            "rpm alias should take priority, got {}",
+            t.rpm
+        );
+        Ok(())
+    }
+
+    /// Empty decoded packet should produce default (zero) telemetry with no panic.
+    #[test]
+    fn test_empty_decoded_packet_defaults() -> Result<(), Box<dyn std::error::Error>> {
+        let packet = DecodedCodemastersPacket {
+            values: HashMap::new(),
+            fourcc: None,
+        };
+        let t = F1Adapter::normalize_decoded(&packet);
+        assert_eq!(t.speed_ms, 0.0);
+        assert_eq!(t.rpm, 0.0);
+        assert_eq!(t.gear, 0);
+        assert_eq!(t.slip_ratio, 0.0);
+        assert!(!t.flags.drs_available);
+        assert!(!t.flags.drs_active);
+        assert!(!t.flags.pit_limiter);
+        Ok(())
+    }
+
+    /// Gear values outside i8 range should not be mapped.
+    #[test]
+    fn test_gear_out_of_i8_range_ignored() -> Result<(), Box<dyn std::error::Error>> {
+        let mut values = HashMap::new();
+        values.insert("gear".to_string(), 200.0);
+        let packet = DecodedCodemastersPacket {
+            values,
+            fourcc: None,
+        };
+        let t = F1Adapter::normalize_decoded(&packet);
+        // 200 > 127, so gear should not be set (stays default 0)
+        assert_eq!(t.gear, 0, "gear out of i8 range should be ignored");
+        Ok(())
+    }
+
+    /// Gear value of NaN should not be mapped.
+    #[test]
+    fn test_gear_nan_ignored() -> Result<(), Box<dyn std::error::Error>> {
+        let mut values = HashMap::new();
+        values.insert("gear".to_string(), f32::NAN);
+        let packet = DecodedCodemastersPacket {
+            values,
+            fourcc: None,
+        };
+        let t = F1Adapter::normalize_decoded(&packet);
+        assert_eq!(t.gear, 0, "NaN gear should be ignored");
+        Ok(())
+    }
+
+    /// Reverse gear (-1.0) should map to -1.
+    #[test]
+    fn test_reverse_gear_mapping() -> Result<(), Box<dyn std::error::Error>> {
+        let mut values = HashMap::new();
+        values.insert("gear".to_string(), -1.0);
+        let packet = DecodedCodemastersPacket {
+            values,
+            fourcc: None,
+        };
+        let t = F1Adapter::normalize_decoded(&packet);
+        assert_eq!(t.gear, -1, "raw -1.0 should map to reverse");
+        Ok(())
+    }
+
+    /// Neutral gear (0.0) should map to 0.
+    #[test]
+    fn test_neutral_gear_mapping() -> Result<(), Box<dyn std::error::Error>> {
+        let mut values = HashMap::new();
+        values.insert("gear".to_string(), 0.0);
+        let packet = DecodedCodemastersPacket {
+            values,
+            fourcc: None,
+        };
+        let t = F1Adapter::normalize_decoded(&packet);
+        assert_eq!(t.gear, 0, "raw 0.0 should map to neutral");
+        Ok(())
+    }
+
+    /// Slip ratio derived from wheel patch speeds when no direct channel exists.
+    #[test]
+    fn test_slip_ratio_from_wheel_patch_speeds() -> Result<(), Box<dyn std::error::Error>> {
+        let mut values = HashMap::new();
+        values.insert("speed".to_string(), 20.0);
+        values.insert("wheelpatchspeedfl".to_string(), 22.0);
+        values.insert("wheelpatchspeedfr".to_string(), 22.0);
+        values.insert("wheelpatchspeedrl".to_string(), 22.0);
+        values.insert("wheelpatchspeedrr".to_string(), 22.0);
+        let packet = DecodedCodemastersPacket {
+            values,
+            fourcc: None,
+        };
+        let t = F1Adapter::normalize_decoded(&packet);
+        // slip = |22 - 20| / max(20, 1) = 2 / 20 = 0.1
+        assert!(
+            (t.slip_ratio - 0.1).abs() < 0.01,
+            "slip_ratio from patch speeds: expected ~0.1, got {}",
+            t.slip_ratio
+        );
+        Ok(())
+    }
+
+    /// Direct slip_ratio channel takes priority over derived value.
+    #[test]
+    fn test_direct_slip_ratio_over_derived() -> Result<(), Box<dyn std::error::Error>> {
+        let mut values = HashMap::new();
+        values.insert("speed".to_string(), 20.0);
+        values.insert("slipratio".to_string(), 0.5);
+        values.insert("wheelpatchspeedfl".to_string(), 22.0);
+        let packet = DecodedCodemastersPacket {
+            values,
+            fourcc: None,
+        };
+        let t = F1Adapter::normalize_decoded(&packet);
+        assert!(
+            (t.slip_ratio - 0.5).abs() < 0.001,
+            "direct slip_ratio should take priority"
+        );
+        Ok(())
+    }
+
+    /// Flag aliases are canonicalized (underscores/dashes/spaces stripped).
+    #[test]
+    fn test_flag_alias_canonicalization() -> Result<(), Box<dyn std::error::Error>> {
+        let mut values = HashMap::new();
+        // "pit_limiter_on" → canonical "pitlimiteron" should match "pit_limiter" alias
+        values.insert("inpits".to_string(), 1.0);
+        values.insert("tcactive".to_string(), 1.0);
+        values.insert("absactive".to_string(), 1.0);
+        let packet = DecodedCodemastersPacket {
+            values,
+            fourcc: None,
+        };
+        let t = F1Adapter::normalize_decoded(&packet);
+        assert!(t.flags.in_pits, "in_pits flag from alias");
+        assert!(t.flags.traction_control, "traction_control flag from alias");
+        assert!(t.flags.abs_active, "abs_active flag from alias");
+        Ok(())
+    }
+
+    /// Boolean-valued flags: value > 0.5 → true, ≤ 0.5 → false.
+    #[test]
+    fn test_flag_threshold() -> Result<(), Box<dyn std::error::Error>> {
+        // 0.5 should be false, 0.51 should be true
+        let mut values = HashMap::new();
+        values.insert("drsavailable".to_string(), 0.5);
+        let packet = DecodedCodemastersPacket {
+            values,
+            fourcc: None,
+        };
+        let t = F1Adapter::normalize_decoded(&packet);
+        assert!(
+            !t.flags.drs_available,
+            "0.5 should not trigger drs_available"
+        );
+
+        let mut values2 = HashMap::new();
+        values2.insert("drsavailable".to_string(), 0.51);
+        let packet2 = DecodedCodemastersPacket {
+            values: values2,
+            fourcc: None,
+        };
+        let t2 = F1Adapter::normalize_decoded(&packet2);
+        assert!(t2.flags.drs_available, "0.51 should trigger drs_available");
+        Ok(())
+    }
+
+    /// ERS available is derived from ers_deploy_mode > 0.5.
+    #[test]
+    fn test_ers_available_from_deploy_mode() -> Result<(), Box<dyn std::error::Error>> {
+        let mut values = HashMap::new();
+        values.insert("ersdeploymode".to_string(), 0.0);
+        let packet = DecodedCodemastersPacket {
+            values,
+            fourcc: None,
+        };
+        let t = F1Adapter::normalize_decoded(&packet);
+        assert!(
+            !t.flags.ers_available,
+            "ers_deploy_mode 0 means ERS not available"
+        );
+
+        let mut values2 = HashMap::new();
+        values2.insert("ersdeploymode".to_string(), 1.0);
+        let packet2 = DecodedCodemastersPacket {
+            values: values2,
+            fourcc: None,
+        };
+        let t2 = F1Adapter::normalize_decoded(&packet2);
+        assert!(
+            t2.flags.ers_available,
+            "ers_deploy_mode 1 means ERS available"
+        );
+        Ok(())
+    }
+
+    /// Extended fields (fuel_remaining_kg, ers_store_energy_j, session_type)
+    /// are populated from their respective channels.
+    #[test]
+    fn test_extended_fields_populated() -> Result<(), Box<dyn std::error::Error>> {
+        let mut values = HashMap::new();
+        values.insert("fuelremainingkg".to_string(), 25.3);
+        values.insert("ersstoreenergy".to_string(), 4_000_000.0);
+        values.insert("ersdeploymode".to_string(), 3.0);
+        values.insert("sessiontype".to_string(), 5.0);
+        let packet = DecodedCodemastersPacket {
+            values,
+            fourcc: Some("F124".to_string()),
+        };
+        let t = F1Adapter::normalize_decoded(&packet);
+        assert_eq!(
+            t.extended.get("fuel_remaining_kg"),
+            Some(&TelemetryValue::Float(25.3))
+        );
+        assert_eq!(
+            t.extended.get("ers_store_energy_j"),
+            Some(&TelemetryValue::Float(4_000_000.0))
+        );
+        assert_eq!(
+            t.extended.get("ers_deploy_mode"),
+            Some(&TelemetryValue::Integer(3))
+        );
+        assert_eq!(
+            t.extended.get("session_type"),
+            Some(&TelemetryValue::Integer(5))
+        );
+        assert_eq!(
+            t.extended.get("decoder_type"),
+            Some(&TelemetryValue::String(
+                "f1_codemasters_udp_bridge".to_string()
+            ))
+        );
+        Ok(())
+    }
+
+    /// No fourcc in decoded packet should not insert "fourcc" in extended.
+    #[test]
+    fn test_no_fourcc_no_extended_key() -> Result<(), Box<dyn std::error::Error>> {
+        let packet = DecodedCodemastersPacket {
+            values: HashMap::new(),
+            fourcc: None,
+        };
+        let t = F1Adapter::normalize_decoded(&packet);
+        assert!(
+            !t.extended.contains_key("fourcc"),
+            "no fourcc should not be in extended"
+        );
+        Ok(())
+    }
+
+    /// NaN flag values should produce `None` from packet_bool → default false.
+    #[test]
+    fn test_nan_flag_value_treated_as_false() -> Result<(), Box<dyn std::error::Error>> {
+        let mut values = HashMap::new();
+        values.insert("drsactive".to_string(), f32::NAN);
+        let packet = DecodedCodemastersPacket {
+            values,
+            fourcc: None,
+        };
+        let t = F1Adapter::normalize_decoded(&packet);
+        assert!(!t.flags.drs_active, "NaN flag should be treated as false");
+        Ok(())
+    }
+
+    /// Alias resolution: `vehicle_speed` should be resolved to speed_ms.
+    #[test]
+    fn test_speed_alias_vehicle_speed() -> Result<(), Box<dyn std::error::Error>> {
+        let mut values = HashMap::new();
+        values.insert("vehiclespeed".to_string(), 33.5);
+        let packet = DecodedCodemastersPacket {
+            values,
+            fourcc: None,
+        };
+        let t = F1Adapter::normalize_decoded(&packet);
+        assert!(
+            (t.speed_ms - 33.5).abs() < 0.001,
+            "vehicle_speed alias: expected 33.5, got {}",
+            t.speed_ms
+        );
+        Ok(())
+    }
 }
 
 #[cfg(test)]
