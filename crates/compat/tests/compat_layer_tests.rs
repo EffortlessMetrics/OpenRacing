@@ -123,7 +123,7 @@ fn v1_json_with_extras(
     });
     if let Some(p) = parent {
         obj.as_object_mut()
-            .and_then(|m| Some(m.insert("parent".to_string(), serde_json::json!(p))));
+            .map(|m| m.insert("parent".to_string(), serde_json::json!(p)));
     }
     obj.to_string()
 }
