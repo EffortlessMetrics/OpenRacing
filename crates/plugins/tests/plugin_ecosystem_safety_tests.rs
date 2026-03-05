@@ -400,9 +400,9 @@ fn sandbox_crash_in_one_plugin_does_not_affect_sibling() -> Result<(), Box<dyn s
     let _ = runtime.process(&trap_id, 1.0, 0.001);
     assert!(runtime.is_plugin_disabled(&trap_id)?);
 
-    let output = runtime.process(&pass_id, 3.14, 0.001)?;
+    let output = runtime.process(&pass_id, 3.125, 0.001)?;
     assert!(
-        (output - 3.14).abs() < f32::EPSILON,
+        (output - 3.125).abs() < f32::EPSILON,
         "sibling must be unaffected"
     );
     assert!(!runtime.is_plugin_disabled(&pass_id)?);
