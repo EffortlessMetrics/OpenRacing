@@ -230,6 +230,7 @@ mod must_helpers_validation {
     #[test]
     fn must_with_complex_error_type() -> TestResult {
         #[derive(Debug)]
+        #[allow(dead_code)]
         struct ComplexError {
             code: u32,
             msg: String,
