@@ -1,0 +1,5 @@
+---
+source: crates/hid-fanatec-protocol/tests/device_snapshot_tests.rs
+expression: "format!(\"steering={:.4}, funky={}, rotary1={}, rotary2={}, clutch_left={:.4}, clutch_right={:.4}\",\nstate.steering, state.funky_dir, state.rotary1, state.rotary2,\nstate.clutch_left, state.clutch_right,)"
+---
+steering=0.0000, funky=0, rotary1=0, rotary2=0, clutch_left=0.0000, clutch_right=0.0000

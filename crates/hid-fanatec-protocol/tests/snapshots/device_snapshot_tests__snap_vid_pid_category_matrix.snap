@@ -1,0 +1,22 @@
+---
+source: crates/hid-fanatec-protocol/tests/device_snapshot_tests.rs
+expression: "lines.join(\"\\n\")"
+---
+VENDOR_ID=0x0EB7
+0x0001 ClubSport V2: wheelbase
+0x0004 ClubSport V2.5: wheelbase
+0x0005 CSL Elite PS4: wheelbase
+0x0006 DD1: wheelbase
+0x0007 DD2: wheelbase
+0x0011 CSR Elite: wheelbase
+0x0020 CSL DD: wheelbase
+0x0024 GT DD Pro: wheelbase
+0x01E9 ClubSport DD: wheelbase
+0x0E03 CSL Elite: wheelbase
+0x1839 Pedals V1/V2: pedals
+0x183B Pedals V3: pedals
+0x6204 CSL Elite Pedals: pedals
+0x6205 CSL Pedals LC: pedals
+0x6206 CSL Pedals V2: pedals
+0x1A92 Shifter: other
+0x1A93 Handbrake: other

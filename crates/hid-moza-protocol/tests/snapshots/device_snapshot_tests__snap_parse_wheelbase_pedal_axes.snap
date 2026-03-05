@@ -1,0 +1,5 @@
+---
+source: crates/hid-moza-protocol/tests/device_snapshot_tests.rs
+expression: "format!(\"throttle={}, brake={}, clutch={:?}, handbrake={:?}\", axes.throttle,\naxes.brake, axes.clutch, axes.handbrake,)"
+---
+throttle=1234, brake=5678, clutch=Some(0), handbrake=Some(0)

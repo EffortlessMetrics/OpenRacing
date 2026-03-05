@@ -1,0 +1,14 @@
+---
+source: crates/hid-fanatec-protocol/tests/device_snapshot_tests.rs
+expression: "lines.join(\"\\n\")"
+---
+0x0006 DD1: highres=true, sign_fix=true
+0x0007 DD2: highres=true, sign_fix=true
+0x0020 CSL DD: highres=true, sign_fix=true
+0x0024 GT DD Pro: highres=true, sign_fix=true
+0x01E9 ClubSport DD: highres=true, sign_fix=true
+0x0001 ClubSport V2: highres=false, sign_fix=true
+0x0004 ClubSport V2.5: highres=false, sign_fix=true
+0x0E03 CSL Elite: highres=false, sign_fix=true
+0x0005 CSL Elite PS4: highres=false, sign_fix=true
+0x0011 CSR Elite: highres=false, sign_fix=false

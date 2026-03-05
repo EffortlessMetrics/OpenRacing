@@ -1,0 +1,5 @@
+---
+source: crates/hid-fanatec-protocol/tests/device_snapshot_tests.rs
+expression: "format!(\"steering_raw={}, motor_temp={}C, board_temp={}C, current_raw={}, faults=0b{:04b}\",\nstate.steering_raw, state.motor_temp_c, state.board_temp_c, state.current_raw,\nstate.fault_flags,)"
+---
+steering_raw=0, motor_temp=95C, board_temp=82C, current_raw=255, faults=0b0011

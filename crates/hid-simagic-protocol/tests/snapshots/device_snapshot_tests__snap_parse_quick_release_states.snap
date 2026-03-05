@@ -1,0 +1,8 @@
+---
+source: crates/hid-simagic-protocol/tests/device_snapshot_tests.rs
+expression: "lines.join(\"\\n\")"
+---
+byte=0x00 Attached: qr=Attached
+byte=0x01 Detached: qr=Detached
+byte=0x02 Unknown(2): qr=Unknown
+byte=0xFF Unknown(0xFF): qr=Unknown

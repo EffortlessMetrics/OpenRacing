@@ -1,0 +1,16 @@
+---
+source: crates/hid-moza-protocol/tests/device_snapshot_tests.rs
+expression: "lines.join(\"\\n\")"
+---
+R3 V1: UnknownWheelbase
+R3 V2: UnknownWheelbase
+R5 V1: Supported
+R5 V2: Supported
+R9 V1: UnsupportedHardwareRevision
+R9 V2: Supported
+R12 V1: UnknownWheelbase
+R12 V2: UnknownWheelbase
+R16/R21 V1: UnknownWheelbase
+R16/R21 V2: UnknownWheelbase
+SR-P Pedals: NotWheelbase
+Unknown: NotWheelbase

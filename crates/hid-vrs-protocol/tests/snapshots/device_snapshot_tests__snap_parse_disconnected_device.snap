@@ -1,0 +1,5 @@
+---
+source: crates/hid-vrs-protocol/tests/device_snapshot_tests.rs
+expression: "format!(\"connected={}, steering={:.4}\", state.connected, state.steering,)"
+---
+connected=false, steering=-0.0000

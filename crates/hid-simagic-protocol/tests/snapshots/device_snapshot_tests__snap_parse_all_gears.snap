@@ -1,0 +1,15 @@
+---
+source: crates/hid-simagic-protocol/tests/device_snapshot_tests.rs
+expression: "lines.join(\"\\n\")"
+---
+byte=0x00 Neutral: gear=Neutral
+byte=0x01 First: gear=First
+byte=0x02 Second: gear=Second
+byte=0x03 Third: gear=Third
+byte=0x04 Fourth: gear=Fourth
+byte=0x05 Fifth: gear=Fifth
+byte=0x06 Sixth: gear=Sixth
+byte=0x07 Seventh: gear=Seventh
+byte=0x08 Eighth: gear=Eighth
+byte=0xFF Unknown(0xFF): gear=Unknown
+byte=0x09 Unknown(9): gear=Unknown

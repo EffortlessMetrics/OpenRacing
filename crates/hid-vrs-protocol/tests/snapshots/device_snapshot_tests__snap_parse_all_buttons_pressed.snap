@@ -1,0 +1,5 @@
+---
+source: crates/hid-vrs-protocol/tests/device_snapshot_tests.rs
+expression: "format!(\"buttons=0x{:04X}\", state.buttons)"
+---
+buttons=0xFFFF

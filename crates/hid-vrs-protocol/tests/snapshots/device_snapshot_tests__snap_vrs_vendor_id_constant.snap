@@ -1,0 +1,5 @@
+---
+source: crates/hid-vrs-protocol/tests/device_snapshot_tests.rs
+expression: "format!(\"VRS_VENDOR_ID=0x{VRS_VENDOR_ID:04X}\")"
+---
+VRS_VENDOR_ID=0x0483

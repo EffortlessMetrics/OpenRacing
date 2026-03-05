@@ -1,0 +1,8 @@
+---
+source: crates/hid-simagic-protocol/tests/device_snapshot_tests.rs
+expression: "lines.join(\"\\n\")"
+---
+0x0500: name=Simagic EVO Sport, cat=Wheelbase, ffb=true, torque=Some(9.0)
+0x0501: name=Simagic EVO, cat=Wheelbase, ffb=true, torque=Some(12.0)
+0x0502: name=Simagic EVO Pro, cat=Wheelbase, ffb=true, torque=Some(18.0)
+0x0A04: name=Simagic TB-RS Handbrake, cat=Handbrake, ffb=false, torque=None

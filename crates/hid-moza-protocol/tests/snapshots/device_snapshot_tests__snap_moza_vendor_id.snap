@@ -1,0 +1,5 @@
+---
+source: crates/hid-moza-protocol/tests/device_snapshot_tests.rs
+expression: "format!(\"MOZA_VENDOR_ID=0x{MOZA_VENDOR_ID:04X}\")"
+---
+MOZA_VENDOR_ID=0x346E

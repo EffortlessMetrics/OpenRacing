@@ -1,0 +1,12 @@
+---
+source: crates/hid-vrs-protocol/tests/device_snapshot_tests.rs
+expression: "lines.join(\"\\n\")"
+---
+0xA355 DFP: cat=Wheelbase, ffb=true, torque=Some(20.0), is_wheelbase=true
+0xA356 DFP V2: cat=Wheelbase, ffb=true, torque=Some(25.0), is_wheelbase=true
+0xA44C R295: cat=Wheelbase, ffb=true, torque=Some(25.0), is_wheelbase=true
+0xA3BE Pedals: cat=Pedals, ffb=false, torque=None, is_wheelbase=false
+0xA358 Pedals V2: cat=Pedals, ffb=false, torque=None, is_wheelbase=false
+0xA359 Handbrake: cat=Handbrake, ffb=false, torque=None, is_wheelbase=false
+0xA35A Shifter: cat=Shifter, ffb=false, torque=None, is_wheelbase=false
+0xFFFF Unknown: cat=Unknown, ffb=false, torque=None, is_wheelbase=false
