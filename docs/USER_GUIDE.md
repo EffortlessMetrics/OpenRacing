@@ -33,9 +33,9 @@ OpenRacing is a safety-critical racing wheel and force feedback simulation softw
 ### Key Features
 
 - **Real-time Force Feedback at 1kHz** - Deterministic processing pipeline with sub-millisecond latency
-- **Multi-Game Integration** - Support for 60+ racing simulators including iRacing, ACC, Forza, BeamNG, and more (see [Supported Games](SETUP.md#4-game-setup))
+- **Multi-Game Integration** - Telemetry adapters for 61 racing simulators including iRacing, ACC, Forza, BeamNG, and more (see [Supported Games](SETUP.md#4-game-setup))
 - **Safety-Critical Design** - Comprehensive fault detection and hardware watchdog integration
-- **Cross-Platform Support** - Windows 10+, Linux kernel 4.0+, and macOS
+- **Cross-Platform Support** - Windows 10+, Linux kernel 4.0+; macOS compiles but device I/O is not yet implemented
 - **Profile Management** - JSON-based force feedback profiles with schema validation
 - **Comprehensive Diagnostics** - Black box recording and support bundle generation
 
@@ -60,7 +60,7 @@ OpenRacing is a safety-critical racing wheel and force feedback simulation softw
 
 ### Supported Racing Wheels
 
-OpenRacing supports 14+ vendors and their product lines through HID (Human Interface Device) communication:
+OpenRacing supports 28 vendors and their product lines through HID (Human Interface Device) communication:
 
 - Moza Racing (R3, R5, R9, R12, R16, R21)
 - Fanatec CSL DD, GT DD Pro, Podium DD1/DD2, CSW v2.5
@@ -73,6 +73,8 @@ OpenRacing supports 14+ vendors and their product lines through HID (Human Inter
 - Cammus C5, C12
 - OpenFFBoard, FFBeast, AccuForce
 - Heusinkveld and Leo Bodnar (input only)
+- PXN (V10, V12, V12 Lite)
+- Granite Devices IONI/ARGON (Simucube 1, SimpleMotion V2)
 - Most other HID-compliant racing wheels
 
 > **Note**: For the complete vendor table with VID/PID details, see [SETUP.md — Supported Devices](SETUP.md#supported-devices).
@@ -386,9 +388,9 @@ systemctl --user disable wheeld
 
 ### macOS Installation
 
-OpenRacing supports macOS 10.15 (Catalina) and later.
+OpenRacing compiles on macOS 10.15 (Catalina) and later, but the IOKit HID driver is not yet implemented — device I/O is not functional.
 
-> **Note**: macOS support is currently in beta. Some features may have limited functionality.
+> **Note**: macOS support is compile-only. The IOKit HID driver and macOS-specific packaging (DMG, Homebrew, notarization) are planned but not yet available. You can build from source to experiment with non-device features.
 
 #### Using Homebrew (Recommended)
 
@@ -2378,7 +2380,7 @@ A: OpenRacing supports most HID-compliant racing wheels. Commonly tested devices
 A: Yes, OpenRacing supports multiple connected devices simultaneously.
 
 **Q: Does OpenRacing work on macOS?**  
-A: Yes, OpenRacing supports macOS 10.15 (Catalina) and later.
+A: OpenRacing compiles on macOS 10.15+, but the IOKit HID driver is not yet implemented. Device I/O (wheels, pedals) does not work on macOS yet. See the [ROADMAP](../ROADMAP.md) for planned macOS support.
 
 ### Installation
 

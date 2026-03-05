@@ -15,10 +15,10 @@ OpenRacing is a high-performance, safety-critical racing wheel and force feedbac
 ## Features
 
 - **Real-time Force Feedback at 1kHz** - Deterministic processing pipeline with sub-millisecond latency for authentic racing feel
-- **Multi-Game Integration** - Native support for 60+ simulators including iRacing, ACC, AMS2, rFactor 2, Forza, BeamNG.drive, Gran Turismo 7, Euro Truck Simulator 2, EA WRC, F1 25, and more
-- **Safety-Critical Design** - Comprehensive fault injection testing, FMEA analysis, hardware watchdog integration, and 26,900+ tests
+- **Multi-Game Integration** - Telemetry adapters for 61 simulators including iRacing, ACC, AMS2, rFactor 2, Forza, BeamNG.drive, Gran Turismo 7, Euro Truck Simulator 2, EA WRC, F1 25, and more
+- **Safety-Critical Design** - Comprehensive fault injection testing, FMEA analysis, hardware watchdog integration, and 29,900+ tests
 - **Plugin Architecture** - Extensible plugin system supporting both WASM and native plugins for custom DSP, telemetry, and LED effects
-- **Cross-Platform Support** - Runs on Windows 10+, Linux kernel 4.0+, and macOS with consistent behavior
+- **Cross-Platform Support** - Runs on Windows 10+ and Linux kernel 4.0+; macOS compiles but device I/O is not yet implemented
 - **Zero-Allocation Real-Time Path** - Memory-safe real-time processing without heap allocations
 - **Comprehensive Diagnostics** - Black box recording, replay analysis, and support bundle generation
 - **Profile Management** - JSON-based force feedback profiles with schema validation and backward compatibility
@@ -54,7 +54,7 @@ OpenRacing supports 150+ devices across 28 vendors. VID/PIDs are sourced from ke
 
 ## Supported Games
 
-OpenRacing includes telemetry adapters for 60+ racing games and simulators:
+OpenRacing includes telemetry adapters for 61 racing games and simulators:
 
 | Game | Method | Port/Key |
 |------|--------|----------|
@@ -88,6 +88,13 @@ OpenRacing includes telemetry adapters for 60+ racing games and simulators:
 | NASCAR (Papyrus) / NASCAR 21 | Custom UDP | — |
 | FlatOut UC/4 | Custom UDP | — |
 | Trackmania | Plugin telemetry | — |
+| Gran Turismo Sport | PlayStation UDP | — |
+| Race Driver: GRID | Codemasters UDP | — |
+| V-Rally 4 / Sébastien Loeb Rally EVO | Codemasters-style UDP | — |
+| WRC 9 / WRC 10 / WTCR | Kylotonn UDP | — |
+| Gravel / DiRT Showdown | Codemasters UDP | — |
+| Game Stock Car / GTR2 / Race 07 | rFactor-style shared memory | — |
+| ACC 2 | Shared memory | — |
 | SimHub (bridge) | JSON UDP | 5555 |
 
 ## Quick Start
@@ -99,7 +106,7 @@ OpenRacing includes telemetry adapters for 60+ racing games and simulators:
 - **Platform-specific requirements**:
   - **Windows**: Windows 10 or later, Visual C++ Redistributable
   - **Linux**: Kernel 4.0+, udev rules for device access
-  - **macOS**: macOS 10.15 or later
+  - **macOS**: macOS 10.15 or later (compiles; device I/O not yet implemented)
 
 ### Installation
 
@@ -160,7 +167,7 @@ wheelctl diag test
 
 ## Project Structure
 
-OpenRacing is organized as a Cargo workspace with 83 crates following the Single Responsibility Principle:
+OpenRacing is organized as a Cargo workspace with 86 crates following the Single Responsibility Principle:
 
 | Category | Crates | Description |
 |----------|--------|-------------|
