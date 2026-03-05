@@ -48,6 +48,7 @@ members = [
     "crates/openracing-diagnostic",
     "crates/openracing-device-types",
     "crates/openracing-hid-common",
+    "crates/openracing-versioning",
     "crates/openracing-shifter",
     "crates/openracing-handbrake",
     "crates/openracing-telemetry-streams",
@@ -143,6 +144,7 @@ openracing-ipc = { path = "crates/openracing-ipc" }
 openracing-diagnostic = { path = "crates/openracing-diagnostic" }
 openracing-device-types = { path = "crates/openracing-device-types" }
 openracing-hid-common = { path = "crates/openracing-hid-common" }
+openracing-versioning = { path = "crates/openracing-versioning" }
 openracing-shifter = { path = "crates/openracing-shifter" }
 openracing-handbrake = { path = "crates/openracing-handbrake" }
 openracing-ffb = { path = "crates/openracing-ffb" }

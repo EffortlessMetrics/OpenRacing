@@ -4437,6 +4437,7 @@ dependencies = [
  "insta",
  "libc",
  "openracing-errors",
+ "openracing-versioning",
  "proptest",
  "prost",
  "prost-types",
@@ -4632,6 +4633,10 @@ dependencies = [
  "windows 0.62.2",
  "workspace-hack",
 ]
+
+[[package]]
+name = "openracing-versioning"
+version = "0.1.0"
 
 [[package]]
 name = "openracing-wasm-runtime"
@@ -6017,6 +6022,7 @@ dependencies = [
  "openracing-errors",
  "openracing-ipc",
  "openracing-profile-repository",
+ "openracing-versioning",
  "os_info",
  "prometheus",
  "proptest",

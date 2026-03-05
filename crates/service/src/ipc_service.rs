@@ -9,6 +9,7 @@ use std::sync::Arc;
 use std::time::SystemTime;
 
 use async_trait::async_trait;
+use openracing_versioning::is_version_compatible;
 use tokio::sync::{RwLock, broadcast};
 use tokio_stream::Stream;
 use tonic::{Request, Response, Status};
@@ -507,40 +508,6 @@ impl WheelService for WheelServiceImpl {
 }
 
 /// Check if client version is compatible with minimum required version
-fn is_version_compatible(client_version: &str, min_version: &str) -> bool {
-    // Simplified semantic version comparison
-    let parse_version = |v: &str| -> Vec<u32> {
-        v.split('.')
-            .take(3)
-            .map(|s| s.parse().unwrap_or(0))
-            .collect()
-    };
-
-    let client_parts = parse_version(client_version);
-    let min_parts = parse_version(min_version);
-
-    if client_parts.len() < 3 || min_parts.len() < 3 {
-        return false;
-    }
-
-    // Major version must match
-    if client_parts[0] != min_parts[0] {
-        return false;
-    }
-
-    // Minor version must be >= minimum
-    if client_parts[1] < min_parts[1] {
-        return false;
-    }
-
-    // If minor versions match, patch must be >= minimum
-    if client_parts[1] == min_parts[1] && client_parts[2] < min_parts[2] {
-        return false;
-    }
-
-    true
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

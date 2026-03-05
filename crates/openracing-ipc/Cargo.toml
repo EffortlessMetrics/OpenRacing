@@ -16,6 +16,7 @@ development = ["quickcheck", "quickcheck_macros", "tokio-test", "tracing-test"]
 
 [dependencies]
 openracing-errors = { workspace = true }
+openracing-versioning = { workspace = true }
 tokio = { workspace = true }
 tonic = { workspace = true }
 prost = { workspace = true }
