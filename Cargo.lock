@@ -4218,6 +4218,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "openracing-capture-format"
+version = "0.1.0"
+dependencies = [
+ "proptest",
+ "racing-wheel-hid-cammus-protocol",
+ "racing-wheel-hid-fanatec-protocol",
+ "racing-wheel-hid-simagic-protocol",
+ "racing-wheel-hid-thrustmaster-protocol",
+ "racing-wheel-hid-vrs-protocol",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "openracing-capture-ids"
 version = "0.1.0"
 dependencies = [
