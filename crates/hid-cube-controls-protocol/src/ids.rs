@@ -75,13 +75,28 @@ pub const CUBE_CONTROLS_VENDOR_ID: u16 = 0x0483;
 // Do NOT rely on these values for device matching in production.
 // ──────────────────────────────────────────────────────────────────────────────
 
-/// Cube Controls GT Pro product ID (provisional — not confirmed from hardware).
+/// Cube Controls GT Pro product ID.
+///
+/// FABRICATED: No external source. Based on vendor website product listing.
+/// Zero evidence from USB captures, kernel drivers, or vendor documentation.
+/// Do NOT use for device matching in production until confirmed with real hardware.
+///
+/// SAFETY NOTE: Not an FFB device, but incorrect PID matching could cause
+/// wrong protocol dispatch. Verify with real hardware before trusting.
 pub const CUBE_CONTROLS_GT_PRO_PID: u16 = 0x0C73;
 
-/// Cube Controls Formula Pro product ID (provisional — not confirmed from hardware).
+/// Cube Controls Formula Pro product ID.
+///
+/// FABRICATED: No external source. Based on vendor website product listing.
+/// Zero evidence from USB captures, kernel drivers, or vendor documentation.
+/// Do NOT use for device matching in production until confirmed with real hardware.
 pub const CUBE_CONTROLS_FORMULA_PRO_PID: u16 = 0x0C74;
 
-/// Cube Controls CSX3 product ID (provisional — not confirmed from hardware).
+/// Cube Controls CSX3 product ID.
+///
+/// FABRICATED: No external source. Based on vendor website product listing.
+/// Zero evidence from USB captures, kernel drivers, or vendor documentation.
+/// Do NOT use for device matching in production until confirmed with real hardware.
 pub const CUBE_CONTROLS_CSX3_PID: u16 = 0x0C75;
 
 /// Cube Controls model classification.
