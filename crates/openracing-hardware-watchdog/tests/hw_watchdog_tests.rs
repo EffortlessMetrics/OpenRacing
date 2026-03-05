@@ -78,7 +78,10 @@ mod mock_operations {
 
         let result = wd.feed();
         assert!(
-            matches!(result, Err(HardwareWatchdogError::SafeStateAlreadyTriggered)),
+            matches!(
+                result,
+                Err(HardwareWatchdogError::SafeStateAlreadyTriggered)
+            ),
             "feed after safe state should return SafeStateAlreadyTriggered error"
         );
         Ok(())
@@ -349,7 +352,10 @@ mod error_injection {
         wd.arm()?;
 
         thread::sleep(Duration::from_millis(15));
-        assert!(wd.has_timed_out(), "should time out after sleeping past timeout");
+        assert!(
+            wd.has_timed_out(),
+            "should time out after sleeping past timeout"
+        );
         Ok(())
     }
 

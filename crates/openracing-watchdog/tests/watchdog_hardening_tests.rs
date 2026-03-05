@@ -5,8 +5,8 @@
 //! All tests use `Result`-returning signatures and avoid `unwrap()`/`expect()`.
 
 use openracing_watchdog::prelude::*;
-use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -177,9 +177,7 @@ mod timeout_triggering {
             "should not be quarantined because consecutive count was reset"
         );
 
-        let stats = watchdog
-            .get_plugin_stats("streak")
-            .ok_or("missing stats")?;
+        let stats = watchdog.get_plugin_stats("streak").ok_or("missing stats")?;
         assert_eq!(stats.timeout_count, 4); // total timeouts still counted
         Ok(())
     }
@@ -323,9 +321,7 @@ mod reset_restart {
         assert!(watchdog.get_plugin_stats("reborn").is_none());
 
         watchdog.register_plugin("reborn");
-        let stats = watchdog
-            .get_plugin_stats("reborn")
-            .ok_or("missing stats")?;
+        let stats = watchdog.get_plugin_stats("reborn").ok_or("missing stats")?;
         assert_eq!(stats.total_executions, 0);
         Ok(())
     }
@@ -371,19 +367,13 @@ mod multi_channel {
         watchdog.report_component_failure(SystemComponent::PluginHost, None);
 
         let summary = watchdog.get_health_summary();
-        assert_eq!(
-            summary[&SystemComponent::RtThread],
-            HealthStatus::Healthy
-        );
+        assert_eq!(summary[&SystemComponent::RtThread], HealthStatus::Healthy);
         assert_eq!(
             summary[&SystemComponent::HidCommunication],
             HealthStatus::Healthy
         );
         // First failure keeps Healthy status
-        assert_eq!(
-            summary[&SystemComponent::PluginHost],
-            HealthStatus::Healthy
-        );
+        assert_eq!(summary[&SystemComponent::PluginHost], HealthStatus::Healthy);
     }
 
     /// Quarantine of one plugin does not affect others.
@@ -406,9 +396,7 @@ mod multi_channel {
         assert!(watchdog.is_plugin_quarantined("plug_a"));
         assert!(!watchdog.is_plugin_quarantined("plug_b"));
 
-        let stats_b = watchdog
-            .get_plugin_stats("plug_b")
-            .ok_or("missing stats")?;
+        let stats_b = watchdog.get_plugin_stats("plug_b").ok_or("missing stats")?;
         assert_eq!(stats_b.timeout_count, 0);
         Ok(())
     }
@@ -591,9 +579,7 @@ mod under_load {
             assert!(handle.join().is_ok(), "Thread should not panic");
         }
 
-        let stats = watchdog
-            .get_plugin_stats("shared")
-            .ok_or("missing stats")?;
+        let stats = watchdog.get_plugin_stats("shared").ok_or("missing stats")?;
         assert_eq!(stats.total_executions, 800);
         Ok(())
     }
@@ -712,10 +698,8 @@ mod safety_interaction {
         watchdog.heartbeat(SystemComponent::TelemetryAdapter);
 
         // 1 failure: still Healthy
-        watchdog.report_component_failure(
-            SystemComponent::TelemetryAdapter,
-            Some("err1".to_string()),
-        );
+        watchdog
+            .report_component_failure(SystemComponent::TelemetryAdapter, Some("err1".to_string()));
         let h = watchdog
             .get_component_health(SystemComponent::TelemetryAdapter)
             .ok_or("missing health")?;
@@ -723,10 +707,8 @@ mod safety_interaction {
         assert_eq!(h.consecutive_failures, 1);
 
         // 2nd failure: Degraded
-        watchdog.report_component_failure(
-            SystemComponent::TelemetryAdapter,
-            Some("err2".to_string()),
-        );
+        watchdog
+            .report_component_failure(SystemComponent::TelemetryAdapter, Some("err2".to_string()));
         let h = watchdog
             .get_component_health(SystemComponent::TelemetryAdapter)
             .ok_or("missing health")?;
@@ -876,9 +858,7 @@ mod safety_interaction {
 
         assert!(!watchdog.is_plugin_quarantined("noquar"));
 
-        let stats = watchdog
-            .get_plugin_stats("noquar")
-            .ok_or("missing stats")?;
+        let stats = watchdog.get_plugin_stats("noquar").ok_or("missing stats")?;
         assert_eq!(stats.timeout_count, 20);
         Ok(())
     }
@@ -907,11 +887,7 @@ mod safety_interaction {
     fn component_metrics_tracking() -> TestResult {
         let watchdog = WatchdogSystem::default();
         watchdog.heartbeat(SystemComponent::PluginHost);
-        watchdog.add_component_metric(
-            SystemComponent::PluginHost,
-            "latency_us".to_string(),
-            42.0,
-        );
+        watchdog.add_component_metric(SystemComponent::PluginHost, "latency_us".to_string(), 42.0);
 
         let health = watchdog
             .get_component_health(SystemComponent::PluginHost)
