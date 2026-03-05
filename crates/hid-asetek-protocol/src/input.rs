@@ -125,3 +125,36 @@ mod tests {
         assert!((torque - 15.0).abs() < 0.01);
     }
 }
+
+#[cfg(test)]
+mod property_tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    proptest! {
+        #![proptest_config(proptest::test_runner::Config::with_cases(500))]
+
+        /// Arbitrary bytes never panic the Asetek parser.
+        #[test]
+        fn prop_parse_never_panics(data in proptest::collection::vec(any::<u8>(), 0..=128)) {
+            let _ = AsetekInputReport::parse(&data);
+        }
+
+        /// Valid reports produce finite derived values.
+        #[test]
+        fn prop_derived_values_finite(data in proptest::collection::vec(any::<u8>(), 16..=64)) {
+            if let Ok(report) = AsetekInputReport::parse(&data) {
+                prop_assert!(report.wheel_angle_degrees().is_finite());
+                prop_assert!(report.wheel_speed_rad_s().is_finite());
+                prop_assert!(report.applied_torque_nm().is_finite());
+            }
+        }
+
+        /// Truncated buffers produce errors, not panics.
+        #[test]
+        fn prop_truncated_rejected(len in 0usize..16) {
+            let data = vec![0u8; len];
+            prop_assert!(AsetekInputReport::parse(&data).is_err());
+        }
+    }
+}

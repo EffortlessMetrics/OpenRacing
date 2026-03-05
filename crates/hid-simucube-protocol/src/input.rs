@@ -545,3 +545,77 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+mod property_tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    proptest! {
+        #![proptest_config(proptest::test_runner::Config::with_cases(500))]
+
+        /// Arbitrary bytes never panic SimucubeHidReport::parse.
+        #[test]
+        fn prop_hid_report_never_panics(data in proptest::collection::vec(any::<u8>(), 0..=128)) {
+            let _ = SimucubeHidReport::parse(&data);
+        }
+
+        /// Arbitrary bytes never panic SimucubeInputReport::parse.
+        #[test]
+        fn prop_input_report_never_panics(data in proptest::collection::vec(any::<u8>(), 0..=128)) {
+            let _ = SimucubeInputReport::parse(&data);
+        }
+
+        /// Valid HID reports always have normalized steering in [-1.0, 1.0].
+        #[test]
+        fn prop_hid_steering_bounded(data in proptest::collection::vec(any::<u8>(), 32..=64)) {
+            if let Ok(report) = SimucubeHidReport::parse(&data) {
+                let signed = report.steering_signed();
+                prop_assert!((-1.0..=1.0).contains(&signed));
+                let norm = report.steering_normalized();
+                prop_assert!((0.0..=1.0).contains(&norm));
+                prop_assert!(signed.is_finite());
+                prop_assert!(norm.is_finite());
+            }
+        }
+
+        /// Valid input reports produce finite derived values.
+        #[test]
+        fn prop_input_report_derived_finite(data in proptest::collection::vec(any::<u8>(), 16..=32)) {
+            if let Ok(report) = SimucubeInputReport::parse(&data) {
+                prop_assert!(report.wheel_angle_degrees().is_finite());
+                prop_assert!(report.wheel_angle_radians().is_finite());
+                prop_assert!(report.wheel_speed_rad_s().is_finite());
+                prop_assert!(report.applied_torque_nm().is_finite());
+            }
+        }
+
+        /// Truncated buffers produce errors, not panics.
+        #[test]
+        fn prop_hid_truncated_rejected(len in 0usize..32) {
+            let data = vec![0u8; len];
+            prop_assert!(SimucubeHidReport::parse(&data).is_err());
+        }
+
+        /// Truncated buffers for extended report produce errors, not panics.
+        #[test]
+        fn prop_input_truncated_rejected(len in 0usize..16) {
+            let data = vec![0u8; len];
+            prop_assert!(SimucubeInputReport::parse(&data).is_err());
+        }
+
+        /// Button pressed for out-of-range indices returns false.
+        #[test]
+        fn prop_button_out_of_range_safe(n in 128usize..=512) {
+            let report = SimucubeHidReport::default();
+            prop_assert!(!report.button_pressed(n));
+        }
+
+        /// axis_normalized for out-of-range indices returns 0.0.
+        #[test]
+        fn prop_axis_out_of_range_safe(idx in 6usize..=64) {
+            let report = SimucubeHidReport::default();
+            prop_assert!((report.axis_normalized(idx) - 0.0).abs() < f32::EPSILON);
+        }
+    }
+}

@@ -258,3 +258,52 @@ mod tests {
         assert_eq!(r.is_registered, 0);
     }
 }
+
+#[cfg(test)]
+mod property_tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    proptest! {
+        #![proptest_config(proptest::test_runner::Config::with_cases(500))]
+
+        /// Arbitrary bytes never panic FFBeastStateReport::parse.
+        #[test]
+        fn prop_parse_never_panics(data in proptest::collection::vec(any::<u8>(), 0..=128)) {
+            let _ = FFBeastStateReport::parse(&data);
+        }
+
+        /// Arbitrary bytes never panic FFBeastStateReport::parse_with_id.
+        #[test]
+        fn prop_parse_with_id_never_panics(data in proptest::collection::vec(any::<u8>(), 0..=128)) {
+            let _ = FFBeastStateReport::parse_with_id(&data);
+        }
+
+        /// Valid reports produce finite normalized values.
+        #[test]
+        fn prop_normalized_values_finite(data in proptest::collection::vec(any::<u8>(), 9..=32)) {
+            if let Some(r) = FFBeastStateReport::parse(&data) {
+                prop_assert!(r.position_normalized().is_finite());
+                prop_assert!(r.torque_normalized().is_finite());
+                prop_assert!(r.position_degrees(900.0).is_finite());
+            }
+        }
+
+        /// Truncated buffers are safely rejected.
+        #[test]
+        fn prop_truncated_rejected(len in 0usize..9) {
+            let data = vec![0u8; len];
+            prop_assert!(FFBeastStateReport::parse(&data).is_none());
+        }
+
+        /// parse_with_id rejects wrong report IDs.
+        #[test]
+        fn prop_wrong_id_rejected(id in any::<u8>()) {
+            if id != STATE_REPORT_ID {
+                let mut data = vec![id];
+                data.extend_from_slice(&[0u8; STATE_REPORT_MIN_LEN]);
+                prop_assert!(FFBeastStateReport::parse_with_id(&data).is_none());
+            }
+        }
+    }
+}

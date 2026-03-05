@@ -589,3 +589,75 @@ mod tests {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod property_tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    proptest! {
+        #![proptest_config(proptest::test_runner::Config::with_cases(500))]
+
+        /// Arbitrary bytes never panic the standard report parser.
+        #[test]
+        fn prop_standard_report_never_panics(data in proptest::collection::vec(any::<u8>(), 0..=128)) {
+            let _ = parse_standard_report(&data);
+        }
+
+        /// Arbitrary bytes never panic the extended report parser.
+        #[test]
+        fn prop_extended_report_never_panics(data in proptest::collection::vec(any::<u8>(), 0..=128)) {
+            let _ = parse_extended_report(&data);
+        }
+
+        /// Arbitrary bytes never panic the pedal report parser.
+        #[test]
+        fn prop_pedal_report_never_panics(data in proptest::collection::vec(any::<u8>(), 0..=128)) {
+            let _ = parse_pedal_report(&data);
+        }
+
+        /// Valid standard reports always have bounded axis values.
+        #[test]
+        fn prop_standard_report_axes_bounded(
+            rest in proptest::collection::vec(any::<u8>(), 9..=64),
+        ) {
+            let mut data = vec![report_ids::STANDARD_INPUT];
+            data.extend_from_slice(&rest);
+            if let Some(state) = parse_standard_report(&data) {
+                prop_assert!(state.steering >= -1.0 && state.steering <= 1.0);
+                prop_assert!(state.throttle >= 0.0 && state.throttle <= 1.0);
+                prop_assert!(state.brake >= 0.0 && state.brake <= 1.0);
+                prop_assert!(state.clutch >= 0.0 && state.clutch <= 1.0);
+                prop_assert!(state.clutch_left >= 0.0 && state.clutch_left <= 1.0);
+                prop_assert!(state.clutch_right >= 0.0 && state.clutch_right <= 1.0);
+                prop_assert!(state.hat <= 0x0F);
+            }
+        }
+
+        /// Pedal report raw values are always 12-bit (masked to 0x0FFF).
+        #[test]
+        fn prop_pedal_report_12bit_mask(
+            rest in proptest::collection::vec(any::<u8>(), 4..=16),
+        ) {
+            let mut data = vec![report_ids::STANDARD_INPUT];
+            data.extend_from_slice(&rest);
+            if let Some(state) = parse_pedal_report(&data) {
+                prop_assert!(state.throttle_raw <= 0x0FFF);
+                prop_assert!(state.brake_raw <= 0x0FFF);
+                prop_assert!(state.clutch_raw <= 0x0FFF);
+            }
+        }
+
+        /// Truncated standard reports are safely rejected.
+        #[test]
+        fn prop_truncated_standard_rejected(len in 0usize..10) {
+            let mut data = vec![report_ids::STANDARD_INPUT; len.max(1)];
+            if !data.is_empty() {
+                data[0] = report_ids::STANDARD_INPUT;
+            }
+            if data.len() < 10 {
+                prop_assert!(parse_standard_report(&data).is_none());
+            }
+        }
+    }
+}

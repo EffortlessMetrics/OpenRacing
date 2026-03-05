@@ -177,3 +177,41 @@ mod tests {
         assert!(parse(&data).is_err());
     }
 }
+
+#[cfg(test)]
+mod property_tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    proptest! {
+        #![proptest_config(proptest::test_runner::Config::with_cases(500))]
+
+        /// Arbitrary bytes never panic the Cammus parser.
+        #[test]
+        fn prop_parse_never_panics(data in proptest::collection::vec(any::<u8>(), 0..=128)) {
+            let _ = parse(&data);
+        }
+
+        /// Valid reports always have axes in their documented ranges.
+        #[test]
+        fn prop_axes_bounded(data in proptest::collection::vec(any::<u8>(), 12..=64)) {
+            if let Ok(report) = parse(&data) {
+                prop_assert!(report.steering >= -1.0 && report.steering <= 1.0);
+                prop_assert!(report.throttle >= 0.0 && report.throttle <= 1.0);
+                prop_assert!(report.brake >= 0.0 && report.brake <= 1.0);
+                prop_assert!(report.clutch >= 0.0 && report.clutch <= 1.0);
+                prop_assert!(report.handbrake >= 0.0 && report.handbrake <= 1.0);
+                prop_assert!(report.steering.is_finite());
+                prop_assert!(report.throttle.is_finite());
+                prop_assert!(report.brake.is_finite());
+            }
+        }
+
+        /// Truncated buffers produce errors, not panics.
+        #[test]
+        fn prop_truncated_rejected(len in 0usize..12) {
+            let data = vec![0u8; len];
+            prop_assert!(parse(&data).is_err());
+        }
+    }
+}

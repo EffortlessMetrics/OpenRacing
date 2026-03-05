@@ -339,3 +339,49 @@ mod tests {
         }
     }
 }
+
+#[cfg(test)]
+mod property_tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    proptest! {
+        #![proptest_config(proptest::test_runner::Config::with_cases(500))]
+
+        /// Arbitrary bytes never panic the OpenFFBoard parser.
+        #[test]
+        fn prop_parse_never_panics(data in proptest::collection::vec(any::<u8>(), 0..=128)) {
+            let _ = OpenFFBoardInputReport::parse(&data);
+        }
+
+        /// Valid reports have steering_normalized in a sensible range.
+        #[test]
+        fn prop_steering_normalized_finite(data in proptest::collection::vec(any::<u8>(), 25..=64)) {
+            let mut report_data = data;
+            report_data[0] = INPUT_REPORT_ID;
+            if let Some(p) = OpenFFBoardInputReport::parse(&report_data) {
+                let norm = p.steering_normalized();
+                prop_assert!(norm.is_finite());
+            }
+        }
+
+        /// Button queries for out-of-range indices never panic.
+        #[test]
+        fn prop_button_out_of_range_safe(n in 64usize..=512) {
+            let report = OpenFFBoardInputReport { buttons: [0xFF; BUTTON_BYTES], axes: [0; NUM_AXES] };
+            prop_assert!(!report.button(n));
+        }
+
+        /// Truncated reports are safely rejected.
+        #[test]
+        fn prop_truncated_rejected(len in 0usize..25) {
+            let mut data = vec![INPUT_REPORT_ID; len.max(1)];
+            if !data.is_empty() {
+                data[0] = INPUT_REPORT_ID;
+            }
+            if data.len() < INPUT_REPORT_LEN {
+                prop_assert!(OpenFFBoardInputReport::parse(&data).is_none());
+            }
+        }
+    }
+}
