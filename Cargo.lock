@@ -6121,6 +6121,7 @@ dependencies = [
  "anyhow",
  "proptest",
  "racing-wheel-telemetry-config-writers",
+ "racing-wheel-telemetry-game-id",
  "serde",
  "serde_json",
  "serde_yaml_ng",
@@ -6194,6 +6195,13 @@ dependencies = [
  "racing-wheel-telemetry-core",
  "tokio",
  "tracing",
+ "workspace-hack",
+]
+
+[[package]]
+name = "racing-wheel-telemetry-game-id"
+version = "0.1.0"
+dependencies = [
  "workspace-hack",
 ]
 
@@ -6344,6 +6352,7 @@ dependencies = [
 name = "racing-wheel-telemetry-support"
 version = "0.1.0"
 dependencies = [
+ "racing-wheel-telemetry-game-id",
  "serde",
  "serde_json",
  "serde_yaml_ng",

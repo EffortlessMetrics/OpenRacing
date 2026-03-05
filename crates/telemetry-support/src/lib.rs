@@ -79,16 +79,7 @@ pub struct AutoDetectConfig {
 }
 
 /// Normalize game IDs at the boundary (historical alias support).
-pub fn normalize_game_id(game_id: &str) -> &str {
-    if game_id.eq_ignore_ascii_case("ea_wrc") {
-        "eawrc"
-    } else if game_id.eq_ignore_ascii_case("f1_2025") {
-        // f1_2025 is an alias for the native EA protocol adapter (f1_25)
-        "f1_25"
-    } else {
-        game_id
-    }
-}
+pub use racing_wheel_telemetry_game_id::normalize_game_id;
 
 /// Load the canonical game support matrix.
 pub fn load_default_matrix() -> Result<GameSupportMatrix, serde_yaml::Error> {
