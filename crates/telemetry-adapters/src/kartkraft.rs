@@ -627,6 +627,89 @@ mod tests {
         Ok(())
     }
 
+    /// Neutral gear (0) should be handled.
+    #[test]
+    fn test_neutral_gear() -> TestResult {
+        let data = make_test_packet(0.0, 800.0, 0.0, 0.0, 0.0, 0);
+        let t = parse_packet(&data)?;
+        assert_eq!(t.gear, 0, "gear 0 = neutral");
+        Ok(())
+    }
+
+    /// Steering beyond ±90° should be clamped to ±1.0.
+    #[test]
+    fn test_steering_clamped_beyond_max() -> TestResult {
+        let data = make_test_packet(0.0, 0.0, 180.0, 0.0, 0.0, 0);
+        let t = parse_packet(&data)?;
+        assert!(
+            (t.steering_angle - 1.0).abs() < 0.001,
+            "180° / 90° = 2.0 → clamped to 1.0"
+        );
+        Ok(())
+    }
+
+    /// Zero speed should not panic and should yield 0.0 m/s.
+    #[test]
+    fn test_zero_speed() -> TestResult {
+        let data = make_test_packet(0.0, 0.0, 0.0, 0.0, 0.0, 0);
+        let t = parse_packet(&data)?;
+        assert_eq!(t.speed_ms, 0.0);
+        Ok(())
+    }
+
+    /// FlatBuffers root offset out of bounds should be rejected.
+    #[test]
+    fn test_root_offset_out_of_bounds() {
+        let mut data = vec![0u8; 32];
+        // Root offset pointing past end of buffer
+        data[0..4].copy_from_slice(&9999u32.to_le_bytes());
+        data[4..8].copy_from_slice(b"KKFB");
+        assert!(parse_packet(&data).is_err());
+    }
+
+    /// Known-good packet: idle kart (neutral, 800 RPM, stationary).
+    #[test]
+    fn test_known_good_idle_kart() -> TestResult {
+        let data = make_test_packet(0.0, 800.0, 0.0, 0.0, 0.0, 0);
+        let t = parse_packet(&data)?;
+        assert_eq!(t.speed_ms, 0.0, "stationary");
+        assert!((t.rpm - 800.0).abs() < 0.1, "idle RPM");
+        assert_eq!(t.gear, 0, "neutral");
+        assert_eq!(t.throttle, 0.0, "no throttle");
+        assert_eq!(t.brake, 0.0, "no brake");
+        assert_eq!(t.steering_angle, 0.0, "straight ahead");
+        Ok(())
+    }
+
+    /// Known-good packet: full race scenario (high speed, high RPM, turning).
+    #[test]
+    fn test_known_good_race_scenario() -> TestResult {
+        let data = make_test_packet(30.0, 12000.0, -60.0, 0.95, 0.0, 4);
+        let t = parse_packet(&data)?;
+        assert!((t.speed_ms - 30.0).abs() < 0.01, "speed_ms");
+        assert!((t.rpm - 12000.0).abs() < 0.1, "rpm");
+        // steer: -60° / 90° = -0.667
+        assert!((t.steering_angle - (-0.667)).abs() < 0.01, "steering_angle");
+        assert!((t.throttle - 0.95).abs() < 0.001, "throttle");
+        assert_eq!(t.brake, 0.0, "no brake");
+        assert_eq!(t.gear, 4, "4th gear");
+        Ok(())
+    }
+
+    /// Endianness: verify f32 values are read as little-endian in the FlatBuffer.
+    #[test]
+    fn test_flatbuffers_little_endian() -> TestResult {
+        // 42.5f32 in LE = [0x00, 0x00, 0x2A, 0x42]
+        let data = make_test_packet(42.5, 0.0, 0.0, 0.0, 0.0, 0);
+        let t = parse_packet(&data)?;
+        assert!(
+            (t.speed_ms - 42.5).abs() < 0.001,
+            "LE f32 speed should be 42.5, got {}",
+            t.speed_ms
+        );
+        Ok(())
+    }
+
     #[cfg(test)]
     mod proptest_tests {
         use super::*;

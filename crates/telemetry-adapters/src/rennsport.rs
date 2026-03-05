@@ -359,6 +359,149 @@ mod tests {
         }
         Ok(())
     }
+
+    /// NaN in f32 fields should be filtered to 0 by read_f32_le (which filters non-finite).
+    #[test]
+    fn test_nan_speed_filtered() -> TestResult {
+        let mut data = make_rennsport_packet(0.0, 5000.0, 3, 0.5, 0.1);
+        data[OFF_SPEED_KMH..OFF_SPEED_KMH + 4].copy_from_slice(&f32::NAN.to_le_bytes());
+        let result = parse_rennsport_packet(&data)?;
+        assert_eq!(result.speed_ms, 0.0, "NaN speed should filter to 0");
+        Ok(())
+    }
+
+    /// Infinity in f32 fields should be filtered to 0 by read_f32_le.
+    #[test]
+    fn test_infinity_rpm_filtered() -> TestResult {
+        let mut data = make_rennsport_packet(100.0, 0.0, 3, 0.5, 0.1);
+        data[OFF_RPM..OFF_RPM + 4].copy_from_slice(&f32::INFINITY.to_le_bytes());
+        let result = parse_rennsport_packet(&data)?;
+        assert_eq!(result.rpm, 0.0, "Infinity RPM should filter to 0");
+        Ok(())
+    }
+
+    /// Negative infinity should also be filtered.
+    #[test]
+    fn test_neg_infinity_filtered() -> TestResult {
+        let mut data = make_rennsport_packet(100.0, 5000.0, 3, 0.5, 0.1);
+        data[OFF_FFB_SCALAR..OFF_FFB_SCALAR + 4].copy_from_slice(&f32::NEG_INFINITY.to_le_bytes());
+        let result = parse_rennsport_packet(&data)?;
+        // NEG_INFINITY is not finite → read_f32_le returns None → clamp(0.0, -1, 1) = 0
+        assert!(
+            result.ffb_scalar >= -1.0 && result.ffb_scalar <= 1.0,
+            "NEG_INFINITY ffb_scalar should be in [-1, 1]"
+        );
+        Ok(())
+    }
+
+    /// Oversize packet (> 24 bytes) should still parse the documented fields.
+    #[test]
+    fn test_oversize_packet_accepted() -> TestResult {
+        let mut data = make_rennsport_packet(200.0, 9000.0, 6, 0.9, 0.3);
+        data.extend_from_slice(&[0u8; 100]); // extra trailing bytes
+        let result = parse_rennsport_packet(&data)?;
+        assert!((result.speed_ms - 200.0 / 3.6).abs() < 0.1);
+        assert!((result.rpm - 9000.0).abs() < 0.1);
+        Ok(())
+    }
+
+    /// Packet exactly at minimum size (24 bytes) is valid.
+    #[test]
+    fn test_exact_minimum_size() -> TestResult {
+        let data = make_rennsport_packet(100.0, 6000.0, 3, 0.5, 0.1);
+        assert_eq!(data.len(), RENNSPORT_MIN_PACKET_SIZE);
+        let result = parse_rennsport_packet(&data)?;
+        assert!((result.rpm - 6000.0).abs() < 0.1);
+        Ok(())
+    }
+
+    /// Packet one byte short of minimum should be rejected.
+    #[test]
+    fn test_one_byte_short_rejected() {
+        let data = vec![RENNSPORT_IDENTIFIER; RENNSPORT_MIN_PACKET_SIZE - 1];
+        assert!(parse_rennsport_packet(&data).is_err());
+    }
+
+    /// Negative speed_kmh is clamped to 0 (max(0.0)).
+    #[test]
+    fn test_negative_speed_clamped_to_zero() -> TestResult {
+        let data = make_rennsport_packet(-50.0, 5000.0, 3, 0.5, 0.1);
+        let result = parse_rennsport_packet(&data)?;
+        assert!(
+            result.speed_ms >= 0.0,
+            "negative speed_kmh should produce non-negative speed_ms"
+        );
+        Ok(())
+    }
+
+    /// Negative RPM is clamped to 0 (max(0.0)).
+    #[test]
+    fn test_negative_rpm_clamped_to_zero() -> TestResult {
+        let data = make_rennsport_packet(100.0, -500.0, 3, 0.5, 0.1);
+        let result = parse_rennsport_packet(&data)?;
+        assert!(result.rpm >= 0.0, "negative RPM should be clamped to 0");
+        Ok(())
+    }
+
+    /// Known-good packet: 250 km/h, 10000 RPM, 7th gear, full throttle.
+    #[test]
+    fn test_known_good_high_speed() -> TestResult {
+        let data = make_rennsport_packet(250.0, 10000.0, 7, 0.95, 0.02);
+        let result = parse_rennsport_packet(&data)?;
+        // 250 km/h = 69.44 m/s
+        assert!(
+            (result.speed_ms - 69.444).abs() < 0.1,
+            "250 km/h → ~69.44 m/s, got {}",
+            result.speed_ms
+        );
+        assert!((result.rpm - 10000.0).abs() < 0.1);
+        assert_eq!(result.gear, 7);
+        assert!((result.ffb_scalar - 0.95).abs() < 0.001);
+        assert!((result.slip_ratio - 0.02).abs() < 0.001);
+        Ok(())
+    }
+
+    /// Endianness: verify speed_kmh bytes are read as little-endian.
+    #[test]
+    fn test_little_endian_speed() -> TestResult {
+        let mut data = vec![0u8; RENNSPORT_MIN_PACKET_SIZE];
+        data[OFF_IDENTIFIER] = RENNSPORT_IDENTIFIER;
+        // 100.0f32 in LE bytes: [0x00, 0x00, 0xC8, 0x42]
+        let expected_bytes = 100.0f32.to_le_bytes();
+        data[OFF_SPEED_KMH..OFF_SPEED_KMH + 4].copy_from_slice(&expected_bytes);
+        let result = parse_rennsport_packet(&data)?;
+        assert!(
+            (result.speed_ms - 100.0 / 3.6).abs() < 0.01,
+            "LE speed verification"
+        );
+        // Verify bytes are correct
+        assert_eq!(
+            &data[OFF_SPEED_KMH..OFF_SPEED_KMH + 4],
+            &[0x00, 0x00, 0xC8, 0x42]
+        );
+        Ok(())
+    }
+
+    /// Neutral gear (0) handled correctly.
+    #[test]
+    fn test_neutral_gear() -> TestResult {
+        let data = make_rennsport_packet(0.0, 800.0, 0, 0.0, 0.0);
+        let result = parse_rennsport_packet(&data)?;
+        assert_eq!(result.gear, 0, "gear 0 = neutral");
+        Ok(())
+    }
+
+    /// Slip ratio negative input gets clamped to 0.
+    #[test]
+    fn test_negative_slip_ratio_clamped() -> TestResult {
+        let data = make_rennsport_packet(50.0, 5000.0, 3, 0.3, -0.5);
+        let result = parse_rennsport_packet(&data)?;
+        assert!(
+            result.slip_ratio >= 0.0,
+            "negative slip_ratio should be clamped to 0"
+        );
+        Ok(())
+    }
 }
 
 #[cfg(test)]

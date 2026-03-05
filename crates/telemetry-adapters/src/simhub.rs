@@ -390,6 +390,147 @@ mod tests {
         assert_eq!(t.gear, 0);
         Ok(())
     }
+
+    /// Reverse gear string "R" should map to -1.
+    #[test]
+    fn test_reverse_gear() -> TestResult {
+        let data = br#"{"SpeedMs":0.0,"Rpms":0.0,"MaxRpms":0.0,"Gear":"R","Throttle":0.0,"Brake":0.0,"Clutch":0.0,"SteeringAngle":0.0,"FuelPercent":0.0,"LateralGForce":0.0,"LongitudinalGForce":0.0,"FFBValue":0.0,"IsRunning":false,"IsInPit":false}"#;
+        let t = parse_simhub_packet(data)?;
+        assert_eq!(t.gear, -1, "R should map to -1");
+        Ok(())
+    }
+
+    /// Gear strings "1" through "9" map to 1..9.
+    #[test]
+    fn test_gear_forward_range() -> TestResult {
+        for g in 1..=9i8 {
+            let json = format!(
+                r#"{{"SpeedMs":0.0,"Rpms":0.0,"MaxRpms":0.0,"Gear":"{}","Throttle":0.0,"Brake":0.0,"Clutch":0.0,"SteeringAngle":0.0,"FuelPercent":0.0,"LateralGForce":0.0,"LongitudinalGForce":0.0,"FFBValue":0.0,"IsRunning":false,"IsInPit":false}}"#,
+                g
+            );
+            let t = parse_simhub_packet(json.as_bytes())?;
+            assert_eq!(t.gear, g, "gear string '{g}' should map to {g}");
+        }
+        Ok(())
+    }
+
+    /// Unknown gear strings map to 0 (neutral).
+    #[test]
+    fn test_gear_unknown_string_is_neutral() {
+        assert_eq!(parse_gear("X"), 0);
+        assert_eq!(parse_gear("abc"), 0);
+        assert_eq!(parse_gear("-1"), -1);
+    }
+
+    /// Throttle/brake/clutch are normalised from 0-100 to 0.0-1.0.
+    #[test]
+    fn test_throttle_brake_clutch_normalisation() -> TestResult {
+        let data = br#"{"SpeedMs":0.0,"Rpms":0.0,"MaxRpms":0.0,"Gear":"N","Throttle":100.0,"Brake":50.0,"Clutch":25.0,"SteeringAngle":0.0,"FuelPercent":0.0,"LateralGForce":0.0,"LongitudinalGForce":0.0,"FFBValue":0.0,"IsRunning":false,"IsInPit":false}"#;
+        let t = parse_simhub_packet(data)?;
+        assert!((t.throttle - 1.0).abs() < 0.001, "100% throttle → 1.0");
+        assert!((t.brake - 0.5).abs() < 0.001, "50% brake → 0.5");
+        assert!((t.clutch - 0.25).abs() < 0.001, "25% clutch → 0.25");
+        Ok(())
+    }
+
+    /// Throttle > 100 should be clamped to 1.0.
+    #[test]
+    fn test_throttle_over_100_clamped() -> TestResult {
+        let data = br#"{"SpeedMs":0.0,"Rpms":0.0,"MaxRpms":0.0,"Gear":"N","Throttle":150.0,"Brake":0.0,"Clutch":0.0,"SteeringAngle":0.0,"FuelPercent":0.0,"LateralGForce":0.0,"LongitudinalGForce":0.0,"FFBValue":0.0,"IsRunning":false,"IsInPit":false}"#;
+        let t = parse_simhub_packet(data)?;
+        assert!(
+            (t.throttle - 1.0).abs() < 0.001,
+            "throttle > 100 should clamp to 1.0"
+        );
+        Ok(())
+    }
+
+    /// Negative throttle should be clamped to 0.0.
+    #[test]
+    fn test_negative_throttle_clamped() -> TestResult {
+        let data = br#"{"SpeedMs":0.0,"Rpms":0.0,"MaxRpms":0.0,"Gear":"N","Throttle":-10.0,"Brake":0.0,"Clutch":0.0,"SteeringAngle":0.0,"FuelPercent":0.0,"LateralGForce":0.0,"LongitudinalGForce":0.0,"FFBValue":0.0,"IsRunning":false,"IsInPit":false}"#;
+        let t = parse_simhub_packet(data)?;
+        assert!(
+            t.throttle >= 0.0,
+            "negative throttle should be clamped to 0"
+        );
+        Ok(())
+    }
+
+    /// Fuel is normalised from 0-100 to 0.0-1.0.
+    #[test]
+    fn test_fuel_normalisation() -> TestResult {
+        let data = br#"{"SpeedMs":0.0,"Rpms":0.0,"MaxRpms":0.0,"Gear":"N","Throttle":0.0,"Brake":0.0,"Clutch":0.0,"SteeringAngle":0.0,"FuelPercent":75.0,"LateralGForce":0.0,"LongitudinalGForce":0.0,"FFBValue":0.0,"IsRunning":false,"IsInPit":false}"#;
+        let t = parse_simhub_packet(data)?;
+        assert!((t.fuel_percent - 0.75).abs() < 0.001, "75% fuel → 0.75");
+        Ok(())
+    }
+
+    /// `Steer` (pre-normalised) takes priority over `SteeringAngle`.
+    #[test]
+    fn test_steer_normalized_priority() -> TestResult {
+        let data = br#"{"SpeedMs":0.0,"Rpms":0.0,"MaxRpms":0.0,"Gear":"N","Throttle":0.0,"Brake":0.0,"Clutch":0.0,"SteeringAngle":180.0,"Steer":0.75,"FuelPercent":0.0,"LateralGForce":0.0,"LongitudinalGForce":0.0,"FFBValue":0.0,"IsRunning":false,"IsInPit":false}"#;
+        let t = parse_simhub_packet(data)?;
+        assert!(
+            (t.steering_angle - 0.75).abs() < 0.001,
+            "pre-normalised Steer should take priority, got {}",
+            t.steering_angle
+        );
+        Ok(())
+    }
+
+    /// FFBValue should be clamped to [-1, 1].
+    #[test]
+    fn test_ffb_value_clamped() -> TestResult {
+        let data = br#"{"SpeedMs":0.0,"Rpms":0.0,"MaxRpms":0.0,"Gear":"N","Throttle":0.0,"Brake":0.0,"Clutch":0.0,"SteeringAngle":0.0,"FuelPercent":0.0,"LateralGForce":0.0,"LongitudinalGForce":0.0,"FFBValue":5.0,"IsRunning":false,"IsInPit":false}"#;
+        let t = parse_simhub_packet(data)?;
+        assert!(t.ffb_scalar <= 1.0, "FFBValue > 1.0 should be clamped");
+        Ok(())
+    }
+
+    /// Invalid UTF-8 bytes should produce an error.
+    #[test]
+    fn test_invalid_utf8_rejected() {
+        let data = &[0xFF, 0xFE, 0x80];
+        assert!(parse_simhub_packet(data).is_err());
+    }
+
+    /// Invalid JSON should produce an error.
+    #[test]
+    fn test_invalid_json_rejected() {
+        assert!(parse_simhub_packet(b"not json at all").is_err());
+        assert!(parse_simhub_packet(b"{broken").is_err());
+    }
+
+    /// JSON with only some fields (partial payload) should still parse.
+    #[test]
+    fn test_partial_json_fields() -> TestResult {
+        let data = br#"{"SpeedMs":10.0,"Rpms":3000.0}"#;
+        let t = parse_simhub_packet(data)?;
+        assert!((t.speed_ms - 10.0).abs() < 0.01);
+        assert!((t.rpm - 3000.0).abs() < 0.1);
+        assert_eq!(t.gear, 0, "missing gear defaults to neutral");
+        Ok(())
+    }
+
+    /// Negative speed should be clamped to 0.0.
+    #[test]
+    fn test_negative_speed_clamped() -> TestResult {
+        let data = br#"{"SpeedMs":-5.0,"Rpms":0.0,"MaxRpms":0.0,"Gear":"N","Throttle":0.0,"Brake":0.0,"Clutch":0.0,"SteeringAngle":0.0,"FuelPercent":0.0,"LateralGForce":0.0,"LongitudinalGForce":0.0,"FFBValue":0.0,"IsRunning":false,"IsInPit":false}"#;
+        let t = parse_simhub_packet(data)?;
+        assert!(t.speed_ms >= 0.0, "negative speed should be clamped to 0");
+        Ok(())
+    }
+
+    /// `LatAcc` and `LonAcc` aliases should work.
+    #[test]
+    fn test_g_force_aliases() -> TestResult {
+        let data = br#"{"SpeedMs":0.0,"Rpms":0.0,"MaxRpms":0.0,"Gear":"N","Throttle":0.0,"Brake":0.0,"Clutch":0.0,"SteeringAngle":0.0,"FuelPercent":0.0,"LatAcc":1.5,"LonAcc":-0.8,"FFBValue":0.0,"IsRunning":false,"IsInPit":false}"#;
+        let t = parse_simhub_packet(data)?;
+        assert!((t.lateral_g - 1.5).abs() < 0.001, "LatAcc alias");
+        assert!((t.longitudinal_g - (-0.8)).abs() < 0.001, "LonAcc alias");
+        Ok(())
+    }
 }
 
 #[cfg(test)]

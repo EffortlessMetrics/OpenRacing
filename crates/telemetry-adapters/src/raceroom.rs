@@ -686,6 +686,165 @@ mod tests {
         assert_eq!(result.num_gears, 6);
         Ok(())
     }
+
+    /// RPS-to-RPM conversion: 2000 RPM → rps = 2000 * π/30 ≈ 209.44 rad/s.
+    /// Round-trip should be accurate to < 0.01 RPM.
+    #[test]
+    fn test_rps_to_rpm_roundtrip_precision() -> TestResult {
+        for target_rpm in [0.0f32, 1000.0, 3500.0, 7500.0, 12000.0, 20000.0] {
+            let data = make_r3e_memory(target_rpm, 50.0, 0.0, 0.5, 0.0, 3);
+            let result = parse_r3e_memory(&data)?;
+            assert!(
+                (result.rpm - target_rpm).abs() < 0.01,
+                "RPM round-trip failed for {target_rpm}: got {}",
+                result.rpm
+            );
+        }
+        Ok(())
+    }
+
+    /// KPa-to-PSI conversion: 1 KPa = 0.14503774 PSI.
+    #[test]
+    fn test_kpa_to_psi_conversion_precision() -> TestResult {
+        let mut data = make_r3e_memory(5000.0, 50.0, 0.0, 0.5, 0.0, 3);
+        // Set all four tires to exactly 100 KPa
+        write_f32(&mut data, OFF_TIRE_PRESSURE_FL, 100.0);
+        write_f32(&mut data, OFF_TIRE_PRESSURE_FR, 100.0);
+        write_f32(&mut data, OFF_TIRE_PRESSURE_RL, 100.0);
+        write_f32(&mut data, OFF_TIRE_PRESSURE_RR, 100.0);
+        let result = parse_r3e_memory(&data)?;
+        for (i, &psi) in result.tire_pressures_psi.iter().enumerate() {
+            assert!(
+                (psi - 14.503774).abs() < 0.01,
+                "tire {i}: 100 KPa should be ~14.50 PSI, got {psi}"
+            );
+        }
+        Ok(())
+    }
+
+    /// Zero KPa should map to 0 PSI (filtered out by p > 0.0 check).
+    #[test]
+    fn test_zero_pressure_maps_to_zero_psi() -> TestResult {
+        let mut data = make_r3e_memory(5000.0, 50.0, 0.0, 0.5, 0.0, 3);
+        write_f32(&mut data, OFF_TIRE_PRESSURE_FL, 0.0);
+        write_f32(&mut data, OFF_TIRE_PRESSURE_FR, 0.0);
+        write_f32(&mut data, OFF_TIRE_PRESSURE_RL, 0.0);
+        write_f32(&mut data, OFF_TIRE_PRESSURE_RR, 0.0);
+        let result = parse_r3e_memory(&data)?;
+        for (i, &psi) in result.tire_pressures_psi.iter().enumerate() {
+            assert_eq!(psi, 0.0, "tire {i}: zero KPa should yield 0 PSI");
+        }
+        Ok(())
+    }
+
+    /// f32_temp_to_u8: negative temperatures → 0.
+    #[test]
+    fn test_temp_negative_maps_to_zero() {
+        assert_eq!(f32_temp_to_u8(Some(-10.0)), 0);
+        assert_eq!(f32_temp_to_u8(None), 0);
+    }
+
+    /// f32_temp_to_u8: values above 255 are clamped.
+    #[test]
+    fn test_temp_above_255_clamped() {
+        assert_eq!(f32_temp_to_u8(Some(300.0)), 255);
+    }
+
+    /// f32_temp_to_u8: exact boundary values.
+    #[test]
+    fn test_temp_boundary_values() {
+        assert_eq!(f32_temp_to_u8(Some(0.0)), 0);
+        assert_eq!(f32_temp_to_u8(Some(255.0)), 255);
+        assert_eq!(f32_temp_to_u8(Some(127.5)), 127);
+    }
+
+    /// Reverse gear: R3E gear -1 → gear field -1.
+    #[test]
+    fn test_reverse_gear() -> TestResult {
+        let data = make_r3e_memory(2000.0, 10.0, 0.0, 0.0, 0.0, -1);
+        let result = parse_r3e_memory(&data)?;
+        assert_eq!(result.gear, -1, "gear -1 should be reverse");
+        Ok(())
+    }
+
+    /// Gear clamped: large positive i32 should be clamped to 127 (i8 max).
+    #[test]
+    fn test_gear_clamped_to_i8() -> TestResult {
+        let mut data = make_r3e_memory(2000.0, 10.0, 0.0, 0.0, 0.0, 3);
+        write_i32(&mut data, OFF_GEAR, 200);
+        let result = parse_r3e_memory(&data)?;
+        assert_eq!(result.gear, 127, "gear 200 should be clamped to 127");
+        Ok(())
+    }
+
+    /// Fuel: zero capacity should yield 0.0 fuel_percent (no division by zero).
+    #[test]
+    fn test_fuel_zero_capacity_no_panic() -> TestResult {
+        let mut data = make_r3e_memory(3000.0, 20.0, 0.0, 0.3, 0.0, 1);
+        write_f32(&mut data, OFF_FUEL_LEFT, 10.0);
+        write_f32(&mut data, OFF_FUEL_CAPACITY, 0.0);
+        let result = parse_r3e_memory(&data)?;
+        assert_eq!(
+            result.fuel_percent, 0.0,
+            "zero capacity should yield 0.0 fuel_percent"
+        );
+        Ok(())
+    }
+
+    /// Extended fields: fuel_left_l and fuel_capacity_l.
+    #[test]
+    fn test_extended_fuel_fields() -> TestResult {
+        let data = make_r3e_memory(5000.0, 50.0, 0.0, 0.5, 0.0, 3);
+        let result = parse_r3e_memory(&data)?;
+        assert_eq!(
+            result.extended.get("fuel_left_l"),
+            Some(&TelemetryValue::Float(30.0))
+        );
+        assert_eq!(
+            result.extended.get("fuel_capacity_l"),
+            Some(&TelemetryValue::Float(60.0))
+        );
+        Ok(())
+    }
+
+    /// ABS aid: only value 5 means active.
+    #[test]
+    fn test_abs_only_value_5_active() -> TestResult {
+        let mut data = make_r3e_memory(5000.0, 50.0, 0.0, 0.5, 0.0, 3);
+        write_i32(&mut data, OFF_AID_ABS, 1); // enabled but not actively triggering
+        let result = parse_r3e_memory(&data)?;
+        assert!(
+            !result.flags.abs_active,
+            "ABS aid value 1 should not be active"
+        );
+        Ok(())
+    }
+
+    /// Speed is absolute-valued (negative velocities become positive).
+    #[test]
+    fn test_negative_speed_absolute() -> TestResult {
+        let mut data = make_r3e_memory(5000.0, 0.0, 0.0, 0.5, 0.0, 3);
+        write_f32(&mut data, OFF_SPEED, -30.0);
+        let result = parse_r3e_memory(&data)?;
+        assert!(
+            (result.speed_ms - 30.0).abs() < 0.01,
+            "negative speed should be absolute-valued"
+        );
+        Ok(())
+    }
+
+    /// Empty (but correct version) shared memory produces zero telemetry.
+    #[test]
+    fn test_empty_memory_defaults() -> TestResult {
+        let mut data = vec![0u8; R3E_VIEW_SIZE];
+        data[OFF_VERSION_MAJOR..OFF_VERSION_MAJOR + 4]
+            .copy_from_slice(&R3E_VERSION_MAJOR.to_le_bytes());
+        let result = parse_r3e_memory(&data)?;
+        assert_eq!(result.speed_ms, 0.0);
+        assert_eq!(result.rpm, 0.0);
+        assert_eq!(result.gear, 0);
+        Ok(())
+    }
 }
 
 #[cfg(test)]
