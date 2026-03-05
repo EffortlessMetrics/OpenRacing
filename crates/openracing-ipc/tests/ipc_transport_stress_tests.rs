@@ -22,7 +22,7 @@ use std::time::Duration;
 use openracing_ipc::codec::{
     MessageCodec, MessageDecoder, MessageEncoder, MessageHeader, message_flags, message_types,
 };
-use openracing_ipc::error::{IpcError, IpcResult};
+use openracing_ipc::error::IpcError;
 use openracing_ipc::server::{
     ClientInfo, HealthEvent, HealthEventType, IpcConfig, IpcServer, PeerInfo, ServerState,
     is_version_compatible,
@@ -582,7 +582,7 @@ mod backpressure_behavior {
         loop {
             match receiver.try_recv() {
                 Ok(_) => received += 1,
-                Err(tokio::sync::broadcast::error::TryRecvError::Lagged(n)) => {
+                Err(tokio::sync::broadcast::error::TryRecvError::Lagged(_n)) => {
                     lagged = true;
                     // Continue reading after lag
                     continue;
@@ -1230,11 +1230,8 @@ mod message_ordering {
         }
 
         let mut received_order = Vec::new();
-        loop {
-            match rx.try_recv() {
-                Ok(event) => received_order.push(event.device_id.clone()),
-                Err(_) => break,
-            }
+        while let Ok(event) = rx.try_recv() {
+            received_order.push(event.device_id.clone());
         }
 
         assert_eq!(received_order.len(), num_events);
@@ -1680,11 +1677,8 @@ mod health_event_coverage {
         }
 
         let mut received = Vec::new();
-        loop {
-            match rx.try_recv() {
-                Ok(event) => received.push(event.event_type),
-                Err(_) => break,
-            }
+        while let Ok(event) = rx.try_recv() {
+            received.push(event.event_type);
         }
 
         assert_eq!(
