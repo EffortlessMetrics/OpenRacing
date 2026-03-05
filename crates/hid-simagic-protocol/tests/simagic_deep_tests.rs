@@ -14,11 +14,19 @@ use racing_wheel_hid_simagic_protocol::{
     self as simagic, CONSTANT_FORCE_REPORT_LEN, DAMPER_REPORT_LEN, FRICTION_REPORT_LEN,
     SPRING_REPORT_LEN, SimagicConstantForceEncoder, SimagicDamperEncoder, SimagicFrictionEncoder,
     SimagicSpringEncoder,
-    ids::{product_ids, report_ids},
+    ids::{
+        SIMAGIC_LEGACY_PID, SIMAGIC_LEGACY_VENDOR_ID, SIMAGIC_VENDOR_ID, product_ids, report_ids,
+    },
+    settings::{
+        self, AngleLockStrength, Settings1, Settings2, Settings3, Settings4,
+        decode_ring_light, encode_ring_light, encode_settings1, encode_settings2, encode_settings3,
+        encode_settings4, parse_status1,
+    },
     types::{
         QuickReleaseStatus, SimagicDeviceCategory, SimagicFfbEffectType, SimagicGear, SimagicModel,
         SimagicPedalAxesRaw,
     },
+    wire,
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -1108,4 +1116,872 @@ fn input_state_default_values() {
     assert_eq!(state.shifter.gear, SimagicGear::Neutral);
     assert_eq!(state.quick_release, QuickReleaseStatus::Unknown);
     assert_eq!(state.firmware_version, None);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// § 11  VID/PID constant validation
+// ═══════════════════════════════════════════════════════════════════════════════
+
+#[test]
+fn vid_modern_simagic_is_3670() {
+    assert_eq!(SIMAGIC_VENDOR_ID, 0x3670);
+}
+
+#[test]
+fn vid_legacy_stmicro_is_0483() {
+    assert_eq!(SIMAGIC_LEGACY_VENDOR_ID, 0x0483);
+}
+
+#[test]
+fn legacy_pid_shared_0522() {
+    // M10, Alpha Mini, Alpha, Alpha Ultimate all share this PID
+    assert_eq!(SIMAGIC_LEGACY_PID, 0x0522);
+}
+
+#[test]
+fn evo_generation_pids_are_contiguous() {
+    // EVO Sport/EVO/EVO Pro have contiguous PIDs 0x0500–0x0502
+    assert_eq!(product_ids::EVO_SPORT, 0x0500);
+    assert_eq!(product_ids::EVO, 0x0501);
+    assert_eq!(product_ids::EVO_PRO, 0x0502);
+}
+
+#[test]
+fn legacy_pid_resolves_to_unknown_in_identify() {
+    // Legacy PID 0x0522 is not in identify_device (which handles VID 0x3670 PIDs only)
+    let identity = simagic::identify_device(SIMAGIC_LEGACY_PID);
+    assert_eq!(identity.category, SimagicDeviceCategory::Unknown);
+}
+
+#[test]
+fn all_evo_wheelbases_have_ffb_support() {
+    for pid in [
+        product_ids::EVO_SPORT,
+        product_ids::EVO,
+        product_ids::EVO_PRO,
+    ] {
+        let identity = simagic::identify_device(pid);
+        assert!(
+            identity.supports_ffb,
+            "{} (PID {pid:#06x}) should support FFB",
+            identity.name
+        );
+    }
+}
+
+#[test]
+fn handbrake_does_not_support_ffb() {
+    let identity = simagic::identify_device(product_ids::HANDBRAKE);
+    assert!(!identity.supports_ffb);
+    assert_eq!(identity.category, SimagicDeviceCategory::Handbrake);
+}
+
+#[test]
+fn all_evo_wheelbases_have_torque_values() {
+    let pids_and_torques = [
+        (product_ids::EVO_SPORT, 9.0f32),
+        (product_ids::EVO, 12.0),
+        (product_ids::EVO_PRO, 18.0),
+    ];
+    for (pid, expected) in pids_and_torques {
+        let identity = simagic::identify_device(pid);
+        assert_eq!(
+            identity.max_torque_nm,
+            Some(expected),
+            "PID {pid:#06x} torque mismatch"
+        );
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// § 12  Settings encoding and decoding
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ── 12.1  Settings1 encoding ────────────────────────────────────────────────
+
+#[test]
+fn settings1_encode_report_id_and_page() -> Result<(), Box<dyn std::error::Error>> {
+    let s = Settings1 {
+        max_angle: 900,
+        ff_strength: 50,
+        wheel_rotation_speed: 30,
+        mechanical_centering: 40,
+        mechanical_damper: 50,
+        center_damper: 60,
+        mechanical_friction: 70,
+        game_centering: 100,
+        game_inertia: 110,
+        game_damper: 120,
+        game_friction: 130,
+    };
+    let buf = encode_settings1(&s);
+    assert_eq!(buf[0], settings::SET_REPORT_ID);
+    assert_eq!(buf[1], 0x01);
+    assert_eq!(buf.len(), 64);
+    Ok(())
+}
+
+#[test]
+fn settings1_encode_angle_le16() -> Result<(), Box<dyn std::error::Error>> {
+    let s = Settings1 {
+        max_angle: 1440,
+        ff_strength: 0,
+        wheel_rotation_speed: 0,
+        mechanical_centering: 0,
+        mechanical_damper: 0,
+        center_damper: 0,
+        mechanical_friction: 0,
+        game_centering: 0,
+        game_inertia: 0,
+        game_damper: 0,
+        game_friction: 0,
+    };
+    let buf = encode_settings1(&s);
+    let angle = u16::from_le_bytes([buf[2], buf[3]]);
+    assert_eq!(angle, 1440);
+    Ok(())
+}
+
+#[test]
+fn settings1_sanitize_clamps_all_fields() -> Result<(), Box<dyn std::error::Error>> {
+    let s = Settings1 {
+        max_angle: 10_000,         // above MAX_ANGLE
+        ff_strength: 200,          // above 100
+        wheel_rotation_speed: 255, // above 100
+        mechanical_centering: 255,
+        mechanical_damper: 255,
+        center_damper: 255,
+        mechanical_friction: 255,
+        game_centering: 255, // above 200
+        game_inertia: 255,
+        game_damper: 255,
+        game_friction: 255,
+    };
+    let buf = encode_settings1(&s);
+    let angle = u16::from_le_bytes([buf[2], buf[3]]);
+    assert_eq!(angle, settings::MAX_ANGLE);
+    let strength = i16::from_le_bytes([buf[4], buf[5]]);
+    assert_eq!(strength, 100);
+    assert_eq!(buf[7], 100); // wheel_rotation_speed
+    assert_eq!(buf[8], 100); // mechanical_centering
+    assert_eq!(buf[12], 200); // game_centering
+    Ok(())
+}
+
+#[test]
+fn settings1_negative_ff_strength_encoded() -> Result<(), Box<dyn std::error::Error>> {
+    let s = Settings1 {
+        max_angle: 900,
+        ff_strength: -75,
+        wheel_rotation_speed: 0,
+        mechanical_centering: 0,
+        mechanical_damper: 0,
+        center_damper: 0,
+        mechanical_friction: 0,
+        game_centering: 0,
+        game_inertia: 0,
+        game_damper: 0,
+        game_friction: 0,
+    };
+    let buf = encode_settings1(&s);
+    let strength = i16::from_le_bytes([buf[4], buf[5]]);
+    assert_eq!(strength, -75);
+    Ok(())
+}
+
+#[test]
+fn settings1_unknown_offset_06_is_0x02() -> Result<(), Box<dyn std::error::Error>> {
+    let s = Settings1 {
+        max_angle: 900,
+        ff_strength: 0,
+        wheel_rotation_speed: 0,
+        mechanical_centering: 0,
+        mechanical_damper: 0,
+        center_damper: 0,
+        mechanical_friction: 0,
+        game_centering: 0,
+        game_inertia: 0,
+        game_damper: 0,
+        game_friction: 0,
+    };
+    let buf = encode_settings1(&s);
+    assert_eq!(buf[6], 0x02);
+    Ok(())
+}
+
+// ── 12.2  Settings2 encoding ────────────────────────────────────────────────
+
+#[test]
+fn settings2_encode_page_header() -> Result<(), Box<dyn std::error::Error>> {
+    let s = Settings2 {
+        angle_lock: 540,
+        feedback_detail: 50,
+        angle_lock_strength: 1,
+        mechanical_inertia: 30,
+    };
+    let buf = encode_settings2(&s, 900);
+    assert_eq!(buf[0], settings::SET_REPORT_ID);
+    assert_eq!(buf[1], 0x02);
+    Ok(())
+}
+
+#[test]
+fn settings2_angle_lock_clamped_to_max_angle() -> Result<(), Box<dyn std::error::Error>> {
+    let s = Settings2 {
+        angle_lock: 5000,
+        feedback_detail: 0,
+        angle_lock_strength: 0,
+        mechanical_inertia: 0,
+    };
+    let buf = encode_settings2(&s, 900);
+    let lock = u16::from_le_bytes([buf[2], buf[3]]);
+    assert_eq!(lock, 900);
+    Ok(())
+}
+
+#[test]
+fn settings2_angle_lock_strength_clamped() -> Result<(), Box<dyn std::error::Error>> {
+    let s = Settings2 {
+        angle_lock: 540,
+        feedback_detail: 0,
+        angle_lock_strength: 10, // above 2
+        mechanical_inertia: 0,
+    };
+    let buf = encode_settings2(&s, 900);
+    assert_eq!(buf[6], 2); // clamped to max
+    Ok(())
+}
+
+// ── 12.3  Settings3 (ring light) ────────────────────────────────────────────
+
+#[test]
+fn settings3_encode_header() -> Result<(), Box<dyn std::error::Error>> {
+    let s = Settings3 {
+        ring_light_enabled: true,
+        ring_light_brightness: 75,
+    };
+    let buf = encode_settings3(&s);
+    assert_eq!(buf[0], settings::SET_REPORT_ID);
+    assert_eq!(buf[1], 0x10);
+    assert_eq!(buf[2], 0x38);
+    assert_eq!(buf[3], 0x00);
+    assert_eq!(buf[4], 0x01);
+    Ok(())
+}
+
+#[test]
+fn settings3_ring_light_byte_encoding() -> Result<(), Box<dyn std::error::Error>> {
+    let s = Settings3 {
+        ring_light_enabled: true,
+        ring_light_brightness: 75,
+    };
+    let buf = encode_settings3(&s);
+    assert_eq!(buf[5], 0x80 | 75); // enabled bit + brightness
+    Ok(())
+}
+
+#[test]
+fn settings3_ring_light_disabled() -> Result<(), Box<dyn std::error::Error>> {
+    let s = Settings3 {
+        ring_light_enabled: false,
+        ring_light_brightness: 50,
+    };
+    let buf = encode_settings3(&s);
+    assert_eq!(buf[5], 50); // no enable bit
+    Ok(())
+}
+
+// ── 12.4  Settings4 (filter/slew) ──────────────────────────────────────────
+
+#[test]
+fn settings4_encode_header() -> Result<(), Box<dyn std::error::Error>> {
+    let s = Settings4 {
+        filter_level: 10,
+        slew_rate_control: 50,
+    };
+    let buf = encode_settings4(&s);
+    assert_eq!(buf[0], settings::SET_REPORT_ID);
+    assert_eq!(buf[1], 0x10);
+    assert_eq!(buf[2], 0x39);
+    assert_eq!(buf[4], 0x07);
+    Ok(())
+}
+
+#[test]
+fn settings4_filter_level_clamped() -> Result<(), Box<dyn std::error::Error>> {
+    let s = Settings4 {
+        filter_level: 100,      // above 20
+        slew_rate_control: 200, // above 100
+    };
+    let buf = encode_settings4(&s);
+    assert_eq!(buf[7], 20); // clamped
+    assert_eq!(buf[9], 100); // clamped
+    Ok(())
+}
+
+// ── 12.5  Ring light encode/decode round-trip ──────────────────────────────
+
+#[test]
+fn ring_light_roundtrip_all_values() -> Result<(), Box<dyn std::error::Error>> {
+    for enabled in [true, false] {
+        for brightness in [0u8, 1, 50, 99, 100] {
+            let encoded = encode_ring_light(enabled, brightness);
+            let (dec_en, dec_br) = decode_ring_light(encoded);
+            assert_eq!(dec_en, enabled);
+            assert_eq!(dec_br, brightness);
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn ring_light_encode_clamps_over_100() {
+    let encoded = encode_ring_light(true, 200);
+    let (enabled, brightness) = decode_ring_light(encoded);
+    assert!(enabled);
+    assert_eq!(brightness, 100);
+}
+
+// ── 12.6  AngleLockStrength ────────────────────────────────────────────────
+
+#[test]
+fn angle_lock_strength_all_variants() -> Result<(), Box<dyn std::error::Error>> {
+    assert_eq!(
+        AngleLockStrength::from_byte(0),
+        Some(AngleLockStrength::Soft)
+    );
+    assert_eq!(
+        AngleLockStrength::from_byte(1),
+        Some(AngleLockStrength::Normal)
+    );
+    assert_eq!(
+        AngleLockStrength::from_byte(2),
+        Some(AngleLockStrength::Firm)
+    );
+    assert_eq!(AngleLockStrength::from_byte(3), None);
+    assert_eq!(AngleLockStrength::from_byte(255), None);
+    Ok(())
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// § 13  Status1 parsing and round-trip
+// ═══════════════════════════════════════════════════════════════════════════════
+
+fn make_status1_report(f: impl FnOnce(&mut [u8; 64])) -> [u8; 64] {
+    let mut buf = [0u8; 64];
+    buf[0] = settings::GET_REPORT_ID;
+    f(&mut buf);
+    buf
+}
+
+#[test]
+fn status1_parse_minimal_valid() -> Result<(), Box<dyn std::error::Error>> {
+    let report = make_status1_report(|buf| {
+        buf[2..4].copy_from_slice(&900u16.to_le_bytes()); // max_angle
+        buf[4..6].copy_from_slice(&50i16.to_le_bytes()); // ff_strength
+        buf[7] = 30; // wheel_rotation_speed
+        buf[8] = 40; // mechanical_centering
+        buf[9] = 50; // mechanical_damper
+        buf[10] = 60; // center_damper
+        buf[11] = 70; // mechanical_friction
+        buf[12] = 80; // game_centering
+        buf[13] = 90; // game_inertia
+        buf[14] = 100; // game_damper
+        buf[15] = 110; // game_friction
+        buf[16..18].copy_from_slice(&540u16.to_le_bytes()); // angle_lock
+        buf[18] = 75; // feedback_detail
+        buf[20] = 1; // angle_lock_strength
+        buf[22] = 25; // mechanical_inertia
+        buf[47] = encode_ring_light(true, 80); // ring_light
+        buf[50] = 15; // filter_level
+        buf[52] = 60; // slew_rate_control
+    });
+
+    let status = parse_status1(&report).ok_or("failed to parse status1")?;
+    assert_eq!(status.max_angle, 900);
+    assert_eq!(status.ff_strength, 50);
+    assert_eq!(status.wheel_rotation_speed, 30);
+    assert_eq!(status.mechanical_centering, 40);
+    assert_eq!(status.mechanical_damper, 50);
+    assert_eq!(status.center_damper, 60);
+    assert_eq!(status.mechanical_friction, 70);
+    assert_eq!(status.game_centering, 80);
+    assert_eq!(status.game_inertia, 90);
+    assert_eq!(status.game_damper, 100);
+    assert_eq!(status.game_friction, 110);
+    assert_eq!(status.angle_lock, 540);
+    assert_eq!(status.feedback_detail, 75);
+    assert_eq!(status.angle_lock_strength, 1);
+    assert_eq!(status.mechanical_inertia, 25);
+    assert_eq!(status.filter_level, 15);
+    assert_eq!(status.slew_rate_control, 60);
+    Ok(())
+}
+
+#[test]
+fn status1_parse_wrong_report_id_returns_none() {
+    let mut report = [0u8; 64];
+    report[0] = 0x80; // SET_REPORT_ID, not GET_REPORT_ID
+    assert!(parse_status1(&report).is_none());
+}
+
+#[test]
+fn status1_parse_too_short_returns_none() {
+    let mut report = [0u8; 52]; // needs at least 53
+    report[0] = settings::GET_REPORT_ID;
+    assert!(parse_status1(&report).is_none());
+}
+
+#[test]
+fn status1_to_settings1_roundtrip() -> Result<(), Box<dyn std::error::Error>> {
+    let report = make_status1_report(|buf| {
+        buf[2..4].copy_from_slice(&1080u16.to_le_bytes());
+        buf[4..6].copy_from_slice(&(-25i16).to_le_bytes());
+        buf[7] = 50;
+        buf[8] = 60;
+        buf[9] = 70;
+        buf[10] = 80;
+        buf[11] = 90;
+        buf[12] = 150;
+        buf[13] = 160;
+        buf[14] = 170;
+        buf[15] = 180;
+    });
+    let status = parse_status1(&report).ok_or("parse failed")?;
+    let s1: Settings1 = (&status).into();
+    assert_eq!(s1.max_angle, 1080);
+    assert_eq!(s1.ff_strength, -25);
+    assert_eq!(s1.wheel_rotation_speed, 50);
+    assert_eq!(s1.game_centering, 150);
+    Ok(())
+}
+
+#[test]
+fn status1_to_settings2_roundtrip() -> Result<(), Box<dyn std::error::Error>> {
+    let report = make_status1_report(|buf| {
+        buf[16..18].copy_from_slice(&720u16.to_le_bytes());
+        buf[18] = 85;
+        buf[20] = 2;
+        buf[22] = 45;
+    });
+    let status = parse_status1(&report).ok_or("parse failed")?;
+    let s2: Settings2 = (&status).into();
+    assert_eq!(s2.angle_lock, 720);
+    assert_eq!(s2.feedback_detail, 85);
+    assert_eq!(s2.angle_lock_strength, 2);
+    assert_eq!(s2.mechanical_inertia, 45);
+    Ok(())
+}
+
+#[test]
+fn status1_to_settings3_roundtrip() -> Result<(), Box<dyn std::error::Error>> {
+    let report = make_status1_report(|buf| {
+        buf[47] = encode_ring_light(true, 60);
+    });
+    let status = parse_status1(&report).ok_or("parse failed")?;
+    let s3: Settings3 = (&status).into();
+    assert!(s3.ring_light_enabled);
+    assert_eq!(s3.ring_light_brightness, 60);
+    Ok(())
+}
+
+#[test]
+fn status1_to_settings4_roundtrip() -> Result<(), Box<dyn std::error::Error>> {
+    let report = make_status1_report(|buf| {
+        buf[50] = 12;
+        buf[52] = 88;
+    });
+    let status = parse_status1(&report).ok_or("parse failed")?;
+    let s4: Settings4 = (&status).into();
+    assert_eq!(s4.filter_level, 12);
+    assert_eq!(s4.slew_rate_control, 88);
+    Ok(())
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// § 14  Wire format encoding (kernel protocol)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+#[test]
+fn wire_constant_force_report() -> Result<(), Box<dyn std::error::Error>> {
+    let buf = wire::encode_constant(0x7FFF);
+    assert_eq!(buf[0], wire::report_type::SET_CONSTANT);
+    assert_eq!(buf[1], wire::block_id::CONSTANT);
+    let mag = i16::from_le_bytes([buf[2], buf[3]]);
+    assert_eq!(mag, 10000); // rescale_signed_to_10k(0x7FFF) = 10000
+    assert_eq!(buf.len(), wire::REPORT_SIZE);
+    Ok(())
+}
+
+#[test]
+fn wire_constant_force_zero() -> Result<(), Box<dyn std::error::Error>> {
+    let buf = wire::encode_constant(0);
+    let mag = i16::from_le_bytes([buf[2], buf[3]]);
+    assert_eq!(mag, 0);
+    Ok(())
+}
+
+#[test]
+fn wire_constant_force_negative() -> Result<(), Box<dyn std::error::Error>> {
+    let buf = wire::encode_constant(i16::MIN);
+    let mag = i16::from_le_bytes([buf[2], buf[3]]);
+    assert_eq!(mag, -10000);
+    Ok(())
+}
+
+#[test]
+fn wire_set_effect_structure() -> Result<(), Box<dyn std::error::Error>> {
+    let buf = wire::encode_set_effect(wire::block_id::CONSTANT, 500);
+    assert_eq!(buf[0], wire::report_type::SET_EFFECT);
+    assert_eq!(buf[1], wire::block_id::CONSTANT);
+    assert_eq!(buf[2], 0x01);
+    let dur = u16::from_le_bytes([buf[3], buf[4]]);
+    assert_eq!(dur, 500);
+    assert_eq!(buf[9], 0xFF); // gain
+    assert_eq!(buf[10], 0xFF); // trigger button
+    assert_eq!(buf[11], 0x04);
+    assert_eq!(buf[12], 0x3F);
+    Ok(())
+}
+
+#[test]
+fn wire_set_effect_zero_duration_infinite() -> Result<(), Box<dyn std::error::Error>> {
+    let buf = wire::encode_set_effect(wire::block_id::SINE, 0);
+    let dur = u16::from_le_bytes([buf[3], buf[4]]);
+    assert_eq!(dur, 0xFFFF);
+    Ok(())
+}
+
+#[test]
+fn wire_condition_spring() -> Result<(), Box<dyn std::error::Error>> {
+    let params = wire::ConditionParams {
+        center: 0,
+        right_coeff: 0x4000,
+        left_coeff: -0x4000,
+        right_saturation: 0xFFFF,
+        left_saturation: 0x8000,
+        deadband: 0x1000,
+    };
+    let buf = wire::encode_condition(wire::block_id::SPRING, &params);
+    assert_eq!(buf[0], wire::report_type::SET_CONDITION);
+    assert_eq!(buf[1], wire::block_id::SPRING);
+    assert_eq!(buf[2], 0x00);
+    let center = i16::from_le_bytes([buf[3], buf[4]]);
+    assert_eq!(center, 0);
+    Ok(())
+}
+
+#[test]
+fn wire_condition_all_effect_types() -> Result<(), Box<dyn std::error::Error>> {
+    let params = wire::ConditionParams {
+        center: 100,
+        right_coeff: 5000,
+        left_coeff: -5000,
+        right_saturation: 0x8000,
+        left_saturation: 0x8000,
+        deadband: 0,
+    };
+    for &bid in &[
+        wire::block_id::SPRING,
+        wire::block_id::DAMPER,
+        wire::block_id::FRICTION,
+        wire::block_id::INERTIA,
+    ] {
+        let buf = wire::encode_condition(bid, &params);
+        assert_eq!(buf[0], wire::report_type::SET_CONDITION);
+        assert_eq!(buf[1], bid);
+    }
+    Ok(())
+}
+
+#[test]
+fn wire_periodic_sine() -> Result<(), Box<dyn std::error::Error>> {
+    let buf = wire::encode_periodic(wire::block_id::SINE, 0x7FFF, 0, 0, 100);
+    assert_eq!(buf[0], wire::report_type::SET_PERIODIC);
+    assert_eq!(buf[1], wire::block_id::SINE);
+    let mag = i16::from_le_bytes([buf[2], buf[3]]);
+    assert_eq!(mag, 10000);
+    Ok(())
+}
+
+#[test]
+fn wire_effect_operation_start_stop() -> Result<(), Box<dyn std::error::Error>> {
+    let start_buf = wire::encode_effect_operation(wire::block_id::CONSTANT, true, 5);
+    assert_eq!(start_buf[0], wire::report_type::EFFECT_OPERATION);
+    assert_eq!(start_buf[2], wire::effect_op::START);
+    assert_eq!(start_buf[3], 5);
+
+    let stop_buf = wire::encode_effect_operation(wire::block_id::CONSTANT, false, 0);
+    assert_eq!(stop_buf[2], wire::effect_op::STOP);
+    assert_eq!(stop_buf[3], 0);
+    Ok(())
+}
+
+#[test]
+fn wire_gain_full_and_zero() -> Result<(), Box<dyn std::error::Error>> {
+    let full = wire::encode_gain(0xFFFF);
+    assert_eq!(full[0], wire::report_type::SET_GAIN);
+    assert_eq!(full[1], 0xFF);
+
+    let zero = wire::encode_gain(0);
+    assert_eq!(zero[1], 0);
+    Ok(())
+}
+
+#[test]
+fn wire_rescale_signed_boundary_values() -> Result<(), Box<dyn std::error::Error>> {
+    assert_eq!(wire::rescale_signed_to_10k(0), 0);
+    assert_eq!(wire::rescale_signed_to_10k(i16::MAX), 10000);
+    assert_eq!(wire::rescale_signed_to_10k(i16::MIN), -10000);
+    Ok(())
+}
+
+#[test]
+fn wire_all_reports_are_64_bytes() -> Result<(), Box<dyn std::error::Error>> {
+    assert_eq!(wire::encode_constant(0).len(), 64);
+    assert_eq!(wire::encode_set_effect(0x01, 100).len(), 64);
+    assert_eq!(wire::encode_periodic(0x02, 0, 0, 0, 0).len(), 64);
+    assert_eq!(wire::encode_effect_operation(0x01, true, 1).len(), 64);
+    assert_eq!(wire::encode_gain(0).len(), 64);
+    let params = wire::ConditionParams {
+        center: 0,
+        right_coeff: 0,
+        left_coeff: 0,
+        right_saturation: 0,
+        left_saturation: 0,
+        deadband: 0,
+    };
+    assert_eq!(wire::encode_condition(0x06, &params).len(), 64);
+    Ok(())
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// § 15  Error handling for malformed data
+// ═══════════════════════════════════════════════════════════════════════════════
+
+#[test]
+fn parse_input_report_all_0xff() -> Result<(), Box<dyn std::error::Error>> {
+    let data = [0xFFu8; 64];
+    let state = simagic::parse_input_report(&data).ok_or("parse failed")?;
+    // Should produce valid (saturated) values without panicking
+    assert!((state.steering - 1.0).abs() < 0.001);
+    assert!((state.throttle - 1.0).abs() < 0.001);
+    assert_eq!(state.shifter.gear, SimagicGear::Unknown);
+    assert_eq!(state.quick_release, QuickReleaseStatus::Unknown);
+    Ok(())
+}
+
+#[test]
+fn parse_input_report_alternating_bytes() -> Result<(), Box<dyn std::error::Error>> {
+    let mut data = [0u8; 64];
+    for (i, b) in data.iter_mut().enumerate() {
+        *b = if i % 2 == 0 { 0xAA } else { 0x55 };
+    }
+    // Should not panic; just parse whatever values emerge
+    let _state = simagic::parse_input_report(&data).ok_or("parse failed")?;
+    Ok(())
+}
+
+#[test]
+fn parse_status1_all_zeros_except_id() {
+    let mut report = [0u8; 64];
+    report[0] = settings::GET_REPORT_ID;
+    let status = parse_status1(&report);
+    assert!(status.is_some());
+}
+
+#[test]
+fn parse_status1_all_0xff() {
+    let report = [0xFFu8; 64];
+    // Report ID 0xFF != 0x81, so this should fail
+    assert!(parse_status1(&report).is_none());
+}
+
+#[test]
+fn settings1_min_angle_boundary() -> Result<(), Box<dyn std::error::Error>> {
+    let s = Settings1 {
+        max_angle: settings::MIN_ANGLE,
+        ff_strength: -100,
+        wheel_rotation_speed: 0,
+        mechanical_centering: 0,
+        mechanical_damper: 0,
+        center_damper: 0,
+        mechanical_friction: 0,
+        game_centering: 0,
+        game_inertia: 0,
+        game_damper: 0,
+        game_friction: 0,
+    };
+    let buf = encode_settings1(&s);
+    let angle = u16::from_le_bytes([buf[2], buf[3]]);
+    assert_eq!(angle, 90);
+    Ok(())
+}
+
+#[test]
+fn settings1_max_angle_boundary() -> Result<(), Box<dyn std::error::Error>> {
+    let s = Settings1 {
+        max_angle: settings::MAX_ANGLE,
+        ff_strength: 100,
+        wheel_rotation_speed: 100,
+        mechanical_centering: 100,
+        mechanical_damper: 100,
+        center_damper: 100,
+        mechanical_friction: 100,
+        game_centering: 200,
+        game_inertia: 200,
+        game_damper: 200,
+        game_friction: 200,
+    };
+    let buf = encode_settings1(&s);
+    let angle = u16::from_le_bytes([buf[2], buf[3]]);
+    assert_eq!(angle, 2520);
+    Ok(())
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// § 16  Proptest property-based tests
+// ═══════════════════════════════════════════════════════════════════════════════
+
+mod proptest_deep {
+    use super::*;
+    use proptest::prelude::*;
+
+    proptest! {
+        #![proptest_config(proptest::test_runner::Config::with_cases(300))]
+
+        #[test]
+        fn prop_parse_input_never_panics(data in proptest::collection::vec(any::<u8>(), 0..128)) {
+            let _ = simagic::parse_input_report(&data);
+        }
+
+        #[test]
+        fn prop_steering_always_in_range(raw in 0u16..=65535u16) {
+            let mut data = [0u8; 64];
+            data[0..2].copy_from_slice(&raw.to_le_bytes());
+            if let Some(state) = simagic::parse_input_report(&data) {
+                prop_assert!(state.steering >= -1.0 && state.steering <= 1.0,
+                    "steering out of range: {}", state.steering);
+            }
+        }
+
+        #[test]
+        fn prop_pedals_always_normalized(
+            throttle in 0u16..=65535u16,
+            brake in 0u16..=65535u16,
+            clutch in 0u16..=65535u16,
+            handbrake in 0u16..=65535u16,
+        ) {
+            let mut data = [0u8; 64];
+            data[2..4].copy_from_slice(&throttle.to_le_bytes());
+            data[4..6].copy_from_slice(&brake.to_le_bytes());
+            data[6..8].copy_from_slice(&clutch.to_le_bytes());
+            data[8..10].copy_from_slice(&handbrake.to_le_bytes());
+            if let Some(state) = simagic::parse_input_report(&data) {
+                prop_assert!(state.throttle >= 0.0 && state.throttle <= 1.0);
+                prop_assert!(state.brake >= 0.0 && state.brake <= 1.0);
+                prop_assert!(state.clutch >= 0.0 && state.clutch <= 1.0);
+                prop_assert!(state.handbrake >= 0.0 && state.handbrake <= 1.0);
+            }
+        }
+
+        #[test]
+        fn prop_wire_rescale_bounded(v in i16::MIN..=i16::MAX) {
+            let r = wire::rescale_signed_to_10k(v);
+            prop_assert!((-10000..=10000).contains(&r), "out of range: {r}");
+        }
+
+        #[test]
+        fn prop_wire_rescale_monotone(a in i16::MIN..=i16::MAX, b in i16::MIN..=i16::MAX) {
+            let ra = wire::rescale_signed_to_10k(a);
+            let rb = wire::rescale_signed_to_10k(b);
+            if a < b {
+                prop_assert!(ra <= rb, "monotonicity: f({a})={ra} > f({b})={rb}");
+            }
+        }
+
+        #[test]
+        fn prop_wire_constant_always_valid(level in i16::MIN..=i16::MAX) {
+            let buf = wire::encode_constant(level);
+            prop_assert_eq!(buf[0], wire::report_type::SET_CONSTANT);
+            prop_assert_eq!(buf[1], wire::block_id::CONSTANT);
+            prop_assert_eq!(buf.len(), 64);
+        }
+
+        #[test]
+        fn prop_wire_gain_high_byte(gain in 0u16..=u16::MAX) {
+            let buf = wire::encode_gain(gain);
+            prop_assert_eq!(buf[0], wire::report_type::SET_GAIN);
+            prop_assert_eq!(buf[1], (gain >> 8) as u8);
+        }
+
+        #[test]
+        fn prop_constant_force_encoder_magnitude_bounded(torque in -50.0f32..50.0f32) {
+            let enc = SimagicConstantForceEncoder::new(10.0);
+            let mut out = [0u8; CONSTANT_FORCE_REPORT_LEN];
+            let _ = enc.encode(torque, &mut out);
+            let mag = i16::from_le_bytes([out[3], out[4]]);
+            prop_assert!((-10000..=10000).contains(&mag),
+                "magnitude {mag} out of ±10000 range for torque {torque}");
+        }
+
+        #[test]
+        fn prop_ring_light_roundtrip(enabled in proptest::bool::ANY, brightness in 0u8..=100u8) {
+            let encoded = encode_ring_light(enabled, brightness);
+            let (dec_en, dec_br) = decode_ring_light(encoded);
+            prop_assert_eq!(dec_en, enabled);
+            prop_assert_eq!(dec_br, brightness);
+        }
+
+        #[test]
+        fn prop_parse_status1_never_panics(data in proptest::collection::vec(any::<u8>(), 0..128)) {
+            let _ = parse_status1(&data);
+        }
+
+        #[test]
+        fn prop_settings1_sanitize_idempotent(
+            angle in 0u16..=5000u16,
+            ff in -200i16..=200i16,
+            speed in 0u8..=255u8,
+            centering in 0u8..=255u8,
+            game_c in 0u8..=255u8,
+        ) {
+            let mut s = Settings1 {
+                max_angle: angle,
+                ff_strength: ff,
+                wheel_rotation_speed: speed,
+                mechanical_centering: centering,
+                mechanical_damper: 0,
+                center_damper: 0,
+                mechanical_friction: 0,
+                game_centering: game_c,
+                game_inertia: 0,
+                game_damper: 0,
+                game_friction: 0,
+            };
+            s.sanitize();
+            let mut s2 = s;
+            s2.sanitize();
+            prop_assert_eq!(s.max_angle, s2.max_angle);
+            prop_assert_eq!(s.ff_strength, s2.ff_strength);
+            prop_assert_eq!(s.wheel_rotation_speed, s2.wheel_rotation_speed);
+            prop_assert_eq!(s.game_centering, s2.game_centering);
+        }
+
+        #[test]
+        fn prop_identify_device_never_panics(pid in 0u16..=u16::MAX) {
+            let identity = simagic::identify_device(pid);
+            prop_assert!(!identity.name.is_empty());
+        }
+
+        #[test]
+        fn prop_gear_from_raw_never_panics(raw in 0u8..=255u8) {
+            let _ = SimagicGear::from_raw(raw);
+        }
+
+        #[test]
+        fn prop_quick_release_from_raw_never_panics(raw in 0u8..=255u8) {
+            let _ = QuickReleaseStatus::from_raw(raw);
+        }
+    }
 }
