@@ -1,0 +1,22 @@
+---
+source: crates/schemas/tests/schema_evolution_wire_tests.rs
+expression: val
+---
+{
+  "capabilities": {
+    "encoder_cpr": 4096,
+    "max_torque": 8.0,
+    "min_report_period_us": 1000,
+    "supports_health_stream": true,
+    "supports_led_bus": true,
+    "supports_pid": true,
+    "supports_raw_torque_1khz": true
+  },
+  "device_type": "WheelBase",
+  "fault_flags": 0,
+  "firmware_version": null,
+  "id": "dd-pro-001",
+  "name": "Fanatec DD Pro",
+  "serial_number": null,
+  "state": "Connected"
+}

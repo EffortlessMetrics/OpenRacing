@@ -1,0 +1,11 @@
+---
+source: crates/schemas/tests/schema_evolution_wire_tests.rs
+expression: val
+---
+[
+  "Disconnected",
+  "Connected",
+  "Active",
+  "Faulted",
+  "SafeMode"
+]

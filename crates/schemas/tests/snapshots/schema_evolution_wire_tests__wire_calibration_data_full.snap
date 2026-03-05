@@ -1,0 +1,25 @@
+---
+source: crates/schemas/tests/schema_evolution_wire_tests.rs
+expression: val
+---
+{
+  "calibrated_at": "2024-01-15T10:30:00Z",
+  "calibration_type": "Full",
+  "center_position": 0.0,
+  "max_position": 540.0,
+  "min_position": -540.0,
+  "pedal_ranges": {
+    "brake": [
+      0.05000000074505806,
+      0.949999988079071
+    ],
+    "clutch": [
+      0.10000000149011612,
+      0.8999999761581421
+    ],
+    "throttle": [
+      0.0,
+      1.0
+    ]
+  }
+}

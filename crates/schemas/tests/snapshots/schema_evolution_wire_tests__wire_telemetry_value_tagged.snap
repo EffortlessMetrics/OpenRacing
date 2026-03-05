@@ -1,0 +1,22 @@
+---
+source: crates/schemas/tests/schema_evolution_wire_tests.rs
+expression: val
+---
+{
+  "bool": {
+    "type": "Boolean",
+    "value": true
+  },
+  "float": {
+    "type": "Float",
+    "value": 42.5
+  },
+  "int": {
+    "type": "Integer",
+    "value": -42
+  },
+  "str": {
+    "type": "String",
+    "value": "hello"
+  }
+}

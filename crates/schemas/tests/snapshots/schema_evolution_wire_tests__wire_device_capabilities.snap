@@ -1,0 +1,13 @@
+---
+source: crates/schemas/tests/schema_evolution_wire_tests.rs
+expression: val
+---
+{
+  "encoder_cpr": 4096,
+  "max_torque": 25.0,
+  "min_report_period_us": 1000,
+  "supports_health_stream": true,
+  "supports_led_bus": false,
+  "supports_pid": true,
+  "supports_raw_torque_1khz": true
+}
