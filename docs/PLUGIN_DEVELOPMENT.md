@@ -1640,7 +1640,7 @@ wheelctl plugin report my_plugin --format json
 
 - **GitHub Issues**: https://github.com/EffortlessMetrics/OpenRacing/issues
 - **Discussions**: https://github.com/EffortlessMetrics/OpenRacing/discussions
-- **Contributing Guide**: [`CONTRIBUTING.md`](../CONTRIBUTING.md)
+- **Contributing Guide**: [`CONTRIBUTING.md`](CONTRIBUTING.md)
 
 ---
 
