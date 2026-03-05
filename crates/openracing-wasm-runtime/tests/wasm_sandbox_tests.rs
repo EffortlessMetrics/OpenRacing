@@ -350,8 +350,10 @@ fn cap_modify_telemetry_requires_explicit_grant() {
     let read_only = CapabilityChecker::new(vec!["read_telemetry".to_string()]);
     assert!(read_only.check_telemetry_modify().is_err());
 
-    let with_modify =
-        CapabilityChecker::new(vec!["read_telemetry".to_string(), "modify_telemetry".to_string()]);
+    let with_modify = CapabilityChecker::new(vec![
+        "read_telemetry".to_string(),
+        "modify_telemetry".to_string(),
+    ]);
     assert!(with_modify.check_telemetry_modify().is_ok());
 }
 
@@ -670,8 +672,8 @@ fn resource_limits_builder_chaining() {
 
 #[test]
 fn resource_limits_compilation_timeout() {
-    let limits = ResourceLimits::default()
-        .with_compilation_timeout(std::time::Duration::from_secs(5));
+    let limits =
+        ResourceLimits::default().with_compilation_timeout(std::time::Duration::from_secs(5));
     assert_eq!(
         limits.compilation_timeout,
         Some(std::time::Duration::from_secs(5))

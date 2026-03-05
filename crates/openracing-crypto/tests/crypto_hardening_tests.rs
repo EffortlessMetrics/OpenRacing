@@ -622,6 +622,9 @@ fn system_key_cannot_be_modified() {
     if let Some(fp) = system_fp {
         let mut store = TrustStore::new_in_memory();
         let result = store.update_trust_level(&fp, TrustLevel::Distrusted, None);
-        assert!(result.is_err(), "system keys must be protected from modification");
+        assert!(
+            result.is_err(),
+            "system keys must be protected from modification"
+        );
     }
 }

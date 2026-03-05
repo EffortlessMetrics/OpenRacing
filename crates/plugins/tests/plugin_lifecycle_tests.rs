@@ -2363,10 +2363,7 @@ fn capability_enforcer_delegates_to_checker() -> Result<(), PluginError> {
 
 #[test]
 fn capability_has_capability_simple_types() {
-    let checker = CapabilityChecker::new(vec![
-        Capability::ReadTelemetry,
-        Capability::ControlLeds,
-    ]);
+    let checker = CapabilityChecker::new(vec![Capability::ReadTelemetry, Capability::ControlLeds]);
 
     assert!(checker.has_capability(&Capability::ReadTelemetry));
     assert!(checker.has_capability(&Capability::ControlLeds));
