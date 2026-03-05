@@ -392,18 +392,18 @@ pub enum TestScenario {
 impl TelemetryRecording {
     /// Export the recording as a CSV string.
     ///
-    /// Columns: `timestamp_ns,sequence,raw_size,ffb_scalar,rpm,speed_ms,slip_ratio,gear`
+    /// Columns: `timestamp_ns,frame_index,raw_size,ffb_scalar,rpm,speed_ms,slip_ratio,gear`
     pub fn to_csv(&self) -> String {
         let mut buf = String::from(
-            "timestamp_ns,sequence,raw_size,ffb_scalar,rpm,speed_ms,slip_ratio,gear\n",
+            "timestamp_ns,frame_index,raw_size,ffb_scalar,rpm,speed_ms,slip_ratio,gear\n",
         );
-        for f in &self.frames {
+        for (idx, f) in self.frames.iter().enumerate() {
             use std::fmt::Write;
             let _ = writeln!(
                 buf,
                 "{},{},{},{},{},{},{},{}",
                 f.timestamp_ns,
-                f.sequence,
+                idx,
                 f.raw_size,
                 f.data.ffb_scalar,
                 f.data.rpm,

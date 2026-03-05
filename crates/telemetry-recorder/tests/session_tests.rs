@@ -695,7 +695,7 @@ fn export_csv_header_and_row_count() -> anyhow::Result<()> {
     assert_eq!(lines.len(), 4);
     assert_eq!(
         lines[0],
-        "timestamp_ns,sequence,raw_size,ffb_scalar,rpm,speed_ms,slip_ratio,gear"
+        "timestamp_ns,frame_index,raw_size,ffb_scalar,rpm,speed_ms,slip_ratio,gear"
     );
 
     Ok(())
@@ -715,7 +715,7 @@ fn export_csv_values_match_frame_data() -> anyhow::Result<()> {
 
     let f = &recording.frames[0];
     assert_eq!(cols[0], f.timestamp_ns.to_string());
-    assert_eq!(cols[1], f.sequence.to_string());
+    assert_eq!(cols[1], "0"); // frame_index for first frame
     assert_eq!(cols[2], f.raw_size.to_string());
     assert_eq!(cols[7], f.data.gear.to_string());
 

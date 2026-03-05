@@ -1,0 +1,35 @@
+## Summary
+
+Adds 53 new tests and export/diff features to the `telemetry-recorder` crate covering telemetry session recording, replay, and analysis.
+
+## New Tests
+
+| Category | Count | What's Tested |
+|----------|-------|---------------|
+| Session lifecycle | 4 | Start/stop, restart, frames-before-start, error on stop-without-start |
+| Recording format | 3 | JSON save/load roundtrip, nonexistent path, flags preservation |
+| Replay fidelity | 6 | Frame order, data match, progress tracking, reset, empty, no-start |
+| Session metadata | 6 | Game ID, car/track extraction, duration, timestamp, None fields, player metadata |
+| Multiple sessions | 3 | Independent recorders, independent players, sequential sessions |
+| Large sessions | 4 | 10K frames, 5K JSON roundtrip, 5K binary roundtrip, fixture generation |
+| Export formats | 8 | CSV header/values/empty, compact JSON validity/size, binary roundtrip/invalid/empty |
+| Session diff | 9 | Identical, game_id, frame count, frame data, gear, car_id, description, symmetric, empty |
+| Cross-format | 3 | JSON→binary, binary→JSON, file-save vs binary equivalence |
+| Fixtures | 4 | All scenarios, pitstop phases, acceleration, constant speed variance |
+
+## New Library Features
+
+Added to `TelemetryRecording`:
+- `to_csv()` — CSV export with standard telemetry columns
+- `to_compact_json()` — Compact (non-pretty) JSON bytes
+- `to_binary()` / `from_binary()` — Length-prefixed binary format
+- `diff()` — Session comparison returning `SessionDiff`
+
+New public types: `SessionDiff`, `FieldDiff`
+
+## Validation
+
+- `cargo fmt --check` ✅
+- `cargo clippy -D warnings` ✅
+- `cargo test --all-targets` ✅ (all 53 new tests pass)
+- No `unwrap()`/`expect()` in test code — all tests use `Result`-returning pattern
