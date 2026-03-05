@@ -10,4 +10,5 @@ pub use openracing_native_plugin::{
     NativePluginHost, NativePluginLoadError, NativePluginLoader, PluginFrame, PluginVTable,
     SharedMemoryHeader, SignatureVerificationConfig, SignatureVerificationResult,
     SignatureVerifier, SpscChannel, SpscReader, SpscWriter, check_abi_compatibility,
+    check_abi_compatibility_packed,
 };

@@ -50,7 +50,7 @@ proptest! {
                 prop_assert_eq!(expected, CURRENT_ABI_VERSION);
                 prop_assert_eq!(actual, version);
             }
-            AbiCheckResult::Compatible => {
+            _ => {
                 return Err(TestCaseError::fail("Should not be compatible"));
             }
         }

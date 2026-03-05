@@ -49,7 +49,7 @@ proptest! {
                 prop_assert_eq!(expected, CURRENT_ABI_VERSION);
                 prop_assert_eq!(actual, plugin_abi_version);
             }
-            AbiCheckResult::Compatible => {
+            _ => {
                 return Err(TestCaseError::fail("Mismatched ABI version should not be compatible"));
             }
         }

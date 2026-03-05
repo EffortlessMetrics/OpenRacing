@@ -101,6 +101,39 @@ impl PluginHeader {
         self.magic == PLUG_ABI_MAGIC && self.abi_version == PLUG_ABI_VERSION
     }
 
+    /// Validate the header magic and check forward-compatible version.
+    ///
+    /// Accepts plugins with the same major version and a minor version
+    /// less than or equal to the host.  This lets a newer host load
+    /// older plugins built against the same major ABI.
+    #[must_use]
+    pub fn is_compatible(&self) -> bool {
+        self.magic == PLUG_ABI_MAGIC
+            && crate::constants::is_abi_compatible(PLUG_ABI_VERSION, self.abi_version)
+    }
+
+    /// Return a human-readable mismatch description, or `None` if compatible.
+    #[must_use]
+    pub fn version_mismatch_message(&self) -> Option<String> {
+        if self.magic != PLUG_ABI_MAGIC {
+            return Some(format!(
+                "invalid plugin magic: expected {:#010X}, got {:#010X}",
+                PLUG_ABI_MAGIC, self.magic
+            ));
+        }
+        if !crate::constants::is_abi_compatible(PLUG_ABI_VERSION, self.abi_version) {
+            let host_major = crate::constants::abi_version_major(PLUG_ABI_VERSION);
+            let host_minor = crate::constants::abi_version_minor(PLUG_ABI_VERSION);
+            let plug_major = crate::constants::abi_version_major(self.abi_version);
+            let plug_minor = crate::constants::abi_version_minor(self.abi_version);
+            return Some(format!(
+                "ABI version mismatch: host {}.{}, plugin {}.{}",
+                host_major, host_minor, plug_major, plug_minor
+            ));
+        }
+        None
+    }
+
     /// Get the capabilities as a bitflags struct.
     #[must_use]
     pub fn get_capabilities(&self) -> PluginCapabilities {

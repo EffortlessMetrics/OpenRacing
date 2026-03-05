@@ -436,7 +436,7 @@ fn abi_future_version_mismatch() {
             assert_eq!(expected, CURRENT_ABI_VERSION);
             assert_eq!(actual, future);
         }
-        AbiCheckResult::Compatible => panic!("future version should mismatch"),
+        _ => panic!("future version should mismatch"),
     }
 }
 

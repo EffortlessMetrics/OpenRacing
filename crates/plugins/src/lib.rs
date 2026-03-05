@@ -51,6 +51,9 @@ pub enum PluginError {
     #[error("Plugin crashed: {reason}")]
     Crashed { reason: String },
 
+    #[error("Plugin ABI mismatch: {message}")]
+    AbiMismatch { message: String },
+
     #[error("Plugin quarantined: {plugin_id}")]
     Quarantined { plugin_id: Uuid },
 

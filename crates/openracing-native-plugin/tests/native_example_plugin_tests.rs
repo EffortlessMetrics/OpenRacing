@@ -36,7 +36,7 @@ fn native_example_wrong_abi_mismatch() {
             assert_eq!(expected, CURRENT_ABI_VERSION);
             assert_eq!(actual, wrong);
         }
-        AbiCheckResult::Compatible => {
+        _ => {
             panic!("expected Mismatch for wrong ABI version");
         }
     }

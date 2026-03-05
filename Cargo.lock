@@ -4483,6 +4483,7 @@ dependencies = [
  "libc",
  "libloading 0.9.0",
  "openracing-crypto",
+ "openracing-plugin-abi",
  "parking_lot",
  "proptest",
  "quickcheck",

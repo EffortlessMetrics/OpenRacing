@@ -75,7 +75,9 @@ pub mod linux;
 #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
 pub mod macos;
 
-pub use abi_check::{AbiCheckResult, CURRENT_ABI_VERSION, check_abi_compatibility};
+pub use abi_check::{
+    AbiCheckResult, CURRENT_ABI_VERSION, check_abi_compatibility, check_abi_compatibility_packed,
+};
 pub use error::{NativePluginError, NativePluginLoadError};
 pub use loader::{NativePluginConfig, NativePluginHost, NativePluginLoader};
 pub use plugin::{NativePlugin, PluginFrame, PluginVTable, SharedMemoryHeader};

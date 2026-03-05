@@ -248,7 +248,7 @@ fn abi_mismatch_carries_correct_versions() {
                 assert_eq!(expected, CURRENT_ABI_VERSION);
                 assert_eq!(actual, plugin_version);
             }
-            AbiCheckResult::Compatible => {
+            _ => {
                 panic!("Expected ABI mismatch for version {plugin_version}");
             }
         }

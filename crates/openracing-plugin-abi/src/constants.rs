@@ -23,6 +23,47 @@ pub const PLUG_ABI_VERSION: u32 = 0x0001_0000;
 /// and was produced by the OpenRacing toolchain.
 pub const PLUG_ABI_MAGIC: u32 = 0x57574C31;
 
+/// Extract the major version from a packed ABI version.
+///
+/// The major version occupies the upper 16 bits.
+#[must_use]
+pub const fn abi_version_major(version: u32) -> u16 {
+    (version >> 16) as u16
+}
+
+/// Extract the minor version from a packed ABI version.
+///
+/// The minor version occupies the lower 16 bits.
+#[must_use]
+pub const fn abi_version_minor(version: u32) -> u16 {
+    version as u16
+}
+
+/// Pack major and minor into a single ABI version constant.
+#[must_use]
+pub const fn abi_version_pack(major: u16, minor: u16) -> u32 {
+    ((major as u32) << 16) | (minor as u32)
+}
+
+/// Check whether a plugin ABI version is forward-compatible with the host.
+///
+/// A plugin is compatible when:
+/// - Its major version equals the host major version (breaking changes bump major).
+/// - Its minor version is less than or equal to the host minor version
+///   (the host knows about all features the plugin may use).
+///
+/// This allows a newer host to load older plugins built against the same
+/// major version.
+#[must_use]
+pub const fn is_abi_compatible(host_version: u32, plugin_version: u32) -> bool {
+    let host_major = abi_version_major(host_version);
+    let plugin_major = abi_version_major(plugin_version);
+    let host_minor = abi_version_minor(host_version);
+    let plugin_minor = abi_version_minor(plugin_version);
+
+    host_major == plugin_major && plugin_minor <= host_minor
+}
+
 /// WASM plugin ABI version.
 ///
 /// This version is separate from the native plugin ABI version to allow
@@ -125,6 +166,57 @@ mod tests {
         assert_eq!(PLUG_ABI_VERSION, 0x0001_0000);
         assert_eq!(PLUG_ABI_MAGIC, 0x57574C31);
         assert_eq!(WASM_ABI_VERSION, 1);
+    }
+
+    #[test]
+    fn test_abi_version_major_minor_extraction() {
+        assert_eq!(abi_version_major(0x0001_0000), 1);
+        assert_eq!(abi_version_minor(0x0001_0000), 0);
+
+        assert_eq!(abi_version_major(0x0003_0005), 3);
+        assert_eq!(abi_version_minor(0x0003_0005), 5);
+    }
+
+    #[test]
+    fn test_abi_version_pack_roundtrip() {
+        let packed = abi_version_pack(1, 0);
+        assert_eq!(packed, PLUG_ABI_VERSION);
+
+        let packed2 = abi_version_pack(3, 5);
+        assert_eq!(abi_version_major(packed2), 3);
+        assert_eq!(abi_version_minor(packed2), 5);
+    }
+
+    #[test]
+    fn test_is_abi_compatible_same_version() {
+        assert!(is_abi_compatible(PLUG_ABI_VERSION, PLUG_ABI_VERSION));
+    }
+
+    #[test]
+    fn test_is_abi_compatible_older_minor() {
+        // Host v1.2 can load plugin v1.0
+        let host = abi_version_pack(1, 2);
+        let plugin = abi_version_pack(1, 0);
+        assert!(is_abi_compatible(host, plugin));
+    }
+
+    #[test]
+    fn test_is_abi_compatible_rejects_newer_minor() {
+        // Host v1.0 cannot load plugin v1.2 (plugin uses features host doesn't know)
+        let host = abi_version_pack(1, 0);
+        let plugin = abi_version_pack(1, 2);
+        assert!(!is_abi_compatible(host, plugin));
+    }
+
+    #[test]
+    fn test_is_abi_compatible_rejects_different_major() {
+        let host = abi_version_pack(1, 0);
+        let plugin = abi_version_pack(2, 0);
+        assert!(!is_abi_compatible(host, plugin));
+
+        let host2 = abi_version_pack(2, 5);
+        let plugin2 = abi_version_pack(1, 5);
+        assert!(!is_abi_compatible(host2, plugin2));
     }
 
     #[test]
