@@ -239,84 +239,65 @@ mod tests {
     }
 
     /// Test game integration and telemetry
+    ///
+    /// Blocked: WheelService does not yet expose a `game_service()` accessor.
+    /// Re-enable once the game service API is available on WheelService.
     #[tokio::test]
     #[traced_test]
-    #[ignore = "game_service API not yet implemented"]
-    async fn test_game_integration() {
-        let _service = create_test_service().await;
+    #[ignore = "game_service API not yet exposed on WheelService"]
+    async fn test_game_integration() -> Result<()> {
+        let (_service, _temp_dir) = create_test_service().await?;
 
-        // Test game detection
-        // let games = service.game_service().detect_games().await
-        //     // handle potential game detection errors
-
-        // Should detect mock games in test environment
+        // TODO: Re-enable once WheelService::game_service() exists
+        // let games = service.game_service().detect_games().await?;
         // assert!(!games.is_empty(), "No games detected");
-
-        // Test telemetry configuration
+        //
         // if let Some(game) = games.first() {
-        //     let config_result = service.game_service()
-        //         .configure_telemetry(&game.id).await;
-        //     assert!(config_result.is_ok(), "Failed to configure telemetry");
-        //
-        //     // Test telemetry reception
-        //     let telemetry_stream = service.game_service()
-        //         .start_telemetry_monitoring(&game.id).await;
-        //     assert!(telemetry_stream.is_ok(), "Failed to start telemetry monitoring");
-        //
-        //     // Wait for telemetry data
-        //     if let Ok(mut stream) = telemetry_stream {
-        //         let telemetry_result = timeout(Duration::from_secs(5), stream.recv()).await;
-        //         assert!(telemetry_result.is_ok(), "No telemetry data received");
-        //     }
+        //     let _config = service.game_service()
+        //         .configure_telemetry(&game.id).await?;
+        //     let mut stream = service.game_service()
+        //         .start_telemetry_monitoring(&game.id).await?;
+        //     let _data = timeout(Duration::from_secs(5), stream.recv()).await
+        //         .context("no telemetry data received")?;
         // }
 
-        // Test disabled - game_service not yet implemented
+        Ok(())
     }
 
     /// Test force feedback pipeline
+    ///
+    /// Verifies service creation and device enumeration. Per-device FFB frame
+    /// tests are gated on `send_ffb_frame` / `get_device_statistics` APIs.
     #[tokio::test]
     #[traced_test]
-    #[ignore = "send_ffb_frame and get_device_statistics APIs not yet implemented"]
     async fn test_force_feedback_pipeline() -> Result<()> {
         let (service, _temp_dir) = create_test_service().await?;
 
-        // Get devices
+        // Verify device enumeration works through the FFB pipeline path
         let devices = service
             .device_service()
             .enumerate_devices()
             .await
             .context("enumerate devices")?;
+        assert!(!devices.is_empty(), "Expected at least one virtual device");
 
-        if let Some(_device) = devices.first() {
-            // Connect device
-            // service.device_service().connect_device(&device.id).await
-            //     // handle potential device connection errors
-            //
-            // // Create test FFB data
-            // let test_ffb_data = racing_wheel_engine::Frame {
-            //     ffb_in: 0.5,
-            //     torque_out: 0.0,
-            //     wheel_speed: 0.0,
-            //     hands_off: false,
-            //     ts_mono_ns: 0,
-            //     seq: 0,
-            // };
-            //
-            // // Send FFB data through pipeline
-            // let pipeline_result = service.device_service()
-            //     .send_ffb_frame(&device.id, test_ffb_data).await;
-            // assert!(pipeline_result.is_ok(), "Failed to send FFB frame");
-            //
-            // // Verify processing
-            // let device_stats = service.device_service().get_device_statistics(&device.id).await;
-            // assert!(device_stats.is_ok(), "Failed to get device statistics");
-            //
-            // if let Ok(stats) = device_stats {
-            //     assert!(stats.frames_processed > 0, "No frames processed");
-            // }
-        }
+        // Verify aggregate statistics are accessible
+        let stats = service.device_service().get_statistics().await;
+        // Virtual device is included in connected count
+        assert!(
+            stats.connected_devices >= 1,
+            "Expected at least one virtual device in statistics"
+        );
 
-        // Test disabled - FFB pipeline methods not yet implemented
+        // TODO: Re-enable once send_ffb_frame / get_device_statistics APIs exist
+        // if let Some(device) = devices.first() {
+        //     service.device_service().connect_device(&device.id).await?;
+        //     let frame = racing_wheel_engine::Frame { ffb_in: 0.5, .. };
+        //     service.device_service().send_ffb_frame(&device.id, frame).await?;
+        //     let device_stats = service.device_service().get_device_statistics(&device.id).await?;
+        //     assert!(device_stats.frames_processed > 0, "No frames processed");
+        // }
+
         Ok(())
     }
 
@@ -362,99 +343,88 @@ mod tests {
     }
 
     /// Test plugin system
+    ///
+    /// Blocked: WheelService does not yet expose a `plugin_service()` accessor.
+    /// Re-enable once the plugin service API is available on WheelService.
     #[tokio::test]
     #[traced_test]
-    #[ignore = "plugin_service API not yet implemented"]
-    async fn test_plugin_system() {
-        let _service = create_test_service().await;
+    #[ignore = "plugin_service API not yet exposed on WheelService"]
+    async fn test_plugin_system() -> Result<()> {
+        let (_service, _temp_dir) = create_test_service().await?;
 
-        // Test plugin enumeration
-        // let plugins = service.plugin_service().enumerate_plugins().await
-        //     // handle potential plugin enumeration errors
-
-        // Should have test plugins available
+        // TODO: Re-enable once WheelService::plugin_service() exists
+        // let plugins = service.plugin_service().enumerate_plugins().await?;
         // assert!(!plugins.is_empty(), "No plugins found");
-
-        // Test plugin loading
+        //
         // if let Some(plugin) = plugins.first() {
-        //     let load_result = service.plugin_service()
-        //         .load_plugin(&plugin.id).await;
-        //     assert!(load_result.is_ok(), "Failed to load plugin");
-        //
-        //     // Test plugin execution
-        //     let test_telemetry = racing_wheel_engine::NormalizedTelemetry {
-        //         timestamp: 0,
-        //         ffb_scalar: 0.5,
-        //         rpm: 5000.0,
-        //         speed_ms: 50.0,
-        //         slip_ratio: 0.1,
-        //         gear: 3,
-        //         flags: racing_wheel_engine::TelemetryFlags { ..Default::default() },
-        //         car_id: Some("test_car".to_string()),
-        //         track_id: Some("test_track".to_string()),
-        //     };
-        //
-        //     let execution_result = service.plugin_service()
-        //         .execute_plugin(&plugin.id, &test_telemetry).await;
-        //     assert!(execution_result.is_ok(), "Failed to execute plugin");
+        //     service.plugin_service().load_plugin(&plugin.id).await?;
+        //     let result = service.plugin_service()
+        //         .execute_plugin(&plugin.id, &test_telemetry).await?;
         // }
 
-        // Test disabled - plugin_service not yet implemented
+        Ok(())
     }
 
     /// Test performance under load
+    ///
+    /// Verifies service creation and device enumeration under the performance
+    /// test path. High-frequency FFB frame tests are gated on
+    /// `send_ffb_frame` / `get_device_statistics` APIs.
     #[tokio::test]
     #[traced_test]
-    #[ignore = "FFB pipeline methods (send_ffb_frame, get_device_statistics) not yet implemented"]
     async fn test_performance_under_load() -> Result<()> {
         let (service, _temp_dir) = create_test_service().await?;
 
-        // Get devices
+        // Verify device enumeration works
         let devices = service
             .device_service()
             .enumerate_devices()
             .await
             .context("enumerate devices")?;
+        assert!(!devices.is_empty(), "Expected at least one virtual device");
 
-        if let Some(_device) = devices.first() {
-            // Connect device
-            // service.device_service().connect_device(&device.id).await
-            //     // handle potential device connection errors
-            //
-            // // Send high-frequency FFB data
-            // let start_time = std::time::Instant::now();
-            // let target_frames = 1000; // 1 second at 1kHz
-            //
-            // for i in 0..target_frames {
-            //     let test_frame = racing_wheel_engine::Frame {
-            //         ffb_in: (i as f32 / target_frames as f32).sin(),
-            //         torque_out: 0.0,
-            //         wheel_speed: 0.0,
-            //         hands_off: false,
-            //         ts_mono_ns: i * 1_000_000, // 1ms intervals
-            //         seq: i as u16,
-            //     };
-            //
-            //     let result = service.device_service()
-            //         .send_ffb_frame(&device.id, test_frame).await;
-            //     assert!(result.is_ok(), "Failed to send FFB frame {}", i);
-            // }
-            //
-            // let elapsed = start_time.elapsed();
-            // let fps = target_frames as f64 / elapsed.as_secs_f64();
-            //
-            // // Should maintain reasonable throughput
-            // assert!(fps > 500.0, "Throughput too low: {} fps", fps);
-            //
-            // // Check for missed frames or errors
-            // let stats = service.device_service().get_device_statistics(&device.id).await
-            //     // handle potential device statistics errors
-            //
-            // assert_eq!(stats.frames_processed, target_frames, "Frame count mismatch");
-            // assert_eq!(stats.frames_dropped, 0, "Frames were dropped");
+        // Verify service is responsive under repeated queries
+        for _ in 0..10 {
+            let _devices = service
+                .device_service()
+                .enumerate_devices()
+                .await
+                .context("enumerate devices in load loop")?;
         }
 
-        // Test disabled - FFB pipeline methods not yet implemented
+        // Verify aggregate statistics remain consistent
+        let stats = service.device_service().get_statistics().await;
+        assert!(
+            stats.connected_devices >= 1,
+            "Expected at least one virtual device in statistics"
+        );
+
+        // TODO: Re-enable once send_ffb_frame / get_device_statistics APIs exist
+        // if let Some(device) = devices.first() {
+        //     service.device_service().connect_device(&device.id).await?;
+        //     let start_time = std::time::Instant::now();
+        //     let target_frames = 1000;
+        //     for i in 0..target_frames {
+        //         let test_frame = racing_wheel_engine::Frame {
+        //             ffb_in: (i as f32 / target_frames as f32).sin(),
+        //             torque_out: 0.0,
+        //             wheel_speed: 0.0,
+        //             hands_off: false,
+        //             ts_mono_ns: i * 1_000_000,
+        //             seq: i as u16,
+        //         };
+        //         service.device_service()
+        //             .send_ffb_frame(&device.id, test_frame).await?;
+        //     }
+        //     let elapsed = start_time.elapsed();
+        //     let fps = target_frames as f64 / elapsed.as_secs_f64();
+        //     assert!(fps > 500.0, "Throughput too low: {} fps", fps);
+        //     let stats = service.device_service()
+        //         .get_device_statistics(&device.id).await?;
+        //     assert_eq!(stats.frames_processed, target_frames);
+        //     assert_eq!(stats.frames_dropped, 0);
+        // }
+
         Ok(())
     }
 
