@@ -16,9 +16,9 @@ use racing_wheel_hid_simagic_protocol::{
         product_ids, report_ids, SIMAGIC_LEGACY_PID, SIMAGIC_LEGACY_VENDOR_ID, SIMAGIC_VENDOR_ID,
     },
     settings::{
-        self, decode_ring_light, encode_ring_light, encode_settings1, encode_settings2,
-        encode_settings3, encode_settings4, parse_status1, AngleLockStrength, Settings1, Settings2,
-        Settings3, Settings4,
+        self, AngleLockStrength, Settings1, Settings2, Settings3, Settings4, decode_ring_light,
+        encode_ring_light, encode_settings1, encode_settings2, encode_settings3, encode_settings4,
+        parse_status1,
     },
     types::{
         QuickReleaseStatus, SimagicDeviceCategory, SimagicFfbEffectType, SimagicGear, SimagicModel,
