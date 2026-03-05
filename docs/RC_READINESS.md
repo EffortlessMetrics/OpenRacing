@@ -1,8 +1,8 @@
 # RC Readiness Report
 
-**Branch:** `feat/wave15-rc-hardening`
-**Generated:** 2026-03-04
-**Commit:** HEAD (wave 55 complete)
+**Branch:** `main`
+**Generated:** 2026-03-05
+**Commit:** HEAD
 
 ## Build & CI Status
 
@@ -15,14 +15,19 @@
 | ADR validation (`validate_adr.py`) | ✅ Verified (wave 43) |
 | CI governance workflow | ✅ Fixed |
 | Workspace-hack sync | ✅ Verified (wave 43) |
-| Platform-independent snapshots | ✅ Fixed (wave 55) |
-| Compat migration tests | ✅ Fixed (wave 55) |
+| Platform-independent snapshots | ✅ Fixed |
+| Compat migration tests | ✅ Fixed |
+| CI: Linux (ubuntu-latest/22.04/24.04) | ✅ Passing |
+| CI: Windows (windows-latest) | ✅ Passing |
+| CI: macOS (macos-latest) | ⏳ Added (PR #84), first results pending |
+| Proptest timeout configs (1000-case suites) | ✅ Added (PR #86) |
+| Linux packaging (deb/rpm/tarball) | ✅ Complete — udev rules, hwdb (133 devices), kernel quirks (ALWAYS_POLL) |
 
 ## Test Summary
 
 | Metric | Count |
 |--------|------:|
-| **Total tests** | **24,800+** |
+| **Total tests** | **24,000+** |
 | **Test files** | **662** |
 | Unit tests | 17,000+ |
 | Snapshot tests | 1,400+ |
@@ -39,7 +44,7 @@
 | Mutation testing | 86+ |
 | Fuzz targets | 113+ |
 | Integration test files | 48+ |
-| Crate coverage | 79/82 |
+| Workspace crates | 85 |
 
 ## Test Types Present
 
@@ -84,9 +89,10 @@
 
 ## Strengths
 
-- **All 17 vendor protocol crates wired into engine dispatch**: Thrustmaster, Logitech,
-  Fanatec, Simucube (1 & 2), Simagic, Moza, Asetek, VRS, Heusinkveld, AccuForce,
-  OpenFFBoard, FFBeast, Leo Bodnar, Cube Controls, Cammus, and PXN — each with unit,
+- **28 vendors supported (15 wheelbase + 13 peripheral-only)** with 159 unique VID/PID
+  pairs: Thrustmaster, Logitech, Fanatec, Simucube (1 & 2), Simagic, Moza, Asetek,
+  VRS, Heusinkveld, AccuForce, OpenFFBoard, FFBeast, Leo Bodnar, Cube Controls, Cammus,
+  PXN, and 13 peripheral-only vendors — wheelbase protocol crates each have unit,
   snapshot, property, and E2E tests plus a dedicated fuzz target.
 - **All 15 HID protocol crates have advanced proptest + deep tests**: Moza, Fanatec,
   Logitech, Thrustmaster, SimuCube, Simagic, OpenFFBoard, AccuForce, Asetek, Button Box,
@@ -219,21 +225,38 @@
 
 ## Overall RC Readiness Assessment
 
-**Status: RC-READY** — All major subsystems have comprehensive test coverage.
+**Status: RC-READY with caveats** — All major subsystems have comprehensive test
+coverage. Several known gaps remain (see Blockers below).
 
 | Area | Readiness | Evidence |
 |------|-----------|----------|
-| Protocol crates | ✅ RC-ready | All 15 vendors have advanced proptest + deep tests; all cross-verified against community sources |
+| Protocol crates | ✅ RC-ready | 15 wheelbase vendors have advanced proptest + deep tests; cross-verified against community sources |
 | Game adapters | ✅ RC-ready | All 61 adapters have registry + deep tests with edge-case and regression coverage |
-| IPC subsystem | ✅ RC-ready | Transport + wire format + compat tests (164 tests); schema backward/forward compatibility verified; wire compat expanded (wave 53) |
-| Safety subsystem | ✅ RC-ready | FMEA, watchdog, hardware watchdog, interlock — fault injection, property tests, soak tests, safety compliance + torque safety (wave 52) |
+| IPC subsystem | ✅ RC-ready | Transport + wire format + compat tests (164 tests); schema backward/forward compatibility verified |
+| Safety subsystem | ✅ RC-ready | FMEA, watchdog, hardware watchdog, interlock — fault injection, property tests, soak tests |
 | RT pipeline | ✅ RC-ready | No-allocation enforcement, 1kHz sustained throughput, jitter P99 ≤ 0.25ms gates |
 | Plugin system | ✅ RC-ready | WASM + native plugin lifecycle, ABI stability tests (58), sandbox isolation, budget enforcement |
 | E2E coverage | ✅ RC-ready | Complete user workflows, soak + stress hardening, snapshot expansion |
 | ADR compliance | ✅ RC-ready | All 8 ADRs audited and cross-referenced against implementation |
-| Mutation testing | ✅ RC-ready | 86 mutation tests across safety, engine, protocol crates — all surviving mutants killed (wave 53) |
-| Device hotplug | ✅ RC-ready | 56 tests for rapid connect/disconnect, multi-device, enumeration races (wave 53) |
-| Error quality | ✅ RC-ready | 64 tests for error message clarity, chain propagation, user-facing formatting (wave 53) |
+| Mutation testing | ✅ RC-ready | 86 mutation tests across safety, engine, protocol crates |
+| Device hotplug | ✅ RC-ready | 56 tests for rapid connect/disconnect, multi-device, enumeration races |
+| Error quality | ✅ RC-ready | 64 tests for error message clarity, chain propagation, user-facing formatting |
+| CI: Linux + Windows | ✅ RC-ready | Full matrix passing |
+| CI: macOS | ⏳ Pending | Added (PR #84), first results not yet available |
+| Linux packaging | ✅ RC-ready | deb/rpm/tarball with udev rules, hwdb (133 devices), kernel quirks |
+| Ed25519 trust store | ⚠️ Stub | Framework exists, trust store is stub — fail-closed (secure but not functional) |
+| Code coverage | ❌ Not in CI | No line-level code coverage tool configured |
+| Hardware verification | ❌ None | All device work based on public sources; no real hardware tested |
+
+### Known Blockers / Gaps
+
+1. **macOS CI results pending**: macOS target added in PR #84 but first CI run has not completed yet.
+2. **Ed25519 trust store is a stub**: The signature framework exists and is fail-closed (rejects by default), which is secure but means native plugin signing is not yet functional end-to-end.
+3. **Cube Controls PIDs fabricated**: PIDs `0x0C73`–`0x0C75` have zero external evidence and have been removed from dispatch. Documented for transparency.
+4. **Some PIDs unverified**: Certain VRS and Leo Bodnar PIDs are marked PROVISIONAL — not confirmed against real hardware or authoritative sources.
+5. **No line-level code coverage in CI**: Test counts are high but there is no tool measuring line/branch coverage.
+6. **No real hardware verification**: All protocol implementations are based on public sources (kernel drivers, community databases, vendor docs). No physical devices have been tested.
+7. **Service integration tests incomplete**: `connect_device` and `game_service` integration tests are not fully implemented.
 
 ## PID Verification Status
 
@@ -251,13 +274,13 @@
 | Asetek | ✅ Verified | Community databases, web sources |
 | Button Box | ✅ Verified | pid.codes, Arduino community |
 | Cammus | ✅ Verified | Community sources |
-| Cube Controls | ✅ Verified | Community databases |
+| Cube Controls | ⚠️ Partial | Community databases (see FABRICATED note below) |
 | Cube Controls PIDs | ⚠️ **FABRICATED** | PIDs `0x0C73`–`0x0C75` have zero external evidence across any source |
 | FFBeast | ✅ Verified | Community databases |
-| Leo Bodnar | ✅ Verified | Vendor documentation |
-| VRS | ✅ Verified | Kernel mainline, community sources |
+| Leo Bodnar | ⚠️ Partial | Vendor documentation; some PIDs PROVISIONAL |
+| VRS | ⚠️ Partial | Kernel mainline; DFP V2 PID UNVERIFIED |
 
-**Total: ALL 14 HID crates verified against community sources**
+**Total: 14 HID crates verified against community sources (some individual PIDs remain PROVISIONAL)**
 
 ### Individual PID Status
 
