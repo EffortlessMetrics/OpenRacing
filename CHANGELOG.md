@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- 100 game telemetry adapter parsing tests: F1, RaceRoom, WRC, Rennsport, SimHub, KartKraft deep coverage (#144)
+- 80 IPC transport, feature negotiation, and service communication tests: codec roundtrip, health monitoring, concurrent negotiation (#142)
+- 110 Simucube and Cammus protocol integration tests: PIDFF roundtrip, torque encoding, effect type coverage (#141)
+- 150 Heusinkveld and Asetek protocol integration tests: pedal calibration, force curves, PID range validation, quirks (#139)
+- 57 Simagic HID protocol integration tests: settings encode/decode, wire format, VID/PID validation, proptest (#138)
+- 140 OpenFFBoard and pidff-common integration tests: PIDFF effect encoding, block load, device control, HID report validation (#137)
+- 60 Logitech HID protocol integration tests: force feedback encoding, device identification, LED control, spring/damper effects (#134)
+- 137 input-maps and KS crate tests: key-state encoding, dead-zone, layer merge, binding compilation, round-trip (#132)
 - 187 test helpers validation and packaging infrastructure tests: assertion edge cases, mock device/telemetry/profile lifecycle, allocation tracking, template/udev/hwdb format validation (#130)
 - 89 compat layer migration and legacy API tests: migration roundtrips, version detection/negotiation, error handling, ProfileMigrationService, proptest fuzzing (#128)
 - 97 SimplemotionV2 protocol verification tests: encoding/decoding roundtrips, CRC-8/ITU validation, feedback parsing, known-good byte sequences, proptest fuzzing (#127)
@@ -38,6 +46,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Ignore 7 RT scheduling integration tests on macOS CI runners lacking RT scheduling support (#106)
 
 ### Fixed
+- CI: fix prelude_fixtures_available feature gate (#143)
+- CI: fix fixture_validation feature gate (#140)
 - macOS CI: RT scheduling integration tests no longer fail on macOS runners (#106)
 - macOS compilation: moved libudev dependency to Linux-only, added macOS daemon stubs (#97)
 - CI: removed hardcoded CARGO_HOME path for cross-platform integration tests (#97)
