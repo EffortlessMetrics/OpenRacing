@@ -958,3 +958,192 @@ fn msi_build_script_exists() -> Result<(), Box<dyn std::error::Error>> {
     );
     Ok(())
 }
+
+// ============================================================================
+// hwdb file validation
+// ============================================================================
+
+/// Parse VID/PID pairs from the hwdb file.
+/// Returns uppercase hex pairs like ("046D", "C299").
+fn parse_hwdb_vid_pids(content: &str) -> HashSet<(String, String)> {
+    let re =
+        regex::Regex::new(r"(?i)id-input:modalias:input:\*v([0-9A-Fa-f]{4})p([0-9A-Fa-f]{4})\*")
+            .expect("hwdb regex");
+    let mut pairs = HashSet::new();
+    for line in content.lines() {
+        let line = line.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        if let Some(caps) = re.captures(line)
+            && let (Some(vid), Some(pid)) = (caps.get(1), caps.get(2))
+        {
+            pairs.insert((vid.as_str().to_uppercase(), pid.as_str().to_uppercase()));
+        }
+    }
+    pairs
+}
+
+/// Known wheelbase VID/PID pairs that MUST have hwdb entries.
+fn known_wheelbase_vid_pids() -> Vec<(&'static str, &'static str, &'static str)> {
+    vec![
+        // Logitech
+        ("046D", "C299", "Logitech G25"),
+        ("046D", "C298", "Logitech DFP"),
+        ("046D", "C29A", "Logitech DFGT"),
+        ("046D", "C29B", "Logitech G27"),
+        ("046D", "C24F", "Logitech G29"),
+        ("046D", "C262", "Logitech G920"),
+        ("046D", "C266", "Logitech G923"),
+        ("046D", "C267", "Logitech G923 PS"),
+        ("046D", "C26D", "Logitech G923 Xbox HID++"),
+        ("046D", "C26E", "Logitech G923 Xbox"),
+        ("046D", "C268", "Logitech G Pro"),
+        ("046D", "C272", "Logitech G Pro Xbox"),
+        // Fanatec
+        ("0EB7", "0006", "Fanatec DD1"),
+        ("0EB7", "0007", "Fanatec DD2"),
+        ("0EB7", "0020", "Fanatec CSL DD"),
+        // Thrustmaster
+        ("044F", "B65E", "Thrustmaster T500 RS"),
+        ("044F", "B66D", "Thrustmaster T300RS PS4"),
+        ("044F", "B696", "Thrustmaster T248"),
+        ("044F", "B69B", "Thrustmaster T818"),
+        // Moza
+        ("346E", "0002", "Moza R9"),
+        ("346E", "0004", "Moza R5"),
+        ("346E", "0005", "Moza R3"),
+        // Simucube
+        ("16D0", "0D5A", "Simucube SC1"),
+        ("16D0", "0D5F", "Simucube SC2 Ultimate"),
+        ("16D0", "0D60", "Simucube SC2 Pro"),
+        ("16D0", "0D61", "Simucube SC2 Sport"),
+        // Asetek
+        ("2433", "F300", "Asetek Invicta"),
+        ("2433", "F301", "Asetek Forte"),
+    ]
+}
+
+#[test]
+fn hwdb_file_exists() -> Result<(), Box<dyn std::error::Error>> {
+    let path = repo_root().join("packaging/linux/99-racing-wheel-suite.hwdb");
+    assert!(path.exists(), "hwdb file missing: {}", path.display());
+    Ok(())
+}
+
+#[test]
+fn hwdb_file_has_header() -> Result<(), Box<dyn std::error::Error>> {
+    let content = read_packaging_file("packaging/linux/99-racing-wheel-suite.hwdb")?;
+    assert!(
+        content.contains("ID_INPUT_JOYSTICK"),
+        "hwdb file must reference ID_INPUT_JOYSTICK"
+    );
+    assert!(
+        content.contains("SPDX-License-Identifier"),
+        "hwdb file must contain SPDX license identifier"
+    );
+    Ok(())
+}
+
+#[test]
+fn hwdb_entries_use_single_space_prefix() -> Result<(), Box<dyn std::error::Error>> {
+    let content = read_packaging_file("packaging/linux/99-racing-wheel-suite.hwdb")?;
+    for (i, line) in content.lines().enumerate() {
+        let trimmed = line.trim_start();
+        // Skip comments and blank lines — only check property assignment lines
+        if trimmed.starts_with('#') || trimmed.is_empty() {
+            continue;
+        }
+        if line.contains("ID_INPUT_") {
+            assert!(
+                line.starts_with(' ') && !line.starts_with("  "),
+                "Line {} must start with exactly one space: {:?}",
+                i + 1,
+                line
+            );
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn hwdb_vid_pid_values_are_uppercase() -> Result<(), Box<dyn std::error::Error>> {
+    let content = read_packaging_file("packaging/linux/99-racing-wheel-suite.hwdb")?;
+    let re = regex::Regex::new(r"id-input:modalias:input:\*v([0-9A-Fa-f]{4})p([0-9A-Fa-f]{4})\*")?;
+    for (i, line) in content.lines().enumerate() {
+        if let Some(caps) = re.captures(line) {
+            let vid = caps.get(1).map(|m| m.as_str()).unwrap_or("");
+            let pid = caps.get(2).map(|m| m.as_str()).unwrap_or("");
+            assert!(
+                vid == vid.to_uppercase() && pid == pid.to_uppercase(),
+                "Line {}: VID/PID must be uppercase hex, got v{}p{}",
+                i + 1,
+                vid,
+                pid
+            );
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn hwdb_contains_all_known_wheelbases() -> Result<(), Box<dyn std::error::Error>> {
+    let content = read_packaging_file("packaging/linux/99-racing-wheel-suite.hwdb")?;
+    let hwdb_pairs = parse_hwdb_vid_pids(&content);
+    let mut missing = Vec::new();
+
+    for (vid, pid, desc) in known_wheelbase_vid_pids() {
+        if !hwdb_pairs.contains(&(vid.to_string(), pid.to_string())) {
+            missing.push(format!("{desc} ({vid}:{pid})"));
+        }
+    }
+
+    assert!(
+        missing.is_empty(),
+        "hwdb file is missing entries for these wheelbases: {}",
+        missing.join(", ")
+    );
+    Ok(())
+}
+
+#[test]
+fn hwdb_sets_accelerometer_to_zero() -> Result<(), Box<dyn std::error::Error>> {
+    let content = read_packaging_file("packaging/linux/99-racing-wheel-suite.hwdb")?;
+    let accel_count = content.matches("ID_INPUT_ACCELEROMETER=0").count();
+    let joystick_count = content.matches("ID_INPUT_JOYSTICK=1").count();
+    assert!(
+        accel_count > 0,
+        "hwdb file must contain ID_INPUT_ACCELEROMETER=0 entries"
+    );
+    assert_eq!(
+        accel_count, joystick_count,
+        "Every entry must have both ACCELEROMETER=0 and JOYSTICK=1 (got {accel_count} vs {joystick_count})"
+    );
+    Ok(())
+}
+
+#[test]
+fn hwdb_has_minimum_device_count() -> Result<(), Box<dyn std::error::Error>> {
+    let content = read_packaging_file("packaging/linux/99-racing-wheel-suite.hwdb")?;
+    let pairs = parse_hwdb_vid_pids(&content);
+    assert!(
+        pairs.len() >= 90,
+        "hwdb file should have at least 90 device entries, found {}",
+        pairs.len()
+    );
+    Ok(())
+}
+
+#[test]
+fn install_script_references_hwdb() -> Result<(), Box<dyn std::error::Error>> {
+    let content = read_packaging_file("packaging/linux/install.sh")?;
+    assert!(
+        content.contains("99-racing-wheel-suite.hwdb"),
+        "install.sh must reference the hwdb file"
+    );
+    assert!(
+        content.contains("systemd-hwdb update"),
+        "install.sh must run systemd-hwdb update after installing hwdb"
+    );
+    Ok(())
+}
