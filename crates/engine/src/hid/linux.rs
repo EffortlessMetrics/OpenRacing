@@ -164,6 +164,14 @@ fn manufacturer_for_vendor(vendor_id: u16) -> Option<String> {
         0x1D50 => "Granite Devices",
         0x1DD2 => "Leo Bodnar",
         0x1FC9 => "SimExperience",
+        0x1021 => "Oddor",
+        0xF055 => "MMOS",
+        0x16C0 => "SHH",
+        0x2497 => "SimJack",
+        0xCAFE => "SimNet",
+        0x5487 => "SimRuito",
+        0xDDFD => "SimSonn",
+        0x03EB => "SimTrecs",
         _ => return None,
     };
     Some(name.to_string())
@@ -544,6 +552,27 @@ impl LinuxHidPort {
             (0x06F8, 0x0004), // Guillemot Force Feedback Racing Wheel
             // Thrustmaster Xbox controller division (VID 0x24C6)
             (0x24C6, 0x5B00), // Thrustmaster Ferrari 458 Italia (Xbox 360)
+            // Oddor (VID 0x1021)
+            (0x1021, 0x1888), // Oddor Handbrake
+            // MMOS (VID 0xF055)
+            (0xF055, 0x0FFB), // MMOS FFB Controller
+            // SHH (VID 0x16C0, V-USB shared VID)
+            (0x16C0, 0x05E1), // SHH Shifter
+            // SimGrade (VID 0x1209, pid.codes shared VID)
+            (0x1209, 0x3115), // SimGrade VX-Pro Pedals
+            // SimJack (VID 0x2497)
+            (0x2497, 0x5757), // SimJack PRO Pedals
+            // SimLab (VID 0x04D8, Microchip shared VID)
+            (0x04D8, 0xE760), // SimLab Handbrake XB1
+            // SimNet (VID 0xCAFE)
+            (0xCAFE, 0xA301), // SimNet SP Pedals
+            // SimRuito (VID 0x5487)
+            (0x5487, 0x5401), // SimRuito Pedals
+            // SimSonn (VID 0xDDFD)
+            (0xDDFD, 0x5008), // SimSonn Pedals
+            (0xDDFD, 0x6011), // SimSonn Pedals Plus X
+            // SimTrecs (VID 0x03EB, Atmel shared VID)
+            (0x03EB, 0x2406), // SimTrecs ProPedal GT
         ];
 
         // Scan /dev/hidraw* devices
@@ -616,6 +645,14 @@ impl LinuxHidPort {
                         0x1D50 => "Granite Devices".to_string(),
                         0x1DD2 => "Leo Bodnar".to_string(),
                         0x1FC9 => "SimExperience".to_string(),
+                        0x1021 => "Oddor".to_string(),
+                        0xF055 => "MMOS".to_string(),
+                        0x16C0 => "SHH".to_string(),
+                        0x2497 => "SimJack".to_string(),
+                        0xCAFE => "SimNet".to_string(),
+                        0x5487 => "SimRuito".to_string(),
+                        0xDDFD => "SimSonn".to_string(),
+                        0x03EB => "SimTrecs".to_string(),
                         _ => "Unknown".to_string(),
                     }),
                     product_name: Some(format!("Racing Wheel {:04X}:{:04X}", vid, pid)),

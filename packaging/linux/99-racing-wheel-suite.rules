@@ -213,6 +213,47 @@ SUBSYSTEM=="hidraw", ATTRS{idVendor}=="11ff", ATTRS{idProduct}=="2141", GROUP="i
 # AccuForce Pro direct-drive wheelbase
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="1fc9", ATTRS{idProduct}=="804c", GROUP="input", MODE="0664", TAG+="uaccess"
 
+# ─── Oddor (0x1021) ────────────────────────────────────────────────────────
+# Handbrake (simracing-hwdb 90-oddor.hwdb)
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="1021", ATTRS{idProduct}=="1888", GROUP="input", MODE="0664", TAG+="uaccess"
+
+# ─── MMOS (0xF055) ─────────────────────────────────────────────────────────
+# FFB Controller (simracing-hwdb 90-mmos.hwdb)
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="f055", ATTRS{idProduct}=="0ffb", GROUP="input", MODE="0664", TAG+="uaccess"
+
+# ─── SHH (0x16C0, V-USB shared VID) ───────────────────────────────────────
+# SHH Shifter (simracing-hwdb 90-shh.hwdb)
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="16c0", ATTRS{idProduct}=="05e1", GROUP="input", MODE="0664", TAG+="uaccess"
+
+# ─── SimGrade (0x1209, pid.codes shared VID) ──────────────────────────────
+# VX-Pro Pedals (simracing-hwdb 90-simgrade.hwdb)
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="1209", ATTRS{idProduct}=="3115", GROUP="input", MODE="0664", TAG+="uaccess"
+
+# ─── SimJack (0x2497) ─────────────────────────────────────────────────────
+# PRO Pedals (simracing-hwdb 90-simjack.hwdb)
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2497", ATTRS{idProduct}=="5757", GROUP="input", MODE="0664", TAG+="uaccess"
+
+# ─── SimLab (0x04D8, Microchip shared VID) ────────────────────────────────
+# Handbrake XB1 (simracing-hwdb 90-simlab.hwdb)
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="04d8", ATTRS{idProduct}=="e760", GROUP="input", MODE="0664", TAG+="uaccess"
+
+# ─── SimNet (0xCAFE) ──────────────────────────────────────────────────────
+# SP Pedals (simracing-hwdb 90-simnet.hwdb)
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="cafe", ATTRS{idProduct}=="a301", GROUP="input", MODE="0664", TAG+="uaccess"
+
+# ─── SimRuito (0x5487) ────────────────────────────────────────────────────
+# Pedals (simracing-hwdb 90-simruito.hwdb)
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="5487", ATTRS{idProduct}=="5401", GROUP="input", MODE="0664", TAG+="uaccess"
+
+# ─── SimSonn (0xDDFD) ─────────────────────────────────────────────────────
+# Pedals, Pedals Plus X (simracing-hwdb 90-simsonn.hwdb)
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="ddfd", ATTRS{idProduct}=="5008", GROUP="input", MODE="0664", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="ddfd", ATTRS{idProduct}=="6011", GROUP="input", MODE="0664", TAG+="uaccess"
+
+# ─── SimTrecs (0x03EB, Atmel shared VID) ──────────────────────────────────
+# ProPedal GT (simracing-hwdb 90-simtrecs.hwdb)
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="03eb", ATTRS{idProduct}=="2406", GROUP="input", MODE="0664", TAG+="uaccess"
+
 # ─── Service restart on device connect ────────────────────────────────────
 ACTION=="add", SUBSYSTEM=="hidraw", TAG=="uaccess", RUN+="/bin/systemctl --user try-restart openracing.service"
 
@@ -292,3 +333,24 @@ ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="2433", ATTRS{idProduct}=="f10
 ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="2433", ATTRS{idProduct}=="f102", ATTR{power/autosuspend}="-1"
 # Simucube ActivePedal
 ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="16d0", ATTRS{idProduct}=="0d66", ATTR{power/autosuspend}="-1"
+# Oddor
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="1021", ATTR{power/autosuspend}="-1"
+# MMOS
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="f055", ATTR{power/autosuspend}="-1"
+# SHH (V-USB shared VID — PID-specific)
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="16c0", ATTRS{idProduct}=="05e1", ATTR{power/autosuspend}="-1"
+# SimGrade (pid.codes shared VID — PID-specific)
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="1209", ATTRS{idProduct}=="3115", ATTR{power/autosuspend}="-1"
+# SimJack
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="2497", ATTRS{idProduct}=="5757", ATTR{power/autosuspend}="-1"
+# SimLab (Microchip shared VID — PID-specific)
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="04d8", ATTRS{idProduct}=="e760", ATTR{power/autosuspend}="-1"
+# SimNet
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="cafe", ATTRS{idProduct}=="a301", ATTR{power/autosuspend}="-1"
+# SimRuito
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="5487", ATTRS{idProduct}=="5401", ATTR{power/autosuspend}="-1"
+# SimSonn
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="ddfd", ATTRS{idProduct}=="5008", ATTR{power/autosuspend}="-1"
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="ddfd", ATTRS{idProduct}=="6011", ATTR{power/autosuspend}="-1"
+# SimTrecs (Atmel shared VID — PID-specific)
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="03eb", ATTRS{idProduct}=="2406", ATTR{power/autosuspend}="-1"
