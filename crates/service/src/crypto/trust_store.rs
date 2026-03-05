@@ -62,6 +62,9 @@ pub struct TrustStore {
 
     /// Whether the store has been modified since last save
     dirty: bool,
+
+    /// Fail-closed flag: when true, all lookups return Distrusted
+    failed: bool,
 }
 
 impl TrustStore {
@@ -71,6 +74,7 @@ impl TrustStore {
             entries: HashMap::new(),
             store_path: Some(store_path.clone()),
             dirty: false,
+            failed: false,
         };
 
         // Load existing trust store if it exists
@@ -93,12 +97,40 @@ impl TrustStore {
             entries: HashMap::new(),
             store_path: None,
             dirty: false,
+            failed: false,
         };
 
         // Initialize with default keys
         let _ = store.initialize_default_keys();
 
         store
+    }
+
+    /// Create a fail-closed trust store that rejects all signatures.
+    ///
+    /// Use this when the trust store file cannot be loaded and the system
+    /// must fail safely. All trust lookups will return [`TrustLevel::Distrusted`].
+    pub fn new_fail_closed(reason: &str) -> Self {
+        tracing::error!(reason = reason, "Trust store in fail-closed mode");
+        Self {
+            entries: HashMap::new(),
+            store_path: None,
+            dirty: false,
+            failed: true,
+        }
+    }
+
+    /// Try to load a file-backed trust store, falling back to fail-closed on error.
+    pub fn open_or_fail_closed(store_path: PathBuf) -> Self {
+        match Self::new(store_path) {
+            Ok(store) => store,
+            Err(e) => Self::new_fail_closed(&format!("Failed to load trust store: {}", e)),
+        }
+    }
+
+    /// Returns `true` if this trust store is in fail-closed mode.
+    pub fn is_failed(&self) -> bool {
+        self.failed
     }
 
     /// Load trust store from file
@@ -137,13 +169,18 @@ impl TrustStore {
     }
 
     /// Initialize with default trusted keys
+    ///
+    /// The official project key is a placeholder (`[0u8; 32]`) used as a
+    /// sentinel for development builds. Production releases must replace
+    /// this with a real Ed25519 public key.
     fn initialize_default_keys(&mut self) -> Result<()> {
-        // Add Racing Wheel Suite official signing key
-        // In a real implementation, this would be the actual public key
+        // Placeholder — real key bytes should be injected at release time
         let official_key = PublicKey {
-            key_bytes: [0u8; 32], // Placeholder - would be real key
-            identifier: "racing-wheel-suite-official".to_string(),
-            comment: Some("Official Racing Wheel Suite signing key".to_string()),
+            key_bytes: [0u8; 32],
+            identifier: "racing-wheel-suite-official-placeholder".to_string(),
+            comment: Some(
+                "Placeholder official key — replace with real key for production".to_string(),
+            ),
         };
 
         let fingerprint = super::ed25519::Ed25519Verifier::get_key_fingerprint(&official_key);
@@ -225,18 +262,35 @@ impl TrustStore {
     }
 
     /// Get a public key by fingerprint
+    ///
+    /// Returns `None` when the store is in fail-closed mode.
     pub fn get_public_key(&self, key_fingerprint: &str) -> Option<PublicKey> {
+        if self.failed {
+            return None;
+        }
         self.entries
             .get(key_fingerprint)
             .map(|entry| entry.public_key.clone())
     }
 
     /// Get trust level for a key
+    ///
+    /// Returns [`TrustLevel::Distrusted`] for all lookups when the store is
+    /// in fail-closed mode.
     pub fn get_trust_level(&self, key_fingerprint: &str) -> TrustLevel {
+        if self.failed {
+            return TrustLevel::Distrusted;
+        }
         self.entries
             .get(key_fingerprint)
             .map(|entry| entry.trust_level)
             .unwrap_or(TrustLevel::Unknown)
+    }
+
+    /// Convenience check: returns `true` only when the key is explicitly
+    /// [`TrustLevel::Trusted`]. Returns `false` in fail-closed mode.
+    pub fn is_key_trusted(&self, key_fingerprint: &str) -> bool {
+        self.get_trust_level(key_fingerprint) == TrustLevel::Trusted
     }
 
     /// List all keys in the trust store

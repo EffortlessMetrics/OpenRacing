@@ -40,6 +40,8 @@ pub struct TrustStore {
     store_path: Option<PathBuf>,
     /// Whether the store has been modified since last save
     dirty: bool,
+    /// Fail-closed flag: when true, all lookups return Distrusted
+    failed: bool,
 }
 
 impl TrustStore {
@@ -49,6 +51,7 @@ impl TrustStore {
             entries: HashMap::new(),
             store_path: Some(store_path.clone()),
             dirty: false,
+            failed: false,
         };
 
         if store_path.exists() {
@@ -69,11 +72,43 @@ impl TrustStore {
             entries: HashMap::new(),
             store_path: None,
             dirty: false,
+            failed: false,
         };
 
         let _ = store.initialize_default_keys();
 
         store
+    }
+
+    /// Create a fail-closed trust store that rejects all signatures.
+    ///
+    /// Use this when the trust store file cannot be loaded and the system
+    /// must fail safely. All trust lookups will return [`TrustLevel::Distrusted`].
+    pub fn new_fail_closed(reason: &str) -> Self {
+        tracing::error!(reason = reason, "Trust store in fail-closed mode");
+        Self {
+            entries: HashMap::new(),
+            store_path: None,
+            dirty: false,
+            failed: true,
+        }
+    }
+
+    /// Try to load a file-backed trust store, falling back to fail-closed on error.
+    ///
+    /// This is the recommended constructor for production use: if the trust
+    /// store file is corrupt or unreadable, the returned store will reject
+    /// all signatures instead of allowing unverified plugins to load.
+    pub fn open_or_fail_closed(store_path: PathBuf) -> Self {
+        match Self::new(store_path) {
+            Ok(store) => store,
+            Err(e) => Self::new_fail_closed(&format!("Failed to load trust store: {}", e)),
+        }
+    }
+
+    /// Returns `true` if this trust store is in fail-closed mode.
+    pub fn is_failed(&self) -> bool {
+        self.failed
     }
 
     /// Load trust store from file
@@ -111,11 +146,19 @@ impl TrustStore {
     }
 
     /// Initialize with default trusted keys
+    ///
+    /// The official project key is a placeholder (`[0u8; 32]`) used as a
+    /// sentinel for development builds. Production releases must replace
+    /// this with a real Ed25519 public key via `add_key` or by editing
+    /// the persisted trust store JSON.
     fn initialize_default_keys(&mut self) -> Result<()> {
+        // Placeholder: real key bytes should be injected at build / release time.
         let official_key = PublicKey {
             key_bytes: [0u8; 32],
-            identifier: "openracing-official".to_string(),
-            comment: Some("Official OpenRacing signing key".to_string()),
+            identifier: "openracing-official-placeholder".to_string(),
+            comment: Some(
+                "Placeholder official key — replace with real key for production".to_string(),
+            ),
         };
 
         let fingerprint = Ed25519Verifier::get_key_fingerprint(&official_key);
@@ -158,6 +201,29 @@ impl TrustStore {
         Ok(())
     }
 
+    /// Add a public key from a hex-encoded string.
+    ///
+    /// The hex string must decode to exactly 32 bytes (64 hex characters).
+    pub fn add_key_from_hex(
+        &mut self,
+        hex_key: &str,
+        identifier: String,
+        trust_level: TrustLevel,
+        reason: Option<String>,
+    ) -> Result<()> {
+        let key_bytes = hex::decode(hex_key).context("Invalid hex encoding for public key")?;
+        if key_bytes.len() != 32 {
+            return Err(anyhow::anyhow!(
+                "Invalid key length: expected 32 bytes, got {}",
+                key_bytes.len()
+            ));
+        }
+        let mut bytes = [0u8; 32];
+        bytes.copy_from_slice(&key_bytes);
+        let public_key = PublicKey::from_bytes(bytes, identifier);
+        self.add_key(public_key, trust_level, reason)
+    }
+
     /// Remove a public key from the trust store
     pub fn remove_key(&mut self, key_fingerprint: &str) -> Result<bool> {
         if let Some(entry) = self.entries.get(key_fingerprint)
@@ -197,18 +263,35 @@ impl TrustStore {
     }
 
     /// Get a public key by fingerprint
+    ///
+    /// Returns `None` when the store is in fail-closed mode.
     pub fn get_public_key(&self, key_fingerprint: &str) -> Option<PublicKey> {
+        if self.failed {
+            return None;
+        }
         self.entries
             .get(key_fingerprint)
             .map(|entry| entry.public_key.clone())
     }
 
     /// Get trust level for a key
+    ///
+    /// Returns [`TrustLevel::Distrusted`] for all lookups when the store is
+    /// in fail-closed mode.
     pub fn get_trust_level(&self, key_fingerprint: &str) -> TrustLevel {
+        if self.failed {
+            return TrustLevel::Distrusted;
+        }
         self.entries
             .get(key_fingerprint)
             .map(|entry| entry.trust_level)
             .unwrap_or(TrustLevel::Unknown)
+    }
+
+    /// Convenience check: returns `true` only when the key is explicitly
+    /// [`TrustLevel::Trusted`]. Returns `false` in fail-closed mode.
+    pub fn is_key_trusted(&self, key_fingerprint: &str) -> bool {
+        self.get_trust_level(key_fingerprint) == TrustLevel::Trusted
     }
 
     /// Get a trust entry by fingerprint
@@ -680,6 +763,240 @@ mod tests {
         let count_without = store.export_keys(&export_without_system, false)?;
 
         assert!(count_with >= count_without);
+
+        Ok(())
+    }
+
+    // --- Fail-closed tests ---
+
+    #[test]
+    fn test_fail_closed_rejects_all_lookups() -> Result<()> {
+        let store = TrustStore::new_fail_closed("unit-test");
+
+        assert!(store.is_failed());
+        assert_eq!(
+            store.get_trust_level("any-fingerprint"),
+            TrustLevel::Distrusted,
+        );
+        assert!(store.get_public_key("any-fingerprint").is_none());
+        assert!(!store.is_key_trusted("any-fingerprint"));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_open_or_fail_closed_with_corrupt_file() -> Result<()> {
+        let temp_dir = tempfile::TempDir::new()?;
+        let store_path = temp_dir.path().join("corrupt_trust_store.json");
+
+        // Write invalid JSON to simulate corruption
+        std::fs::write(&store_path, "NOT VALID JSON {{{{")?;
+
+        let store = TrustStore::open_or_fail_closed(store_path);
+        assert!(store.is_failed());
+        assert_eq!(store.get_trust_level("some-key"), TrustLevel::Distrusted,);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_open_or_fail_closed_with_valid_file() -> Result<()> {
+        let temp_dir = tempfile::TempDir::new()?;
+        let store_path = temp_dir.path().join("good_trust_store.json");
+
+        // Create a valid trust store first
+        {
+            let store = TrustStore::new(store_path.clone())?;
+            drop(store);
+        }
+
+        let store = TrustStore::open_or_fail_closed(store_path);
+        assert!(!store.is_failed());
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_open_or_fail_closed_with_missing_file_creates_new() -> Result<()> {
+        let temp_dir = tempfile::TempDir::new()?;
+        let store_path = temp_dir.path().join("new_trust_store.json");
+
+        let store = TrustStore::open_or_fail_closed(store_path);
+        // Missing file ⇒ new store with defaults, NOT failed
+        assert!(!store.is_failed());
+        assert!(!store.is_empty());
+
+        Ok(())
+    }
+
+    // --- is_key_trusted convenience ---
+
+    #[test]
+    fn test_is_key_trusted() -> Result<()> {
+        let mut store = TrustStore::new_in_memory();
+
+        let trusted_key = PublicKey::from_bytes([60u8; 32], "trusted".to_string());
+        let untrusted_key = PublicKey::from_bytes([61u8; 32], "untrusted".to_string());
+        let distrusted_key = PublicKey::from_bytes([62u8; 32], "distrusted".to_string());
+
+        store.add_key(trusted_key.clone(), TrustLevel::Trusted, None)?;
+        store.add_key(untrusted_key.clone(), TrustLevel::Unknown, None)?;
+        store.add_key(distrusted_key.clone(), TrustLevel::Distrusted, None)?;
+
+        assert!(store.is_key_trusted(&trusted_key.fingerprint()));
+        assert!(!store.is_key_trusted(&untrusted_key.fingerprint()));
+        assert!(!store.is_key_trusted(&distrusted_key.fingerprint()));
+        assert!(!store.is_key_trusted("nonexistent"));
+
+        Ok(())
+    }
+
+    // --- Hex key add ---
+
+    #[test]
+    fn test_add_key_from_hex() -> Result<()> {
+        let mut store = TrustStore::new_in_memory();
+
+        let key_bytes = [0xABu8; 32];
+        let hex_str = hex::encode(key_bytes);
+
+        store.add_key_from_hex(
+            &hex_str,
+            "hex-key".to_string(),
+            TrustLevel::Trusted,
+            Some("Added via hex".to_string()),
+        )?;
+
+        let expected_fingerprint =
+            Ed25519Verifier::get_key_fingerprint(&PublicKey::from_bytes(key_bytes, String::new()));
+        assert!(store.is_key_trusted(&expected_fingerprint));
+        assert!(store.get_public_key(&expected_fingerprint).is_some());
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_add_key_from_hex_invalid_length() -> Result<()> {
+        let mut store = TrustStore::new_in_memory();
+        let result =
+            store.add_key_from_hex("aabb", "short-key".to_string(), TrustLevel::Trusted, None);
+        assert!(result.is_err());
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_add_key_from_hex_invalid_hex() -> Result<()> {
+        let mut store = TrustStore::new_in_memory();
+        let result = store.add_key_from_hex(
+            "not-valid-hex!!",
+            "bad-hex".to_string(),
+            TrustLevel::Trusted,
+            None,
+        );
+        assert!(result.is_err());
+
+        Ok(())
+    }
+
+    // --- Real Ed25519 keypair integration ---
+
+    #[test]
+    fn test_real_keypair_sign_verify_with_trust_store() -> Result<()> {
+        use crate::ed25519::{Ed25519Signer, KeyPair};
+
+        let keypair = KeyPair::generate().map_err(|e| anyhow::anyhow!("keygen failed: {}", e))?;
+
+        let mut store = TrustStore::new_in_memory();
+        store.add_key(
+            keypair.public_key.clone(),
+            TrustLevel::Trusted,
+            Some("Test keypair".to_string()),
+        )?;
+
+        let data = b"safety-critical payload";
+        let signature = Ed25519Signer::sign(data, &keypair.signing_key)
+            .map_err(|e| anyhow::anyhow!("sign failed: {}", e))?;
+
+        // Verify using public key from trust store
+        let fingerprint = keypair.fingerprint();
+        let retrieved_key = store.get_public_key(&fingerprint);
+        assert!(retrieved_key.is_some(), "key must be in trust store");
+
+        let is_valid = Ed25519Verifier::verify(
+            data,
+            &signature,
+            &retrieved_key.ok_or_else(|| anyhow::anyhow!("key missing"))?,
+        )
+        .map_err(|e| anyhow::anyhow!("verify failed: {}", e))?;
+        assert!(is_valid, "signature must validate");
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_reject_signature_from_untrusted_key() -> Result<()> {
+        use crate::ed25519::{Ed25519Signer, KeyPair};
+
+        let trusted_kp = KeyPair::generate().map_err(|e| anyhow::anyhow!("keygen: {}", e))?;
+        let untrusted_kp = KeyPair::generate().map_err(|e| anyhow::anyhow!("keygen: {}", e))?;
+
+        let mut store = TrustStore::new_in_memory();
+        store.add_key(trusted_kp.public_key.clone(), TrustLevel::Trusted, None)?;
+        // untrusted_kp is NOT added to the store
+
+        let data = b"payload signed by untrusted key";
+        let _sig = Ed25519Signer::sign(data, &untrusted_kp.signing_key)
+            .map_err(|e| anyhow::anyhow!("sign: {}", e))?;
+
+        // Trust store should report Unknown for the untrusted key
+        let untrusted_fp = untrusted_kp.fingerprint();
+        assert_eq!(store.get_trust_level(&untrusted_fp), TrustLevel::Unknown);
+        assert!(!store.is_key_trusted(&untrusted_fp));
+        assert!(store.get_public_key(&untrusted_fp).is_none());
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_reject_invalid_signature() -> Result<()> {
+        use crate::ed25519::{Ed25519Signer, KeyPair, Signature as Ed25519Sig};
+
+        let keypair = KeyPair::generate().map_err(|e| anyhow::anyhow!("keygen: {}", e))?;
+
+        let data = b"original data";
+        let signature = Ed25519Signer::sign(data, &keypair.signing_key)
+            .map_err(|e| anyhow::anyhow!("sign: {}", e))?;
+
+        // Tampered data should fail verification
+        let tampered = b"tampered data";
+        let is_valid = Ed25519Verifier::verify(tampered, &signature, &keypair.public_key)
+            .map_err(|e| anyhow::anyhow!("verify: {}", e))?;
+        assert!(!is_valid, "tampered data must not verify");
+
+        // Corrupted signature should also fail
+        let mut bad_bytes = signature.signature_bytes;
+        bad_bytes[0] ^= 0xFF;
+        let bad_sig = Ed25519Sig::from_bytes(bad_bytes);
+        let is_valid = Ed25519Verifier::verify(data, &bad_sig, &keypair.public_key)
+            .map_err(|e| anyhow::anyhow!("verify: {}", e))?;
+        assert!(!is_valid, "corrupted signature must not verify");
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_fail_closed_store_rejects_real_keypair() -> Result<()> {
+        use crate::ed25519::KeyPair;
+
+        let keypair = KeyPair::generate().map_err(|e| anyhow::anyhow!("keygen: {}", e))?;
+
+        let store = TrustStore::new_fail_closed("simulated load failure");
+
+        let fingerprint = keypair.fingerprint();
+        assert_eq!(store.get_trust_level(&fingerprint), TrustLevel::Distrusted);
+        assert!(!store.is_key_trusted(&fingerprint));
+        assert!(store.get_public_key(&fingerprint).is_none());
 
         Ok(())
     }
