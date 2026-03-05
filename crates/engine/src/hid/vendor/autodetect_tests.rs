@@ -17,7 +17,7 @@ use racing_wheel_schemas::prelude::DeviceId;
 
 #[test]
 fn fanatec_wheelbases_match_vendor_protocol() -> Result<(), Box<dyn std::error::Error>> {
-    use fanatec::{is_wheelbase_product, product_ids, FANATEC_VENDOR_ID};
+    use fanatec::{FANATEC_VENDOR_ID, is_wheelbase_product, product_ids};
 
     let wheelbase_pids = [
         product_ids::DD1,
@@ -57,7 +57,7 @@ fn fanatec_pedals_not_classified_as_wheelbase() {
 #[test]
 fn moza_wheelbase_identification() -> Result<(), Box<dyn std::error::Error>> {
     use moza::{
-        identify_device, is_wheelbase_product, product_ids, MozaDeviceCategory, MOZA_VENDOR_ID,
+        MOZA_VENDOR_ID, MozaDeviceCategory, identify_device, is_wheelbase_product, product_ids,
     };
 
     let wb_pids = [
@@ -94,7 +94,7 @@ fn moza_wheelbase_identification() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn moza_peripherals_classified_correctly() {
-    use moza::{identify_device, product_ids, MozaDeviceCategory};
+    use moza::{MozaDeviceCategory, identify_device, product_ids};
 
     let pedals = identify_device(product_ids::SR_P_PEDALS);
     assert_eq!(pedals.category, MozaDeviceCategory::Pedals);
@@ -139,7 +139,7 @@ fn simagic_evo_vid_dispatches() {
 
 #[test]
 fn simagic_model_classification() {
-    use simagic::{product_ids, vendor_ids, SimagicModel, SimagicProtocol};
+    use simagic::{SimagicModel, SimagicProtocol, product_ids, vendor_ids};
 
     // EVO generation
     let evo_sport = SimagicProtocol::new(vendor_ids::SIMAGIC_EVO, product_ids::EVO_SPORT);
@@ -164,7 +164,7 @@ fn simagic_model_classification() {
 
 #[test]
 fn logitech_wheel_products_match() {
-    use logitech::{is_wheel_product, product_ids, LOGITECH_VENDOR_ID};
+    use logitech::{LOGITECH_VENDOR_ID, is_wheel_product, product_ids};
 
     let wheel_pids = [
         product_ids::G25,
@@ -204,7 +204,7 @@ fn logitech_unknown_pid_still_gets_protocol() {
 
 #[test]
 fn thrustmaster_wheel_and_pedal_classification() {
-    use thrustmaster::{is_wheel_product, product_ids, THRUSTMASTER_VENDOR_ID};
+    use thrustmaster::{THRUSTMASTER_VENDOR_ID, is_wheel_product, product_ids};
 
     let wheel_pids = [
         product_ids::T150,
@@ -236,7 +236,7 @@ fn thrustmaster_wheel_and_pedal_classification() {
 
 #[test]
 fn vrs_products_dispatch_correctly() {
-    use vrs::{is_vrs_product, is_wheelbase_product, product_ids, VRS_VENDOR_ID};
+    use vrs::{VRS_VENDOR_ID, is_vrs_product, is_wheelbase_product, product_ids};
 
     // DirectForce Pro is both a VRS product and a wheelbase
     assert!(is_vrs_product(product_ids::DIRECTFORCE_PRO));
@@ -276,9 +276,9 @@ fn vrs_vid_with_non_vrs_pid_falls_to_simagic() {
 #[test]
 fn simucube_products_match() {
     use simucube::{
-        is_simucube_product, SIMUCUBE_1_PID, SIMUCUBE_2_PRO_PID, SIMUCUBE_2_SPORT_PID,
-        SIMUCUBE_2_ULTIMATE_PID, SIMUCUBE_ACTIVE_PEDAL_PID, SIMUCUBE_VENDOR_ID,
-        SIMUCUBE_WIRELESS_WHEEL_PID,
+        SIMUCUBE_1_PID, SIMUCUBE_2_PRO_PID, SIMUCUBE_2_SPORT_PID, SIMUCUBE_2_ULTIMATE_PID,
+        SIMUCUBE_ACTIVE_PEDAL_PID, SIMUCUBE_VENDOR_ID, SIMUCUBE_WIRELESS_WHEEL_PID,
+        is_simucube_product,
     };
 
     let all_pids = [
@@ -323,8 +323,8 @@ fn simucube_vs_simagic_vid_disambiguation() {
 #[test]
 fn cammus_products_match() {
     use cammus::{
-        is_cammus_product, CammusModel, CAMMUS_C12_PID, CAMMUS_C5_PID, CAMMUS_CP5_PEDALS_PID,
-        CAMMUS_LC100_PEDALS_PID, CAMMUS_VENDOR_ID,
+        CAMMUS_C5_PID, CAMMUS_C12_PID, CAMMUS_CP5_PEDALS_PID, CAMMUS_LC100_PEDALS_PID,
+        CAMMUS_VENDOR_ID, CammusModel, is_cammus_product,
     };
 
     assert!(is_cammus_product(CAMMUS_C5_PID));
@@ -362,10 +362,10 @@ fn asetek_products_match() {
 #[test]
 fn heusinkveld_multi_vid_matching() {
     use heusinkveld::{
-        is_heusinkveld_product, HEUSINKVELD_HANDBRAKE_V1_PID, HEUSINKVELD_HANDBRAKE_V1_VENDOR_ID,
+        HEUSINKVELD_HANDBRAKE_V1_PID, HEUSINKVELD_HANDBRAKE_V1_VENDOR_ID,
         HEUSINKVELD_HANDBRAKE_V2_PID, HEUSINKVELD_LEGACY_SPRINT_PID, HEUSINKVELD_LEGACY_VENDOR_ID,
         HEUSINKVELD_SHIFTER_PID, HEUSINKVELD_SHIFTER_VENDOR_ID, HEUSINKVELD_SPRINT_PID,
-        HEUSINKVELD_ULTIMATE_PID, HEUSINKVELD_VENDOR_ID,
+        HEUSINKVELD_ULTIMATE_PID, HEUSINKVELD_VENDOR_ID, is_heusinkveld_product,
     };
 
     // Current firmware VID
@@ -383,11 +383,13 @@ fn heusinkveld_multi_vid_matching() {
 
     // Handbrake V1 (Silicon Labs VID)
     assert!(is_heusinkveld_product(HEUSINKVELD_HANDBRAKE_V1_PID));
-    assert!(get_vendor_protocol(
-        HEUSINKVELD_HANDBRAKE_V1_VENDOR_ID,
-        HEUSINKVELD_HANDBRAKE_V1_PID
-    )
-    .is_some());
+    assert!(
+        get_vendor_protocol(
+            HEUSINKVELD_HANDBRAKE_V1_VENDOR_ID,
+            HEUSINKVELD_HANDBRAKE_V1_PID
+        )
+        .is_some()
+    );
 
     // Shifter (VID 0xA020)
     assert!(is_heusinkveld_product(HEUSINKVELD_SHIFTER_PID));
@@ -397,10 +399,10 @@ fn heusinkveld_multi_vid_matching() {
 #[test]
 fn heusinkveld_model_from_info_classification() {
     use heusinkveld::{
-        heusinkveld_model_from_info, HeusinkveldModel, HEUSINKVELD_HANDBRAKE_V1_PID,
-        HEUSINKVELD_HANDBRAKE_V1_VENDOR_ID, HEUSINKVELD_HANDBRAKE_V2_PID,
-        HEUSINKVELD_LEGACY_SPRINT_PID, HEUSINKVELD_LEGACY_VENDOR_ID, HEUSINKVELD_SHIFTER_PID,
-        HEUSINKVELD_SHIFTER_VENDOR_ID, HEUSINKVELD_SPRINT_PID, HEUSINKVELD_VENDOR_ID,
+        HEUSINKVELD_HANDBRAKE_V1_PID, HEUSINKVELD_HANDBRAKE_V1_VENDOR_ID,
+        HEUSINKVELD_HANDBRAKE_V2_PID, HEUSINKVELD_LEGACY_SPRINT_PID, HEUSINKVELD_LEGACY_VENDOR_ID,
+        HEUSINKVELD_SHIFTER_PID, HEUSINKVELD_SHIFTER_VENDOR_ID, HEUSINKVELD_SPRINT_PID,
+        HEUSINKVELD_VENDOR_ID, HeusinkveldModel, heusinkveld_model_from_info,
     };
 
     let sprint = heusinkveld_model_from_info(HEUSINKVELD_VENDOR_ID, HEUSINKVELD_SPRINT_PID);
@@ -428,7 +430,7 @@ fn heusinkveld_model_from_info_classification() {
 
 #[test]
 fn openffboard_product_matching() {
-    use openffboard::{is_openffboard_product, OPENFFBOARD_PRODUCT_ID, OPENFFBOARD_VENDOR_ID};
+    use openffboard::{OPENFFBOARD_PRODUCT_ID, OPENFFBOARD_VENDOR_ID, is_openffboard_product};
 
     assert!(is_openffboard_product(OPENFFBOARD_PRODUCT_ID));
     assert!(!is_openffboard_product(0x0000));
@@ -441,7 +443,7 @@ fn openffboard_product_matching() {
 
 #[test]
 fn ffbeast_product_matching() {
-    use ffbeast::{is_ffbeast_product, FFBEAST_PRODUCT_ID_WHEEL, FFBEAST_VENDOR_ID};
+    use ffbeast::{FFBEAST_PRODUCT_ID_WHEEL, FFBEAST_VENDOR_ID, is_ffbeast_product};
 
     assert!(is_ffbeast_product(FFBEAST_PRODUCT_ID_WHEEL));
     assert!(!is_ffbeast_product(0x0000));
@@ -454,8 +456,8 @@ fn ffbeast_product_matching() {
 #[test]
 fn pxn_product_matching() {
     use pxn::{
-        is_pxn_product, PxnModel, PRODUCT_GT987, PRODUCT_V10, PRODUCT_V12, PRODUCT_V12_LITE,
-        PRODUCT_V12_LITE_2, PXN_VENDOR_ID,
+        PRODUCT_GT987, PRODUCT_V10, PRODUCT_V12, PRODUCT_V12_LITE, PRODUCT_V12_LITE_2,
+        PXN_VENDOR_ID, PxnModel, is_pxn_product,
     };
 
     for pid in [
@@ -494,8 +496,8 @@ fn pxn_product_matching() {
 #[test]
 fn leo_bodnar_ffb_vs_input_only() {
     use leo_bodnar::{
-        is_leo_bodnar_ffb_product, LEO_BODNAR_PID_BBI32, LEO_BODNAR_PID_FFB_JOYSTICK,
-        LEO_BODNAR_PID_JOYSTICK, LEO_BODNAR_PID_SLIM, LEO_BODNAR_PID_WHEEL, LEO_BODNAR_VENDOR_ID,
+        LEO_BODNAR_PID_BBI32, LEO_BODNAR_PID_FFB_JOYSTICK, LEO_BODNAR_PID_JOYSTICK,
+        LEO_BODNAR_PID_SLIM, LEO_BODNAR_PID_WHEEL, LEO_BODNAR_VENDOR_ID, is_leo_bodnar_ffb_product,
     };
 
     // FFB-capable
@@ -515,7 +517,7 @@ fn leo_bodnar_ffb_vs_input_only() {
 
 #[test]
 fn button_box_product_matching() {
-    use button_box::{is_button_box_product, PRODUCT_ID_BUTTON_BOX, VENDOR_ID_GENERIC};
+    use button_box::{PRODUCT_ID_BUTTON_BOX, VENDOR_ID_GENERIC, is_button_box_product};
 
     assert!(is_button_box_product(PRODUCT_ID_BUTTON_BOX));
     assert!(!is_button_box_product(0x0000));
@@ -557,7 +559,7 @@ fn accuforce_product_matching() {
 #[test]
 fn device_type_classification_across_vendors() {
     use fanatec::{is_pedal_product as fan_pedal, is_wheelbase_product as fan_wb};
-    use moza::{identify_device, product_ids as moza_pids, MozaDeviceCategory};
+    use moza::{MozaDeviceCategory, identify_device, product_ids as moza_pids};
     use thrustmaster::is_wheel_product as tm_wheel;
     use vrs::{is_wheelbase_product as vrs_wb, product_ids as vrs_pids};
 
@@ -597,9 +599,10 @@ fn device_type_classification_across_vendors() {
 #[test]
 fn heusinkveld_device_type_classification() {
     use heusinkveld::{
-        heusinkveld_model_from_info, HeusinkveldModel, HEUSINKVELD_HANDBRAKE_V1_PID,
-        HEUSINKVELD_HANDBRAKE_V1_VENDOR_ID, HEUSINKVELD_HANDBRAKE_V2_PID, HEUSINKVELD_SHIFTER_PID,
-        HEUSINKVELD_SHIFTER_VENDOR_ID, HEUSINKVELD_SPRINT_PID, HEUSINKVELD_VENDOR_ID,
+        HEUSINKVELD_HANDBRAKE_V1_PID, HEUSINKVELD_HANDBRAKE_V1_VENDOR_ID,
+        HEUSINKVELD_HANDBRAKE_V2_PID, HEUSINKVELD_SHIFTER_PID, HEUSINKVELD_SHIFTER_VENDOR_ID,
+        HEUSINKVELD_SPRINT_PID, HEUSINKVELD_VENDOR_ID, HeusinkveldModel,
+        heusinkveld_model_from_info,
     };
 
     // Pedals
@@ -931,7 +934,7 @@ fn moza_v1_and_v2_firmware_both_recognized() {
 
 #[test]
 fn cammus_pedals_recognized_as_products() {
-    use cammus::{is_cammus_product, CAMMUS_CP5_PEDALS_PID, CAMMUS_LC100_PEDALS_PID};
+    use cammus::{CAMMUS_CP5_PEDALS_PID, CAMMUS_LC100_PEDALS_PID, is_cammus_product};
 
     assert!(is_cammus_product(CAMMUS_CP5_PEDALS_PID));
     assert!(is_cammus_product(CAMMUS_LC100_PEDALS_PID));
@@ -939,7 +942,7 @@ fn cammus_pedals_recognized_as_products() {
 
 #[test]
 fn simucube_active_pedal_and_wireless_wheel_recognized() {
-    use simucube::{is_simucube_product, SIMUCUBE_ACTIVE_PEDAL_PID, SIMUCUBE_WIRELESS_WHEEL_PID};
+    use simucube::{SIMUCUBE_ACTIVE_PEDAL_PID, SIMUCUBE_WIRELESS_WHEEL_PID, is_simucube_product};
 
     assert!(is_simucube_product(SIMUCUBE_ACTIVE_PEDAL_PID));
     assert!(is_simucube_product(SIMUCUBE_WIRELESS_WHEEL_PID));
@@ -947,7 +950,7 @@ fn simucube_active_pedal_and_wireless_wheel_recognized() {
 
 #[test]
 fn moza_unknown_pid_identified_as_unknown_category() {
-    use moza::{identify_device, MozaDeviceCategory};
+    use moza::{MozaDeviceCategory, identify_device};
 
     let unknown = identify_device(0xFFFF);
     assert_eq!(unknown.category, MozaDeviceCategory::Unknown);
