@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- macOS compilation: moved libudev dependency to Linux-only, added macOS daemon stubs (#97)
+- CI: removed hardcoded CARGO_HOME path for cross-platform integration tests (#97)
+
+### Added
+- 104 telemetry pipeline tests: data integrity, timestamp monotonicity, adapter edge cases, config roundtrips (#99)
+- 44 service integration tests: device, game, profile, diagnostic, safety, anticheat coverage (#100)
+
 ### Added
 
 - **Linux hwdb entries for joystick classification** — 133 device entries across 20+ manufacturers; prevents Linux from misclassifying pedals as accelerometers, fixing SDL/Proton/Steam detection issues (PR #79)
