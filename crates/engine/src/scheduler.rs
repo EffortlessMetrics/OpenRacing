@@ -1043,4 +1043,240 @@ mod tests {
         // Check that metrics were collected
         assert!(scheduler.metrics().total_ticks > 0);
     }
+
+    // --- Additional performance gate and timing measurement tests ---
+
+    #[test]
+    fn test_jitter_metrics_p99_empty_samples() {
+        let mut metrics = JitterMetrics::new();
+        // p99 on empty data should return 0
+        assert_eq!(metrics.p99_jitter_ns(), 0);
+    }
+
+    #[test]
+    fn test_jitter_metrics_p99_single_sample() {
+        let mut metrics = JitterMetrics::new();
+        metrics.record_tick(42_000, false);
+        // With one sample, p99 should be that sample
+        assert_eq!(metrics.p99_jitter_ns(), 42_000);
+    }
+
+    #[test]
+    fn test_jitter_metrics_p99_two_samples() {
+        let mut metrics = JitterMetrics::new();
+        metrics.record_tick(10_000, false);
+        metrics.record_tick(20_000, false);
+        let p99 = metrics.p99_jitter_ns();
+        // With 2 samples, p99 should be near the higher value
+        assert!((10_000..=20_000).contains(&p99));
+    }
+
+    #[test]
+    fn test_jitter_metrics_all_identical_samples() {
+        let mut metrics = JitterMetrics::new();
+        for _ in 0..1000 {
+            metrics.record_tick(100_000, false);
+        }
+        // All identical samples: p99 = that value
+        assert_eq!(metrics.p99_jitter_ns(), 100_000);
+    }
+
+    #[test]
+    fn test_missed_tick_rate_zero_ticks() {
+        let metrics = JitterMetrics::new();
+        // 0 total ticks -> rate is 0.0 (no division by zero)
+        assert_eq!(metrics.missed_tick_rate(), 0.0);
+    }
+
+    #[test]
+    fn test_missed_tick_rate_no_misses() {
+        let mut metrics = JitterMetrics::new();
+        for _ in 0..100 {
+            metrics.record_tick(50_000, false);
+        }
+        assert_eq!(metrics.missed_tick_rate(), 0.0);
+    }
+
+    #[test]
+    fn test_missed_tick_rate_all_missed() {
+        let mut metrics = JitterMetrics::new();
+        for _ in 0..100 {
+            metrics.record_tick(500_000, true);
+        }
+        assert_eq!(metrics.missed_tick_rate(), 1.0);
+    }
+
+    #[test]
+    fn test_missed_tick_rate_precision() {
+        let mut metrics = JitterMetrics::new();
+        // 1 miss in 100_000 ticks = 0.00001 = exactly the 0.001% threshold
+        for _ in 0..99_999 {
+            metrics.record_tick(50_000, false);
+        }
+        metrics.record_tick(500_000, true);
+        let rate = metrics.missed_tick_rate();
+        assert!((rate - 0.00001).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_meets_requirements_boundary() {
+        let mut metrics = JitterMetrics::new();
+        // All low-jitter, no missed ticks -> meets requirements
+        for _ in 0..1000 {
+            metrics.record_tick(100_000, false); // 0.1ms, well under 0.25ms
+        }
+        assert!(metrics.meets_requirements());
+    }
+
+    #[test]
+    fn test_meets_requirements_fails_on_high_p99_jitter() {
+        let mut metrics = JitterMetrics::new();
+        // 99 low samples + enough high samples to push p99 above 250µs
+        for _ in 0..50 {
+            metrics.record_tick(100_000, false);
+        }
+        for _ in 0..50 {
+            metrics.record_tick(300_000, false); // 0.3ms > 0.25ms
+        }
+        // With 50% of samples at 300µs, p99 will be 300µs > 250µs threshold
+        assert!(!metrics.meets_requirements());
+    }
+
+    #[test]
+    fn test_jitter_max_tracking() {
+        let mut metrics = JitterMetrics::new();
+        metrics.record_tick(100, false);
+        metrics.record_tick(999_999, false);
+        metrics.record_tick(500, false);
+        assert_eq!(metrics.max_jitter_ns, 999_999);
+    }
+
+    #[test]
+    fn test_jitter_sum_squared_accumulation() {
+        let mut metrics = JitterMetrics::new();
+        metrics.record_tick(1000, false);
+        metrics.record_tick(2000, false);
+        // sum_squared = 1000^2 + 2000^2 = 1_000_000 + 4_000_000 = 5_000_000
+        assert!((metrics.jitter_sum_squared - 5_000_000.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_ring_buffer_wraps_correctly() {
+        let mut metrics = JitterMetrics::new();
+        metrics.max_samples = 5;
+        metrics.recent_jitter_samples.clear();
+
+        // Fill buffer exactly
+        for i in 1..=5 {
+            metrics.record_tick(i * 100, false);
+        }
+        assert_eq!(metrics.recent_jitter_samples.len(), 5);
+
+        // Overwrite oldest entries
+        for i in 6..=8 {
+            metrics.record_tick(i * 100, false);
+        }
+        assert_eq!(metrics.recent_jitter_samples.len(), 5);
+
+        // Buffer should contain samples 4,5,6,7,8 (*100)
+        let mut sorted = metrics.recent_jitter_samples.clone();
+        sorted.sort_unstable();
+        assert_eq!(sorted, vec![400, 500, 600, 700, 800]);
+    }
+
+    #[test]
+    fn test_ring_buffer_zero_max_samples() {
+        let mut metrics = JitterMetrics::new();
+        metrics.max_samples = 0;
+        metrics.recent_jitter_samples.clear();
+
+        metrics.record_tick(1000, false);
+        // With max_samples=0, no samples should be stored
+        assert!(metrics.recent_jitter_samples.is_empty());
+        // But tick counting still works
+        assert_eq!(metrics.total_ticks, 1);
+    }
+
+    #[test]
+    fn test_pll_reset_clears_state() {
+        let mut pll = PLL::new(1_000_000);
+        let tick = Instant::now();
+        let _ = pll.update(tick);
+        assert!(pll.last_tick.is_some());
+
+        pll.reset();
+        assert_eq!(pll.phase_error_ns(), 0.0);
+        assert!(pll.last_tick.is_none());
+        assert_eq!(pll.estimated_period_ns, 1_000_000.0);
+    }
+
+    #[test]
+    fn test_pll_clamps_to_bounds() {
+        let mut pll = PLL::new(1_000_000);
+        let t1 = Instant::now();
+        let _ = pll.update(t1);
+
+        // Force a huge delay to try pushing estimated period beyond ±10%
+        thread::sleep(Duration::from_millis(10));
+        let t2 = Instant::now();
+        let period = pll.update(t2);
+
+        let min_ns = 900_000u128;
+        let max_ns = 1_100_000u128;
+        assert!(period.as_nanos() >= min_ns);
+        assert!(period.as_nanos() <= max_ns);
+    }
+
+    #[test]
+    fn test_pll_set_target_period() {
+        let mut pll = PLL::new(1_000_000);
+        pll.set_target_period_ns(2_000_000);
+        assert_eq!(pll.target_period_ns(), 2_000_000);
+    }
+
+    #[test]
+    fn test_pll_set_target_period_zero_becomes_one() {
+        let mut pll = PLL::new(1_000_000);
+        pll.set_target_period_ns(0);
+        assert_eq!(pll.target_period_ns(), 1);
+    }
+
+    #[test]
+    fn test_scheduler_tick_count_increments() {
+        let mut scheduler = AbsoluteScheduler::new_1khz();
+        assert_eq!(scheduler.tick_count(), 0);
+
+        // Directly manipulate for unit testing since wait_for_tick has timing deps
+        scheduler.tick_count = 42;
+        assert_eq!(scheduler.tick_count(), 42);
+    }
+
+    #[test]
+    fn test_adaptive_scheduling_disabled_returns_base_period() {
+        let mut scheduler = AbsoluteScheduler::new_1khz();
+        // Adaptive scheduling defaults to disabled
+        let period = scheduler.update_adaptive_target_period(300_000, true);
+        assert_eq!(period, 1_000_000);
+    }
+
+    #[test]
+    fn test_jitter_last_sample_tracked() {
+        let mut metrics = JitterMetrics::new();
+        metrics.record_tick(100, false);
+        assert_eq!(metrics.last_jitter_ns, 100);
+        metrics.record_tick(999, false);
+        assert_eq!(metrics.last_jitter_ns, 999);
+    }
+
+    #[test]
+    fn test_p99_percentile_scratch_reuse() {
+        let mut metrics = JitterMetrics::new();
+        for i in 0..100 {
+            metrics.record_tick(i * 1000, false);
+        }
+        // Call p99 twice — scratch buffer should be reused without error
+        let first = metrics.p99_jitter_ns();
+        let second = metrics.p99_jitter_ns();
+        assert_eq!(first, second);
+    }
 }
