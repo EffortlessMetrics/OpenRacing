@@ -136,7 +136,7 @@ pub type IOHIDValueCallback = unsafe extern "C" fn(
 // Extern "C" declarations — linked via `-framework IOKit -framework CoreFoundation`
 // ---------------------------------------------------------------------------
 
-extern "C" {
+unsafe extern "C" {
     // -- Core Foundation --
     pub fn CFRelease(cf: CFTypeRef);
     pub fn CFRetain(cf: CFTypeRef) -> CFTypeRef;
