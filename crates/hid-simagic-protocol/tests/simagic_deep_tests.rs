@@ -11,22 +11,22 @@
 //! - JacKeTUs/simracing-hwdb: udev database (handbrake PID)
 
 use racing_wheel_hid_simagic_protocol::{
-    self as simagic, CONSTANT_FORCE_REPORT_LEN, DAMPER_REPORT_LEN, FRICTION_REPORT_LEN,
-    SPRING_REPORT_LEN, SimagicConstantForceEncoder, SimagicDamperEncoder, SimagicFrictionEncoder,
-    SimagicSpringEncoder,
+    self as simagic,
     ids::{
-        SIMAGIC_LEGACY_PID, SIMAGIC_LEGACY_VENDOR_ID, SIMAGIC_VENDOR_ID, product_ids, report_ids,
+        product_ids, report_ids, SIMAGIC_LEGACY_PID, SIMAGIC_LEGACY_VENDOR_ID, SIMAGIC_VENDOR_ID,
     },
     settings::{
-        self, AngleLockStrength, Settings1, Settings2, Settings3, Settings4,
-        decode_ring_light, encode_ring_light, encode_settings1, encode_settings2, encode_settings3,
-        encode_settings4, parse_status1,
+        self, decode_ring_light, encode_ring_light, encode_settings1, encode_settings2,
+        encode_settings3, encode_settings4, parse_status1, AngleLockStrength, Settings1, Settings2,
+        Settings3, Settings4,
     },
     types::{
         QuickReleaseStatus, SimagicDeviceCategory, SimagicFfbEffectType, SimagicGear, SimagicModel,
         SimagicPedalAxesRaw,
     },
-    wire,
+    wire, SimagicConstantForceEncoder, SimagicDamperEncoder, SimagicFrictionEncoder,
+    SimagicSpringEncoder, CONSTANT_FORCE_REPORT_LEN, DAMPER_REPORT_LEN, FRICTION_REPORT_LEN,
+    SPRING_REPORT_LEN,
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
