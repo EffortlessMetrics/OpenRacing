@@ -278,6 +278,9 @@ impl RTSetup {
 }
 
 #[cfg(test)]
+mod cross_platform_tests;
+
+#[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
