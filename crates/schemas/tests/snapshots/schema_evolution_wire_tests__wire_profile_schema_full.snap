@@ -1,0 +1,85 @@
+---
+source: crates/schemas/tests/schema_evolution_wire_tests.rs
+expression: val
+---
+{
+  "base": {
+    "dorDeg": 540,
+    "ffbGain": 0.8500000238418579,
+    "filters": {
+      "bumpstop": {
+        "enabled": true,
+        "strength": 0.699999988079071
+      },
+      "curvePoints": [
+        {
+          "input": 0.0,
+          "output": 0.0
+        },
+        {
+          "input": 0.5,
+          "output": 0.699999988079071
+        },
+        {
+          "input": 1.0,
+          "output": 1.0
+        }
+      ],
+      "damper": 0.25,
+      "friction": 0.15000000596046448,
+      "handsOff": {
+        "enabled": false,
+        "sensitivity": 0.5
+      },
+      "inertia": 0.10000000149011612,
+      "notchFilters": [
+        {
+          "gainDb": -12.0,
+          "hz": 60.0,
+          "q": 2.0
+        }
+      ],
+      "reconstruction": 5,
+      "slewRate": 0.6000000238418579,
+      "torqueCap": 18.0
+    },
+    "torqueCapNm": 20.0
+  },
+  "haptics": {
+    "effects": {
+      "abs": true,
+      "tc": false
+    },
+    "enabled": true,
+    "frequencyHz": 150.0,
+    "intensity": 0.6000000238418579
+  },
+  "leds": {
+    "brightness": 0.800000011920929,
+    "colors": {
+      "green": [
+        0,
+        255,
+        0
+      ],
+      "red": [
+        255,
+        0,
+        0
+      ]
+    },
+    "pattern": "progressive",
+    "rpmBands": [
+      0.6000000238418579,
+      0.75,
+      0.8999999761581421
+    ]
+  },
+  "schema": "wheel.profile/1",
+  "scope": {
+    "car": "mx5",
+    "game": "iRacing",
+    "track": "laguna-seca"
+  },
+  "signature": "sig-abc-123"
+}

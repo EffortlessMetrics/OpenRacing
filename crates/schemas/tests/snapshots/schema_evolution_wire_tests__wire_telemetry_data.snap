@@ -1,0 +1,12 @@
+---
+source: crates/schemas/tests/schema_evolution_wire_tests.rs
+expression: val
+---
+{
+  "fault_flags": 0,
+  "hands_on": true,
+  "temperature_c": 42,
+  "timestamp": 12345,
+  "wheel_angle_deg": 45.5,
+  "wheel_speed_rad_s": 1.2000000476837158
+}

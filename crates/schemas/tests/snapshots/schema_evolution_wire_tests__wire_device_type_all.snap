@@ -1,0 +1,13 @@
+---
+source: crates/schemas/tests/schema_evolution_wire_tests.rs
+expression: val
+---
+[
+  "Other",
+  "WheelBase",
+  "SteeringWheel",
+  "Pedals",
+  "Shifter",
+  "Handbrake",
+  "ButtonBox"
+]

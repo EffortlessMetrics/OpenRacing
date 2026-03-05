@@ -1,0 +1,39 @@
+---
+source: crates/schemas/tests/schema_evolution_wire_tests.rs
+expression: val
+---
+{
+  "base": {
+    "dorDeg": 900,
+    "ffbGain": 0.75,
+    "filters": {
+      "bumpstop": {
+        "enabled": true,
+        "strength": 0.5
+      },
+      "curvePoints": [
+        {
+          "input": 0.0,
+          "output": 0.0
+        },
+        {
+          "input": 1.0,
+          "output": 1.0
+        }
+      ],
+      "damper": 0.20000000298023224,
+      "friction": 0.10000000149011612,
+      "handsOff": {
+        "enabled": true,
+        "sensitivity": 0.30000001192092896
+      },
+      "inertia": 0.05000000074505806,
+      "notchFilters": [],
+      "reconstruction": 3,
+      "slewRate": 0.800000011920929
+    },
+    "torqueCapNm": 15.0
+  },
+  "schema": "wheel.profile/1",
+  "scope": {}
+}

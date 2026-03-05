@@ -1,0 +1,35 @@
+---
+source: crates/schemas/tests/schema_evolution_wire_tests.rs
+expression: val
+---
+{
+  "bumpstop": {
+    "damping": 0.30000001192092896,
+    "enabled": true,
+    "max_angle": 540.0,
+    "start_angle": 450.0,
+    "stiffness": 0.800000011920929
+  },
+  "curve_points": [
+    {
+      "input": 0.0,
+      "output": 0.0
+    },
+    {
+      "input": 1.0,
+      "output": 1.0
+    }
+  ],
+  "damper": 0.0,
+  "friction": 0.0,
+  "hands_off": {
+    "enabled": true,
+    "threshold": 0.05000000074505806,
+    "timeout_seconds": 5.0
+  },
+  "inertia": 0.0,
+  "notch_filters": [],
+  "reconstruction": 0,
+  "slew_rate": 1.0,
+  "torque_cap": 1.0
+}

@@ -1,0 +1,31 @@
+---
+source: crates/schemas/tests/schema_evolution_wire_tests.rs
+expression: val
+---
+{
+  "bumpstop": {
+    "enabled": true,
+    "strength": 0.5
+  },
+  "curvePoints": [
+    {
+      "input": 0.0,
+      "output": 0.0
+    },
+    {
+      "input": 1.0,
+      "output": 1.0
+    }
+  ],
+  "damper": 0.0,
+  "friction": 0.0,
+  "handsOff": {
+    "enabled": true,
+    "sensitivity": 0.30000001192092896
+  },
+  "inertia": 0.0,
+  "notchFilters": [],
+  "reconstruction": 0,
+  "slewRate": 1.0,
+  "torqueCap": 10.0
+}
