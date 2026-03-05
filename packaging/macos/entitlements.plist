@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- USB HID device access for racing wheel communication -->
+    <key>com.apple.security.device.usb-hid</key>
+    <true/>
+
+    <!-- Network client access for game telemetry integration -->
+    <key>com.apple.security.network.client</key>
+    <true/>
+
+    <!-- Network server access for IPC and telemetry listeners -->
+    <key>com.apple.security.network.server</key>
+    <true/>
+
+    <!-- Hardened runtime: allow unsigned executable memory for JIT (WASM plugins) -->
+    <key>com.apple.security.cs.allow-jit</key>
+    <true/>
+
+    <!-- Hardened runtime: allow loading unsigned plugins -->
+    <key>com.apple.security.cs.disable-library-validation</key>
+    <true/>
+</dict>
+</plist>
