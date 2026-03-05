@@ -1,0 +1,17 @@
+---
+source: crates/openracing-ipc/tests/version_wire_format_tests.rs
+expression: json
+---
+{
+  "version": {
+    "major": 1,
+    "minor": 0,
+    "patch": 0
+  },
+  "features": 255,
+  "min_version": {
+    "major": 1,
+    "minor": 0,
+    "patch": 0
+  }
+}

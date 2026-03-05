@@ -1,0 +1,5 @@
+---
+source: crates/openracing-ipc/tests/version_wire_format_tests.rs
+expression: json
+---
+5
