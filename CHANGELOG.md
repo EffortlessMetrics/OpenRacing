@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- 37 adaptive scheduling tests: dynamic thread priority, load-based frequency adjustment, cross-platform RT scheduling policy validation (#160)
+- 57 IPC versioning and compatibility tests: version negotiation roundtrips, backward/forward compat, wire format stability, feature matrix validation (#161)
 - 117 HID device capture and replay validation tests: capture format roundtrip, replay timing fidelity, capture pipeline lifecycle across 3 test suites (#157)
 - 84 performance gate validation and RT timing tests: benchmark types, RT scheduling assertions, validate_performance.py script coverage (#156)
 - 48 packaging tests: udev rules format validation, service config verification, installer packaging across CLI, integration-tests, and service crates (#155)
@@ -66,6 +68,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CI: removed hardcoded CARGO_HOME path for cross-platform integration tests (#97)
 
 ### Added
+- 37 adaptive scheduling tests: dynamic thread priority, load-based frequency adjustment, cross-platform RT scheduling policy validation (#160)
+- 57 IPC versioning and compatibility tests: version negotiation roundtrips, backward/forward compat, wire format stability, feature matrix validation (#161)
 
 - **Linux hwdb entries for joystick classification** — 133 device entries across 20+ manufacturers; prevents Linux from misclassifying pedals as accelerometers, fixing SDL/Proton/Steam detection issues (PR #79)
 - **Simagic EVO ALWAYS_POLL kernel quirk** — EVO Sport (`0x0500`), EVO (`0x0501`), EVO Pro (`0x0502`) added to modprobe quirks file; prevents infinite disconnect/reconnect cycle (PR #80)
@@ -179,6 +183,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`deny.toml` updated for cargo-deny 0.19**: license violation resolutions and advisory configuration updated to match current toolchain
 
 ### Added
+- 37 adaptive scheduling tests: dynamic thread priority, load-based frequency adjustment, cross-platform RT scheduling policy validation (#160)
+- 57 IPC versioning and compatibility tests: version negotiation roundtrips, backward/forward compat, wire format stability, feature matrix validation (#161)
 
 - **FMEA deep fault injection tests** — 22 new scenarios covering corrupted HID reports, rapid connect/disconnect, communication timeout recovery, encoder health monitoring, concurrent fault escalation, and thermal hysteresis (PR #94)
 - **Protocol robustness tests** — 135 tests verifying all vendor HID parsers handle malformed, truncated, and corrupted input without panicking (PR #96)
@@ -197,6 +203,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.0-rc.1] - 2026-11-01
 
 ### Added
+- 37 adaptive scheduling tests: dynamic thread priority, load-based frequency adjustment, cross-platform RT scheduling policy validation (#160)
+- 57 IPC versioning and compatibility tests: version negotiation roundtrips, backward/forward compat, wire format stability, feature matrix validation (#161)
 
 - **16 HID vendor protocol SRP microcrates** — pure protocol logic with zero engine coupling, each independently testable and fuzzable:
   - **Thrustmaster** (VID `0x044F`): T150, T150 Pro, TMX, T300RS/GT, TX Racing, T500RS, T248/T248X, T-GT/T-GT II, TS-PC Racer, TS-XW, T818 (direct drive), T3PA/T3PA Pro, T-LCM/T-LCM Pro pedals
@@ -375,6 +383,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.0] - 2026-10-15
 
 ### Added
+- 37 adaptive scheduling tests: dynamic thread priority, load-based frequency adjustment, cross-platform RT scheduling policy validation (#160)
+- 57 IPC versioning and compatibility tests: version negotiation roundtrips, backward/forward compat, wire format stability, feature matrix validation (#161)
 
 - **Production Safety Interlocks**: FMEA-validated safety system
   - Hardware watchdog integration with 100ms timeout
@@ -429,6 +439,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.3.0] - 2026-02-01
 
 ### Added
+- 37 adaptive scheduling tests: dynamic thread priority, load-based frequency adjustment, cross-platform RT scheduling policy validation (#160)
+- 57 IPC versioning and compatibility tests: version negotiation roundtrips, backward/forward compat, wire format stability, feature matrix validation (#161)
 
 - **WASM Plugin Runtime**: Sandboxed plugin execution using wasmtime
   - Memory and CPU resource limits for plugin isolation
@@ -480,6 +492,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.2.0] - 2026-02-01
 
 ### Added
+- 37 adaptive scheduling tests: dynamic thread priority, load-based frequency adjustment, cross-platform RT scheduling policy validation (#160)
+- 57 IPC versioning and compatibility tests: version negotiation roundtrips, backward/forward compat, wire format stability, feature matrix validation (#161)
 
 - **Windows HID Driver**: Full Windows HID device support with overlapped I/O
   - Real device enumeration using hidapi for all supported wheel manufacturers
@@ -517,6 +531,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.1.0] - 2025-01-01
 
 ### Added
+- 37 adaptive scheduling tests: dynamic thread priority, load-based frequency adjustment, cross-platform RT scheduling policy validation (#160)
+- 57 IPC versioning and compatibility tests: version negotiation roundtrips, backward/forward compat, wire format stability, feature matrix validation (#161)
 
 - **Core FFB Engine**: Real-time force feedback processing at 1kHz with deterministic latency
   - Zero-allocation real-time path for memory-safe processing
