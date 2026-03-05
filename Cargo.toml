@@ -46,6 +46,7 @@ members = [
     "crates/openracing-firmware-update",
     "crates/openracing-ipc",
     "crates/openracing-diagnostic",
+    "crates/openracing-process-detection",
     "crates/openracing-device-types",
     "crates/openracing-hid-common",
     "crates/openracing-shifter",
@@ -141,6 +142,7 @@ openracing-profile-repository = { path = "crates/openracing-profile-repository" 
 openracing-firmware-update = { path = "crates/openracing-firmware-update" }
 openracing-ipc = { path = "crates/openracing-ipc" }
 openracing-diagnostic = { path = "crates/openracing-diagnostic" }
+openracing-process-detection = { path = "crates/openracing-process-detection" }
 openracing-device-types = { path = "crates/openracing-device-types" }
 openracing-hid-common = { path = "crates/openracing-hid-common" }
 openracing-shifter = { path = "crates/openracing-shifter" }

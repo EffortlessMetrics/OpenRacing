@@ -4530,6 +4530,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "openracing-process-detection"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "tokio",
+ "tracing",
+ "winapi",
+]
+
+[[package]]
 name = "openracing-profile"
 version = "0.1.0"
 dependencies = [
@@ -6016,6 +6026,7 @@ dependencies = [
  "num_cpus",
  "openracing-errors",
  "openracing-ipc",
+ "openracing-process-detection",
  "openracing-profile-repository",
  "os_info",
  "prometheus",
