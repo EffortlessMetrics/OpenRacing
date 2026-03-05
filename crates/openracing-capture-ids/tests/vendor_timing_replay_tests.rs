@@ -5,11 +5,9 @@
 //! report streams, replay validation pipeline (decode success/failure stats),
 //! multi-vendor interleaved captures, and edge cases.
 
-use openracing_capture_ids::replay::{
-    CapturedReport, decode_hex, parse_capture_line, parse_vid_str,
-};
+use openracing_capture_ids::replay::CapturedReport;
 use openracing_capture_ids::{
-    DetectedVendor, analyze_capture_timing, decode_report, detect_vendor_from_vid,
+    DetectedVendor, analyze_capture_timing, detect_vendor_from_vid,
     detect_vendor_from_vid_str, validate_replay_pipeline, vendor_label,
 };
 
