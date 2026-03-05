@@ -605,7 +605,7 @@ fn parse_boundary_sweep_all_u16_at_intervals() -> HeusinkveldResult<()> {
         let report = HeusinkveldInputReport::parse(&raw)?;
         assert_eq!(report.throttle, i);
         let norm = report.throttle_normalized();
-        assert!(norm >= 0.0 && norm <= 1.0);
+        assert!((0.0..=1.0).contains(&norm));
         if i >= u16::MAX - 256 {
             break;
         }
