@@ -14,7 +14,7 @@ OpenRacing is a high-performance, safety-critical racing wheel and force feedbac
 ## Features
 
 - **Real-time Force Feedback at 1kHz** - Deterministic processing pipeline with sub-millisecond latency for authentic racing feel
-- **Multi-Game Integration** - Native support for 50+ simulators including iRacing, ACC, AMS2, rFactor 2, Forza, BeamNG.drive, Gran Turismo 7, Euro Truck Simulator 2, EA WRC, F1 25, and more
+- **Multi-Game Integration** - Native support for 60+ simulators including iRacing, ACC, AMS2, rFactor 2, Forza, BeamNG.drive, Gran Turismo 7, Euro Truck Simulator 2, EA WRC, F1 25, and more
 - **Safety-Critical Design** - Comprehensive fault injection testing, FMEA analysis, hardware watchdog integration, and 25,500+ tests
 - **Plugin Architecture** - Extensible plugin system supporting both WASM and native plugins for custom DSP, telemetry, and LED effects
 - **Cross-Platform Support** - Runs on Windows 10+, Linux kernel 4.0+, and macOS with consistent behavior
@@ -24,7 +24,7 @@ OpenRacing is a high-performance, safety-critical racing wheel and force feedbac
 
 ## Supported Hardware
 
-OpenRacing supports 100+ devices across 25+ vendors. VID/PIDs are sourced from kernel drivers, community hardware databases, and manufacturer documentation.
+OpenRacing supports 150+ devices across 28 vendors. VID/PIDs are sourced from kernel drivers, community hardware databases, and manufacturer documentation.
 
 | Vendor | VID | Models | FFB |
 |--------|-----|--------|-----|
@@ -53,7 +53,7 @@ OpenRacing supports 100+ devices across 25+ vendors. VID/PIDs are sourced from k
 
 ## Supported Games
 
-OpenRacing includes telemetry adapters for 50+ racing games and simulators:
+OpenRacing includes telemetry adapters for 60+ racing games and simulators:
 
 | Game | Method | Port/Key |
 |------|--------|----------|

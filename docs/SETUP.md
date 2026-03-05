@@ -120,7 +120,7 @@ dev-0       Moza Racing     R9 V2                   connected
 
 ### Supported devices
 
-OpenRacing supports the following 15 vendors and their product lines out of the box.
+OpenRacing supports 28 vendors with 150+ unique VID/PID pairs out of the box. The 15 primary wheelbase vendors are listed below; 13 additional peripheral-only vendors (pedals, shifters, handbrakes) are also supported — see [Device Support](DEVICE_SUPPORT.md) for the full matrix.
 
 | Vendor | USB VID | Representative models | FFB support |
 |--------|---------|----------------------|-------------|
