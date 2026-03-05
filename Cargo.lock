@@ -4206,6 +4206,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "openracing-binary-signature"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "goblin",
+ "serde_json",
+ "tracing",
+]
+
+[[package]]
 name = "openracing-calibration"
 version = "0.1.0"
 dependencies = [
@@ -4242,9 +4252,9 @@ dependencies = [
  "chrono",
  "criterion",
  "ed25519-dalek",
- "goblin",
  "hex",
  "insta",
+ "openracing-binary-signature",
  "proptest",
  "rand 0.8.5",
  "serde",
@@ -6006,7 +6016,6 @@ dependencies = [
  "ed25519-dalek",
  "flate2",
  "futures",
- "goblin",
  "hex",
  "hidapi",
  "insta",
@@ -6014,6 +6023,7 @@ dependencies = [
  "libudev",
  "metrics",
  "num_cpus",
+ "openracing-binary-signature",
  "openracing-errors",
  "openracing-ipc",
  "openracing-profile-repository",

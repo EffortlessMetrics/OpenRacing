@@ -114,18 +114,6 @@ pub mod utils {
     /// Signature file extension
     pub const SIGNATURE_EXTENSION: &str = "sig";
 
-    /// Section name for embedded signatures in PE binaries (Windows)
-    pub const PE_SIGNATURE_SECTION: &str = ".orsig";
-
-    /// Section name for embedded signatures in ELF binaries (Linux)
-    pub const ELF_SIGNATURE_SECTION: &str = ".note.openracing.sig";
-
-    /// Section name for embedded signatures in Mach-O binaries (macOS)
-    pub const MACHO_SIGNATURE_SECTION: &str = "__orsig";
-
-    /// Mach-O segment containing the signature section
-    pub const MACHO_SIGNATURE_SEGMENT: &str = "__DATA";
-
     /// Get the signature file path for a given content file
     pub fn get_signature_path(content_path: &Path) -> std::path::PathBuf {
         let mut sig_path = content_path.to_path_buf();
@@ -228,140 +216,17 @@ pub mod utils {
     pub fn extract_embedded_signature(
         file_path: &Path,
     ) -> anyhow::Result<Option<SignatureMetadata>> {
-        use goblin::Object;
+        use openracing_binary_signature::extract_embedded_signature_payload;
         use tracing::debug;
 
-        let file_data =
-            std::fs::read(file_path).context("Failed to read file for signature extraction")?;
-
-        let object = match Object::parse(&file_data) {
-            Ok(obj) => obj,
-            Err(_) => {
-                return Ok(None);
-            }
-        };
-
-        let section_data = match object {
-            Object::PE(pe) => {
-                debug!("Checking PE binary for embedded signature");
-                extract_pe_signature_section(&pe, &file_data)
-            }
-            Object::Elf(elf) => {
-                debug!("Checking ELF binary for embedded signature");
-                extract_elf_signature_section(&elf, &file_data)
-            }
-            Object::Mach(mach) => {
-                debug!("Checking Mach-O binary for embedded signature");
-                extract_macho_signature_section(&mach, &file_data)
-            }
-            _ => None,
-        };
-
-        match section_data {
+        match extract_embedded_signature_payload(file_path)? {
             Some(data) => {
-                let metadata: SignatureMetadata = serde_json::from_slice(data)
+                let metadata: SignatureMetadata = serde_json::from_slice(&data)
                     .context("Failed to parse embedded signature metadata")?;
                 debug!("Found embedded signature from signer: {}", metadata.signer);
                 Ok(Some(metadata))
             }
             None => Ok(None),
         }
-    }
-
-    fn extract_pe_signature_section<'a>(
-        pe: &goblin::pe::PE<'_>,
-        file_data: &'a [u8],
-    ) -> Option<&'a [u8]> {
-        for section in &pe.sections {
-            let name = String::from_utf8_lossy(&section.name);
-            let name = name.trim_end_matches('\0');
-            if name == PE_SIGNATURE_SECTION {
-                let start = section.pointer_to_raw_data as usize;
-                let size = section.size_of_raw_data as usize;
-                if start + size <= file_data.len() {
-                    let data = &file_data[start..start + size];
-                    let trimmed = trim_null_bytes(data);
-                    if !trimmed.is_empty() {
-                        return Some(trimmed);
-                    }
-                }
-            }
-        }
-        None
-    }
-
-    fn extract_elf_signature_section<'a>(
-        elf: &goblin::elf::Elf<'_>,
-        file_data: &'a [u8],
-    ) -> Option<&'a [u8]> {
-        for section in &elf.section_headers {
-            if let Some(name) = elf.shdr_strtab.get_at(section.sh_name)
-                && name == ELF_SIGNATURE_SECTION
-            {
-                let start = section.sh_offset as usize;
-                let size = section.sh_size as usize;
-                if start + size <= file_data.len() {
-                    let data = &file_data[start..start + size];
-                    let trimmed = trim_null_bytes(data);
-                    if !trimmed.is_empty() {
-                        return Some(trimmed);
-                    }
-                }
-            }
-        }
-        None
-    }
-
-    fn extract_macho_signature_section<'a>(
-        mach: &goblin::mach::Mach<'_>,
-        file_data: &'a [u8],
-    ) -> Option<&'a [u8]> {
-        match mach {
-            goblin::mach::Mach::Binary(macho) => extract_macho_binary_signature(macho, file_data),
-            goblin::mach::Mach::Fat(fat) => {
-                for arch in fat.iter_arches().flatten() {
-                    if let Ok(macho) = goblin::mach::MachO::parse(file_data, arch.offset as usize)
-                        && let Some(data) = extract_macho_binary_signature(&macho, file_data)
-                    {
-                        return Some(data);
-                    }
-                }
-                None
-            }
-        }
-    }
-
-    fn extract_macho_binary_signature<'a>(
-        macho: &goblin::mach::MachO<'_>,
-        file_data: &'a [u8],
-    ) -> Option<&'a [u8]> {
-        for segment in &macho.segments {
-            if let Ok(name) = segment.name()
-                && name == MACHO_SIGNATURE_SEGMENT
-                && let Ok(sections) = segment.sections()
-            {
-                for (section, _data) in sections {
-                    if let Ok(sect_name) = section.name()
-                        && sect_name == MACHO_SIGNATURE_SECTION
-                    {
-                        let start = section.offset as usize;
-                        let size = section.size as usize;
-                        if start + size <= file_data.len() {
-                            let data = &file_data[start..start + size];
-                            let trimmed = trim_null_bytes(data);
-                            if !trimmed.is_empty() {
-                                return Some(trimmed);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        None
-    }
-
-    fn trim_null_bytes(data: &[u8]) -> &[u8] {
-        let end = data.iter().rposition(|&b| b != 0).map_or(0, |i| i + 1);
-        &data[..end]
     }
 }

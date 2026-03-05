@@ -28,6 +28,7 @@ racing-wheel-telemetry-recorder = { path = "../telemetry-recorder" }
 racing-wheel-telemetry-config = { path = "../telemetry-config" }
 racing-wheel-changelog = { workspace = true }
 openracing-errors = { workspace = true }
+openracing-binary-signature = { workspace = true }
 openracing-profile-repository = { workspace = true }
 openracing-ipc = { workspace = true }
 tokio = { workspace = true }
@@ -53,7 +54,6 @@ base64 = "0.22.1"
 sha2 = "0.10.9"
 walkdir = "2.5.0"
 hex = "0.4.3"
-goblin = "0.9"
 semver = { version = "1.0.27", features = ["serde"] }
 flate2 = "1.1.8"
 futures = "0.3.31"

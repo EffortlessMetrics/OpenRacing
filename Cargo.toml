@@ -34,6 +34,7 @@ members = [
     "crates/openracing-filters",
     "crates/openracing-pipeline",
     "crates/openracing-crypto",
+    "crates/openracing-binary-signature",
     "crates/openracing-plugin-abi",
     "crates/openracing-native-plugin",
     "crates/openracing-wasm-runtime",
@@ -130,6 +131,7 @@ openracing-errors = { path = "crates/openracing-errors" }
 openracing-filters = { path = "crates/openracing-filters" }
 openracing-pipeline = { path = "crates/openracing-pipeline" }
 openracing-crypto = { path = "crates/openracing-crypto" }
+openracing-binary-signature = { path = "crates/openracing-binary-signature" }
 openracing-plugin-abi = { path = "crates/openracing-plugin-abi" }
 openracing-native-plugin = { path = "crates/openracing-native-plugin" }
 openracing-wasm-runtime = { path = "crates/openracing-wasm-runtime" }
