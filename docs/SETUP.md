@@ -17,16 +17,16 @@ This guide covers everything you need to get OpenRacing up and running with your
 
 ## 1. Prerequisites
 
-### Rust (latest stable)
+### Rust (nightly)
 
-OpenRacing is built in Rust. Install the latest stable toolchain from [rustup.rs](https://rustup.rs/):
+OpenRacing is built in Rust. Install the toolchain from [rustup.rs](https://rustup.rs/):
 
 ```bash
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 # Windows: download and run https://win.rustup.rs
 ```
 
-Minimum supported version: **Rust 1.85.0** (nightly toolchain required; see `rust-toolchain.toml`).
+The project uses a **nightly** toolchain pinned in `rust-toolchain.toml`. Rustup will automatically install the correct version when you build.
 
 ### Git
 
@@ -40,7 +40,7 @@ git --version   # must be present to clone the repository
 |----------|----------------|-------|
 | **Windows** | Windows 10 (build 1903+) | Visual C++ Redistributable required |
 | **Linux** | Kernel 4.0+ | udev rules required for USB device access |
-| **macOS** | macOS 10.15 (Catalina)+ | IOKit HID access required |
+| **macOS** | macOS 10.15 (Catalina)+ | Compiles; IOKit HID driver not yet implemented (no device I/O) |
 
 ---
 
@@ -62,7 +62,7 @@ sudo udevadm control --reload-rules
 sudo udevadm trigger
 ```
 
-**macOS** — open the `.dmg` and drag OpenRacing to `/Applications`.
+**macOS** — macOS support is compile-only; the IOKit HID driver is not yet implemented. Build from source to experiment.
 
 ### From source
 
@@ -135,7 +135,7 @@ OpenRacing supports 28 vendors with 150+ unique VID/PID pairs out of the box. Th
 | **Heusinkveld** | `0x04D8` | Sprint, Ultimate+, Pro pedals | Input only |
 | **Cammus** | `0x3416` | C5, C12 direct drive | ✅ HID PIDFF |
 | **Leo Bodnar** | `0x1DD2` | USB sim racing interfaces, load-cell brake controllers | Input only |
-| **Asetek SimSports** | `0x2433` | Forte (20 Nm), Invicta (15 Nm), LaPrima (10 Nm) | ✅ HID PIDFF |
+| **Asetek SimSports** | `0x2433` | Forte (18 Nm), Invicta (27 Nm), La Prima (12 Nm) | ✅ HID PIDFF |
 | **OpenFFBoard** | `0x1209` | All production firmware variants | ✅ HID PIDFF |
 | **FFBeast** | `0x045B` | Joystick, rudder, wheel builds | ✅ HID PIDFF |
 | **AccuForce** | `0x1FC9` | SimExperience AccuForce Pro | ✅ HID PIDFF |
@@ -187,6 +187,8 @@ Run `wheelctl game list` to see the full list of `game_id` values.
 | Forza Motorsport / Forza Horizon | `forza_motorsport` | ✅ Stable | Forza Data Out UDP (port 5300) |
 | BeamNG.drive | `beamng_drive` | ✅ Stable | UDP OutGauge (port 4444) |
 | Project CARS 2 | `project_cars_2` | ✅ Stable | Shared memory |
+| Project CARS 3 | `project_cars_3` | ✅ Stable | Shared memory |
+| F1 Manager | `f1_manager` | ✅ Stable | Codemasters UDP |
 | Automobilista 2 | `ams2` | 🧪 Experimental | Shared memory |
 | rFactor 2 | `rfactor2` | 🧪 Experimental | Shared memory |
 | F1 24 / F1 25 (Codemasters bridge) | `f1` | 🧪 Experimental | Codemasters UDP (port 20777) |
@@ -200,15 +202,44 @@ Run `wheelctl game list` to see the full list of `game_id` values.
 | Richard Burns Rally | `rbr` | 🧪 Experimental | UDP live data (port 6776) |
 | RaceRoom Racing Experience | `raceroom` | 🧪 Experimental | R3E shared memory |
 | Live For Speed | `live_for_speed` | 🧪 Experimental | OutSim / OutGauge UDP |
-| Euro Truck Simulator 2 | `euro_truck_simulator_2` | 🧪 Experimental | SCS SDK shared memory |
-| American Truck Simulator | `american_truck_simulator` | 🧪 Experimental | SCS SDK shared memory |
+| Euro Truck Simulator 2 | `ets2` | 🧪 Experimental | SCS SDK shared memory |
+| American Truck Simulator | `ats` | 🧪 Experimental | SCS SDK shared memory |
 | Wreckfest | `wreckfest` | 🧪 Experimental | UDP telemetry |
 | Rennsport | `rennsport` | 🧪 Experimental | UDP telemetry |
 | GRID Autosport | `grid_autosport` | 🧪 Experimental | Codemasters UDP |
 | GRID (2019) | `grid_2019` | 🧪 Experimental | Codemasters UDP |
 | GRID Legends | `grid_legends` | 🧪 Experimental | Codemasters UDP |
-| Automobilista 1 | `automobilista_1` | 🧪 Experimental | UDP / shared memory |
+| Automobilista 1 | `automobilista` | 🧪 Experimental | rFactor-style shared memory |
 | KartKraft | `kartkraft` | 🧪 Experimental | UDP telemetry |
+| ACC 2 | `acc2` | 🧪 Experimental | Shared memory |
+| AC EVO | `ac_evo` | 🧪 Experimental | Shared memory |
+| Gran Turismo Sport | `gran_turismo_sport` | 🧪 Experimental | PlayStation UDP |
+| Le Mans Ultimate | `le_mans_ultimate` | 🧪 Experimental | Shared memory |
+| rFactor 1 | `rfactor1` | 🧪 Experimental | Shared memory |
+| Forza Horizon 4 | `forza_horizon_4` | ✅ Stable | Forza Data Out UDP (port 5300) |
+| Forza Horizon 5 | `forza_horizon_5` | ✅ Stable | Forza Data Out UDP (port 5300) |
+| MotoGP | `motogp` | 🧪 Experimental | Codemasters-style UDP |
+| RIDE 5 | `ride5` | 🧪 Experimental | Codemasters-style UDP |
+| Dakar Desert Rally | `dakar_desert_rally` | 🧪 Experimental | Codemasters UDP |
+| Race Driver: GRID | `race_driver_grid` | 🧪 Experimental | Codemasters UDP |
+| V-Rally 4 | `v_rally_4` | 🧪 Experimental | Codemasters-style UDP |
+| Sébastien Loeb Rally EVO | `seb_loeb_rally` | 🧪 Experimental | Codemasters-style UDP |
+| WRC 9 | `wrc_9` | 🧪 Experimental | Kylotonn UDP |
+| WRC 10 | `wrc_10` | 🧪 Experimental | Kylotonn UDP |
+| WTCR | `wtcr` | 🧪 Experimental | Kylotonn UDP |
+| Gravel | `gravel` | 🧪 Experimental | Codemasters UDP |
+| DiRT Showdown | `dirt_showdown` | 🧪 Experimental | Codemasters UDP |
+| DiRT 3 | `dirt3` | 🧪 Experimental | Codemasters UDP |
+| NASCAR (Papyrus) | `nascar` | 🧪 Experimental | Custom UDP |
+| NASCAR 21 | `nascar_21` | 🧪 Experimental | Custom UDP |
+| FlatOut | `flatout` | 🧪 Experimental | Custom UDP |
+| Trackmania | `trackmania` | 🧪 Experimental | Plugin telemetry |
+| MudRunner | `mudrunner` | 🧪 Experimental | Custom telemetry |
+| SnowRunner | `snowrunner` | 🧪 Experimental | Custom telemetry |
+| Game Stock Car | `gsc` | 🧪 Experimental | rFactor-style shared memory |
+| GTR2 | `gtr2` | 🧪 Experimental | rFactor-style shared memory |
+| Race 07 | `race_07` | 🧪 Experimental | rFactor-style shared memory |
+| SimHub (bridge) | `simhub` | 🧪 Experimental | JSON UDP (port 5555) |
 
 > **Note:** Experimental games receive telemetry and display data but may have limited or no force feedback output until the integration matures. Check the [CHANGELOG](../CHANGELOG.md) for updates.
 
