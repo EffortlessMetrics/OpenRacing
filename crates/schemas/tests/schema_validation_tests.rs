@@ -1039,8 +1039,9 @@ mod proptest_schemas {
         }
 
         #[test]
-        fn device_id_rejects_invalid_characters(s in "[^a-zA-Z0-9_-]+") {
-            if !s.is_empty() && !s.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_') {
+        fn device_id_rejects_invalid_characters(s in "[!@#$%^&*()+=\\[\\]{}<>|;:',./? ]+") {
+            // These characters are never alphanumeric (even in Unicode) so should always be rejected.
+            if !s.trim().is_empty() {
                 let result: Result<DeviceId, _> = s.parse();
                 prop_assert!(result.is_err());
             }
