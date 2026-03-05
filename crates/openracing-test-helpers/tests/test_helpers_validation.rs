@@ -1167,6 +1167,7 @@ mod prelude_validation {
         Ok(())
     }
 
+    #[cfg(feature = "fixtures")]
     #[test]
     fn prelude_fixtures_available() -> TestResult {
         let devices = get_device_fixtures();
