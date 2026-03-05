@@ -437,7 +437,7 @@ impl TelemetryRecording {
         Ok(out)
     }
 
-    /// Import a recording from the compact binary format produced by [`to_binary`].
+    /// Import a recording from the compact binary format produced by [`Self::to_binary`].
     pub fn from_binary(bytes: &[u8]) -> anyhow::Result<Self> {
         if bytes.len() < 4 {
             return Err(anyhow::anyhow!("binary data too short"));
