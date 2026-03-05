@@ -200,7 +200,11 @@ pub struct RolloutProgress {
     pub warnings: Vec<String>,
 }
 
-/// Trait for device registry to get device handles
+/// Trait for device registry to resolve device handles by ID.
+///
+/// The staged rollout manager uses a device registry to look up individual
+/// devices when executing update stages. Implementations typically wrap
+/// a device discovery service or in-memory device cache.
 #[async_trait::async_trait]
 pub trait DeviceRegistry: Send + Sync {
     /// Get a device handle by ID
@@ -213,7 +217,27 @@ pub trait DeviceRegistry: Send + Sync {
     async fn is_device_available(&self, device_id: &str) -> bool;
 }
 
-/// Staged rollout manager
+/// Staged rollout manager for controlled firmware deployment.
+///
+/// Deploys firmware updates to a fleet of devices in progressively larger
+/// stages, monitoring success rates between stages and automatically
+/// rolling back if the error rate exceeds the configured threshold.
+///
+/// # Rollout Process
+///
+/// 1. **Plan creation** — Devices are divided into stages with exponentially
+///    increasing sizes (starting from [`StagedRolloutConfig::stage1_max_devices`]).
+/// 2. **Stage execution** — Each stage updates its devices via the underlying
+///    [`FirmwareUpdateManager`].
+/// 3. **Monitoring** — After each stage, the success rate is checked against
+///    `min_success_rate` before proceeding.
+/// 4. **Rollback** — If the error rate exceeds `max_error_rate`, the rollout
+///    is paused and devices are rolled back.
+///
+/// # Progress Reporting
+///
+/// Subscribe to the broadcast channel via [`subscribe_progress`](Self::subscribe_progress)
+/// to receive [`RolloutProgress`] events.
 pub struct StagedRolloutManager {
     #[allow(dead_code)]
     firmware_manager: FirmwareUpdateManager,
@@ -239,7 +263,15 @@ impl StagedRolloutManager {
         }
     }
 
-    /// Create a rollout plan for firmware deployment
+    /// Create a rollout plan for deploying firmware to a set of devices.
+    ///
+    /// Divides the target devices into stages with exponentially increasing
+    /// sizes. The plan is stored internally and can be executed later.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if stage creation fails (e.g., empty device list
+    /// with staging enabled).
     pub async fn create_rollout_plan(
         &self,
         firmware: &FirmwareImage,

@@ -1,8 +1,18 @@
-//! Error types for firmware update operations
+//! Error types for firmware update operations.
+//!
+//! All error variants carry a descriptive message string. The error type
+//! implements [`std::error::Error`] via `thiserror` for convenient error
+//! chaining with `anyhow`.
 
 use thiserror::Error;
 
-/// Errors that can occur during firmware update operations
+/// Errors that can occur during firmware update operations.
+///
+/// Covers the full update lifecycle: discovery, verification, transfer,
+/// validation, activation, and rollback. Several variants
+/// (e.g., [`RollbackFailed`](Self::RollbackFailed),
+/// [`HealthCheckFailed`](Self::HealthCheckFailed)) indicate critical
+/// failure states that may require manual device recovery.
 #[derive(Error, Debug)]
 pub enum FirmwareUpdateError {
     /// Device not found

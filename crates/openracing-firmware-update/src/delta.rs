@@ -6,7 +6,11 @@ use anyhow::{Context, Result};
 use std::io::{Read, Write};
 use std::path::Path;
 
-/// Compress data for storage in update packages
+/// Compress data using gzip for storage in firmware update packages.
+///
+/// # Errors
+///
+/// Returns an error if compression fails due to I/O issues.
 pub fn compress_data(data: &[u8]) -> Result<Vec<u8>> {
     use flate2::{Compression, write::GzEncoder};
 
@@ -18,7 +22,11 @@ pub fn compress_data(data: &[u8]) -> Result<Vec<u8>> {
     encoder.finish().context("Failed to finish compression")
 }
 
-/// Decompress data from update packages
+/// Decompress gzip-compressed data from firmware update packages.
+///
+/// # Errors
+///
+/// Returns an error if the data is not valid gzip or decompression fails.
 pub fn decompress_data(compressed_data: &[u8]) -> Result<Vec<u8>> {
     use flate2::read::GzDecoder;
 
@@ -32,7 +40,14 @@ pub fn decompress_data(compressed_data: &[u8]) -> Result<Vec<u8>> {
     Ok(decompressed)
 }
 
-/// Compute SHA256 hash of a file
+/// Compute the SHA-256 hash of a file, returned as a hex string.
+///
+/// Reads the file in 8 KiB chunks to avoid loading the entire file into
+/// memory at once.
+///
+/// # Errors
+///
+/// Returns an error if the file cannot be opened or read.
 pub async fn compute_file_hash(file_path: &Path) -> Result<String> {
     use sha2::{Digest, Sha256};
     use tokio::io::AsyncReadExt;
@@ -60,7 +75,7 @@ pub async fn compute_file_hash(file_path: &Path) -> Result<String> {
     Ok(hex::encode(hasher.finalize()))
 }
 
-/// Compute SHA256 hash of data
+/// Compute the SHA-256 hash of in-memory data, returned as a hex string.
 pub fn compute_data_hash(data: &[u8]) -> String {
     use sha2::{Digest, Sha256};
 
@@ -69,7 +84,14 @@ pub fn compute_data_hash(data: &[u8]) -> String {
     hex::encode(hasher.finalize())
 }
 
-/// Create a binary delta patch between two files
+/// Create a compressed binary delta patch between two firmware files.
+///
+/// Reads both files, computes a simple copy/insert patch in `WSPATCH1`
+/// format, then compresses the result with gzip.
+///
+/// # Errors
+///
+/// Returns an error if either file cannot be read or compression fails.
 pub async fn create_delta_patch(old_file: &Path, new_file: &Path) -> Result<Vec<u8>> {
     let old_data = tokio::fs::read(old_file)
         .await
@@ -84,7 +106,16 @@ pub async fn create_delta_patch(old_file: &Path, new_file: &Path) -> Result<Vec<
     compress_data(&patch)
 }
 
-/// Apply a binary delta patch to a file
+/// Apply a compressed binary delta patch to a firmware file in-place.
+///
+/// Decompresses the patch, reads the current file contents, applies the
+/// `WSPATCH1` patch operations, and writes the result back to the same file.
+///
+/// # Errors
+///
+/// Returns an error if decompression fails, the patch format is invalid,
+/// the target file cannot be read/written, or the resulting data size does
+/// not match the expected output size recorded in the patch header.
 pub async fn apply_delta_patch(target_file: &Path, compressed_patch: &[u8]) -> Result<()> {
     let patch = decompress_data(compressed_patch).context("Failed to decompress delta patch")?;
 
@@ -101,7 +132,19 @@ pub async fn apply_delta_patch(target_file: &Path, compressed_patch: &[u8]) -> R
     Ok(())
 }
 
-/// Create a simple binary patch
+/// Create a simple binary patch in `WSPATCH1` format.
+///
+/// The patch format uses two operation types:
+/// - **Copy** (`0x01`): Copy a run of ≥4 matching bytes from the old data.
+/// - **Insert** (`0x02`): Insert a single new byte.
+/// - **End** (`0x00`): Marks the end of the patch stream.
+///
+/// The header contains: magic (`WSPATCH1`), old data size (u64 LE), and
+/// new data size (u64 LE).
+///
+/// # Errors
+///
+/// Returns an error if writing to the patch buffer fails.
 pub fn create_simple_patch(old_data: &[u8], new_data: &[u8]) -> Result<Vec<u8>> {
     let mut patch = Vec::new();
 
@@ -149,7 +192,19 @@ pub fn create_simple_patch(old_data: &[u8], new_data: &[u8]) -> Result<Vec<u8>> 
     Ok(patch)
 }
 
-/// Apply a simple binary patch
+/// Apply a simple binary patch in `WSPATCH1` format.
+///
+/// Reconstructs the new data by executing copy and insert operations
+/// from the patch against the old data.
+///
+/// # Errors
+///
+/// Returns an error if:
+/// - The patch magic number is not `WSPATCH1`.
+/// - The old data size does not match the expected size in the patch header.
+/// - A copy operation references out-of-bounds positions in the old data.
+/// - The resulting data size does not match the expected new size.
+/// - An unknown patch command byte is encountered.
 pub fn apply_simple_patch(old_data: &[u8], patch: &[u8]) -> Result<Vec<u8>> {
     use std::io::Cursor;
 

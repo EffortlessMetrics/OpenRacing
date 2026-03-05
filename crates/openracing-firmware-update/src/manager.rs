@@ -181,7 +181,18 @@ mod duration_serde {
     }
 }
 
-/// Firmware image metadata
+/// Firmware image metadata and binary payload.
+///
+/// Represents a complete firmware image ready for flashing, including the
+/// binary data, cryptographic hash for integrity verification, optional
+/// Ed25519 signature, and hardware compatibility constraints.
+///
+/// # Hardware Compatibility
+///
+/// The `min_hardware_version` and `max_hardware_version` fields define the
+/// range of hardware revisions this firmware is compatible with. The update
+/// manager checks these before flashing to prevent bricking devices with
+/// incompatible firmware.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FirmwareImage {
     /// Target device model/type
@@ -216,7 +227,23 @@ pub struct FirmwareImage {
     pub signature: Option<openracing_crypto::SignatureMetadata>,
 }
 
-/// Configuration for staged rollout
+/// Configuration for staged (gradual) firmware rollout.
+///
+/// Controls how firmware updates are deployed across a fleet of devices in
+/// stages, with automatic rollback if the error rate exceeds the configured
+/// threshold. Stage sizes double after each successful stage, starting from
+/// `stage1_max_devices`.
+///
+/// # Defaults
+///
+/// | Parameter | Default |
+/// |-----------|---------|
+/// | `enabled` | `true` |
+/// | `stage1_max_devices` | `10` |
+/// | `min_success_rate` | `0.95` (95%) |
+/// | `stage_delay_minutes` | `60` |
+/// | `max_error_rate` | `0.05` (5%) |
+/// | `monitoring_window_minutes` | `120` |
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StagedRolloutConfig {
     /// Enable staged rollout
@@ -251,7 +278,25 @@ impl Default for StagedRolloutConfig {
     }
 }
 
-/// Trait for device-specific firmware update operations
+/// Trait for device-specific firmware update operations.
+///
+/// Implementors provide the low-level commands to communicate with a
+/// specific device's bootloader or firmware update interface. The
+/// [`FirmwareUpdateManager`] orchestrates the update flow by calling
+/// these methods in sequence.
+///
+/// # A/B Partition Model
+///
+/// Devices are expected to have two firmware partitions (A and B). The
+/// manager writes new firmware to the inactive partition, validates it,
+/// then atomically switches the boot target. If the health check fails
+/// after reboot, the manager rolls back to the previous partition.
+///
+/// # Implementation Notes
+///
+/// All methods are async and may involve USB/HID communication with
+/// the device. Implementations should handle transient communication
+/// errors with appropriate retries at the transport level.
 #[async_trait::async_trait]
 pub trait FirmwareDevice: Send + Sync {
     /// Get device identifier
@@ -296,7 +341,33 @@ pub trait FirmwareDevice: Send + Sync {
     async fn get_hardware_version(&self) -> Result<String>;
 }
 
-/// Firmware update manager
+/// Firmware update manager with A/B partition support.
+///
+/// Orchestrates the full firmware update lifecycle for racing peripherals:
+///
+/// 1. **Compatibility check** — Validates hardware version against firmware
+///    requirements.
+/// 2. **Hash verification** — Computes SHA-256 of firmware data and compares
+///    against the expected hash.
+/// 3. **Partition preparation** — Erases the inactive (target) partition.
+/// 4. **Transfer** — Writes firmware in 4 KiB chunks with progress reporting.
+/// 5. **Validation** — Verifies the written data on-device.
+/// 6. **Activation** — Atomically switches boot target to the new partition.
+/// 7. **Health check** — Verifies device responsiveness after reboot (up to
+///    5 attempts). If health checks fail, automatically rolls back to the
+///    previous partition.
+///
+/// # Safety Preconditions
+///
+/// - Force feedback output is blocked while an update is in progress
+///   (see [`UpdateState::should_block_ffb`]).
+/// - Only one update per device is allowed at a time; concurrent requests
+///   for the same device are rejected.
+///
+/// # Progress Reporting
+///
+/// Subscribe to the broadcast channel via the returned receiver to receive
+/// [`UpdateProgress`] events throughout the update process.
 pub struct FirmwareUpdateManager {
     #[allow(dead_code)]
     rollout_config: StagedRolloutConfig,
@@ -324,7 +395,22 @@ impl FirmwareUpdateManager {
         }
     }
 
-    /// Update firmware on a single device
+    /// Update firmware on a single device using the A/B partition strategy.
+    ///
+    /// Performs the full update lifecycle: compatibility check, hash
+    /// verification, partition write, validation, activation, reboot, and
+    /// health check. Automatically rolls back on health check failure.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - An update is already in progress for this device.
+    /// - The firmware hash does not match the expected value.
+    /// - The firmware is incompatible with the device hardware version.
+    /// - Any device communication step fails (prepare, write, validate,
+    ///   activate, reboot).
+    /// - The post-reboot health check fails after 5 attempts and rollback
+    ///   also fails ([`FirmwareUpdateError::RollbackFailed`]).
     pub async fn update_device_firmware(
         &self,
         device: Box<dyn FirmwareDevice>,
