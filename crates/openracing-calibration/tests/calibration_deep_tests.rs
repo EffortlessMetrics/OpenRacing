@@ -437,7 +437,7 @@ mod prop_tests {
     use proptest::prelude::*;
 
     proptest! {
-        #![proptest_config(ProptestConfig::with_cases(1000))]
+        #![proptest_config(ProptestConfig { cases: 1000, timeout: 60_000, ..ProptestConfig::default() })]
 
         #[test]
         fn calibrated_output_in_range(

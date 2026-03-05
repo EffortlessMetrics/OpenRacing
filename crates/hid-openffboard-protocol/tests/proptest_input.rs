@@ -29,7 +29,7 @@ fn button_array() -> impl Strategy<Value = [u8; BUTTON_BYTES]> {
 }
 
 proptest! {
-    #![proptest_config(ProptestConfig::with_cases(1000))]
+    #![proptest_config(ProptestConfig { cases: 1000, timeout: 60_000, ..ProptestConfig::default() })]
 
     #[test]
     fn parse_never_panics_on_arbitrary_bytes(data in proptest::collection::vec(any::<u8>(), 0..100)) {
