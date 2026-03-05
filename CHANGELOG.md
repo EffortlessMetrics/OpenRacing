@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Linux hwdb entries for joystick classification** — 133 device entries across 20+ manufacturers; prevents Linux from misclassifying pedals as accelerometers, fixing SDL/Proton/Steam detection issues (PR #79)
+- **Simagic EVO ALWAYS_POLL kernel quirk** — EVO Sport (`0x0500`), EVO (`0x0501`), EVO Pro (`0x0502`) added to modprobe quirks file; prevents infinite disconnect/reconnect cycle (PR #80)
+- **macOS CI matrix expansion** — macos-latest added to CLI, Service, and Workspace build/test jobs; third supported platform now has CI coverage (PR #84)
+- **NOW_NEXT_LATER execution plan** — one-screen view of active, queued, and backlog work items (PR #83)
+- **Proptest timeout configs** — all 7 high-case-count (1000) proptest suites now have explicit 60-second timeouts to prevent CI flakiness under load (PR #86)
+- **Unverified PID safety documentation** — FABRICATED/UNVERIFIED/SPECULATIVE/PROVISIONAL markers on Cube Controls, VRS V2, OpenFFBoard 0xFFB1, and Leo Bodnar PIDs (PR #88)
 - **Thrustmaster T818 shared-PID documentation** — T818/T248/T128 share PID 0xB696; cross-referenced against hid-tmff2 community driver source (PR #76)
 - **85 authoritative PID cross-validation checks** across 18 vendor categories — Heusinkveld (8), Asetek (7), Cammus (5), VRS (3), Simucube (5), AccuForce (2), FFBeast (2), PXN (4), Logitech (8), Simagic Handbrake (1), Thrustmaster TMX (1), plus 30 from prior PR — all sourced from linux-steering-wheels, simracing-hwdb, and kernel drivers
 - **Bezier LUT fidelity tolerance** widened from 0.02 to 0.05 for curves with extreme control points (high-curvature regions cause expected LUT interpolation divergence)
@@ -17,6 +23,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Linux packaging includes hwdb and quirks** — deb, rpm, and tarball packages now include hwdb (joystick classification) and modprobe (ALWAYS_POLL quirk) files for full plug-and-play support (PR #82)
+- **Documentation accuracy pass** — vendor count (25+ → 28), device count (100+ → 150+), game count (50+ → 60+) updated across README, SETUP, USER_GUIDE, and DEVICE_SUPPORT (PR #81)
+- **ROADMAP.md reflects current state** — Phase 2 (devices) and Phase 3 (games) marked complete; Phase 4 (packaging) and Phase 5 (polish) accurately reflect in-progress items (PR #87)
 - **Fabricated Simagic PIDs removed from active dispatch** — Alpha Mini alt (`0x0486`), Alpha (`0x0487`), FX Pro (`0x0488`), GT1 (`0x0489`), GT4 (`0x048A`), GT Pro (`0x048B`), GTC (`0x048C`), M10 (`0x048D`) all had zero external evidence; only Alpha (`0x0003`) and Alpha Mini (`0x0004`) are kernel-verified (PR #66)
 - **Fabricated OpenFFBoard/VRS PIDs removed from active dispatch** — OpenFFBoard alt `0xFFB1` (not registered on pid.codes), VRS DFP V2 `0xA356`, Pedals V1 `0xA357`, Pedals V2 `0xA358`, Handbrake `0xA359`, Shifter `0xA35A` (sequential guesses, zero external evidence) (PR #65)
 
@@ -50,6 +59,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Protocol documentation**: SIMUCUBE, VRS, HEUSINKVELD, ASETEK, CUBE_CONTROLS protocol docs; VID/PID sources in `docs/protocols/SOURCES.md`
 - **Rustdoc**: public API documentation added to `openracing-ffb` and `openracing-calibration`
 - **10 community-verified sim racing peripheral vendors** from JacKeTUs/simracing-hwdb: MMOS FFB controller (0xF055:0x0FFB), SHH Shifters, Oddor Handbrake, SimGrade Pedals, SimJack Pedals, SimLab Handbrake, SimNet Pedals, SimRuito Pedals, SimSonn Pedals, SimTrecs Pedals
+- **Udev rules for 10 peripheral vendors** — SimGrade, SimRuito, SimJack, SimSonn, SimTrecs, SimNet, SimLab, SHH, Oddor, MMOS with correct VID/PID and permissions (PR #78)
 - **CHANGELOG update** for PRs #24-55 (PR #56)
 - **README accuracy update**: game count (14→50+), test count (600→25,500+), crate table (8→84 crates), added 5 new hardware vendors (MMOS, SHH, Oddor, PXN, FlashFire)
 - **Authoritative PID cross-validation test**: 40+ hardcoded cross-checks against kernel drivers (gotzl/hid-fanatecff, Kimplul/hid-tmff2, JacKeTUs/simagic-ff, Linux kernel hid-ids.h, berarma/oversteer)
