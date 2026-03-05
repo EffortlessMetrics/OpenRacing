@@ -212,6 +212,14 @@ build_tarball() {
     cp "$SCRIPT_DIR/install.sh" "$tarball_dir/"
     chmod +x "$tarball_dir/install.sh"
     
+    # Copy hwdb and kernel quirks if present
+    if [[ -f "$SCRIPT_DIR/99-racing-wheel-suite.hwdb" ]]; then
+        cp "$SCRIPT_DIR/99-racing-wheel-suite.hwdb" "$tarball_dir/"
+    fi
+    if [[ -f "$SCRIPT_DIR/90-racing-wheel-quirks.conf" ]]; then
+        cp "$SCRIPT_DIR/90-racing-wheel-quirks.conf" "$tarball_dir/"
+    fi
+    
     # Copy documentation
     if [[ -f "$PROJECT_ROOT/README.md" ]]; then
         cp "$PROJECT_ROOT/README.md" "$tarball_dir/docs/"
@@ -242,8 +250,12 @@ Installation:
 Or manually:
   1. Copy binaries from bin/ to /usr/local/bin/
   2. Copy 99-racing-wheel-suite.rules to /etc/udev/rules.d/
-  3. Copy systemd/wheeld.service to ~/.config/systemd/user/
-  4. Run: systemctl --user enable --now wheeld.service
+  3. Copy 99-racing-wheel-suite.hwdb to /etc/udev/hwdb.d/
+  4. Copy 90-racing-wheel-quirks.conf to /etc/modprobe.d/
+  5. Copy systemd/wheeld.service to ~/.config/systemd/user/
+  6. Run: sudo udevadm control --reload-rules && sudo udevadm trigger
+  7. Run: sudo systemd-hwdb update
+  8. Run: systemctl --user enable --now wheeld.service
 
 For more information, see docs/README.md
 EOF
@@ -277,6 +289,8 @@ build_deb() {
     mkdir -p "$deb_dir/usr/bin"
     mkdir -p "$deb_dir/usr/lib/systemd/user"
     mkdir -p "$deb_dir/etc/udev/rules.d"
+    mkdir -p "$deb_dir/etc/udev/hwdb.d"
+    mkdir -p "$deb_dir/etc/modprobe.d"
     mkdir -p "$deb_dir/usr/share/doc/openracing"
     mkdir -p "$deb_dir/usr/share/openracing/config"
     
@@ -298,6 +312,16 @@ build_deb() {
     
     # Copy udev rules
     cp "$SCRIPT_DIR/99-racing-wheel-suite.rules" "$deb_dir/etc/udev/rules.d/"
+    
+    # Copy hwdb for joystick classification
+    if [[ -f "$SCRIPT_DIR/99-racing-wheel-suite.hwdb" ]]; then
+        cp "$SCRIPT_DIR/99-racing-wheel-suite.hwdb" "$deb_dir/etc/udev/hwdb.d/"
+    fi
+    
+    # Copy kernel HID quirks (Asetek/Simagic ALWAYS_POLL)
+    if [[ -f "$SCRIPT_DIR/90-racing-wheel-quirks.conf" ]]; then
+        cp "$SCRIPT_DIR/90-racing-wheel-quirks.conf" "$deb_dir/etc/modprobe.d/"
+    fi
     
     # Copy documentation
     if [[ -f "$PROJECT_ROOT/README.md" ]]; then
@@ -359,6 +383,11 @@ set -e
 if command -v udevadm &> /dev/null; then
     udevadm control --reload-rules || true
     udevadm trigger || true
+fi
+
+# Update hwdb for joystick classification
+if command -v systemd-hwdb &> /dev/null; then
+    systemd-hwdb update || true
 fi
 
 # Reload systemd user daemon for all logged-in users
@@ -438,7 +467,7 @@ build_rpm() {
     
     # Create source tarball for RPM
     local source_dir="$rpm_build_dir/SOURCES/openracing-${VERSION}"
-    mkdir -p "$source_dir"/{bin,systemd,udev,docs}
+    mkdir -p "$source_dir"/{bin,systemd,udev,hwdb,modprobe,docs}
     
     # Copy files
     cp "$BIN_PATH/wheeld" "$source_dir/bin/"
@@ -452,6 +481,14 @@ build_rpm() {
     
     sed "s|%INSTALL_PATH%|/usr|g" "$SCRIPT_DIR/wheeld.service.template" > "$source_dir/systemd/openracing.service"
     cp "$SCRIPT_DIR/99-racing-wheel-suite.rules" "$source_dir/udev/"
+    
+    # Copy hwdb and kernel quirks if present
+    if [[ -f "$SCRIPT_DIR/99-racing-wheel-suite.hwdb" ]]; then
+        cp "$SCRIPT_DIR/99-racing-wheel-suite.hwdb" "$source_dir/hwdb/"
+    fi
+    if [[ -f "$SCRIPT_DIR/90-racing-wheel-quirks.conf" ]]; then
+        cp "$SCRIPT_DIR/90-racing-wheel-quirks.conf" "$source_dir/modprobe/"
+    fi
     
     if [[ -f "$PROJECT_ROOT/README.md" ]]; then
         cp "$PROJECT_ROOT/README.md" "$source_dir/docs/"
@@ -498,12 +535,21 @@ rm -rf %{buildroot}
 mkdir -p %{buildroot}%{_bindir}
 mkdir -p %{buildroot}%{_userunitdir}
 mkdir -p %{buildroot}%{_udevrulesdir}
+mkdir -p %{buildroot}/etc/udev/hwdb.d
+mkdir -p %{buildroot}/etc/modprobe.d
 mkdir -p %{buildroot}%{_docdir}/%{name}
 
 install -m 755 bin/wheeld %{buildroot}%{_bindir}/
 install -m 755 bin/wheelctl %{buildroot}%{_bindir}/
 install -m 644 systemd/openracing.service %{buildroot}%{_userunitdir}/
 install -m 644 udev/99-racing-wheel-suite.rules %{buildroot}%{_udevrulesdir}/
+
+if [ -f hwdb/99-racing-wheel-suite.hwdb ]; then
+    install -m 644 hwdb/99-racing-wheel-suite.hwdb %{buildroot}/etc/udev/hwdb.d/
+fi
+if [ -f modprobe/90-racing-wheel-quirks.conf ]; then
+    install -m 644 modprobe/90-racing-wheel-quirks.conf %{buildroot}/etc/modprobe.d/
+fi
 
 if [ -f docs/README.md ]; then
     install -m 644 docs/README.md %{buildroot}%{_docdir}/%{name}/
@@ -515,6 +561,7 @@ fi
 %post
 udevadm control --reload-rules || true
 udevadm trigger || true
+systemd-hwdb update || true
 echo "OpenRacing installed. Enable with: systemctl --user enable --now openracing.service"
 
 %preun
@@ -529,6 +576,8 @@ udevadm control --reload-rules || true
 %{_bindir}/wheelctl
 %{_userunitdir}/openracing.service
 %{_udevrulesdir}/99-racing-wheel-suite.rules
+%config(noreplace) /etc/udev/hwdb.d/99-racing-wheel-suite.hwdb
+%config(noreplace) /etc/modprobe.d/90-racing-wheel-quirks.conf
 %{_docdir}/%{name}
 
 %changelog
