@@ -1,0 +1,22 @@
+[package]
+name = "openracing-plugin-examples"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "Example plugins demonstrating the OpenRacing plugin system"
+keywords = ["plugin", "wasm", "force-feedback", "telemetry"]
+categories = ["examples"]
+
+[package.metadata.cargo-udeps.ignore]
+normal = ["workspace-hack"]
+
+[dependencies]
+openracing-plugin-abi = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+workspace-hack = { version = "0.1", path = "../../workspace-hack" }
+
+[dev-dependencies]
+proptest = { workspace = true }
