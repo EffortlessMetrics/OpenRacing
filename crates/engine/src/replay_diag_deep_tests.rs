@@ -850,7 +850,7 @@ mod diagnostic_snapshot_tests {
         assert_eq!(decoded.frame.ffb_in, 0.75);
         assert_eq!(decoded.frame.torque_out, 0.5);
         assert_eq!(decoded.frame.seq, 42);
-        assert_eq!(decoded.frame.hands_off, true);
+        assert!(decoded.frame.hands_off);
         assert_eq!(decoded.node_outputs.len(), 4);
         assert_eq!(decoded.processing_time_us, 150);
         Ok(())
