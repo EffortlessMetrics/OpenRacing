@@ -1293,3 +1293,152 @@ mod proptest_tests {
         }
     }
 }
+
+/// Protocol constant verification tests for AMS2/pCars2 shared memory.
+///
+/// These tests lock down SDK constants against the authoritative sources:
+/// - CREST2-AMS2 SharedMemory_v9.h: <https://github.com/viper4gh/CREST2-AMS2>
+/// - CREST2 SharedMemory_v6.h (pCars2): <https://github.com/viper4gh/CREST2>
+/// - CrewChief PCars2Struct.cs: <https://github.com/mrbelowski/CrewChiefV4>
+#[cfg(test)]
+mod protocol_constant_tests {
+    use super::*;
+
+    type TestResult = Result<(), Box<dyn std::error::Error>>;
+
+    /// Shared memory file name must be `$pcars2$` (used by both pCars2 and AMS2).
+    /// Ref: CREST2 HttpMessageHandler.cpp `#define MAP_OBJECT_NAME "$pcars2$"`
+    #[test]
+    fn test_shared_memory_name() -> TestResult {
+        assert_eq!(
+            AMS2_SHARED_MEMORY_NAME, "$pcars2$",
+            "AMS2 shared memory name must match pCars2 convention"
+        );
+        Ok(())
+    }
+
+    /// GameState enum values must match SDK v9 (AMS2).
+    /// Ref: SharedMemory_v9.h `enum eGameState`
+    /// SDK v9 adds InGameInMenuTimeTicking=4, shifting later values.
+    #[test]
+    fn test_game_state_enum_values() -> TestResult {
+        assert_eq!(GameState::Exited as u32, 0);
+        assert_eq!(GameState::FrontEnd as u32, 1);
+        assert_eq!(GameState::InGamePlaying as u32, 2);
+        assert_eq!(GameState::InGamePaused as u32, 3);
+        // SDK v9 (AMS2) specific: InGameInMenuTimeTicking at 4
+        assert_eq!(GameState::InGameInMenuTimeTicking as u32, 4);
+        assert_eq!(GameState::InGameRestarting as u32, 5);
+        assert_eq!(GameState::InGameReplay as u32, 6);
+        assert_eq!(GameState::FrontEndReplay as u32, 7);
+        Ok(())
+    }
+
+    /// SessionState enum values must match SDK.
+    /// Ref: SharedMemory_v6.h `enum eSessionState`
+    #[test]
+    fn test_session_state_enum_values() -> TestResult {
+        assert_eq!(SessionState::Invalid as u32, 0);
+        assert_eq!(SessionState::Practice as u32, 1);
+        assert_eq!(SessionState::Test as u32, 2);
+        assert_eq!(SessionState::Qualify as u32, 3);
+        assert_eq!(SessionState::FormationLap as u32, 4);
+        assert_eq!(SessionState::Race as u32, 5);
+        assert_eq!(SessionState::TimeAttack as u32, 6);
+        Ok(())
+    }
+
+    /// RaceState enum values must match SDK.
+    /// Ref: SharedMemory_v6.h `enum eRaceState`
+    #[test]
+    fn test_race_state_enum_values() -> TestResult {
+        assert_eq!(RaceState::Invalid as u32, 0);
+        assert_eq!(RaceState::NotStarted as u32, 1);
+        assert_eq!(RaceState::Racing as u32, 2);
+        assert_eq!(RaceState::Finished as u32, 3);
+        assert_eq!(RaceState::Disqualified as u32, 4);
+        assert_eq!(RaceState::Retired as u32, 5);
+        assert_eq!(RaceState::DnsDidNotStart as u32, 6);
+        Ok(())
+    }
+
+    /// PitMode enum values must match SDK.
+    /// Ref: SharedMemory_v6.h `enum ePitMode`
+    #[test]
+    fn test_pit_mode_enum_values() -> TestResult {
+        assert_eq!(PitMode::None as u32, 0);
+        assert_eq!(PitMode::DrivingIntoPits as u32, 1);
+        assert_eq!(PitMode::InPit as u32, 2);
+        assert_eq!(PitMode::DrivingOutOfPits as u32, 3);
+        assert_eq!(PitMode::InGarage as u32, 4);
+        assert_eq!(PitMode::DrivingOutOfGarage as u32, 5);
+        assert_eq!(PitMode::InPitlane as u32, 6);
+        Ok(())
+    }
+
+    /// HighestFlag enum values must match SDK.
+    /// Ref: SharedMemory_v6.h `enum eFlagColour`
+    #[test]
+    fn test_highest_flag_enum_values() -> TestResult {
+        assert_eq!(HighestFlag::None as u32, 0);
+        assert_eq!(HighestFlag::Green as u32, 1);
+        assert_eq!(HighestFlag::Blue as u32, 2);
+        assert_eq!(HighestFlag::WhiteSlowCar as u32, 3);
+        assert_eq!(HighestFlag::WhiteFinalLap as u32, 4);
+        assert_eq!(HighestFlag::Red as u32, 5);
+        assert_eq!(HighestFlag::Yellow as u32, 6);
+        assert_eq!(HighestFlag::DoubleYellow as u32, 7);
+        assert_eq!(HighestFlag::BlackAndWhite as u32, 8);
+        assert_eq!(HighestFlag::BlackOrangeCircle as u32, 9);
+        assert_eq!(HighestFlag::Black as u32, 10);
+        assert_eq!(HighestFlag::Chequered as u32, 11);
+        Ok(())
+    }
+
+    /// Gravity constant must match the SI standard.
+    #[test]
+    fn test_gravity_constant() -> TestResult {
+        assert!(
+            (G_ACCEL - 9.80665).abs() < 1e-5,
+            "G_ACCEL must be standard gravity 9.80665 m/s²"
+        );
+        Ok(())
+    }
+
+    /// kPa-to-PSI conversion factor: 1 kPa = 0.14503774 PSI.
+    #[test]
+    fn test_kpa_to_psi_factor() -> TestResult {
+        let psi = kpa_to_psi(1.0);
+        assert!(
+            (psi - 0.14503774).abs() < 1e-6,
+            "1 kPa must equal ~0.14504 PSI, got {psi}"
+        );
+        assert_eq!(kpa_to_psi(0.0), 0.0, "0 kPa should yield 0 PSI");
+        assert_eq!(kpa_to_psi(-1.0), 0.0, "negative kPa should yield 0 PSI");
+        Ok(())
+    }
+
+    /// Stable read attempts must be at least 2 for double-buffered consistency.
+    #[test]
+    fn test_stable_read_attempts() -> TestResult {
+        let attempts = AMS2_STABLE_READ_ATTEMPTS;
+        assert!(
+            attempts >= 2,
+            "need at least 2 attempts for double-buffered read"
+        );
+        Ok(())
+    }
+
+    /// AMS2SharedMemory struct size must be large enough to hold all declared fields.
+    /// The struct uses #[repr(C)] so size is deterministic.
+    #[test]
+    fn test_shared_memory_struct_size() -> TestResult {
+        let size = std::mem::size_of::<AMS2SharedMemory>();
+        // The struct must be > 256 bytes to contain all fields
+        assert!(
+            size > 256,
+            "AMS2SharedMemory struct must be larger than 256 bytes, got {size}"
+        );
+        Ok(())
+    }
+}

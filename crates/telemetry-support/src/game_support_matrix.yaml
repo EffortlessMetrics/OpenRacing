@@ -221,6 +221,13 @@ games:
           - "rpm"
           - "speed_ms"
           - "gear"
+          - "throttle"
+          - "brake"
+          - "clutch"
+          - "fuel_percent"
+          - "engine_temp_c"
+          - "lateral_g"
+          - "tire_temps_c"
     telemetry:
       method: "shared_memory"
       update_rate_hz: 60
@@ -668,6 +675,7 @@ games:
           - "fuel_percent"
           - "engine_temp_c"
           - "tire_temps_c"
+          - "lateral_g"
     telemetry:
       method: "udp_salsa20_encrypted"
       update_rate_hz: 60
@@ -905,6 +913,8 @@ games:
           - "throttle"
           - "brake"
           - "clutch"
+          - "fuel_percent"
+          - "engine_temp_c"
     telemetry:
       method: "udp_outgauge"
       update_rate_hz: 60
@@ -1724,6 +1734,14 @@ games:
           - "flags"
           - "car_id"
           - "track_id"
+          - "throttle"
+          - "brake"
+          - "clutch"
+          - "fuel_percent"
+          - "engine_temp_c"
+          - "lateral_g"
+          - "tire_temps_c"
+          - "tire_pressures_kpa"
     telemetry:
       method: "shared_memory_r3e"
       update_rate_hz: 100
@@ -1976,6 +1994,9 @@ games:
           - "throttle"
           - "brake"
           - "steering_angle"
+          - "clutch"
+          - "fuel_percent"
+          - "engine_temp_c"
     telemetry:
       method: "rf2_udp"
       update_rate_hz: 60

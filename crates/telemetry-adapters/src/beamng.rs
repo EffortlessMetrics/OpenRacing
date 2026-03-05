@@ -572,3 +572,158 @@ mod proptest_tests {
         }
     }
 }
+
+/// Protocol constant verification tests.
+///
+/// These tests lock down the OutGauge byte offsets and dashboard light bitmask values
+/// against the authoritative sources:
+/// - BeamNG official docs: <https://documentation.beamng.com/modding/protocols/>
+/// - LFS InSim.txt OutGauge struct: <https://en.lfsmanual.net/wiki/OutGauge>
+/// - BeamNG outgauge.lua: `lua/vehicle/protocols/outgauge.lua`
+#[cfg(test)]
+mod protocol_constant_tests {
+    use super::*;
+
+    type TestResult = Result<(), Box<dyn std::error::Error>>;
+
+    /// Verify OutGauge packet size constants against the LFS spec.
+    /// Base packet = 92 bytes (without `id`), 96 bytes (with `id`).
+    /// Ref: en.lfsmanual.net/wiki/OutGauge, documentation.beamng.com/modding/protocols/
+    #[test]
+    fn test_outgauge_packet_sizes() -> TestResult {
+        assert_eq!(
+            OUTGAUGE_PACKET_SIZE, 92,
+            "base OutGauge packet must be 92 bytes"
+        );
+        // With optional id field (i32 = 4 bytes): 92 + 4 = 96
+        assert_eq!(
+            OUTGAUGE_PACKET_SIZE + 4,
+            96,
+            "OutGauge with id must be 96 bytes"
+        );
+        Ok(())
+    }
+
+    /// Verify default BeamNG port matches community convention.
+    /// Ref: Race-Element, SimHub, and BeamNG forums all use port 4444.
+    #[test]
+    fn test_default_beamng_port() -> TestResult {
+        assert_eq!(
+            DEFAULT_BEAMNG_PORT, 4444,
+            "BeamNG community convention port is 4444"
+        );
+        Ok(())
+    }
+
+    /// Verify OutGauge field byte offsets match the LFS struct layout.
+    /// Layout: time(u32@0), car([4]u8@4), flags(u16@8), gear(u8@10), plid(u8@11),
+    ///   speed(f32@12), rpm(f32@16), turbo(f32@20), engTemp(f32@24), fuel(f32@28),
+    ///   oilPressure(f32@32), oilTemp(f32@36), dashLights(u32@40), showLights(u32@44),
+    ///   throttle(f32@48), brake(f32@52), clutch(f32@56), display1([16]u8@60),
+    ///   display2([16]u8@76), id(i32@92 optional).
+    /// Ref: en.lfsmanual.net/wiki/OutGauge
+    #[test]
+    fn test_outgauge_byte_offsets() -> TestResult {
+        // Verify all offsets match the LFS OutGauge struct layout
+        assert_eq!(OFF_GEAR, 10, "gear must be at offset 10 (u8)");
+        assert_eq!(OFF_SPEED, 12, "speed must be at offset 12 (f32)");
+        assert_eq!(OFF_RPM, 16, "rpm must be at offset 16 (f32)");
+        assert_eq!(OFF_TURBO, 20, "turbo must be at offset 20 (f32)");
+        assert_eq!(OFF_ENG_TEMP, 24, "engTemp must be at offset 24 (f32)");
+        assert_eq!(OFF_FUEL, 28, "fuel must be at offset 28 (f32)");
+        assert_eq!(
+            OFF_OIL_PRESSURE, 32,
+            "oilPressure must be at offset 32 (f32)"
+        );
+        assert_eq!(OFF_OIL_TEMP, 36, "oilTemp must be at offset 36 (f32)");
+        assert_eq!(OFF_SHOW_LIGHTS, 44, "showLights must be at offset 44 (u32)");
+        assert_eq!(OFF_THROTTLE, 48, "throttle must be at offset 48 (f32)");
+        assert_eq!(OFF_BRAKE, 52, "brake must be at offset 52 (f32)");
+        assert_eq!(OFF_CLUTCH, 56, "clutch must be at offset 56 (f32)");
+        Ok(())
+    }
+
+    /// Verify contiguous field layout: each offset is exactly one field-width after the previous.
+    /// Ref: OutGauge is packed (no padding) per the LFS spec.
+    #[test]
+    fn test_outgauge_field_contiguity() -> TestResult {
+        // speed(f32@12) → rpm(f32@16) → turbo(f32@20) → engTemp(f32@24) → fuel(f32@28)
+        assert_eq!(OFF_RPM - OFF_SPEED, 4, "speed to rpm: 4 bytes (f32)");
+        assert_eq!(OFF_TURBO - OFF_RPM, 4, "rpm to turbo: 4 bytes (f32)");
+        assert_eq!(
+            OFF_ENG_TEMP - OFF_TURBO,
+            4,
+            "turbo to engTemp: 4 bytes (f32)"
+        );
+        assert_eq!(OFF_FUEL - OFF_ENG_TEMP, 4, "engTemp to fuel: 4 bytes (f32)");
+        assert_eq!(
+            OFF_OIL_PRESSURE - OFF_FUEL,
+            4,
+            "fuel to oilPressure: 4 bytes (f32)"
+        );
+        assert_eq!(
+            OFF_OIL_TEMP - OFF_OIL_PRESSURE,
+            4,
+            "oilPressure to oilTemp: 4 bytes (f32)"
+        );
+        // throttle(f32@48) → brake(f32@52) → clutch(f32@56)
+        assert_eq!(
+            OFF_BRAKE - OFF_THROTTLE,
+            4,
+            "throttle to brake: 4 bytes (f32)"
+        );
+        assert_eq!(OFF_CLUTCH - OFF_BRAKE, 4, "brake to clutch: 4 bytes (f32)");
+        Ok(())
+    }
+
+    /// Verify dashboard light bitmask values match LFS InSim.txt / BeamNG outgauge.lua.
+    /// Ref: documentation.beamng.com/modding/protocols/ (DL_x constants)
+    #[test]
+    fn test_dashboard_light_bitmasks() -> TestResult {
+        assert_eq!(DL_SHIFT, 1 << 0, "DL_SHIFT must be bit 0 (0x0001)");
+        assert_eq!(DL_PITSPEED, 1 << 3, "DL_PITSPEED must be bit 3 (0x0008)");
+        assert_eq!(DL_TC, 1 << 4, "DL_TC must be bit 4 (0x0010)");
+        assert_eq!(DL_ABS, 1 << 10, "DL_ABS must be bit 10 (0x0400)");
+        Ok(())
+    }
+
+    /// Verify gear encoding: BeamNG uses OutGauge encoding where
+    /// 0=Reverse, 1=Neutral, 2=1st gear, 3=2nd gear, etc.
+    /// Ref: BeamNG outgauge.lua (electrics.values.gearIndex + 1)
+    #[test]
+    fn test_gear_encoding_all_values() -> TestResult {
+        // OutGauge 0 → Reverse (-1), 1 → Neutral (0), 2 → 1st (1), ... 8 → 7th (7)
+        for outgauge_gear in 0u8..=8 {
+            let data = {
+                let mut d = vec![0u8; OUTGAUGE_PACKET_SIZE];
+                d[OFF_GEAR] = outgauge_gear;
+                d
+            };
+            let result = parse_outgauge_packet(&data)?;
+            let expected: i8 = match outgauge_gear {
+                0 => -1,
+                1 => 0,
+                g => (g - 1) as i8,
+            };
+            assert_eq!(
+                result.gear, expected,
+                "OutGauge gear {outgauge_gear} should normalize to {expected}"
+            );
+        }
+        Ok(())
+    }
+
+    /// Verify the `car` field at offset 4 is a 4-byte ASCII name.
+    /// BeamNG always sets this to "beam".
+    /// Ref: documentation.beamng.com/modding/protocols/
+    #[test]
+    fn test_car_field_offset_and_size() -> TestResult {
+        let mut data = vec![0u8; OUTGAUGE_PACKET_SIZE];
+        data[4..8].copy_from_slice(b"beam");
+        let car_name = &data[4..8];
+        assert_eq!(car_name, b"beam", "BeamNG always sets car field to 'beam'");
+        // Parsing should still succeed regardless of car name content
+        let _result = parse_outgauge_packet(&data)?;
+        Ok(())
+    }
+}
