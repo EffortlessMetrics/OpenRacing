@@ -14,7 +14,7 @@ import json
 import sys
 import argparse
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from typing import Dict, Any, List, Optional
 from enum import Enum
 
@@ -95,7 +95,105 @@ THRESHOLDS = {
     "processing_time_median_us": 50.0,   # Processing Time: <= 50us median
     "processing_time_p99_us": 200.0,     # Processing Time: <= 200us p99
     "e2e_latency_p99_us": 2000.0,        # E2E latency: <= 2ms p99 (optional)
+    "rt_heap_allocs": 0.0,                # RT Heap Allocations: must be 0
 }
+
+# JSON schema for bench_results.json input validation
+BENCH_RESULTS_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "benchmarks": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["name"],
+                "properties": {
+                    "name": {"type": "string"},
+                    "percentiles": {
+                        "type": "object",
+                        "properties": {
+                            "p50": {"type": "number"},
+                            "p99": {"type": "number"},
+                        },
+                    },
+                    "custom_metrics": {
+                        "type": "object",
+                        "properties": {
+                            "missed_tick_rate": {"type": "number"},
+                            "e2e_latency_p99_us": {"type": "number"},
+                            "rt_heap_allocs": {"type": "number"},
+                        },
+                    },
+                    "sample_count": {"type": "integer", "minimum": 0},
+                },
+            },
+        },
+        "summary": {
+            "type": "object",
+            "properties": {
+                "rt_loop_us": {"type": "number"},
+                "jitter_p99_ms": {"type": "number"},
+                "jitter_p99_us": {"type": "number"},
+                "missed_tick_rate": {"type": "number"},
+                "processing_time_median_us": {"type": "number"},
+                "processing_time_p99_us": {"type": "number"},
+                "rt_heap_allocs": {"type": "number"},
+            },
+        },
+    },
+}
+
+
+def validate_schema(data: Dict[str, Any]) -> List[str]:
+    """Validate benchmark results against the expected JSON schema.
+
+    Performs structural validation without requiring the jsonschema package.
+
+    Args:
+        data: Parsed JSON data to validate.
+
+    Returns:
+        List of validation error messages (empty if valid).
+    """
+    errors: List[str] = []
+
+    if not isinstance(data, dict):
+        errors.append("Root element must be a JSON object")
+        return errors
+
+    benchmarks = data.get("benchmarks")
+    summary = data.get("summary")
+
+    if benchmarks is None and summary is None:
+        errors.append("Input must contain at least one of 'benchmarks' or 'summary'")
+        return errors
+
+    if benchmarks is not None:
+        if not isinstance(benchmarks, list):
+            errors.append("'benchmarks' must be an array")
+        else:
+            for i, bench in enumerate(benchmarks):
+                if not isinstance(bench, dict):
+                    errors.append(f"benchmarks[{i}] must be an object")
+                    continue
+                if "name" not in bench:
+                    errors.append(f"benchmarks[{i}] missing required field 'name'")
+                percentiles = bench.get("percentiles")
+                if percentiles is not None and not isinstance(percentiles, dict):
+                    errors.append(f"benchmarks[{i}].percentiles must be an object")
+                custom = bench.get("custom_metrics")
+                if custom is not None and not isinstance(custom, dict):
+                    errors.append(f"benchmarks[{i}].custom_metrics must be an object")
+
+    if summary is not None:
+        if not isinstance(summary, dict):
+            errors.append("'summary' must be an object")
+        else:
+            for key, val in summary.items():
+                if not isinstance(val, (int, float)):
+                    errors.append(f"summary.{key} must be a number, got {type(val).__name__}")
+
+    return errors
 
 
 def resolve_benchmark_path(file_path: str) -> str:
@@ -267,6 +365,18 @@ def validate_summary_metrics(summary: Dict[str, Any]) -> List[MetricResult]:
         description="P99 processing time per tick",
         source="summary.processing_time_p99_us",
     ))
+    
+    # RT Heap Allocations (must be zero)
+    rt_heap_allocs = summary.get("rt_heap_allocs")
+    if rt_heap_allocs is not None:
+        results.append(check_metric(
+            name="RT Heap Allocations",
+            value=float(rt_heap_allocs),
+            threshold=THRESHOLDS["rt_heap_allocs"],
+            unit="",
+            description="Heap allocations in RT path (must be 0)",
+            source="summary.rt_heap_allocs",
+        ))
     
     return results
 
@@ -565,6 +675,40 @@ def generate_performance_report(results: Dict[str, Any], validation: ValidationR
         print(f"[WARN] Could not write report to {output_file}: {e}")
 
 
+def format_json_output(validation: ValidationResult) -> str:
+    """Format validation results as JSON for CI integration.
+
+    Args:
+        validation: The validation result to format.
+
+    Returns:
+        JSON string with structured results.
+    """
+    from datetime import datetime
+
+    metrics_list = []
+    for m in validation.metrics:
+        metrics_list.append({
+            "name": m.name,
+            "value": m.value,
+            "threshold": m.threshold,
+            "unit": m.unit,
+            "status": m.status.value,
+            "description": m.description,
+            "source": m.source,
+        })
+
+    output = {
+        "timestamp": datetime.now().isoformat(),
+        "passed": validation.passed,
+        "total_metrics": len(validation.metrics),
+        "passed_count": len(validation.passed_metrics),
+        "failed_count": len(validation.failed_metrics),
+        "metrics": metrics_list,
+    }
+    return json.dumps(output, indent=2)
+
+
 def main() -> int:
     """Main entry point for performance validation.
     
@@ -585,6 +729,7 @@ Performance Thresholds (from tech.md):
 Examples:
   %(prog)s bench_results.json
   %(prog)s bench_results.json --strict
+  %(prog)s bench_results.json --output-format json
   %(prog)s bench_results.json --report perf_report.md --verbose
         """
     )
@@ -603,6 +748,12 @@ Examples:
         help='Warning mode: report violations but exit with success'
     )
     parser.add_argument(
+        '--output-format',
+        choices=['text', 'json'],
+        default='text',
+        help='Output format: text (default) or json for CI integration'
+    )
+    parser.add_argument(
         '--report',
         metavar='FILE',
         help='Generate detailed performance report to FILE'
@@ -615,23 +766,46 @@ Examples:
     
     args = parser.parse_args()
     
-    print("[INFO] Validating performance gates...")
-    print(f"   Input: {args.benchmark_file}")
-    print(f"   Mode: {'warn-only' if args.warn_only else 'strict'}")
+    is_json = args.output_format == 'json'
+    
+    if not is_json:
+        print("[INFO] Validating performance gates...")
+        print(f"   Input: {args.benchmark_file}")
+        print(f"   Mode: {'warn-only' if args.warn_only else 'strict'}")
     
     # Parse benchmark results
     results = parse_benchmark_results(args.benchmark_file)
     
+    # Validate input schema
+    schema_errors = validate_schema(results)
+    if schema_errors:
+        if is_json:
+            err_output = json.dumps({
+                "passed": False,
+                "error": "Schema validation failed",
+                "schema_errors": schema_errors,
+            }, indent=2)
+            print(err_output)
+        else:
+            print("[ERROR] Input file failed schema validation:")
+            for err in schema_errors:
+                print(f"   - {err}")
+        return 1
+
     # Count benchmarks found
     benchmark_count = len(results.get('benchmarks', []))
     has_summary = bool(results.get('summary'))
-    print(f"   Found: {benchmark_count} benchmark(s), summary: {'yes' if has_summary else 'no'}")
+    if not is_json:
+        print(f"   Found: {benchmark_count} benchmark(s), summary: {'yes' if has_summary else 'no'}")
     
     # Validate all metrics
     validation = validate_performance(results)
     
-    # Print report
-    print_validation_report(validation, verbose=args.verbose)
+    # Output results
+    if is_json:
+        print(format_json_output(validation))
+    else:
+        print_validation_report(validation, verbose=args.verbose)
     
     # Generate file report if requested
     if args.report:
