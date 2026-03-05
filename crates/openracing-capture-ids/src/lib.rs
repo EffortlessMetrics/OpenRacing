@@ -142,7 +142,7 @@ pub fn analyze_capture_timing(reports: &[replay::CapturedReport]) -> Option<Capt
     let mean = sum / count as f64;
     let min = intervals[0];
     let max = intervals[count - 1];
-    let median = if count % 2 == 0 {
+    let median = if count.is_multiple_of(2) {
         (intervals[count / 2 - 1] + intervals[count / 2]) / 2.0
     } else {
         intervals[count / 2]
