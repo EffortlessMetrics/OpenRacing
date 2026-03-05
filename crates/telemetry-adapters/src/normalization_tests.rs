@@ -381,8 +381,10 @@ fn builder_empty_track_id_stays_none() -> TestResult {
 
 #[test]
 fn validated_clamps_speed_to_nonnegative() -> TestResult {
-    let mut t = NormalizedTelemetry::default();
-    t.speed_ms = -10.0;
+    let t = NormalizedTelemetry {
+        speed_ms: -10.0,
+        ..Default::default()
+    };
     let v = t.validated();
     assert_eq!(v.speed_ms, 0.0);
     Ok(())
@@ -390,8 +392,10 @@ fn validated_clamps_speed_to_nonnegative() -> TestResult {
 
 #[test]
 fn validated_clamps_rpm_to_nonnegative() -> TestResult {
-    let mut t = NormalizedTelemetry::default();
-    t.rpm = -500.0;
+    let t = NormalizedTelemetry {
+        rpm: -500.0,
+        ..Default::default()
+    };
     let v = t.validated();
     assert_eq!(v.rpm, 0.0);
     Ok(())
@@ -399,13 +403,17 @@ fn validated_clamps_rpm_to_nonnegative() -> TestResult {
 
 #[test]
 fn validated_clamps_throttle_to_unit() -> TestResult {
-    let mut t = NormalizedTelemetry::default();
-    t.throttle = 1.5;
+    let t = NormalizedTelemetry {
+        throttle: 1.5,
+        ..Default::default()
+    };
     let v = t.validated();
     assert!((v.throttle - 1.0).abs() < f32::EPSILON);
 
-    let mut t2 = NormalizedTelemetry::default();
-    t2.throttle = -0.5;
+    let t2 = NormalizedTelemetry {
+        throttle: -0.5,
+        ..Default::default()
+    };
     let v2 = t2.validated();
     assert!(v2.throttle.abs() < f32::EPSILON);
     Ok(())
@@ -413,8 +421,10 @@ fn validated_clamps_throttle_to_unit() -> TestResult {
 
 #[test]
 fn validated_clamps_brake_to_unit() -> TestResult {
-    let mut t = NormalizedTelemetry::default();
-    t.brake = 2.0;
+    let t = NormalizedTelemetry {
+        brake: 2.0,
+        ..Default::default()
+    };
     let v = t.validated();
     assert!((v.brake - 1.0).abs() < f32::EPSILON);
     Ok(())
@@ -422,8 +432,10 @@ fn validated_clamps_brake_to_unit() -> TestResult {
 
 #[test]
 fn validated_clamps_clutch_to_unit() -> TestResult {
-    let mut t = NormalizedTelemetry::default();
-    t.clutch = 1.1;
+    let t = NormalizedTelemetry {
+        clutch: 1.1,
+        ..Default::default()
+    };
     let v = t.validated();
     assert!((v.clutch - 1.0).abs() < f32::EPSILON);
     Ok(())
@@ -431,8 +443,10 @@ fn validated_clamps_clutch_to_unit() -> TestResult {
 
 #[test]
 fn validated_clamps_slip_ratio_to_unit() -> TestResult {
-    let mut t = NormalizedTelemetry::default();
-    t.slip_ratio = 1.5;
+    let t = NormalizedTelemetry {
+        slip_ratio: 1.5,
+        ..Default::default()
+    };
     let v = t.validated();
     assert!((v.slip_ratio - 1.0).abs() < f32::EPSILON);
     Ok(())
@@ -440,13 +454,17 @@ fn validated_clamps_slip_ratio_to_unit() -> TestResult {
 
 #[test]
 fn validated_clamps_ffb_scalar() -> TestResult {
-    let mut t = NormalizedTelemetry::default();
-    t.ffb_scalar = 2.0;
+    let t = NormalizedTelemetry {
+        ffb_scalar: 2.0,
+        ..Default::default()
+    };
     let v = t.validated();
     assert!((v.ffb_scalar - 1.0).abs() < f32::EPSILON);
 
-    let mut t2 = NormalizedTelemetry::default();
-    t2.ffb_scalar = -2.0;
+    let t2 = NormalizedTelemetry {
+        ffb_scalar: -2.0,
+        ..Default::default()
+    };
     let v2 = t2.validated();
     assert!((v2.ffb_scalar - (-1.0)).abs() < f32::EPSILON);
     Ok(())
@@ -454,8 +472,10 @@ fn validated_clamps_ffb_scalar() -> TestResult {
 
 #[test]
 fn validated_clamps_fuel_percent_to_unit() -> TestResult {
-    let mut t = NormalizedTelemetry::default();
-    t.fuel_percent = 1.5;
+    let t = NormalizedTelemetry {
+        fuel_percent: 1.5,
+        ..Default::default()
+    };
     let v = t.validated();
     assert!((v.fuel_percent - 1.0).abs() < f32::EPSILON);
     Ok(())
@@ -463,21 +483,23 @@ fn validated_clamps_fuel_percent_to_unit() -> TestResult {
 
 #[test]
 fn validated_sanitizes_nan_to_zero() -> TestResult {
-    let mut t = NormalizedTelemetry::default();
-    t.speed_ms = f32::NAN;
-    t.rpm = f32::NAN;
-    t.throttle = f32::NAN;
-    t.brake = f32::NAN;
-    t.clutch = f32::NAN;
-    t.steering_angle = f32::NAN;
-    t.lateral_g = f32::NAN;
-    t.longitudinal_g = f32::NAN;
-    t.vertical_g = f32::NAN;
-    t.slip_ratio = f32::NAN;
-    t.ffb_scalar = f32::NAN;
-    t.ffb_torque_nm = f32::NAN;
-    t.fuel_percent = f32::NAN;
-    t.engine_temp_c = f32::NAN;
+    let t = NormalizedTelemetry {
+        speed_ms: f32::NAN,
+        rpm: f32::NAN,
+        throttle: f32::NAN,
+        brake: f32::NAN,
+        clutch: f32::NAN,
+        steering_angle: f32::NAN,
+        lateral_g: f32::NAN,
+        longitudinal_g: f32::NAN,
+        vertical_g: f32::NAN,
+        slip_ratio: f32::NAN,
+        ffb_scalar: f32::NAN,
+        ffb_torque_nm: f32::NAN,
+        fuel_percent: f32::NAN,
+        engine_temp_c: f32::NAN,
+        ..Default::default()
+    };
     let v = t.validated();
     assert_eq!(v.speed_ms, 0.0);
     assert_eq!(v.rpm, 0.0);
@@ -498,10 +520,12 @@ fn validated_sanitizes_nan_to_zero() -> TestResult {
 
 #[test]
 fn validated_sanitizes_infinity_to_zero() -> TestResult {
-    let mut t = NormalizedTelemetry::default();
-    t.speed_ms = f32::INFINITY;
-    t.rpm = f32::NEG_INFINITY;
-    t.steering_angle = f32::INFINITY;
+    let t = NormalizedTelemetry {
+        speed_ms: f32::INFINITY,
+        rpm: f32::NEG_INFINITY,
+        steering_angle: f32::INFINITY,
+        ..Default::default()
+    };
     let v = t.validated();
     assert_eq!(v.speed_ms, 0.0);
     assert_eq!(v.rpm, 0.0);
@@ -531,11 +555,13 @@ fn validated_preserves_valid_values() -> TestResult {
 
 #[test]
 fn validated_preserves_slip_angles() -> TestResult {
-    let mut t = NormalizedTelemetry::default();
-    t.slip_angle_fl = f32::NAN;
-    t.slip_angle_fr = 0.05;
-    t.slip_angle_rl = f32::INFINITY;
-    t.slip_angle_rr = -0.1;
+    let t = NormalizedTelemetry {
+        slip_angle_fl: f32::NAN,
+        slip_angle_fr: 0.05,
+        slip_angle_rl: f32::INFINITY,
+        slip_angle_rr: -0.1,
+        ..Default::default()
+    };
     let v = t.validated();
     assert_eq!(v.slip_angle_fl, 0.0);
     assert!((v.slip_angle_fr - 0.05).abs() < f32::EPSILON);
@@ -614,7 +640,7 @@ mod forza_normalization {
     const OFF_ACCEL_Z: usize = 28;
     const OFF_DASH_ACCEL: usize = 303;
     const OFF_DASH_BRAKE: usize = 304;
-    const OFF_DASH_CLUTCH: usize = 305;
+    const _OFF_DASH_CLUTCH: usize = 305;
     const OFF_DASH_GEAR: usize = 307;
     const OFF_DASH_STEER: usize = 308;
     const OFF_DASH_TIRE_TEMP_FL: usize = 256;
@@ -1448,64 +1474,56 @@ mod proptest_normalization {
 
         #[test]
         fn validated_speed_nonneg(speed in proptest::num::f32::ANY) {
-            let mut t = NormalizedTelemetry::default();
-            t.speed_ms = speed;
+            let t = NormalizedTelemetry { speed_ms: speed, ..Default::default() };
             let v = t.validated();
             prop_assert!(v.speed_ms >= 0.0, "validated speed_ms={}", v.speed_ms);
         }
 
         #[test]
         fn validated_rpm_nonneg(rpm in proptest::num::f32::ANY) {
-            let mut t = NormalizedTelemetry::default();
-            t.rpm = rpm;
+            let t = NormalizedTelemetry { rpm, ..Default::default() };
             let v = t.validated();
             prop_assert!(v.rpm >= 0.0, "validated rpm={}", v.rpm);
         }
 
         #[test]
         fn validated_throttle_clamped(throttle in proptest::num::f32::ANY) {
-            let mut t = NormalizedTelemetry::default();
-            t.throttle = throttle;
+            let t = NormalizedTelemetry { throttle, ..Default::default() };
             let v = t.validated();
             prop_assert!(v.throttle >= 0.0 && v.throttle <= 1.0);
         }
 
         #[test]
         fn validated_brake_clamped(brake in proptest::num::f32::ANY) {
-            let mut t = NormalizedTelemetry::default();
-            t.brake = brake;
+            let t = NormalizedTelemetry { brake, ..Default::default() };
             let v = t.validated();
             prop_assert!(v.brake >= 0.0 && v.brake <= 1.0);
         }
 
         #[test]
         fn validated_clutch_clamped(clutch in proptest::num::f32::ANY) {
-            let mut t = NormalizedTelemetry::default();
-            t.clutch = clutch;
+            let t = NormalizedTelemetry { clutch, ..Default::default() };
             let v = t.validated();
             prop_assert!(v.clutch >= 0.0 && v.clutch <= 1.0);
         }
 
         #[test]
         fn validated_slip_ratio_clamped(sr in proptest::num::f32::ANY) {
-            let mut t = NormalizedTelemetry::default();
-            t.slip_ratio = sr;
+            let t = NormalizedTelemetry { slip_ratio: sr, ..Default::default() };
             let v = t.validated();
             prop_assert!(v.slip_ratio >= 0.0 && v.slip_ratio <= 1.0);
         }
 
         #[test]
         fn validated_ffb_scalar_clamped(ffb in proptest::num::f32::ANY) {
-            let mut t = NormalizedTelemetry::default();
-            t.ffb_scalar = ffb;
+            let t = NormalizedTelemetry { ffb_scalar: ffb, ..Default::default() };
             let v = t.validated();
             prop_assert!(v.ffb_scalar >= -1.0 && v.ffb_scalar <= 1.0);
         }
 
         #[test]
         fn validated_fuel_clamped(fuel in proptest::num::f32::ANY) {
-            let mut t = NormalizedTelemetry::default();
-            t.fuel_percent = fuel;
+            let t = NormalizedTelemetry { fuel_percent: fuel, ..Default::default() };
             let v = t.validated();
             prop_assert!(v.fuel_percent >= 0.0 && v.fuel_percent <= 1.0);
         }

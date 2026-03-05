@@ -152,6 +152,7 @@ impl FirmwareDevice for ConfigurableMockDevice {
         Ok(())
     }
 
+    #[allow(clippy::collapsible_if)] // let-chains require Rust 1.87+, MSRV is 1.85
     async fn write_firmware_chunk(
         &self,
         partition: Partition,

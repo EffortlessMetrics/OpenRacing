@@ -13,24 +13,16 @@
 //! - Profile search/listing (filtering by scope)
 //! - Property-based testing of serialization roundtrips
 
-use crate::config::{
-    BaseConfig, BumpstopConfig as CfgBumpstopConfig, CurvePoint as CfgCurvePoint,
-    FilterConfig as CfgFilterConfig, HandsOffConfig as CfgHandsOffConfig,
-    HapticsConfig as CfgHapticsConfig, LedConfig as CfgLedConfig, NotchFilter as CfgNotchFilter,
-    ProfileMigrator, ProfileSchema, ProfileScope as CfgProfileScope, ProfileValidator, SchemaError,
-};
+use crate::config::{ProfileMigrator, ProfileValidator, SchemaError};
 use crate::domain::{CurvePoint, Degrees, DomainError, FrequencyHz, Gain, ProfileId, TorqueNm};
 use crate::entities::{
-    BaseSettings, BumpstopConfig, FilterConfig, HandsOffConfig, HapticsConfig,
-    InMemoryProfileStore, LedConfig, MAX_INHERITANCE_DEPTH, NotchFilter, Profile, ProfileMetadata,
-    ProfileScope, ProfileStore, ResolvedProfile,
+    BaseSettings, BumpstopConfig, FilterConfig, HapticsConfig, InMemoryProfileStore, LedConfig,
+    MAX_INHERITANCE_DEPTH, NotchFilter, Profile, ProfileScope, ProfileStore,
 };
 use crate::migration::{
-    CURRENT_SCHEMA_VERSION, MigrationConfig, MigrationError, MigrationManager, MigrationResult,
-    SchemaVersion,
+    CURRENT_SCHEMA_VERSION, MigrationConfig, MigrationManager, MigrationResult, SchemaVersion,
 };
 use proptest::prelude::*;
-use std::collections::HashMap;
 
 // ============================================================================
 // Test helpers
@@ -947,7 +939,7 @@ fn default_global_profile_is_valid() -> TestResult {
 
     let dor = profile.base_settings.degrees_of_rotation.value();
     assert!(
-        dor >= Degrees::MIN_DOR && dor <= Degrees::MAX_DOR,
+        (Degrees::MIN_DOR..=Degrees::MAX_DOR).contains(&dor),
         "default DOR must be in valid range"
     );
 
@@ -1474,12 +1466,11 @@ fn edge_case_migration_empty_object() -> TestResult {
     let result = manager.detect_version("{}");
     // If detected as legacy v0, that's acceptable behavior; the key point
     // is it doesn't detect as current version
-    match result {
-        Ok(v) => assert!(
+    if let Ok(v) = result {
+        assert!(
             !v.is_current(),
             "empty object should not be current version"
-        ),
-        Err(_) => {} // also acceptable
+        );
     }
     Ok(())
 }
