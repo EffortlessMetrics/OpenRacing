@@ -475,6 +475,7 @@ impl AntiCheatReport {
     }
 
     async fn document_system_apis() -> Result<Vec<SystemApi>> {
+        #[allow(unused_mut)]
         let mut apis = vec![
             SystemApi {
                 api_name: "HID API".to_string(),

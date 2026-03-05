@@ -13,7 +13,6 @@ concurrency:
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
-  CARGO_HOME: /home/runner/.cargo
   CARGO_INCREMENTAL: 0
 
 jobs:
