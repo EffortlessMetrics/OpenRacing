@@ -589,6 +589,11 @@ fn hid_quirks_conf_exists_and_valid() -> Result<(), Box<dyn std::error::Error>> 
         content.to_lowercase().contains("0x2433"),
         "Quirks conf must include Asetek VID 0x2433"
     );
+    // Simagic EVO VID 0x3670 should be present (GT Neo / EVO reboot quirk)
+    assert!(
+        content.to_lowercase().contains("0x3670"),
+        "Quirks conf must include Simagic EVO VID 0x3670"
+    );
     Ok(())
 }
 
