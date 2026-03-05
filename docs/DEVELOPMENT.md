@@ -49,6 +49,12 @@ cargo clippy --all-targets --all-features -- -D warnings
 
 # Run tests
 cargo test --all-features --workspace
+
+# Faster test runner (requires cargo-nextest)
+cargo nextest run --all-features --workspace
+
+# Build/test without Tauri/GTK deps (the ui crate needs them)
+cargo test --all-features --workspace --exclude racing-wheel-ui
 ```
 
 #### Memory Safety Rules
@@ -61,8 +67,8 @@ cargo test --all-features --workspace
 # Build RT profile
 cargo build --profile rt --bin wheeld
 
-# Run benchmarks
-cargo bench --bench rt_timing
+# Run benchmarks and generate JSON results for validation
+BENCHMARK_JSON_OUTPUT=1 BENCHMARK_JSON_PATH=bench_results.json cargo bench --bench rt_timing
 
 # Validate performance gates
 python scripts/validate_performance.py bench_results.json --strict
@@ -78,6 +84,9 @@ python scripts/generate_docs_index.py
 
 # Build docs
 cargo doc --all-features --workspace
+
+# Regenerate workspace-hack after dependency changes
+cargo hakari generate
 ```
 
 ## Real-Time Development Guidelines
