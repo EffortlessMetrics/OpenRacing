@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- 127 CLI end-to-end tests: command parsing, help text snapshots, error output validation, all subcommands covered (#171)
+- 80 cross-platform HID transport tests: trait implementation, mock backends, VID/PID matching, hot-plug, report descriptor parsing (#170)
+- 75 filter pipeline RT tests: individual filters, chain composition, boundary conditions, determinism, frequency response, zero-alloc RT compliance (#169)
+- 87 plugin system comprehensive tests: manifest parsing, capability model, WASM sandbox, native ABI, budget enforcement, signing, lifecycle (#168)
+- 55 fault injection FMEA acceptance tests: state transitions, timing requirements, watchdog, multi-fault, recovery, interlock, torque limiting (#167)
+- 155 schema evolution tests: serialization roundtrips, backward/forward compatibility, schema validation, enum stability, default values (#166)
+- 43 device protocol snapshot tests: known-good byte sequence parsing, VID/PID mapping, capability matrices across Fanatec/Moza/Simagic/VRS (#162)
+- 32 telemetry proptest harnesses: random byte fuzzing, invariant checks, truncation handling, NaN/Inf rejection for Forza and AMS2 (#163)
+- 45+ HID protocol fuzzing harnesses: proptest-based fuzzing across 10 vendor crates plus cross-vendor integration tests (#164)
 - 37 adaptive scheduling tests: dynamic thread priority, load-based frequency adjustment, cross-platform RT scheduling policy validation (#160)
 - 57 IPC versioning and compatibility tests: version negotiation roundtrips, backward/forward compat, wire format stability, feature matrix validation (#161)
 - 117 HID device capture and replay validation tests: capture format roundtrip, replay timing fidelity, capture pipeline lifecycle across 3 test suites (#157)
@@ -68,6 +77,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CI: removed hardcoded CARGO_HOME path for cross-platform integration tests (#97)
 
 ### Added
+- 127 CLI end-to-end tests: command parsing, help text snapshots, error output validation, all subcommands covered (#171)
+- 80 cross-platform HID transport tests: trait implementation, mock backends, VID/PID matching, hot-plug, report descriptor parsing (#170)
+- 75 filter pipeline RT tests: individual filters, chain composition, boundary conditions, determinism, frequency response, zero-alloc RT compliance (#169)
+- 87 plugin system comprehensive tests: manifest parsing, capability model, WASM sandbox, native ABI, budget enforcement, signing, lifecycle (#168)
+- 55 fault injection FMEA acceptance tests: state transitions, timing requirements, watchdog, multi-fault, recovery, interlock, torque limiting (#167)
+- 155 schema evolution tests: serialization roundtrips, backward/forward compatibility, schema validation, enum stability, default values (#166)
+- 43 device protocol snapshot tests: known-good byte sequence parsing, VID/PID mapping, capability matrices across Fanatec/Moza/Simagic/VRS (#162)
+- 32 telemetry proptest harnesses: random byte fuzzing, invariant checks, truncation handling, NaN/Inf rejection for Forza and AMS2 (#163)
+- 45+ HID protocol fuzzing harnesses: proptest-based fuzzing across 10 vendor crates plus cross-vendor integration tests (#164)
 - 37 adaptive scheduling tests: dynamic thread priority, load-based frequency adjustment, cross-platform RT scheduling policy validation (#160)
 - 57 IPC versioning and compatibility tests: version negotiation roundtrips, backward/forward compat, wire format stability, feature matrix validation (#161)
 
@@ -183,6 +201,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`deny.toml` updated for cargo-deny 0.19**: license violation resolutions and advisory configuration updated to match current toolchain
 
 ### Added
+- 127 CLI end-to-end tests: command parsing, help text snapshots, error output validation, all subcommands covered (#171)
+- 80 cross-platform HID transport tests: trait implementation, mock backends, VID/PID matching, hot-plug, report descriptor parsing (#170)
+- 75 filter pipeline RT tests: individual filters, chain composition, boundary conditions, determinism, frequency response, zero-alloc RT compliance (#169)
+- 87 plugin system comprehensive tests: manifest parsing, capability model, WASM sandbox, native ABI, budget enforcement, signing, lifecycle (#168)
+- 55 fault injection FMEA acceptance tests: state transitions, timing requirements, watchdog, multi-fault, recovery, interlock, torque limiting (#167)
+- 155 schema evolution tests: serialization roundtrips, backward/forward compatibility, schema validation, enum stability, default values (#166)
+- 43 device protocol snapshot tests: known-good byte sequence parsing, VID/PID mapping, capability matrices across Fanatec/Moza/Simagic/VRS (#162)
+- 32 telemetry proptest harnesses: random byte fuzzing, invariant checks, truncation handling, NaN/Inf rejection for Forza and AMS2 (#163)
+- 45+ HID protocol fuzzing harnesses: proptest-based fuzzing across 10 vendor crates plus cross-vendor integration tests (#164)
 - 37 adaptive scheduling tests: dynamic thread priority, load-based frequency adjustment, cross-platform RT scheduling policy validation (#160)
 - 57 IPC versioning and compatibility tests: version negotiation roundtrips, backward/forward compat, wire format stability, feature matrix validation (#161)
 
@@ -203,6 +230,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.0-rc.1] - 2026-11-01
 
 ### Added
+- 127 CLI end-to-end tests: command parsing, help text snapshots, error output validation, all subcommands covered (#171)
+- 80 cross-platform HID transport tests: trait implementation, mock backends, VID/PID matching, hot-plug, report descriptor parsing (#170)
+- 75 filter pipeline RT tests: individual filters, chain composition, boundary conditions, determinism, frequency response, zero-alloc RT compliance (#169)
+- 87 plugin system comprehensive tests: manifest parsing, capability model, WASM sandbox, native ABI, budget enforcement, signing, lifecycle (#168)
+- 55 fault injection FMEA acceptance tests: state transitions, timing requirements, watchdog, multi-fault, recovery, interlock, torque limiting (#167)
+- 155 schema evolution tests: serialization roundtrips, backward/forward compatibility, schema validation, enum stability, default values (#166)
+- 43 device protocol snapshot tests: known-good byte sequence parsing, VID/PID mapping, capability matrices across Fanatec/Moza/Simagic/VRS (#162)
+- 32 telemetry proptest harnesses: random byte fuzzing, invariant checks, truncation handling, NaN/Inf rejection for Forza and AMS2 (#163)
+- 45+ HID protocol fuzzing harnesses: proptest-based fuzzing across 10 vendor crates plus cross-vendor integration tests (#164)
 - 37 adaptive scheduling tests: dynamic thread priority, load-based frequency adjustment, cross-platform RT scheduling policy validation (#160)
 - 57 IPC versioning and compatibility tests: version negotiation roundtrips, backward/forward compat, wire format stability, feature matrix validation (#161)
 
@@ -383,6 +419,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.0] - 2026-10-15
 
 ### Added
+- 127 CLI end-to-end tests: command parsing, help text snapshots, error output validation, all subcommands covered (#171)
+- 80 cross-platform HID transport tests: trait implementation, mock backends, VID/PID matching, hot-plug, report descriptor parsing (#170)
+- 75 filter pipeline RT tests: individual filters, chain composition, boundary conditions, determinism, frequency response, zero-alloc RT compliance (#169)
+- 87 plugin system comprehensive tests: manifest parsing, capability model, WASM sandbox, native ABI, budget enforcement, signing, lifecycle (#168)
+- 55 fault injection FMEA acceptance tests: state transitions, timing requirements, watchdog, multi-fault, recovery, interlock, torque limiting (#167)
+- 155 schema evolution tests: serialization roundtrips, backward/forward compatibility, schema validation, enum stability, default values (#166)
+- 43 device protocol snapshot tests: known-good byte sequence parsing, VID/PID mapping, capability matrices across Fanatec/Moza/Simagic/VRS (#162)
+- 32 telemetry proptest harnesses: random byte fuzzing, invariant checks, truncation handling, NaN/Inf rejection for Forza and AMS2 (#163)
+- 45+ HID protocol fuzzing harnesses: proptest-based fuzzing across 10 vendor crates plus cross-vendor integration tests (#164)
 - 37 adaptive scheduling tests: dynamic thread priority, load-based frequency adjustment, cross-platform RT scheduling policy validation (#160)
 - 57 IPC versioning and compatibility tests: version negotiation roundtrips, backward/forward compat, wire format stability, feature matrix validation (#161)
 
@@ -439,6 +484,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.3.0] - 2026-02-01
 
 ### Added
+- 127 CLI end-to-end tests: command parsing, help text snapshots, error output validation, all subcommands covered (#171)
+- 80 cross-platform HID transport tests: trait implementation, mock backends, VID/PID matching, hot-plug, report descriptor parsing (#170)
+- 75 filter pipeline RT tests: individual filters, chain composition, boundary conditions, determinism, frequency response, zero-alloc RT compliance (#169)
+- 87 plugin system comprehensive tests: manifest parsing, capability model, WASM sandbox, native ABI, budget enforcement, signing, lifecycle (#168)
+- 55 fault injection FMEA acceptance tests: state transitions, timing requirements, watchdog, multi-fault, recovery, interlock, torque limiting (#167)
+- 155 schema evolution tests: serialization roundtrips, backward/forward compatibility, schema validation, enum stability, default values (#166)
+- 43 device protocol snapshot tests: known-good byte sequence parsing, VID/PID mapping, capability matrices across Fanatec/Moza/Simagic/VRS (#162)
+- 32 telemetry proptest harnesses: random byte fuzzing, invariant checks, truncation handling, NaN/Inf rejection for Forza and AMS2 (#163)
+- 45+ HID protocol fuzzing harnesses: proptest-based fuzzing across 10 vendor crates plus cross-vendor integration tests (#164)
 - 37 adaptive scheduling tests: dynamic thread priority, load-based frequency adjustment, cross-platform RT scheduling policy validation (#160)
 - 57 IPC versioning and compatibility tests: version negotiation roundtrips, backward/forward compat, wire format stability, feature matrix validation (#161)
 
@@ -492,6 +546,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.2.0] - 2026-02-01
 
 ### Added
+- 127 CLI end-to-end tests: command parsing, help text snapshots, error output validation, all subcommands covered (#171)
+- 80 cross-platform HID transport tests: trait implementation, mock backends, VID/PID matching, hot-plug, report descriptor parsing (#170)
+- 75 filter pipeline RT tests: individual filters, chain composition, boundary conditions, determinism, frequency response, zero-alloc RT compliance (#169)
+- 87 plugin system comprehensive tests: manifest parsing, capability model, WASM sandbox, native ABI, budget enforcement, signing, lifecycle (#168)
+- 55 fault injection FMEA acceptance tests: state transitions, timing requirements, watchdog, multi-fault, recovery, interlock, torque limiting (#167)
+- 155 schema evolution tests: serialization roundtrips, backward/forward compatibility, schema validation, enum stability, default values (#166)
+- 43 device protocol snapshot tests: known-good byte sequence parsing, VID/PID mapping, capability matrices across Fanatec/Moza/Simagic/VRS (#162)
+- 32 telemetry proptest harnesses: random byte fuzzing, invariant checks, truncation handling, NaN/Inf rejection for Forza and AMS2 (#163)
+- 45+ HID protocol fuzzing harnesses: proptest-based fuzzing across 10 vendor crates plus cross-vendor integration tests (#164)
 - 37 adaptive scheduling tests: dynamic thread priority, load-based frequency adjustment, cross-platform RT scheduling policy validation (#160)
 - 57 IPC versioning and compatibility tests: version negotiation roundtrips, backward/forward compat, wire format stability, feature matrix validation (#161)
 
@@ -531,6 +594,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.1.0] - 2025-01-01
 
 ### Added
+- 127 CLI end-to-end tests: command parsing, help text snapshots, error output validation, all subcommands covered (#171)
+- 80 cross-platform HID transport tests: trait implementation, mock backends, VID/PID matching, hot-plug, report descriptor parsing (#170)
+- 75 filter pipeline RT tests: individual filters, chain composition, boundary conditions, determinism, frequency response, zero-alloc RT compliance (#169)
+- 87 plugin system comprehensive tests: manifest parsing, capability model, WASM sandbox, native ABI, budget enforcement, signing, lifecycle (#168)
+- 55 fault injection FMEA acceptance tests: state transitions, timing requirements, watchdog, multi-fault, recovery, interlock, torque limiting (#167)
+- 155 schema evolution tests: serialization roundtrips, backward/forward compatibility, schema validation, enum stability, default values (#166)
+- 43 device protocol snapshot tests: known-good byte sequence parsing, VID/PID mapping, capability matrices across Fanatec/Moza/Simagic/VRS (#162)
+- 32 telemetry proptest harnesses: random byte fuzzing, invariant checks, truncation handling, NaN/Inf rejection for Forza and AMS2 (#163)
+- 45+ HID protocol fuzzing harnesses: proptest-based fuzzing across 10 vendor crates plus cross-vendor integration tests (#164)
 - 37 adaptive scheduling tests: dynamic thread priority, load-based frequency adjustment, cross-platform RT scheduling policy validation (#160)
 - 57 IPC versioning and compatibility tests: version negotiation roundtrips, backward/forward compat, wire format stability, feature matrix validation (#161)
 
