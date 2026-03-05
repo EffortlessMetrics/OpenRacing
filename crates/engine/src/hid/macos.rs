@@ -318,10 +318,11 @@ impl IOKitDeviceDescriptor {
 
     /// Convert to the engine-level `HidDeviceInfo`.
     pub fn to_hid_device_info(&self) -> Result<HidDeviceInfo, Box<dyn std::error::Error>> {
-        let device_id = DeviceId::new(format!(
+        let device_id: DeviceId = format!(
             "macos-hid-{:04x}-{:04x}-{:08x}",
             self.vendor_id, self.product_id, self.location_id
-        ))?;
+        )
+        .parse()?;
 
         let capabilities = self.detect_capabilities();
 
