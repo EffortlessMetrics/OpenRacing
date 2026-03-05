@@ -1,0 +1,10 @@
+---
+source: crates/cli/tests/cli_comprehensive_e2e_tests.rs
+expression: stderr
+---
+error: invalid value 'ksh' for '<SHELL>'
+  [possible values: bash, elvish, fish, powershell, zsh]
+
+  tip: a similar value exists: 'zsh'
+
+For more information, try '--help'.

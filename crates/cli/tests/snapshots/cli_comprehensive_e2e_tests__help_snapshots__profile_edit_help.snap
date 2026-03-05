@@ -1,0 +1,17 @@
+---
+source: crates/cli/tests/cli_comprehensive_e2e_tests.rs
+expression: stdout
+---
+Edit profile interactively
+
+Usage: wheelctl profile edit [OPTIONS] <PROFILE>
+
+Arguments:
+  <PROFILE>  Profile path or ID
+
+Options:
+      --field <FIELD>  Field to edit (e.g., base.ffbGain)
+      --json           Output in JSON format for machine parsing
+  -v, --verbose...     Verbose logging
+      --value <VALUE>  New value
+  -h, --help           Print help

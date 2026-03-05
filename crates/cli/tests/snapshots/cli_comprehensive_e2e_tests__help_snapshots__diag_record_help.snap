@@ -1,0 +1,17 @@
+---
+source: crates/cli/tests/cli_comprehensive_e2e_tests.rs
+expression: stdout
+---
+Record blackbox data
+
+Usage: wheelctl diag record [OPTIONS] <DEVICE>
+
+Arguments:
+  <DEVICE>  Device ID or name
+
+Options:
+  -d, --duration <DURATION>  Recording duration in seconds [default: 120]
+      --json                 Output in JSON format for machine parsing
+  -o, --output <OUTPUT>      Output file path
+  -v, --verbose...           Verbose logging
+  -h, --help                 Print help

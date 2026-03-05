@@ -1,0 +1,16 @@
+---
+source: crates/cli/tests/cli_comprehensive_e2e_tests.rs
+expression: stdout
+---
+Run system diagnostics
+
+Usage: wheelctl diag test [OPTIONS] [TEST_TYPE]
+
+Arguments:
+  [TEST_TYPE]  Test type [possible values: motor, encoder, usb, thermal, all]
+
+Options:
+  -d, --device <DEVICE>  Device ID or name
+      --json             Output in JSON format for machine parsing
+  -v, --verbose...       Verbose logging
+  -h, --help             Print help
