@@ -13,6 +13,8 @@ pub mod ipc_conversion;
 pub mod migration;
 
 #[cfg(test)]
+mod config_migration_tests;
+#[cfg(test)]
 mod integration_test;
 #[cfg(test)]
 mod ipc_conversion_tests;
