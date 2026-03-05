@@ -200,7 +200,6 @@ impl Default for HotplugMonitorConfig {
 #[cfg(target_os = "macos")]
 pub mod ffi_monitor {
     use super::*;
-    use crate::hid::macos::device::ffi_device;
     use crate::hid::macos::iokit_ffi::{self, *};
     use crate::hid::macos::{MacHidError, usage, usage_page};
     use std::ffi::c_void;
