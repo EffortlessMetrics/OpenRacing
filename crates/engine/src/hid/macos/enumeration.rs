@@ -57,25 +57,25 @@ impl DeviceFilter {
 
     /// Check whether a device descriptor passes this filter.
     pub fn matches(&self, desc: &IOKitDeviceDescriptor) -> bool {
-        if let Some(vid) = self.vendor_id {
-            if desc.vendor_id != vid {
-                return false;
-            }
+        if let Some(vid) = self.vendor_id
+            && desc.vendor_id != vid
+        {
+            return false;
         }
-        if let Some(pid) = self.product_id {
-            if desc.product_id != pid {
-                return false;
-            }
+        if let Some(pid) = self.product_id
+            && desc.product_id != pid
+        {
+            return false;
         }
-        if let Some(page) = self.usage_page {
-            if desc.primary_usage_page != page {
-                return false;
-            }
+        if let Some(page) = self.usage_page
+            && desc.primary_usage_page != page
+        {
+            return false;
         }
-        if let Some(u) = self.usage {
-            if desc.primary_usage != u {
-                return false;
-            }
+        if let Some(u) = self.usage
+            && desc.primary_usage != u
+        {
+            return false;
         }
         true
     }

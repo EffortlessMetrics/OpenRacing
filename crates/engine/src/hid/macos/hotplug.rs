@@ -206,11 +206,19 @@ pub mod ffi_monitor {
     use std::ffi::c_void;
     use std::sync::{Arc, Mutex};
 
+    /// Wrapper around `CFRunLoopRef` to implement `Send`.
+    ///
+    /// Safety: `CFRunLoopStop` is documented as thread-safe by Apple, and that
+    /// is the only cross-thread operation we perform with this pointer.
+    struct SendableCFRunLoopRef(CFRunLoopRef);
+    // SAFETY: CFRunLoopStop is thread-safe per Apple docs.
+    unsafe impl Send for SendableCFRunLoopRef {}
+
     /// IOKit-backed hot-plug monitor that runs a CFRunLoop on a background thread.
     pub struct IOKitHotplugMonitor {
         state: Arc<Mutex<MonitorState>>,
         events: Arc<Mutex<Vec<HotplugEvent>>>,
-        run_loop_ref: Arc<Mutex<Option<CFRunLoopRef>>>,
+        run_loop_ref: Arc<Mutex<Option<SendableCFRunLoopRef>>>,
     }
 
     // Safety: The CFRunLoopRef is only used via CFRunLoopStop which is thread-safe.
@@ -285,7 +293,7 @@ pub mod ffi_monitor {
                     // Store the run loop ref for stopping later
                     {
                         let mut store = run_loop_store.lock().unwrap_or_else(|e| e.into_inner());
-                        *store = Some(rl);
+                        *store = Some(SendableCFRunLoopRef(rl));
                     }
 
                     // Open manager
@@ -327,7 +335,7 @@ pub mod ffi_monitor {
         pub fn stop(&self) {
             let rl = {
                 let store = self.run_loop_ref.lock().unwrap_or_else(|e| e.into_inner());
-                *store
+                store.as_ref().map(|s| s.0)
             };
             if let Some(rl) = rl {
                 unsafe { CFRunLoopStop(rl) };
@@ -357,7 +365,8 @@ pub mod ffi_monitor {
         if context.is_null() || device.is_null() {
             return;
         }
-        let events = &*(context as *const Arc<Mutex<Vec<HotplugEvent>>>);
+        // SAFETY: `context` was created via `Box::into_raw(Box::new(Arc::clone(…)))` in `start`.
+        let events = unsafe { &*(context as *const Arc<Mutex<Vec<HotplugEvent>>>) };
 
         let vid = iokit_ffi::device_int_property(device, K_IOHID_VENDOR_ID_KEY).unwrap_or(0);
         let pid = iokit_ffi::device_int_property(device, K_IOHID_PRODUCT_ID_KEY).unwrap_or(0);
@@ -384,7 +393,8 @@ pub mod ffi_monitor {
         if context.is_null() || device.is_null() {
             return;
         }
-        let events = &*(context as *const Arc<Mutex<Vec<HotplugEvent>>>);
+        // SAFETY: `context` was created via `Box::into_raw(Box::new(Arc::clone(…)))` in `start`.
+        let events = unsafe { &*(context as *const Arc<Mutex<Vec<HotplugEvent>>>) };
 
         let location = iokit_ffi::device_int_property(device, K_IOHID_LOCATION_ID_KEY).unwrap_or(0);
         let path = format!("IOService:/AppleUSBDevice@{:08X}", location);

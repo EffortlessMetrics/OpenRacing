@@ -192,6 +192,7 @@ impl MacOSDeviceHandle {
 pub mod ffi_device {
     use super::*;
     use crate::hid::macos::iokit_ffi::{self, *};
+    use crate::hid::macos::{HIDElement, IOHIDElementType, MacHidError};
     use std::ffi::c_void;
 
     /// Open an IOKit HID device for exclusive access.
