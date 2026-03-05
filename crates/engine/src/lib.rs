@@ -51,6 +51,8 @@ pub mod prelude;
 pub mod profile_merge;
 pub mod protocol;
 pub mod rt;
+#[cfg(test)]
+mod rt_alloc_verify_tests;
 pub mod safety;
 pub mod scheduler;
 #[cfg(any(test, feature = "harness"))]
