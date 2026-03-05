@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- 120+ plugin system hardening tests: Ed25519 crypto verification, WASM sandbox boundary enforcement, plugin lifecycle state machine coverage across 3 crates (#151)
+- 141 replay, diagnostics, and tracing tests: telemetry replay fidelity, diagnostic snapshot roundtrip, tracing span coverage (#150)
+- 113 safety FMEA tests: fault injection scenarios, watchdog timeout escalation, interlock challenge-response verification (#147)
+- 89 cross-platform scheduler shim tests: RT scheduling abstraction across Windows MMCSS, Linux SCHED_FIFO, macOS thread_policy_set (#146)
 - 100 game telemetry adapter parsing tests: F1, RaceRoom, WRC, Rennsport, SimHub, KartKraft deep coverage (#144)
 - 80 IPC transport, feature negotiation, and service communication tests: codec roundtrip, health monitoring, concurrent negotiation (#142)
 - 110 Simucube and Cammus protocol integration tests: PIDFF roundtrip, torque encoding, effect type coverage (#141)
@@ -43,9 +47,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 44 service integration tests: device, game, profile, diagnostic, safety, anticheat coverage (#100)
 
 ### Changed
+- Documentation accuracy pass: updated stale claims, verified commands, created NOW_NEXT_LATER.md (#148)
 - Ignore 7 RT scheduling integration tests on macOS CI runners lacking RT scheduling support (#106)
 
 ### Fixed
+- Resolve broken intra-doc link in Simucube output module (#149)
 - CI: fix prelude_fixtures_available feature gate (#143)
 - CI: fix fixture_validation feature gate (#140)
 - macOS CI: RT scheduling integration tests no longer fail on macOS runners (#106)
