@@ -1,0 +1,14 @@
+---
+source: crates/hid-fanatec-protocol/tests/device_snapshot_tests.rs
+expression: "lines.join(\"\\n\")"
+---
+DD1: torque=20.0Nm, cpr=16384, 1kHz=true, max_rot=2520°, highres=true, sign_fix=true
+DD2: torque=25.0Nm, cpr=16384, 1kHz=true, max_rot=2520°, highres=true, sign_fix=true
+CSL DD: torque=8.0Nm, cpr=16384, 1kHz=true, max_rot=2520°, highres=true, sign_fix=true
+GT DD Pro: torque=8.0Nm, cpr=16384, 1kHz=true, max_rot=2520°, highres=true, sign_fix=true
+ClubSport DD: torque=12.0Nm, cpr=16384, 1kHz=true, max_rot=2520°, highres=true, sign_fix=true
+ClubSport V2: torque=8.0Nm, cpr=4096, 1kHz=false, max_rot=900°, highres=false, sign_fix=true
+ClubSport V2.5: torque=8.0Nm, cpr=4096, 1kHz=false, max_rot=900°, highres=false, sign_fix=true
+CSL Elite: torque=6.0Nm, cpr=4096, 1kHz=false, max_rot=1080°, highres=false, sign_fix=true
+CSL Elite PS4: torque=6.0Nm, cpr=4096, 1kHz=false, max_rot=1080°, highres=false, sign_fix=true
+CSR Elite: torque=5.0Nm, cpr=4096, 1kHz=false, max_rot=900°, highres=false, sign_fix=false

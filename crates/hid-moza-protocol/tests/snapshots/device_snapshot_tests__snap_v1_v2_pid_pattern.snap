@@ -1,0 +1,9 @@
+---
+source: crates/hid-moza-protocol/tests/device_snapshot_tests.rs
+expression: "lines.join(\"\\n\")"
+---
+R3: V1=0x0005(R3), V2=0x0015(R3), pattern_ok=true
+R5: V1=0x0004(R5), V2=0x0014(R5), pattern_ok=true
+R9: V1=0x0002(R9), V2=0x0012(R9), pattern_ok=true
+R12: V1=0x0006(R12), V2=0x0016(R12), pattern_ok=true
+R16/R21: V1=0x0000(R16), V2=0x0010(R16), pattern_ok=true

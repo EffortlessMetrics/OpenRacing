@@ -1,0 +1,12 @@
+---
+source: crates/hid-simagic-protocol/tests/device_snapshot_tests.rs
+expression: "lines.join(\"\\n\")"
+---
+flags=0b000: clutch_in_range=false, seq_up=false, seq_down=false
+flags=0b001: clutch_in_range=true, seq_up=false, seq_down=false
+flags=0b010: clutch_in_range=false, seq_up=true, seq_down=false
+flags=0b011: clutch_in_range=true, seq_up=true, seq_down=false
+flags=0b100: clutch_in_range=false, seq_up=false, seq_down=true
+flags=0b101: clutch_in_range=true, seq_up=false, seq_down=true
+flags=0b110: clutch_in_range=false, seq_up=true, seq_down=true
+flags=0b111: clutch_in_range=true, seq_up=true, seq_down=true

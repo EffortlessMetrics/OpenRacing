@@ -1,0 +1,5 @@
+---
+source: crates/hid-fanatec-protocol/tests/device_snapshot_tests.rs
+expression: "format!(\"throttle_raw={}, brake_raw={}, clutch_raw={}, axis_count={}\",\nstate.throttle_raw, state.brake_raw, state.clutch_raw, state.axis_count,)"
+---
+throttle_raw=0, brake_raw=0, clutch_raw=0, axis_count=3

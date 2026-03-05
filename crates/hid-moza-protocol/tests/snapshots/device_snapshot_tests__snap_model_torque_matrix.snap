@@ -1,0 +1,12 @@
+---
+source: crates/hid-moza-protocol/tests/device_snapshot_tests.rs
+expression: "lines.join(\"\\n\")"
+---
+R3: 3.9Nm
+R5: 5.5Nm
+R9: 9.0Nm
+R12: 12.0Nm
+R16: 16.0Nm
+R21: 21.0Nm
+SrpPedals: 0.0Nm
+Unknown: 10.0Nm

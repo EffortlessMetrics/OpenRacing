@@ -1,0 +1,9 @@
+---
+source: crates/hid-simagic-protocol/tests/device_snapshot_tests.rs
+expression: "lines.join(\"\\n\")"
+---
+0x0500 EVO Sport: model=EvoSport, torque=9.0Nm
+0x0501 EVO: model=Evo, torque=12.0Nm
+0x0502 EVO Pro: model=EvoPro, torque=18.0Nm
+0x0A04 Handbrake: model=Handbrake, torque=0.0Nm
+0xFFFF Unknown: model=Unknown, torque=9.0Nm

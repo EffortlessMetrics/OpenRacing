@@ -1,0 +1,5 @@
+---
+source: crates/hid-simagic-protocol/tests/device_snapshot_tests.rs
+expression: "format!(\"SIMAGIC_VENDOR_ID=0x{:04X}, SIMAGIC_LEGACY_VENDOR_ID=0x{:04X}, SIMAGIC_LEGACY_PID=0x{:04X}\",\nsimagic::SIMAGIC_VENDOR_ID, simagic::ids::SIMAGIC_LEGACY_VENDOR_ID,\nsimagic::ids::SIMAGIC_LEGACY_PID,)"
+---
+SIMAGIC_VENDOR_ID=0x3670, SIMAGIC_LEGACY_VENDOR_ID=0x0483, SIMAGIC_LEGACY_PID=0x0522

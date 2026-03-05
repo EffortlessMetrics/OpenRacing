@@ -1,0 +1,16 @@
+---
+source: crates/hid-fanatec-protocol/tests/device_snapshot_tests.rs
+expression: "lines.join(\"\\n\")"
+---
+0x01 BMW GT2: variant=BmwGt2, funky=false, dual_clutch=false, rotary=false
+0x0A Formula V2: variant=FormulaV2, funky=false, dual_clutch=true, rotary=false
+0x03 Formula V2.5: variant=FormulaV25, funky=false, dual_clutch=true, rotary=true
+0x08 CSL Elite P1: variant=CslEliteP1, funky=false, dual_clutch=false, rotary=false
+0x0B McLaren GT3 V2: variant=McLarenGt3V2, funky=true, dual_clutch=true, rotary=true
+0x0C Porsche 911 GT3 R: variant=Porsche911Gt3R, funky=false, dual_clutch=false, rotary=false
+0x05 Porsche 918 RSR: variant=Porsche918Rsr, funky=false, dual_clutch=false, rotary=false
+0x06 ClubSport RS: variant=ClubSportRs, funky=false, dual_clutch=false, rotary=false
+0x12 WRC: variant=Wrc, funky=false, dual_clutch=false, rotary=false
+0x09 Podium Hub: variant=PodiumHub, funky=false, dual_clutch=false, rotary=false
+0xFF Unknown (0xFF): variant=Unknown, funky=false, dual_clutch=false, rotary=false
+0x00 Unknown (0x00): variant=Unknown, funky=false, dual_clutch=false, rotary=false

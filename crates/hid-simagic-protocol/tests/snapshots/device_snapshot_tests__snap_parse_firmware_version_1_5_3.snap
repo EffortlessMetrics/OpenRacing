@@ -1,0 +1,5 @@
+---
+source: crates/hid-simagic-protocol/tests/device_snapshot_tests.rs
+expression: "format!(\"firmware={:?}, steering={:.4}\", state.firmware_version,\nstate.steering,)"
+---
+firmware=Some((1, 5, 3)), steering=0.0000

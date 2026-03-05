@@ -1,0 +1,19 @@
+---
+source: crates/hid-moza-protocol/tests/device_snapshot_tests.rs
+expression: "lines.join(\"\\n\")"
+---
+0x0005 R3 V1: cat=Wheelbase, topo=WheelbaseAggregated, ffb=true, is_wb=true
+0x0015 R3 V2: cat=Wheelbase, topo=WheelbaseAggregated, ffb=true, is_wb=true
+0x0004 R5 V1: cat=Wheelbase, topo=WheelbaseAggregated, ffb=true, is_wb=true
+0x0014 R5 V2: cat=Wheelbase, topo=WheelbaseAggregated, ffb=true, is_wb=true
+0x0002 R9 V1: cat=Wheelbase, topo=WheelbaseAggregated, ffb=true, is_wb=true
+0x0012 R9 V2: cat=Wheelbase, topo=WheelbaseAggregated, ffb=true, is_wb=true
+0x0006 R12 V1: cat=Wheelbase, topo=WheelbaseAggregated, ffb=true, is_wb=true
+0x0016 R12 V2: cat=Wheelbase, topo=WheelbaseAggregated, ffb=true, is_wb=true
+0x0000 R16/R21 V1: cat=Wheelbase, topo=WheelbaseAggregated, ffb=true, is_wb=true
+0x0010 R16/R21 V2: cat=Wheelbase, topo=WheelbaseAggregated, ffb=true, is_wb=true
+0x0003 SR-P Pedals: cat=Pedals, topo=StandaloneUsb, ffb=false, is_wb=false
+0x0020 HGP Shifter: cat=Shifter, topo=StandaloneUsb, ffb=false, is_wb=false
+0x0021 SGP Shifter: cat=Shifter, topo=StandaloneUsb, ffb=false, is_wb=false
+0x0022 HBP Handbrake: cat=Handbrake, topo=StandaloneUsb, ffb=false, is_wb=false
+0xFFFF Unknown: cat=Unknown, topo=Unknown, ffb=false, is_wb=false

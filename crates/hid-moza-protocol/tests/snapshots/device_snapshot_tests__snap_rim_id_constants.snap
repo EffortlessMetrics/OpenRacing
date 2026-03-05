@@ -1,0 +1,10 @@
+---
+source: crates/hid-moza-protocol/tests/device_snapshot_tests.rs
+expression: "lines.join(\"\\n\")"
+---
+CS V2: 0x01
+GS V2: 0x02
+RS V2: 0x03
+FSR: 0x04
+KS: 0x05
+ES: 0x06
