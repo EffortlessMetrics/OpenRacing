@@ -115,6 +115,10 @@ async fn test_user_journey_uj02_profile_switching() -> Result<()> {
     target_os = "windows",
     ignore = "Fault response timing requires RT scheduling on Windows"
 )]
+#[cfg_attr(
+    target_os = "macos",
+    ignore = "Fault response timing requires RT scheduling on macOS"
+)]
 async fn test_user_journey_uj03_fault_recovery() -> Result<()> {
     init_test_environment()?;
 
@@ -181,6 +185,10 @@ async fn test_user_journey_uj04_debug_workflow() -> Result<()> {
     target_os = "windows",
     ignore = "FFB jitter gate requires RT scheduling on Windows"
 )]
+#[cfg_attr(
+    target_os = "macos",
+    ignore = "FFB jitter gate requires RT scheduling on macOS"
+)]
 async fn test_performance_gates_ffb_jitter() -> Result<()> {
     init_test_environment()?;
     let timeout_limit = jitter_test_timeout();
@@ -232,6 +240,10 @@ async fn test_performance_gates_ffb_jitter() -> Result<()> {
     target_os = "windows",
     ignore = "HID latency gate requires RT scheduling on Windows"
 )]
+#[cfg_attr(
+    target_os = "macos",
+    ignore = "HID latency gate requires RT scheduling on macOS"
+)]
 async fn test_performance_gates_hid_latency() -> Result<()> {
     init_test_environment()?;
     let timeout_limit = hid_latency_test_timeout();
@@ -282,6 +294,10 @@ async fn test_performance_gates_hid_latency() -> Result<()> {
 #[cfg_attr(
     target_os = "windows",
     ignore = "Zero missed ticks gate requires RT scheduling on Windows"
+)]
+#[cfg_attr(
+    target_os = "macos",
+    ignore = "Zero missed ticks gate requires RT scheduling on macOS"
 )]
 async fn test_performance_gates_zero_missed_ticks() -> Result<()> {
     init_test_environment()?;
@@ -366,6 +382,10 @@ async fn test_hotplug_stress_basic() -> Result<()> {
     target_os = "windows",
     ignore = "Fault injection stress test requires RT scheduling on Windows"
 )]
+#[cfg_attr(
+    target_os = "macos",
+    ignore = "Fault injection stress test requires RT scheduling on macOS"
+)]
 async fn test_fault_injection_stress() -> Result<()> {
     init_test_environment()?;
 
@@ -417,6 +437,10 @@ async fn test_ci_soak_test() -> Result<()> {
     target_os = "windows",
     ignore = "Acceptance tests require RT scheduling on Windows"
 )]
+#[cfg_attr(
+    target_os = "macos",
+    ignore = "Acceptance tests require RT scheduling on macOS"
+)]
 async fn test_acceptance_tests_subset() -> Result<()> {
     init_test_environment()?;
     let timeout_limit = acceptance_subset_timeout();
@@ -464,6 +488,10 @@ async fn test_acceptance_tests_subset() -> Result<()> {
 #[cfg_attr(
     target_os = "windows",
     ignore = "Performance benchmark suite requires RT scheduling on Windows"
+)]
+#[cfg_attr(
+    target_os = "macos",
+    ignore = "Performance benchmark suite requires RT scheduling on macOS"
 )]
 async fn test_performance_benchmark_suite() -> Result<()> {
     init_test_environment()?;
