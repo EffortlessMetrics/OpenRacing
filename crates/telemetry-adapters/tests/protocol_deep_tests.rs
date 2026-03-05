@@ -556,8 +556,8 @@ mod outgauge_protocol {
 
     #[test]
     fn rejects_below_92_bytes() -> TestResult {
-        assert!(lfs().normalize(&vec![0u8; 91]).is_err());
-        assert!(beamng().normalize(&vec![0u8; 91]).is_err());
+        assert!(lfs().normalize(&[0u8; 91]).is_err());
+        assert!(beamng().normalize(&[0u8; 91]).is_err());
         Ok(())
     }
 
@@ -1630,11 +1630,13 @@ mod normalized_helpers {
 
     #[test]
     fn validated_sanitizes_nan_and_infinity() -> TestResult {
-        let mut t = NormalizedTelemetry::default();
-        t.speed_ms = f32::NAN;
-        t.rpm = f32::INFINITY;
-        t.throttle = f32::NEG_INFINITY;
-        t.lateral_g = f32::NAN;
+        let t = NormalizedTelemetry {
+            speed_ms: f32::NAN,
+            rpm: f32::INFINITY,
+            throttle: f32::NEG_INFINITY,
+            lateral_g: f32::NAN,
+            ..Default::default()
+        };
         let v = t.validated();
         assert_eq!(v.speed_ms, 0.0);
         assert_eq!(v.rpm, 0.0);
@@ -1658,8 +1660,8 @@ mod protocol_constants {
         // FM8: 331 bytes (CarDash + 20 extra)
         // FH4: 324 bytes (CarDash + 12-byte HorizonPlaceholder)
         assert!(
-            ForzaAdapter::new().normalize(&vec![0u8; 232]).is_ok()
-                || ForzaAdapter::new().normalize(&vec![0u8; 232]).is_err()
+            ForzaAdapter::new().normalize(&[0u8; 232]).is_ok()
+                || ForzaAdapter::new().normalize(&[0u8; 232]).is_err()
         );
         // Verify exact sizes are accepted
         let mut s = vec![0u8; 232];
@@ -1689,8 +1691,8 @@ mod protocol_constants {
     #[test]
     fn outgauge_packet_92_bytes_base() -> TestResult {
         // 92 without ID, 96 with ID
-        assert!(LFSAdapter::new().normalize(&vec![0u8; 92]).is_ok());
-        assert!(LFSAdapter::new().normalize(&vec![0u8; 96]).is_ok());
+        assert!(LFSAdapter::new().normalize(&[0u8; 92]).is_ok());
+        assert!(LFSAdapter::new().normalize(&[0u8; 96]).is_ok());
         Ok(())
     }
 
