@@ -666,6 +666,8 @@ mod interlock_behavior_tests;
 mod property_tests;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod watchdog_safety_deep_tests;
 
 pub use fault_injection::{FaultInjectionScenario, FaultInjectionSystem, TriggerCondition};
 pub use hardware_watchdog::{
