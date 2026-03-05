@@ -9,13 +9,11 @@
 //! - Support bundle creation, redaction, and format validation
 
 use openracing_diagnostic::{
-    BlackboxConfig, BlackboxRecorder, BlackboxReplay, DiagnosticError, DiagnosticResult,
-    FrameData, HealthEventData, IndexEntry, ReplayConfig, ReplayResult, SafetyStateSimple,
-    StreamA, StreamB, StreamC, StreamReader, StreamType, SupportBundle, SupportBundleConfig,
-    TelemetryData, WbbFooter, WbbHeader,
-    format::{
-        STREAM_A_ID, STREAM_B_ID, STREAM_C_ID, WBB_FOOTER_MAGIC, WBB_VERSION,
-    },
+    BlackboxConfig, BlackboxRecorder, BlackboxReplay, DiagnosticError, DiagnosticResult, FrameData,
+    HealthEventData, IndexEntry, ReplayConfig, ReplayResult, SafetyStateSimple, StreamA, StreamB,
+    StreamC, StreamReader, StreamType, SupportBundle, SupportBundleConfig, TelemetryData,
+    WbbFooter, WbbHeader,
+    format::{STREAM_A_ID, STREAM_B_ID, STREAM_C_ID, WBB_FOOTER_MAGIC, WBB_VERSION},
 };
 use std::path::Path;
 use tempfile::TempDir;
@@ -41,10 +39,7 @@ fn make_frame(i: u32) -> FrameData {
     }
 }
 
-fn record_n_frames(
-    n: u32,
-    temp_dir: &TempDir,
-) -> DiagnosticResult<std::path::PathBuf> {
+fn record_n_frames(n: u32, temp_dir: &TempDir) -> DiagnosticResult<std::path::PathBuf> {
     let config = BlackboxConfig {
         enable_stream_a: true,
         enable_stream_b: false,
@@ -332,8 +327,7 @@ mod replay_corrupt {
         let td = tmp().map_err(|e| DiagnosticError::Io(e.to_string()))?;
         let corrupt_path = td.path().join("corrupt.wbb");
         // Write just enough bytes that bincode can attempt to read but magic won't match
-        std::fs::write(&corrupt_path, b"XXXX")
-            .map_err(|e| DiagnosticError::Io(e.to_string()))?;
+        std::fs::write(&corrupt_path, b"XXXX").map_err(|e| DiagnosticError::Io(e.to_string()))?;
 
         let result = BlackboxReplay::load_from_file(&corrupt_path, ReplayConfig::default());
         assert!(result.is_err());
@@ -357,8 +351,7 @@ mod replay_corrupt {
     fn load_empty_file_returns_error() -> R {
         let td = tmp().map_err(|e| DiagnosticError::Io(e.to_string()))?;
         let empty_path = td.path().join("empty.wbb");
-        std::fs::write(&empty_path, b"")
-            .map_err(|e| DiagnosticError::Io(e.to_string()))?;
+        std::fs::write(&empty_path, b"").map_err(|e| DiagnosticError::Io(e.to_string()))?;
 
         let result = BlackboxReplay::load_from_file(&empty_path, ReplayConfig::default());
         assert!(result.is_err());
@@ -738,7 +731,10 @@ mod diagnostic_blackbox {
     #[test]
     fn blackbox_config_stream_flags_all_enabled() {
         let config = BlackboxConfig::new("dev", "./out");
-        assert_eq!(config.stream_flags(), STREAM_A_ID | STREAM_B_ID | STREAM_C_ID);
+        assert_eq!(
+            config.stream_flags(),
+            STREAM_A_ID | STREAM_B_ID | STREAM_C_ID
+        );
     }
 
     #[test]
@@ -772,12 +768,7 @@ mod diagnostic_blackbox {
         let config = BlackboxConfig::new("multi-stream", td.path());
         let mut recorder = BlackboxRecorder::new(config)?;
 
-        recorder.record_frame(
-            make_frame(0),
-            &[0.1],
-            SafetyStateSimple::SafeTorque,
-            100,
-        )?;
+        recorder.record_frame(make_frame(0), &[0.1], SafetyStateSimple::SafeTorque, 100)?;
 
         recorder.record_telemetry(TelemetryData::default())?;
 
@@ -828,10 +819,7 @@ mod diagnostic_blackbox {
         let recorder = BlackboxRecorder::new(config)?;
 
         let path = recorder.output_path();
-        assert_eq!(
-            path.extension().and_then(|e| e.to_str()),
-            Some("wbb")
-        );
+        assert_eq!(path.extension().and_then(|e| e.to_str()), Some("wbb"));
         Ok(())
     }
 }
@@ -846,14 +834,20 @@ mod diagnostic_errors {
             (DiagnosticError::Replay("rep".into()), "Replay"),
             (DiagnosticError::Format("fmt".into()), "format"),
             (DiagnosticError::Io("io".into()), "I/O"),
-            (DiagnosticError::Serialization("ser".into()), "Serialization"),
+            (
+                DiagnosticError::Serialization("ser".into()),
+                "Serialization",
+            ),
             (
                 DiagnosticError::Deserialization("de".into()),
                 "Deserialization",
             ),
             (DiagnosticError::Compression("cmp".into()), "Compression"),
             (DiagnosticError::SizeLimit("big".into()), "Size limit"),
-            (DiagnosticError::Configuration("cfg".into()), "configuration"),
+            (
+                DiagnosticError::Configuration("cfg".into()),
+                "configuration",
+            ),
             (DiagnosticError::Validation("val".into()), "Validation"),
         ];
 
@@ -1020,10 +1014,10 @@ mod support_bundle {
         let zip_path = td.path().join("manifest_test.zip");
         bundle.generate(&zip_path)?;
 
-        let file = std::fs::File::open(&zip_path)
-            .map_err(|e| DiagnosticError::Io(e.to_string()))?;
-        let mut archive = zip::ZipArchive::new(file)
-            .map_err(|e| DiagnosticError::Io(e.to_string()))?;
+        let file =
+            std::fs::File::open(&zip_path).map_err(|e| DiagnosticError::Io(e.to_string()))?;
+        let mut archive =
+            zip::ZipArchive::new(file).map_err(|e| DiagnosticError::Io(e.to_string()))?;
 
         let mut found_manifest = false;
         for i in 0..archive.len() {
@@ -1047,10 +1041,10 @@ mod support_bundle {
         let zip_path = td.path().join("sysinfo_test.zip");
         bundle.generate(&zip_path)?;
 
-        let file = std::fs::File::open(&zip_path)
-            .map_err(|e| DiagnosticError::Io(e.to_string()))?;
-        let mut archive = zip::ZipArchive::new(file)
-            .map_err(|e| DiagnosticError::Io(e.to_string()))?;
+        let file =
+            std::fs::File::open(&zip_path).map_err(|e| DiagnosticError::Io(e.to_string()))?;
+        let mut archive =
+            zip::ZipArchive::new(file).map_err(|e| DiagnosticError::Io(e.to_string()))?;
 
         let mut found = false;
         for i in 0..archive.len() {
@@ -1079,10 +1073,10 @@ mod support_bundle {
         let zip_path = td.path().join("events_test.zip");
         bundle.generate(&zip_path)?;
 
-        let file = std::fs::File::open(&zip_path)
-            .map_err(|e| DiagnosticError::Io(e.to_string()))?;
-        let mut archive = zip::ZipArchive::new(file)
-            .map_err(|e| DiagnosticError::Io(e.to_string()))?;
+        let file =
+            std::fs::File::open(&zip_path).map_err(|e| DiagnosticError::Io(e.to_string()))?;
+        let mut archive =
+            zip::ZipArchive::new(file).map_err(|e| DiagnosticError::Io(e.to_string()))?;
 
         let mut found = false;
         for i in 0..archive.len() {
@@ -1105,10 +1099,10 @@ mod support_bundle {
         let zip_path = td.path().join("no_events.zip");
         bundle.generate(&zip_path)?;
 
-        let file = std::fs::File::open(&zip_path)
-            .map_err(|e| DiagnosticError::Io(e.to_string()))?;
-        let mut archive = zip::ZipArchive::new(file)
-            .map_err(|e| DiagnosticError::Io(e.to_string()))?;
+        let file =
+            std::fs::File::open(&zip_path).map_err(|e| DiagnosticError::Io(e.to_string()))?;
+        let mut archive =
+            zip::ZipArchive::new(file).map_err(|e| DiagnosticError::Io(e.to_string()))?;
 
         let mut found = false;
         for i in 0..archive.len() {
@@ -1120,7 +1114,10 @@ mod support_bundle {
             }
         }
         // No health events added => health_events.json should not be present
-        assert!(!found, "ZIP should NOT contain health_events.json when no events added");
+        assert!(
+            !found,
+            "ZIP should NOT contain health_events.json when no events added"
+        );
         Ok(())
     }
 
