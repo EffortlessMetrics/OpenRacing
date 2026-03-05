@@ -47,6 +47,7 @@ pub mod telemetry;
 pub mod update;
 #[cfg(test)]
 pub mod wave15_hardening_tests;
+pub mod windows_packaging;
 
 pub use anticheat::AntiCheatReport;
 pub use daemon::{ServiceConfig, ServiceDaemon};
