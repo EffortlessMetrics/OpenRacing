@@ -58,6 +58,7 @@ members = [
     "crates/cli",
     "crates/ui",
     "crates/plugins",
+    "crates/plugin-examples",
     "crates/integration-tests",
     "crates/compat",
     "crates/hid-capture",
