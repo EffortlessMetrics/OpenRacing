@@ -4,19 +4,23 @@ This document outlines the development roadmap for OpenRacing. It tracks the imp
 
 ## Current Status (v1.0 RC - 2026)
 
+**Project Scale:** 85 workspace crates in the Rust workspace.
+
 **Released Features:**
-- **Core FFB Engine**: Real-time force feedback processing at 1kHz with zero-allocation RT path
+- **Core FFB Engine**: Real-time force feedback processing at 1kHz with zero-allocation RT path (P99 jitter ≤0.25ms)
 - **Cross-Platform HID**: Full support for Linux (hidraw/udev) and Windows (overlapped I/O, MMCSS)
-- **Plugin System**: WASM sandboxed runtime + Native plugins with Ed25519 signature verification
-- **Game Telemetry**: 56 telemetry adapter modules — iRacing, ACC, AMS2, rFactor 2, Assetto Corsa, Forza Motorsport/Horizon, BeamNG.drive, Project CARS 2/3, RaceRoom, AC Rally, Dirt 5, EA WRC, F1 series (4 editions), Gran Turismo 7, and more
+- **Plugin System**: WASM sandboxed runtime (60–200Hz) + Native plugins (RT-capable, 1kHz) with Ed25519 signature verification
+- **Game Telemetry**: 61 telemetry adapter modules — iRacing, ACC, AMS2, rFactor 2, Assetto Corsa, Forza Motorsport/Horizon, BeamNG.drive, Project CARS 2/3, RaceRoom, AC Rally, Dirt 5, EA WRC, F1 series (4 editions), Gran Turismo 7, and more
 - **Curve-Based FFB**: Customizable response curves (linear, exponential, logarithmic, Bezier)
 - **Profile Inheritance**: Hierarchical profiles with up to 5 levels of inheritance
 - **Tauri UI**: Device management, real-time telemetry display, profile application
 - **CLI Tools**: `wheelctl` for device management, diagnostics, and profile operations
-- **Safety System**: Hardware watchdog, FMEA fault injection, fault quarantine, safe mode transitions, black box recording
-- **Multi-vendor Device Support**: 15 vendors supported — Logitech, Fanatec, Thrustmaster, Moza, Simagic, Simucube 2, VRS, Heusinkveld, Asetek, OpenFFBoard, FFBeast, Granite Devices IONI/ARGON, AccuForce, Leo Bodnar, PXN (PR #18), Cammus
-- **Protocol Documentation**: All supported devices documented in `docs/protocols/`; VID/PID constants locked to `docs/protocols/SOURCES.md` via `id_verification.rs` test suites in all 15 HID vendor crates
-- **Test Infrastructure**: 24,800+ tests, 113 fuzz targets, 1,400+ snapshot files, property-based tests (proptest), E2E journey tests; all HID crates have cross-reference id_verification suites
+- **Safety System**: FMEA analysis, fault injection tests, safety interlocks, hardware watchdog, safe mode transitions, black box recording
+- **Multi-vendor Device Support**: 28 vendors (15 wheelbase manufacturers + 13 peripheral-only), 159 unique VID/PID pairs across all device protocol crates
+- **Protocol Documentation**: All supported devices documented in `docs/protocols/`; VID/PID constants locked to `docs/protocols/SOURCES.md` via `id_verification.rs` test suites
+- **Test Infrastructure**: 24,000+ tests across unit, integration, property-based (proptest), snapshot, and acceptance tests; 113 fuzz targets; all HID crates have cross-reference id_verification suites
+- **Linux Packaging**: udev rules for all devices, hwdb for joystick classification (133 entries), kernel quirks (ALWAYS_POLL) for Asetek and Simagic
+- **CI Matrix**: Linux (ubuntu-latest/22.04/24.04) + Windows (windows-latest) + macOS (macos-latest, being added)
 
 **Architecture**: Established via ADRs 0001-0008 (FFB Mode Matrix, IPC Transport, OWP-1 Protocol, RT Scheduling, Plugin Architecture, Safety Interlocks, Multi-Vendor HID Protocol Architecture, Game Auto-Configure and Telemetry Bridge)
 
@@ -30,132 +34,107 @@ This document outlines the development roadmap for OpenRacing. It tracks the imp
 - [x] Implement Windows HID driver (overlapped I/O, MMCSS)
 - [x] Initial CLI tools (`wheelctl`) for device management
 - [x] Background service (`wheeld`) with IPC
+- [x] Curve-based FFB effects with pre-computed LUTs
+- [x] Profile hierarchy and inheritance (up to 5 levels)
+- [x] Zero-allocation curve application in RT path
+- [x] Tauri-based desktop UI with device list, telemetry display, and profile management
+- [x] Histogram tracking for latency metrics (HDRHistogram)
 
-### Phase 2: Feature Completeness ✅ Complete
-- [x] **Advanced Force Feedback**
-    - [x] Curve-based FFB effects with pre-computed LUTs
-    - [x] Profile hierarchy and inheritance (up to 5 levels)
-    - [x] Zero-allocation curve application in RT path
-- [x] **Game Telemetry Integration**
-    - [x] iRacing adapter (shared memory)
-    - [x] ACC adapter (UDP)
-    - [x] Automobilista 2 adapter (shared memory)
-    - [x] rFactor 2 adapter (plugin interface)
-    - [x] Assetto Corsa adapter (OutGauge UDP)
-    - [x] Forza Motorsport/Horizon adapter (Sled/CarDash UDP)
-    - [x] BeamNG.drive adapter (LFS OutGauge UDP)
-    - [x] Project CARS 2/3 adapter (shared memory + UDP)
-    - [x] RaceRoom Experience adapter (R3E shared memory)
-    - [x] AC Rally adapter (ACC shared memory)
-    - [x] Dirt 5 adapter (Codemasters UDP)
-    - [x] EA WRC adapter (Codemasters UDP)
-    - [x] F1 2024 adapter (Codemasters bridge)
-    - [x] F1 25 adapter (native UDP format 2025)
-    - [x] Telemetry parsing within 1ms budget
-- [x] **User Interface**
-    - [x] Tauri-based desktop UI
-    - [x] Device list and detail views
-    - [x] Real-time telemetry display
-    - [x] Profile management UI
-- [x] **Histogram tracking** for latency metrics (HDRHistogram)
-- [x] **Multi-vendor Device Support**
+### Phase 2: Device Support ✅ Complete
+
+28 vendors supported (15 wheelbase manufacturers + 13 peripheral-only), 159 unique VID/PID pairs.
+
+- [x] **Wheelbase Manufacturers** (15)
+    - [x] Logitech (G29, G923, PRO, etc.)
+    - [x] Fanatec (CSL, ClubSport, Podium, etc.)
+    - [x] Thrustmaster (T300, T-GT, TX, etc.)
+    - [x] Moza (R5, R9, R12, R16, R21)
+    - [x] Simagic (Alpha, Alpha Mini, Alpha U)
+    - [x] Simucube 2 (Sport, Pro, Ultimate)
+    - [x] VRS DirectForce Pro
+    - [x] Heusinkveld (Sprint, Ultimate, Sim Pedals)
+    - [x] Asetek (Forte, La Prima, Invicta)
     - [x] OpenFFBoard (VID 0x1209, direct drive)
     - [x] FFBeast (VID 0x045B, direct drive)
     - [x] Granite Devices IONI/ARGON / SimpleMotion V2 (VID 0x1D50)
+    - [x] AccuForce
+    - [x] Leo Bodnar
+    - [x] PXN (PR #18)
+- [x] **Peripheral-only Vendors** (13) — pedals, shifters, handbrakes, button boxes
+    - [x] Cammus
     - [x] Generic HID button boxes (VID 0x1209, PID 0x1BBD)
+    - [x] 11 additional peripheral vendors
+- [x] **PIDFF Consolidation**: All standard USB HID PID device crates now use `openracing-pidff-common` — ~4,338 lines of duplicated effects code eliminated (PRs #52, #72-74)
+- [x] **PID Source Verification**: All vendor protocol crates cross-referenced against Linux kernel `hid-ids.h`, hid-tmff2 community driver, and simracing-hwdb; source citations added to all VID/PID constants (PR #76)
 
-### Phase 3: Production Readiness ✅ Complete (1.0 RC)
+### Phase 3: Game Telemetry ✅ Complete
 
-**Goal**: Predictable behavior under load, safe failure modes, and a defensible supply-chain story.
+61 game/simulator integrations with telemetry support.
 
-**Rule**: Every change must either (a) tighten a gate or (b) reduce a failure mode.
+- [x] iRacing adapter (shared memory)
+- [x] ACC adapter (UDP)
+- [x] Automobilista 2 adapter (shared memory)
+- [x] rFactor 2 adapter (plugin interface)
+- [x] Assetto Corsa adapter (OutGauge UDP)
+- [x] Forza Motorsport/Horizon adapter (Sled/CarDash UDP)
+- [x] BeamNG.drive adapter (LFS OutGauge UDP)
+- [x] Project CARS 2/3 adapter (shared memory + UDP)
+- [x] RaceRoom Experience adapter (R3E shared memory)
+- [x] AC Rally adapter (ACC shared memory)
+- [x] Dirt 5 adapter (Codemasters UDP)
+- [x] EA WRC adapter (Codemasters UDP)
+- [x] F1 2024 adapter (Codemasters bridge)
+- [x] F1 25 adapter (native UDP format 2025)
+- [x] Gran Turismo 7 adapter
+- [x] 46 additional game/simulator adapters
+- [x] Telemetry parsing within 1ms budget
 
-#### Definition of Done
+### Phase 4: Platform & Distribution 🔄 In Progress
 
-Phase 3 is complete when ALL of the following are true:
-
-| Category | Criterion | Status |
-|----------|-----------|--------|
-| **Safety** | A missed tick / stalled host cannot produce uncontrolled torque | ✅ Done |
-| **Safety** | Safety state transitions are deterministic and logged with debug context | ✅ Done |
-| **Security** | Native plugin loading is secure-by-default; unsigned requires explicit opt-out | ✅ Done |
-| **Security** | Registry downloads and firmware artifacts are verified before use | ✅ Done |
-| **Release Quality** | RT timing is enforced by CI gates (not manual local runs) | ✅ Done |
-| **Release Quality** | Benchmark outputs are stored and comparable across runs | ✅ Done |
-| **Data Lifecycle** | Profiles migrate forward automatically with backup; process is idempotent | ✅ Done |
-
----
-
-#### 3.1 Safety Hardening
-
-##### 3.1.1 Hardware Watchdog Integration (100ms timeout) ✅
-
-- [x] Define watchdog contract in `crates/engine`
-- [x] Implement two-layer watchdog (software + device keepalive)
-- [x] Integrate into RT pipeline: feed after successful write
-- [x] Safety interlock state machine: `Normal → Warning → SafeMode → EmergencyStop`
-- [x] FMEA fault injection acceptance tests
-
-##### 3.1.2 Fault Quarantine (`crates/openracing-fmea`) ✅
-
-- [x] FMEA table as data structure (FaultId, severity, trigger, action, reset)
-- [x] FaultManager with TorquePolicy and QuarantineState outputs
-- [x] Persistence to blackbox + persistent store
-
-##### 3.1.3 Full Replay Validation ✅
-
-- [x] Replay scope defined (input reports, effect commands, timing deltas, config state)
-- [x] Determinism validated (no wall-clock, no unseeded random)
-- [x] Golden traces under `crates/engine/tests/fixtures/replay/`
-
----
-
-#### 3.2 Plugin Ecosystem ✅
-
-- [x] Plugin registry with searchable catalog
-- [x] `wheelctl plugin install` command
-- [x] Embedded signature verification (ELF/PE sections)
-
----
-
-#### 3.3 Firmware Management ✅
-
-- [x] Firmware update system with signature verification
-- [x] Rollback support on update failure
-- [x] FFB blocking during firmware updates
-
----
-
-#### 3.4 Performance Gates (CI) ✅
-
-- [x] RT timing benchmarks in CI pipeline (JSON artifact output)
-- [x] Automated threshold enforcement (p99 jitter ≤0.25ms)
-- [x] Benchmark comparison script (`scripts/compare_benchmarks.py`)
-
----
-
-#### 3.5 Migration System ✅
-
-- [x] Automatic profile schema version detection
-- [x] Profile migration with backup creation (idempotent)
-
-### Phase 4: Ecosystem & Polish (in progress)
-- [ ] **Device Ecosystem Tools**
-    - [x] `hid-capture` device capture and fingerprinting tooling (379+ tests — waves 34, 38, 41)
+- [x] **Windows Packaging**
+    - [x] MSI installer (WiX)
+- [x] **Linux Packaging**
+    - [x] deb/rpm/tarball packages
+    - [x] udev rules for all supported devices
+    - [x] hwdb for joystick classification (133 entries)
+    - [x] Kernel quirks (ALWAYS_POLL) for Asetek and Simagic
+- [ ] **macOS Support**
+    - [x] CI matrix added (macos-latest)
+    - [ ] IOKit HID driver implementation
+    - [ ] thread_policy_set RT scheduling
+    - [ ] DMG with notarization
+- [x] **Device Ecosystem Tools**
+    - [x] `hid-capture` device capture and fingerprinting tooling (379+ tests)
+- [ ] **Remaining Device Ecosystem Tools**
     - [ ] `openracing-capture` utility (protocol sniffer/mapper)
     - [ ] Device protocol reverse engineering toolkit
-- [ ] **macOS Support**
-    - [ ] IOKit HID implementation
-    - [ ] thread_policy_set RT scheduling
-- [ ] **Installer & Packaging**
-    - [x] Windows MSI installer (WiX)
-    - [ ] Linux packages (deb, rpm, flatpak)
-    - [ ] macOS DMG with notarization
-- [x] **PIDFF Consolidation**: All standard USB HID PID device crates (Simucube, VRS, OpenFFBoard, Cammus, AccuForce, Asetek, FFBeast, Leo Bodnar, PXN) now use `openracing-pidff-common` — ~4,338 lines of duplicated effects code eliminated (PRs #52, #72-74)
-- [x] **PID Source Verification**: All 17 vendor protocol crates cross-referenced against Linux kernel `hid-ids.h`, hid-tmff2 community driver, and simracing-hwdb; source citations added to all VID/PID constants (PR #76)
 - [ ] **Adaptive Scheduling**
     - [x] Dynamic deadline adjustment based on system load
     - [ ] CPU governor integration
+
+### Phase 5: Polish & 1.0 RC 🔄 In Progress
+
+- [x] **Test Coverage**: 24,000+ tests across unit, integration, property-based, snapshot, and acceptance tests
+- [x] **Documentation**: Comprehensive (setup, user guide, device support, development)
+- [x] **Performance Gates**: CI-enforced benchmarks (P99 jitter ≤0.25ms, zero RT heap allocations)
+- [x] **Safety Hardening**
+    - [x] Hardware watchdog integration (100ms timeout, two-layer: software + device keepalive)
+    - [x] Safety interlock state machine: `Normal → Warning → SafeMode → EmergencyStop`
+    - [x] FMEA fault injection acceptance tests
+    - [x] Fault quarantine with TorquePolicy and QuarantineState (`crates/openracing-fmea`)
+    - [x] Full replay validation with golden traces
+- [x] **Plugin Ecosystem**
+    - [x] Plugin registry with searchable catalog
+    - [x] `wheelctl plugin install` command
+    - [x] Embedded signature verification (ELF/PE sections)
+- [x] **Firmware Management**
+    - [x] Firmware update system with signature verification
+    - [x] Rollback support on update failure
+    - [x] FFB blocking during firmware updates
+- [x] **Migration System**
+    - [x] Automatic profile schema version detection
+    - [x] Profile migration with backup creation (idempotent)
+- [ ] **Security**: Plugin signing framework exists; needs Ed25519 trust store for public key distribution
 
 ## Future Considerations
 
@@ -187,7 +166,7 @@ The following TODOs exist in the codebase and should be addressed before v1.0.0:
 | v0.1.0  | 2025-01-01 | ✅ Released | Core Engine & Linux Support |
 | v0.2.0  | 2026-02-01 | ✅ Released | Windows Support & Tauri UI |
 | v0.3.0  | 2026-02-01 | ✅ Released | WASM Plugins, Game Telemetry, Curve FFB |
-| v1.0 RC | 2026-Q3   | ✅ Feature complete | Multi-vendor devices, 56 telemetry adapter modules, safety hardening, 24,800+ tests |
+| v1.0 RC | 2026-Q3   | ✅ Feature complete | 28 vendors, 61 game integrations, safety hardening, 24,000+ tests |
 | v1.0.0  | 2026-10-15 | Planned | Production Release with Security Audit |
 
 ## Contributing
@@ -197,4 +176,4 @@ See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for development setup and contr
 Significant architectural changes require an ADR. See [docs/adr/README.md](docs/adr/README.md) for the process.
 
 ---
-*Last updated: 2026-Q3. This roadmap reflects the 1.0 RC feature-complete state with 24,800+ tests across PRs #23-76.*
+*Last updated: 2026-Q3. This roadmap reflects the current project state: 85 crates, 28 vendors, 159 devices, 61 games, 24,000+ tests.*
