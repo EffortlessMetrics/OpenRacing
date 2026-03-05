@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- 1027-line support bundle and diagnostic export test suite: bundle generation, content verification, redaction guarantees, export format validation (#186)
+- 103 telemetry normalization tests: unit conversion accuracy, cross-adapter consistency, NaN/Inf handling, normalization pipeline proptest (#185)
+- 69 config migration and profile management tests: schema version upgrades, profile serialization roundtrips, migration chain validation (#184)
+- 60 firmware update flow tests: update lifecycle, version parsing, rollback scenarios, checksum verification, progress reporting (#183)
 - 29 RT hot-path zero-allocation verification tests: counting allocator, pipeline/safety/torque allocation-free verification, bounded execution timing, fixed-size type verification, proptest RT chain (#180)
 - 80 IPC transport stress tests: codec roundtrip, large messages, rapid connect/disconnect, concurrent clients, backpressure, feature negotiation, error propagation, graceful shutdown, state machine, message ordering, proptest (#179)
 - 57 watchdog and safety interlock deep tests: concurrent SharedWatchdog, recovery sequences, rapid state oscillation, simultaneous faults, timing guarantees, challenge-response edge cases, state machine invariants, proptest (#178)
