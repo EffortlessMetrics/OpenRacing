@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- 117 HID device capture and replay validation tests: capture format roundtrip, replay timing fidelity, capture pipeline lifecycle across 3 test suites (#157)
+- 84 performance gate validation and RT timing tests: benchmark types, RT scheduling assertions, validate_performance.py script coverage (#156)
+- 48 packaging tests: udev rules format validation, service config verification, installer packaging across CLI, integration-tests, and service crates (#155)
+- 47 macOS IOKit HID abstraction layer tests: IOKit device enumeration, HID report parsing, macOS-specific device handling (#154)
+- 55 game telemetry config writer deep validation tests: config serialization roundtrips, edge cases, format correctness (#153)
 - 120+ plugin system hardening tests: Ed25519 crypto verification, WASM sandbox boundary enforcement, plugin lifecycle state machine coverage across 3 crates (#151)
 - 141 replay, diagnostics, and tracing tests: telemetry replay fidelity, diagnostic snapshot roundtrip, tracing span coverage (#150)
 - 113 safety FMEA tests: fault injection scenarios, watchdog timeout escalation, interlock challenge-response verification (#147)
@@ -47,10 +52,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 44 service integration tests: device, game, profile, diagnostic, safety, anticheat coverage (#100)
 
 ### Changed
+- CHANGELOG entries for PRs #146–151 added (#152)
 - Documentation accuracy pass: updated stale claims, verified commands, created NOW_NEXT_LATER.md (#148)
 - Ignore 7 RT scheduling integration tests on macOS CI runners lacking RT scheduling support (#106)
 
 ### Fixed
+- Use SimpleProvider in tracing manager test for CI reliability (#158)
 - Resolve broken intra-doc link in Simucube output module (#149)
 - CI: fix prelude_fixtures_available feature gate (#143)
 - CI: fix fixture_validation feature gate (#140)
