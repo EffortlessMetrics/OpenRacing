@@ -4,12 +4,12 @@
 //! key format parsing, invalid key/signature lengths, timing-safe comparison,
 //! trust store operations, fail-closed mode, base64 encoding, and known-answer tests.
 
+use openracing_crypto::utils;
+use openracing_crypto::verification::ContentType;
 use openracing_crypto::{
     CryptoError, Ed25519Signer, Ed25519Verifier, KeyPair, PublicKey, Signature, TrustLevel,
     TrustStore,
 };
-use openracing_crypto::utils;
-use openracing_crypto::verification::ContentType;
 
 // ===========================================================================
 // 1. Key generation
@@ -183,12 +183,9 @@ fn public_key_from_bytes_preserves_data() {
 
 #[test]
 fn public_key_with_comment() {
-    let pk = PublicKey::from_bytes([0u8; 32], "key".to_string())
-        .with_comment("Official signing key");
-    assert_eq!(
-        pk.comment.as_deref(),
-        Some("Official signing key")
-    );
+    let pk =
+        PublicKey::from_bytes([0u8; 32], "key".to_string()).with_comment("Official signing key");
+    assert_eq!(pk.comment.as_deref(), Some("Official signing key"));
 }
 
 #[test]
@@ -303,7 +300,11 @@ fn trust_store_add_and_retrieve_key() -> Result<(), Box<dyn std::error::Error>> 
     let kp = KeyPair::generate()?;
     let fingerprint = kp.fingerprint();
 
-    store.add_key(kp.public_key.clone(), TrustLevel::Trusted, Some("test".to_string()))?;
+    store.add_key(
+        kp.public_key.clone(),
+        TrustLevel::Trusted,
+        Some("test".to_string()),
+    )?;
 
     let level = store.get_trust_level(&fingerprint);
     assert_eq!(level, TrustLevel::Trusted);
@@ -471,7 +472,10 @@ fn key_fingerprint_matches_sha256_of_bytes() -> Result<(), Box<dyn std::error::E
     let kp = KeyPair::generate()?;
     let manual_fp = utils::compute_sha256_hex(&kp.public_key.key_bytes);
     assert_eq!(kp.fingerprint(), manual_fp);
-    assert_eq!(Ed25519Verifier::get_key_fingerprint(&kp.public_key), manual_fp);
+    assert_eq!(
+        Ed25519Verifier::get_key_fingerprint(&kp.public_key),
+        manual_fp
+    );
     Ok(())
 }
 
@@ -534,13 +538,8 @@ fn detached_signature_file_lifecycle() -> Result<(), Box<dyn std::error::Error>>
     std::fs::write(&content_path, b"fake wasm binary")?;
 
     let kp = KeyPair::generate()?;
-    let metadata = Ed25519Signer::sign_file(
-        &content_path,
-        &kp,
-        "ci-signer",
-        ContentType::Plugin,
-        None,
-    )?;
+    let metadata =
+        Ed25519Signer::sign_file(&content_path, &kp, "ci-signer", ContentType::Plugin, None)?;
 
     assert!(utils::signature_exists(&content_path));
 
@@ -582,8 +581,7 @@ fn add_key_from_hex_wrong_length() {
 #[test]
 fn add_key_from_hex_invalid_hex() {
     let mut store = TrustStore::new_in_memory();
-    let result =
-        store.add_key_from_hex("not_hex!", "bad".to_string(), TrustLevel::Trusted, None);
+    let result = store.add_key_from_hex("not_hex!", "bad".to_string(), TrustLevel::Trusted, None);
     assert!(result.is_err());
 }
 
@@ -605,7 +603,10 @@ fn system_key_cannot_be_removed() {
     if let Some(fp) = system_fp {
         let mut store = TrustStore::new_in_memory();
         let result = store.remove_key(&fp);
-        assert!(result.is_err(), "system keys must be protected from removal");
+        assert!(
+            result.is_err(),
+            "system keys must be protected from removal"
+        );
     }
 }
 
