@@ -16,12 +16,12 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use openracing_ipc::codec::{
-    MessageCodec, MessageDecoder, MessageEncoder, MessageHeader, message_flags, message_types,
+    message_flags, message_types, MessageCodec, MessageDecoder, MessageEncoder, MessageHeader,
 };
 use openracing_ipc::error::{IpcError, IpcResult};
 use openracing_ipc::server::{
-    ClientInfo, HealthEvent, HealthEventType, IpcConfig, IpcServer, PeerInfo, ServerState,
-    is_version_compatible,
+    is_version_compatible, ClientInfo, HealthEvent, HealthEventType, IpcConfig, IpcServer,
+    PeerInfo, ServerState,
 };
 use openracing_ipc::transport::{TransportBuilder, TransportConfig, TransportType};
 use openracing_ipc::{MIN_CLIENT_VERSION, PROTOCOL_VERSION};
@@ -99,11 +99,9 @@ mod feature_negotiation_edge_cases {
 
         // The intersection filter operates per-element, so duplicates may appear;
         // verify at least one is present
-        assert!(
-            result
-                .enabled_features
-                .contains(&"device_management".to_string())
-        );
+        assert!(result
+            .enabled_features
+            .contains(&"device_management".to_string()));
         server.stop().await?;
         Ok(())
     }
@@ -856,11 +854,9 @@ mod concurrent_client_handling {
             let result = handle.await?;
             let negotiation = result?;
             assert!(negotiation.compatible);
-            assert!(
-                negotiation
-                    .enabled_features
-                    .contains(&"device_management".to_string())
-            );
+            assert!(negotiation
+                .enabled_features
+                .contains(&"device_management".to_string()));
             success_count += 1;
         }
         assert_eq!(success_count, 50);
@@ -1134,7 +1130,11 @@ mod large_message_handling {
         codec.encode_to_buffer(&msg, &mut buffer)?;
 
         // encode_to_buffer clears old content; length should differ from garbage
-        assert_ne!(buffer.len(), 4, "buffer should have been cleared and re-filled");
+        assert_ne!(
+            buffer.len(),
+            4,
+            "buffer should have been cleared and re-filled"
+        );
         let decoded: Msg = codec.decode(&buffer)?;
         assert_eq!(decoded.val, 42);
         Ok(())
