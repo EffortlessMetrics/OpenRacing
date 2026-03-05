@@ -533,7 +533,7 @@ mod proptest_ffbeast {
             let enc = FFBeastTorqueEncoder;
             let report = enc.encode(torque);
             let raw = i16::from_le_bytes([report[1], report[2]]);
-            prop_assert!(raw >= -10000 && raw <= 10000);
+            prop_assert!((-10000..=10000).contains(&raw));
         }
 
         #[test]

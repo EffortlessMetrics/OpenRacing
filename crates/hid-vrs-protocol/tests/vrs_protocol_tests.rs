@@ -460,7 +460,7 @@ mod proptest_vrs {
             enc.encode(torque, &mut out);
             prop_assert_eq!(out[0], 0x11);
             let mag = i16::from_le_bytes([out[3], out[4]]);
-            prop_assert!(mag >= -10000 && mag <= 10000, "magnitude {mag} out of range");
+            prop_assert!((-10000..=10000).contains(&mag), "magnitude {mag} out of range");
         }
 
         #[test]
