@@ -52,7 +52,6 @@ use hid_simucube_protocol::{
     encode_set_envelope,
     encode_set_periodic,
     encode_set_ramp_force,
-    is_simucube_device,
     parse_block_load,
     simucube_model_from_info,
 };
@@ -619,14 +618,14 @@ fn model_torque_is_non_negative() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn torque_hierarchy_sport_lt_pro_lt_ultimate() {
-    assert!(MAX_TORQUE_SPORT < MAX_TORQUE_PRO);
-    assert!(MAX_TORQUE_PRO < MAX_TORQUE_ULTIMATE);
+    const { assert!(MAX_TORQUE_SPORT < MAX_TORQUE_PRO) };
+    const { assert!(MAX_TORQUE_PRO < MAX_TORQUE_ULTIMATE) };
 }
 
 #[test]
 fn max_effects_within_u8_range() {
-    assert!(MAX_EFFECTS > 0);
-    assert!(MAX_EFFECTS <= 255);
+    const { assert!(MAX_EFFECTS > 0) };
+    // MAX_EFFECTS is u8, so it is inherently <= 255.
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -800,7 +799,7 @@ mod proptest_deep {
             let data = make_hid_report(steering, 0x8000, [0; 6], [0; 16]);
             if let Ok(r) = SimucubeHidReport::parse(&data) {
                 let s = r.steering_signed();
-                prop_assert!(s >= -1.0 && s <= 1.0, "steering_signed={s} out of range");
+                prop_assert!((-1.0..=1.0).contains(&s), "steering_signed={s} out of range");
             }
         }
 
@@ -810,7 +809,7 @@ mod proptest_deep {
             let data = make_hid_report(steering, 0x8000, [0; 6], [0; 16]);
             if let Ok(r) = SimucubeHidReport::parse(&data) {
                 let n = r.steering_normalized();
-                prop_assert!(n >= 0.0 && n <= 1.0, "steering_normalized={n} out of range");
+                prop_assert!((0.0..=1.0).contains(&n), "steering_normalized={n} out of range");
             }
         }
     }

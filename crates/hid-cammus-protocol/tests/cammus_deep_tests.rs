@@ -363,10 +363,10 @@ fn all_pids_are_nonzero() {
 #[test]
 fn wheel_pids_in_low_range_pedal_pids_in_high_range() {
     // C5/C12 are 0x03xx, pedals are 0x10xx — distinct ranges
-    assert!(PRODUCT_C5 < 0x1000, "wheel PIDs should be < 0x1000");
-    assert!(PRODUCT_C12 < 0x1000, "wheel PIDs should be < 0x1000");
-    assert!(PRODUCT_CP5_PEDALS >= 0x1000, "pedal PIDs >= 0x1000");
-    assert!(PRODUCT_LC100_PEDALS >= 0x1000, "pedal PIDs >= 0x1000");
+    const { assert!(PRODUCT_C5 < 0x1000) };
+    const { assert!(PRODUCT_C12 < 0x1000) };
+    const { assert!(PRODUCT_CP5_PEDALS >= 0x1000) };
+    const { assert!(PRODUCT_LC100_PEDALS >= 0x1000) };
 }
 
 #[test]
@@ -571,7 +571,7 @@ mod proptest_deep {
         #[test]
         fn prop_steering_clamped(data in proptest::collection::vec(any::<u8>(), 12..=64)) {
             if let Ok(report) = parse(&data) {
-                prop_assert!(report.steering >= -1.0 && report.steering <= 1.0,
+                prop_assert!((-1.0..=1.0).contains(&report.steering),
                     "steering={} out of range", report.steering);
             }
         }
@@ -580,7 +580,7 @@ mod proptest_deep {
         #[test]
         fn prop_throttle_clamped(data in proptest::collection::vec(any::<u8>(), 12..=64)) {
             if let Ok(report) = parse(&data) {
-                prop_assert!(report.throttle >= 0.0 && report.throttle <= 1.0,
+                prop_assert!((0.0..=1.0).contains(&report.throttle),
                     "throttle={} out of range", report.throttle);
             }
         }
@@ -589,7 +589,7 @@ mod proptest_deep {
         #[test]
         fn prop_brake_clamped(data in proptest::collection::vec(any::<u8>(), 12..=64)) {
             if let Ok(report) = parse(&data) {
-                prop_assert!(report.brake >= 0.0 && report.brake <= 1.0,
+                prop_assert!((0.0..=1.0).contains(&report.brake),
                     "brake={} out of range", report.brake);
             }
         }
@@ -598,7 +598,7 @@ mod proptest_deep {
         #[test]
         fn prop_clutch_clamped(data in proptest::collection::vec(any::<u8>(), 12..=64)) {
             if let Ok(report) = parse(&data) {
-                prop_assert!(report.clutch >= 0.0 && report.clutch <= 1.0,
+                prop_assert!((0.0..=1.0).contains(&report.clutch),
                     "clutch={} out of range", report.clutch);
             }
         }
@@ -607,7 +607,7 @@ mod proptest_deep {
         #[test]
         fn prop_handbrake_clamped(data in proptest::collection::vec(any::<u8>(), 12..=64)) {
             if let Ok(report) = parse(&data) {
-                prop_assert!(report.handbrake >= 0.0 && report.handbrake <= 1.0,
+                prop_assert!((0.0..=1.0).contains(&report.handbrake),
                     "handbrake={} out of range", report.handbrake);
             }
         }
