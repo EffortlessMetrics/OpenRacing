@@ -1783,3 +1783,647 @@ fn registry_serialization_roundtrip() -> Result<(), Box<dyn std::error::Error>> 
     assert_eq!(restored.plugin_count(), 1);
     Ok(())
 }
+
+// ===========================================================================
+// 16. Additional lifecycle edge cases
+// ===========================================================================
+
+#[test]
+fn lifecycle_double_unload_fails() -> Result<(), Box<dyn std::error::Error>> {
+    let wasm = compile_wat(PASSTHROUGH_WAT)?;
+    let mut runtime = WasmRuntime::new()?;
+    let id = Uuid::new_v4();
+
+    runtime.load_plugin_from_bytes(id, &wasm, vec![])?;
+    runtime.unload_plugin(&id)?;
+
+    let result = runtime.unload_plugin(&id);
+    assert!(result.is_err(), "double unload must fail");
+    Ok(())
+}
+
+#[test]
+fn lifecycle_load_same_id_twice_replaces() -> Result<(), Box<dyn std::error::Error>> {
+    let wasm = compile_wat(PASSTHROUGH_WAT)?;
+    let mut runtime = WasmRuntime::new()?;
+    let id = Uuid::new_v4();
+
+    runtime.load_plugin_from_bytes(id, &wasm, vec![])?;
+    // Loading with the same ID replaces the existing instance
+    let result = runtime.load_plugin_from_bytes(id, &wasm, vec![]);
+    assert!(result.is_ok(), "loading same id should succeed (replace)");
+    // Plugin should still work after replacement
+    let output = runtime.process(&id, 1.0, 0.001)?;
+    assert!((output - 1.0).abs() < f32::EPSILON);
+    Ok(())
+}
+
+#[test]
+fn lifecycle_process_with_zero_dt() -> Result<(), Box<dyn std::error::Error>> {
+    let wasm = compile_wat(PASSTHROUGH_WAT)?;
+    let mut runtime = WasmRuntime::new()?;
+    let id = Uuid::new_v4();
+
+    runtime.load_plugin_from_bytes(id, &wasm, vec![])?;
+    let output = runtime.process(&id, 5.0, 0.0)?;
+    assert!((output - 5.0).abs() < f32::EPSILON);
+    Ok(())
+}
+
+#[test]
+fn lifecycle_process_negative_input() -> Result<(), Box<dyn std::error::Error>> {
+    let wasm = compile_wat(PASSTHROUGH_WAT)?;
+    let mut runtime = WasmRuntime::new()?;
+    let id = Uuid::new_v4();
+
+    runtime.load_plugin_from_bytes(id, &wasm, vec![])?;
+    let output = runtime.process(&id, -100.0, 0.001)?;
+    assert!((output - (-100.0)).abs() < f32::EPSILON);
+    Ok(())
+}
+
+#[test]
+fn lifecycle_process_nan_input() -> Result<(), Box<dyn std::error::Error>> {
+    let wasm = compile_wat(PASSTHROUGH_WAT)?;
+    let mut runtime = WasmRuntime::new()?;
+    let id = Uuid::new_v4();
+
+    runtime.load_plugin_from_bytes(id, &wasm, vec![])?;
+    let output = runtime.process(&id, f32::NAN, 0.001)?;
+    assert!(output.is_nan());
+    Ok(())
+}
+
+#[test]
+fn lifecycle_process_infinity_input() -> Result<(), Box<dyn std::error::Error>> {
+    let wasm = compile_wat(PASSTHROUGH_WAT)?;
+    let mut runtime = WasmRuntime::new()?;
+    let id = Uuid::new_v4();
+
+    runtime.load_plugin_from_bytes(id, &wasm, vec![])?;
+    let output = runtime.process(&id, f32::INFINITY, 0.001)?;
+    assert!(output.is_infinite());
+    Ok(())
+}
+
+// ===========================================================================
+// 17. PluginClass and PluginContext
+// ===========================================================================
+
+#[test]
+fn plugin_class_debug_display() {
+    let safe = PluginClass::Safe;
+    let fast = PluginClass::Fast;
+    let safe_str = format!("{safe:?}");
+    let fast_str = format!("{fast:?}");
+    assert!(safe_str.contains("Safe"));
+    assert!(fast_str.contains("Fast"));
+}
+
+#[test]
+fn plugin_context_creation_and_access() {
+    let ctx = PluginContext {
+        plugin_id: Uuid::new_v4(),
+        class: PluginClass::Safe,
+        update_rate_hz: 60,
+        budget_us: 5000,
+        capabilities: vec!["ReadTelemetry".to_string(), "ControlLeds".to_string()],
+    };
+
+    assert_eq!(ctx.capabilities.len(), 2);
+    assert!(ctx.capabilities.contains(&"ReadTelemetry".to_string()));
+}
+
+#[test]
+fn plugin_context_empty_capabilities() {
+    let ctx = PluginContext {
+        plugin_id: Uuid::new_v4(),
+        class: PluginClass::Safe,
+        update_rate_hz: 60,
+        budget_us: 5000,
+        capabilities: vec![],
+    };
+
+    assert!(ctx.capabilities.is_empty());
+}
+
+#[test]
+fn plugin_context_serialization_roundtrip() -> Result<(), Box<dyn std::error::Error>> {
+    let ctx = PluginContext {
+        plugin_id: Uuid::new_v4(),
+        class: PluginClass::Fast,
+        update_rate_hz: 1000,
+        budget_us: 200,
+        capabilities: vec!["ProcessDsp".to_string()],
+    };
+
+    let json = serde_json::to_string(&ctx)?;
+    let restored: PluginContext = serde_json::from_str(&json)?;
+    assert_eq!(restored.plugin_id, ctx.plugin_id);
+    assert_eq!(restored.class, PluginClass::Fast);
+    assert_eq!(restored.update_rate_hz, 1000);
+    Ok(())
+}
+
+// ===========================================================================
+// 18. Manifest edge cases
+// ===========================================================================
+
+#[test]
+fn manifest_all_allowed_capabilities_on_fast_accepted() -> Result<(), PluginError> {
+    let validator = ManifestValidator::default();
+    let mut m = make_manifest(PluginClass::Fast);
+    m.constraints.max_execution_time_us = 200;
+    m.constraints.max_memory_bytes = 4 * 1024 * 1024;
+    m.constraints.update_rate_hz = 1000;
+    m.capabilities = vec![
+        Capability::ReadTelemetry,
+        Capability::ModifyTelemetry,
+        Capability::ControlLeds,
+        Capability::ProcessDsp,
+        Capability::InterPluginComm,
+    ];
+    validator.validate(&m)?;
+    Ok(())
+}
+
+#[test]
+fn manifest_fast_exceeds_execution_time_rejected() {
+    let validator = ManifestValidator::default();
+    let mut m = make_manifest(PluginClass::Fast);
+    m.constraints.max_execution_time_us = 999;
+    m.constraints.max_memory_bytes = 4 * 1024 * 1024;
+    m.constraints.update_rate_hz = 1000;
+    assert!(validator.validate(&m).is_err());
+}
+
+#[test]
+fn manifest_fast_exceeds_memory_rejected() {
+    let validator = ManifestValidator::default();
+    let mut m = make_manifest(PluginClass::Fast);
+    m.constraints.max_execution_time_us = 200;
+    m.constraints.max_memory_bytes = 64 * 1024 * 1024;
+    m.constraints.update_rate_hz = 1000;
+    assert!(validator.validate(&m).is_err());
+}
+
+#[test]
+fn manifest_fast_exceeds_update_rate_rejected() {
+    let validator = ManifestValidator::default();
+    let mut m = make_manifest(PluginClass::Fast);
+    m.constraints.max_execution_time_us = 200;
+    m.constraints.max_memory_bytes = 4 * 1024 * 1024;
+    m.constraints.update_rate_hz = 10_000;
+    assert!(validator.validate(&m).is_err());
+}
+
+#[test]
+fn manifest_safe_with_only_inter_plugin_comm() -> Result<(), PluginError> {
+    let validator = ManifestValidator::default();
+    let mut m = make_manifest(PluginClass::Safe);
+    m.capabilities = vec![Capability::InterPluginComm];
+    validator.validate(&m)?;
+    Ok(())
+}
+
+#[test]
+fn manifest_safe_filesystem_rejected() {
+    let validator = ManifestValidator::default();
+    let mut m = make_manifest(PluginClass::Safe);
+    m.capabilities = vec![Capability::FileSystem {
+        paths: vec!["/tmp".to_string()],
+    }];
+    assert!(validator.validate(&m).is_err());
+}
+
+#[test]
+fn manifest_fast_filesystem_rejected() {
+    let validator = ManifestValidator::default();
+    let mut m = make_manifest(PluginClass::Fast);
+    m.constraints.max_execution_time_us = 200;
+    m.constraints.max_memory_bytes = 4 * 1024 * 1024;
+    m.constraints.update_rate_hz = 1000;
+    m.capabilities = vec![Capability::FileSystem {
+        paths: vec!["/tmp".to_string()],
+    }];
+    assert!(validator.validate(&m).is_err());
+}
+
+// ===========================================================================
+// 19. Quarantine and failure tracking edge cases
+// ===========================================================================
+
+#[test]
+fn quarantine_default_policy_sensible() {
+    let policy = QuarantinePolicy::default();
+    assert!(policy.max_crashes > 0);
+    assert!(policy.quarantine_duration_minutes > 0);
+}
+
+#[test]
+fn quarantine_multiple_plugins_tracked_independently() {
+    let mut manager = QuarantineManager::new(QuarantinePolicy {
+        max_crashes: 2,
+        ..QuarantinePolicy::default()
+    });
+
+    let id_a = Uuid::new_v4();
+    let id_b = Uuid::new_v4();
+
+    let _ = manager.record_violation(id_a, ViolationType::Crash, "crash 1".to_string());
+    let _ = manager.record_violation(id_a, ViolationType::Crash, "crash 2".to_string());
+    let _ = manager.record_violation(id_b, ViolationType::Crash, "crash b".to_string());
+
+    assert!(manager.is_quarantined(id_a));
+    assert!(!manager.is_quarantined(id_b));
+}
+
+#[test]
+fn quarantine_release_then_re_quarantine() {
+    let mut manager = QuarantineManager::new(QuarantinePolicy {
+        max_crashes: 1,
+        ..QuarantinePolicy::default()
+    });
+
+    let id = Uuid::new_v4();
+    let _ = manager.record_violation(id, ViolationType::Crash, "crash".to_string());
+    assert!(manager.is_quarantined(id));
+
+    let _ = manager.release_from_quarantine(id);
+    assert!(!manager.is_quarantined(id));
+
+    let _ = manager.record_violation(id, ViolationType::Crash, "crash again".to_string());
+    assert!(manager.is_quarantined(id));
+}
+
+#[test]
+fn failure_tracker_empty_returns_none() {
+    let tracker = FailureTracker::new();
+    let id = Uuid::new_v4();
+
+    let stats = tracker.get_stats(id);
+    assert!(stats.is_none());
+}
+
+#[test]
+fn failure_tracker_multiple_plugins_independent() {
+    let mut tracker = FailureTracker::new();
+    let id_a = Uuid::new_v4();
+    let id_b = Uuid::new_v4();
+
+    tracker.record_execution(id_a, 100, true);
+    tracker.record_execution(id_a, 200, true);
+    tracker.record_execution(id_b, 300, false);
+
+    let stats_a = tracker.get_stats(id_a).unwrap_or_else(|| unreachable!());
+    let stats_b = tracker.get_stats(id_b).unwrap_or_else(|| unreachable!());
+    assert_eq!(stats_a.executions, 2);
+    assert_eq!(stats_b.executions, 1);
+}
+
+#[test]
+fn failure_tracker_crash_count_accurate() {
+    let mut tracker = FailureTracker::new();
+    let id = Uuid::new_v4();
+
+    tracker.record_execution(id, 100, true);
+    tracker.record_execution(id, 200, false);
+    tracker.record_execution(id, 150, true);
+
+    let stats = tracker.get_stats(id).unwrap_or_else(|| unreachable!());
+    assert_eq!(stats.executions, 3);
+    assert_eq!(stats.crashes, 1);
+}
+
+// ===========================================================================
+// 20. PluginError variants (additional)
+// ===========================================================================
+
+#[test]
+fn plugin_error_loading_failed_display() {
+    let err = PluginError::LoadingFailed("corrupt binary".to_string());
+    let msg = format!("{err}");
+    assert!(msg.contains("corrupt binary"));
+}
+
+#[test]
+fn plugin_error_capability_violation_struct() {
+    let err = PluginError::CapabilityViolation {
+        capability: "ReadTelemetry".to_string(),
+    };
+    let msg = format!("{err}");
+    assert!(msg.contains("ReadTelemetry"));
+}
+
+#[test]
+fn plugin_error_quarantined_struct() {
+    let id = Uuid::new_v4();
+    let err = PluginError::Quarantined { plugin_id: id };
+    let msg = format!("{err}");
+    assert!(msg.contains(&id.to_string()));
+}
+
+#[test]
+fn plugin_error_execution_timeout() {
+    let err = PluginError::ExecutionTimeout {
+        duration: std::time::Duration::from_millis(500),
+    };
+    let msg = format!("{err}");
+    assert!(!msg.is_empty());
+}
+
+#[test]
+fn plugin_error_budget_violation() {
+    let err = PluginError::BudgetViolation {
+        used_us: 2000,
+        budget_us: 1000,
+    };
+    let msg = format!("{err}");
+    assert!(msg.contains("2000"));
+    assert!(msg.contains("1000"));
+}
+
+#[test]
+fn plugin_error_ipc() {
+    let err = PluginError::Ipc("connection lost".to_string());
+    let msg = format!("{err}");
+    assert!(msg.contains("connection lost"));
+}
+
+#[test]
+fn plugin_error_native_plugin_load() {
+    let err = PluginError::NativePluginLoad("missing symbol".to_string());
+    let msg = format!("{err}");
+    assert!(msg.contains("missing symbol"));
+}
+
+// ===========================================================================
+// 21. Version compatibility edge cases
+// ===========================================================================
+
+#[test]
+fn version_exact_match_compatible() {
+    let v = semver::Version::new(1, 2, 3);
+    let compat = check_compatibility(&v, &v);
+    assert_eq!(compat, VersionCompatibility::Compatible);
+}
+
+#[test]
+fn version_zero_minor_bump_incompatible() {
+    let required = semver::Version::new(0, 1, 0);
+    let available = semver::Version::new(0, 2, 0);
+    let compat = check_compatibility(&required, &available);
+    assert_ne!(compat, VersionCompatibility::Compatible);
+}
+
+#[test]
+fn version_major_bump_incompatible() {
+    let required = semver::Version::new(1, 0, 0);
+    let available = semver::Version::new(2, 0, 0);
+    let compat = check_compatibility(&required, &available);
+    assert_eq!(compat, VersionCompatibility::Incompatible);
+}
+
+// ===========================================================================
+// 22. Registry / catalog edge cases
+// ===========================================================================
+
+#[test]
+fn registry_empty_catalog_contains_nothing() {
+    let catalog = PluginCatalog::new();
+    assert_eq!(catalog.plugin_count(), 0);
+
+    let id = PluginMetadata::new("X", semver::Version::new(1, 0, 0), "a", "d", "MIT").id;
+    assert!(!catalog.contains(&id));
+}
+
+#[test]
+fn registry_remove_nonexistent_returns_false() {
+    let mut catalog = PluginCatalog::new();
+    let id = PluginMetadata::new("X", semver::Version::new(1, 0, 0), "a", "d", "MIT").id;
+    let removed = catalog.remove_plugin(&id, None);
+    assert!(!removed);
+}
+
+#[test]
+fn registry_search_empty_query_returns_all() -> Result<(), PluginError> {
+    let mut catalog = PluginCatalog::new();
+    catalog.add_plugin(make_registry_metadata("Alpha", "1.0.0"))?;
+    catalog.add_plugin(make_registry_metadata("Beta", "1.0.0"))?;
+
+    let results = catalog.search("");
+    assert_eq!(results.len(), 2);
+    Ok(())
+}
+
+#[test]
+fn registry_search_filters_by_name() -> Result<(), PluginError> {
+    let mut catalog = PluginCatalog::new();
+    catalog.add_plugin(make_registry_metadata("AlphaPlugin", "1.0.0"))?;
+    catalog.add_plugin(make_registry_metadata("BetaPlugin", "1.0.0"))?;
+
+    let results = catalog.search("Alpha");
+    assert_eq!(results.len(), 1);
+    Ok(())
+}
+
+#[test]
+fn registry_get_all_versions() -> Result<(), PluginError> {
+    let mut catalog = PluginCatalog::new();
+    let v1 = make_registry_metadata("Multi", "1.0.0");
+    let id = v1.id.clone();
+    catalog.add_plugin(v1)?;
+
+    let mut v2 = make_registry_metadata("Multi", "2.0.0");
+    v2.id = id.clone();
+    catalog.add_plugin(v2)?;
+
+    let versions = catalog.get_all_versions(&id);
+    assert!(versions.is_some());
+    assert_eq!(versions.map(|v| v.len()), Some(2));
+    Ok(())
+}
+
+#[test]
+fn registry_remove_specific_version() -> Result<(), PluginError> {
+    let mut catalog = PluginCatalog::new();
+    let v1 = make_registry_metadata("VerPlugin", "1.0.0");
+    let id = v1.id.clone();
+    catalog.add_plugin(v1)?;
+
+    let mut v2 = make_registry_metadata("VerPlugin", "2.0.0");
+    v2.id = id.clone();
+    catalog.add_plugin(v2)?;
+
+    assert_eq!(catalog.version_count(), 2);
+
+    let removed = catalog.remove_plugin(&id, Some(&semver::Version::new(1, 0, 0)));
+    assert!(removed);
+    assert_eq!(catalog.version_count(), 1);
+    Ok(())
+}
+
+// ===========================================================================
+// 23. Resource limits
+// ===========================================================================
+
+#[test]
+fn resource_limits_default_values() {
+    let limits = ResourceLimits::default();
+    assert!(limits.max_memory_bytes > 0);
+    assert!(limits.max_fuel > 0);
+    assert!(limits.max_table_elements > 0);
+    assert!(limits.max_instances > 0);
+}
+
+#[test]
+fn resource_limits_custom_values() {
+    let limits = ResourceLimits::new(
+        8 * 1024 * 1024, // 8 MiB
+        5_000_000,
+        5_000,
+        16,
+    );
+    assert_eq!(limits.max_memory_bytes, 8 * 1024 * 1024);
+    assert_eq!(limits.max_fuel, 5_000_000);
+    assert_eq!(limits.max_table_elements, 5_000);
+    assert_eq!(limits.max_instances, 16);
+}
+
+// ===========================================================================
+// 24. Native plugin configuration
+// ===========================================================================
+
+#[test]
+fn native_config_strict_requires_signatures() {
+    let config = NativePluginConfig::strict();
+    assert!(config.require_signatures);
+    assert!(!config.allow_unsigned);
+}
+
+#[test]
+fn native_config_permissive_allows_unsigned() {
+    let config = NativePluginConfig::permissive();
+    assert!(config.allow_unsigned);
+}
+
+#[test]
+fn native_config_default_is_strict() {
+    let config = NativePluginConfig::default();
+    assert!(config.require_signatures);
+    assert!(!config.allow_unsigned);
+}
+
+// ===========================================================================
+// 25. Capability checker edge cases
+// ===========================================================================
+
+#[test]
+fn capability_all_seven_capabilities_granted() -> Result<(), PluginError> {
+    let checker = CapabilityChecker::new(vec![
+        Capability::ReadTelemetry,
+        Capability::ModifyTelemetry,
+        Capability::ControlLeds,
+        Capability::ProcessDsp,
+        Capability::FileSystem {
+            paths: vec!["/tmp".to_string()],
+        },
+        Capability::Network {
+            hosts: vec!["localhost".to_string()],
+        },
+        Capability::InterPluginComm,
+    ]);
+
+    checker.check_telemetry_read()?;
+    checker.check_telemetry_modify()?;
+    checker.check_led_control()?;
+    checker.check_dsp_processing()?;
+    checker.check_file_access(Path::new("/tmp/data.json"))?;
+    checker.check_network_access("localhost")?;
+    checker.check_inter_plugin_comm()?;
+    Ok(())
+}
+
+#[test]
+fn capability_enforcer_delegates_to_checker() -> Result<(), PluginError> {
+    let enforcer = WasmCapabilityEnforcer::new(vec![
+        Capability::ReadTelemetry,
+        Capability::FileSystem {
+            paths: vec!["/sandbox".to_string()],
+        },
+    ]);
+    let checker = enforcer.checker();
+
+    checker.check_telemetry_read()?;
+    checker.check_file_access(Path::new("/sandbox/test.txt"))?;
+    assert!(checker.check_dsp_processing().is_err());
+    assert!(checker.check_network_access("evil.com").is_err());
+    Ok(())
+}
+
+#[test]
+fn capability_has_capability_simple_types() {
+    let checker = CapabilityChecker::new(vec![Capability::ReadTelemetry, Capability::ControlLeds]);
+
+    assert!(checker.has_capability(&Capability::ReadTelemetry));
+    assert!(checker.has_capability(&Capability::ControlLeds));
+    assert!(!checker.has_capability(&Capability::ProcessDsp));
+    assert!(!checker.has_capability(&Capability::ModifyTelemetry));
+}
+
+// ===========================================================================
+// 26. WasmRuntime instance tracking
+// ===========================================================================
+
+#[test]
+fn runtime_instance_count_starts_at_zero() -> Result<(), Box<dyn std::error::Error>> {
+    let runtime = WasmRuntime::new()?;
+    assert_eq!(runtime.instance_count(), 0);
+    Ok(())
+}
+
+#[test]
+fn runtime_has_plugin_check() -> Result<(), Box<dyn std::error::Error>> {
+    let wasm = compile_wat(PASSTHROUGH_WAT)?;
+    let mut runtime = WasmRuntime::new()?;
+    let id = Uuid::new_v4();
+
+    assert!(!runtime.has_plugin(&id));
+    runtime.load_plugin_from_bytes(id, &wasm, vec![])?;
+    assert!(runtime.has_plugin(&id));
+
+    runtime.unload_plugin(&id)?;
+    assert!(!runtime.has_plugin(&id));
+    Ok(())
+}
+
+// ===========================================================================
+// 27. Native ABI compatibility
+// ===========================================================================
+
+#[test]
+fn abi_current_version_is_defined() {
+    // Ensure the ABI version constant exists and is usable
+    let version = CURRENT_ABI_VERSION;
+    assert_ne!(version, 0);
+}
+
+#[test]
+fn abi_check_compatible_returns_ok() {
+    let result = check_abi_compatibility(CURRENT_ABI_VERSION);
+    assert_eq!(result, AbiCheckResult::Compatible);
+}
+
+#[test]
+fn abi_check_zero_returns_incompatible() {
+    let result = check_abi_compatibility(0);
+    assert_ne!(result, AbiCheckResult::Compatible);
+}
+
+#[test]
+fn abi_check_very_old_returns_incompatible() {
+    if CURRENT_ABI_VERSION > 1 {
+        let result = check_abi_compatibility(1);
+        assert_ne!(result, AbiCheckResult::Compatible);
+    }
+}
