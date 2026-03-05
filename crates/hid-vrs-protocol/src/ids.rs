@@ -63,6 +63,27 @@ pub const VRS_VENDOR_ID: u16 = 0x0483;
 pub const VRS_PRODUCT_ID: u16 = 0xA355;
 
 /// HID Report IDs used in the VRS DirectForce Pro HID protocol (PIDFF).
+///
+/// # Dual report_ids in this crate
+///
+/// This crate contains **two** modules named `report_ids`:
+///
+/// 1. **`ids::report_ids`** (this module) — device-specific report IDs
+///    derived from the USB HID PID descriptor. These match the report IDs
+///    that the VRS DFP firmware announces in its HID descriptor and are
+///    used by `output.rs` to build raw USB reports. Values like
+///    `CONSTANT_FORCE=0x11`, `SPRING_EFFECT=0x19` come from the device's
+///    own descriptor.
+///
+/// 2. **`effects::report_ids`** (re-exported from `pidff-common`) —
+///    standard USB HID PID 1.01 report type IDs (`SET_CONSTANT_FORCE=0x05`,
+///    `SET_CONDITION=0x03`, etc.). These are the logical PIDFF usage IDs
+///    from the specification (pid1_01.pdf).
+///
+/// The two sets **do not conflict**. The `ids::report_ids` values are
+/// USB HID Report IDs (the first byte of each report on the wire), while
+/// the `effects::report_ids` are logical PIDFF usage identifiers. Both
+/// are correct — they describe different layers of the protocol.
 pub mod report_ids {
     /// Standard input report (steering, pedals, buttons).
     pub const STANDARD_INPUT: u8 = 0x01;

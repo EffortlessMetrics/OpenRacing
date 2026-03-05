@@ -117,6 +117,10 @@ pub const SIMAGIC_LEGACY_PID: u16 = 0x0522;
 ///
 /// Source: JacKeTUs/simagic-ff `hid-simagic.c`, `hid-simagic-settings.h`
 /// (commit 52e73e7).
+///
+/// For the **real wire-format constants** matching these kernel IDs, see the
+/// [`crate::wire`] module which provides `report_type::*` and `block_id::*`
+/// as concrete Rust constants suitable for building 64-byte output reports.
 pub mod report_ids {
     /// Standard input report (steering, pedals, buttons).
     pub const STANDARD_INPUT: u8 = 0x01;
