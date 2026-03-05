@@ -7,6 +7,13 @@
 //! All data structures and parsing logic compile on every platform. Only actual
 //! IOKit FFI calls are gated behind `#[cfg(target_os = "macos")]`.
 
+pub mod device;
+pub mod enumeration;
+pub mod hotplug;
+
+#[cfg(target_os = "macos")]
+pub mod iokit_ffi;
+
 use super::HidDeviceInfo;
 use racing_wheel_schemas::prelude::*;
 use std::fmt;
