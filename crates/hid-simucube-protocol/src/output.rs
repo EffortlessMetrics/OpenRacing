@@ -4,7 +4,7 @@
 //!
 //! Simucube wheelbases use the **standard USB HID PID (Physical Interface
 //! Device)** protocol for force feedback. The standard PIDFF effect encoders
-//! (Constant, Spring, Damper, Sine, etc.) are available from the [`effects`]
+//! (Constant, Spring, Damper, Sine, etc.) are available from the [`crate::effects`]
 //! module, which re-exports [`openracing_pidff_common`].
 //!
 //! ## This module
