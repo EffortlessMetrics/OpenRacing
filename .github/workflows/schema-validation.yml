@@ -11,6 +11,7 @@ on:
     paths:
       - 'crates/schemas/**'
       - '.github/workflows/schema-validation.yml'
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
