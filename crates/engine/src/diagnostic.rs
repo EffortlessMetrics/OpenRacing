@@ -11,6 +11,8 @@ pub mod support_bundle;
 pub(crate) mod bincode_compat;
 
 #[cfg(test)]
+mod blackbox_deep_tests;
+#[cfg(test)]
 mod support_bundle_tests;
 
 pub use blackbox::{BlackboxConfig, BlackboxRecorder, RecordingStats};

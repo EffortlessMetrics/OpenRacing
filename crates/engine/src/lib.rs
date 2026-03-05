@@ -45,6 +45,8 @@ pub mod metrics;
 #[cfg(test)]
 pub mod metrics_tests;
 pub mod pipeline;
+#[cfg(test)]
+mod pipeline_determinism_tests;
 pub mod policies;
 pub mod ports;
 pub mod prelude;

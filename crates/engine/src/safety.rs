@@ -665,6 +665,8 @@ mod interlock_behavior_tests;
 #[cfg(test)]
 mod property_tests;
 #[cfg(test)]
+mod state_machine_deep_tests;
+#[cfg(test)]
 mod tests;
 #[cfg(test)]
 mod watchdog_safety_deep_tests;
