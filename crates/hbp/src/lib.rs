@@ -32,26 +32,21 @@ pub struct HbpHandbrakeSample {
     pub button_byte: Option<u8>,
 }
 
+use racing_wheel_hid_axis_utils::{normalize_u16_axis, parse_u16_axis_le};
+
 impl HbpHandbrakeSampleRaw {
     /// Normalize raw 16-bit sample to `[0.0, 1.0]`.
     pub fn normalize(self) -> HbpHandbrakeSample {
-        const MAX: f32 = u16::MAX as f32;
         HbpHandbrakeSample {
-            handbrake: self.handbrake as f32 / MAX,
+            handbrake: normalize_u16_axis(self.handbrake),
             button_byte: self.button_byte,
         }
     }
 }
 
 /// Parse a little-endian `u16` axis from `report` at `start`.
-///
-/// NOTE: Duplicated (by design) across tiny protocol microcrates to keep them
-/// dependency-minimal. Keep in sync with similar helpers (e.g. moza-wheelbase-report).
 pub fn parse_axis(report: &[u8], start: usize) -> Option<u16> {
-    if report.len() < start.saturating_add(2) {
-        return None;
-    }
-    Some(u16::from_le_bytes([report[start], report[start + 1]]))
+    parse_u16_axis_le(report, start)
 }
 
 /// Parse a standalone HBP USB report using best-effort layout inference.
@@ -82,14 +77,14 @@ pub fn parse_hbp_usb_report_best_effort(report: &[u8]) -> Option<HbpHandbrakeSam
 
     if report.len() == 2 {
         return Some(HbpHandbrakeSampleRaw {
-            handbrake: u16::from_le_bytes([report[RAW_AXIS_START], report[RAW_AXIS_START + 1]]),
+            handbrake: parse_u16_axis_le(report, RAW_AXIS_START)?,
             button_byte: None,
         });
     }
 
     if report.len() > RAW_BUTTON {
         return Some(HbpHandbrakeSampleRaw {
-            handbrake: u16::from_le_bytes([report[RAW_AXIS_START], report[RAW_AXIS_START + 1]]),
+            handbrake: parse_u16_axis_le(report, RAW_AXIS_START)?,
             button_byte: Some(report[RAW_BUTTON]),
         });
     }

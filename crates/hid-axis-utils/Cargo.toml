@@ -1,5 +1,5 @@
 [package]
-name = "racing-wheel-srp"
+name = "racing-wheel-hid-axis-utils"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -13,13 +13,8 @@ unused_must_use = "deny"
 [lints.clippy]
 unwrap_used = "deny"
 
-
 [package.metadata.cargo-udeps.ignore]
 normal = ["workspace-hack"]
 
 [dependencies]
-racing-wheel-hid-axis-utils = { workspace = true }
 workspace-hack = { version = "0.1", path = "../../workspace-hack" }
-
-[dev-dependencies]
-proptest = { workspace = true }

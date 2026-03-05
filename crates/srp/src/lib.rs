@@ -30,23 +30,21 @@ pub struct SrpPedalAxes {
     pub brake: Option<f32>,
 }
 
+use racing_wheel_hid_axis_utils::{normalize_u16_axis, parse_u16_axis_le};
+
 impl SrpPedalAxesRaw {
     /// Normalize raw 16-bit samples to `[0.0, 1.0]`.
     pub fn normalize(self) -> SrpPedalAxes {
-        const MAX: f32 = u16::MAX as f32;
         SrpPedalAxes {
-            throttle: self.throttle as f32 / MAX,
-            brake: self.brake.map(|value| value as f32 / MAX),
+            throttle: normalize_u16_axis(self.throttle),
+            brake: self.brake.map(normalize_u16_axis),
         }
     }
 }
 
 /// Parse a little-endian `u16` axis from `report` at `start`.
 pub fn parse_axis(report: &[u8], start: usize) -> Option<u16> {
-    if report.len() < start.saturating_add(2) {
-        return None;
-    }
-    Some(u16::from_le_bytes([report[start], report[start + 1]]))
+    parse_u16_axis_le(report, start)
 }
 
 /// Parse a standalone SR-P USB report.
