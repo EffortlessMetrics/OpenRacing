@@ -5,6 +5,8 @@
 
 #![deny(static_mut_refs)]
 
+use openracing_axis::{normalize_u16_to_unit, parse_u16_axis_le};
+
 /// Offset of the first SR-P throttle axis byte (after report ID).
 pub const THROTTLE_START: usize = 1;
 /// Offset of the first SR-P brake axis byte.
@@ -33,20 +35,16 @@ pub struct SrpPedalAxes {
 impl SrpPedalAxesRaw {
     /// Normalize raw 16-bit samples to `[0.0, 1.0]`.
     pub fn normalize(self) -> SrpPedalAxes {
-        const MAX: f32 = u16::MAX as f32;
         SrpPedalAxes {
-            throttle: self.throttle as f32 / MAX,
-            brake: self.brake.map(|value| value as f32 / MAX),
+            throttle: normalize_u16_to_unit(self.throttle),
+            brake: self.brake.map(normalize_u16_to_unit),
         }
     }
 }
 
 /// Parse a little-endian `u16` axis from `report` at `start`.
 pub fn parse_axis(report: &[u8], start: usize) -> Option<u16> {
-    if report.len() < start.saturating_add(2) {
-        return None;
-    }
-    Some(u16::from_le_bytes([report[start], report[start + 1]]))
+    parse_u16_axis_le(report, start)
 }
 
 /// Parse a standalone SR-P USB report.

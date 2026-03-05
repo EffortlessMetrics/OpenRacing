@@ -4206,6 +4206,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "openracing-axis"
+version = "0.1.0"
+dependencies = [
+ "proptest",
+ "workspace-hack",
+]
+
+[[package]]
 name = "openracing-calibration"
 version = "0.1.0"
 dependencies = [
@@ -5664,6 +5672,7 @@ dependencies = [
 name = "racing-wheel-hbp"
 version = "0.1.0"
 dependencies = [
+ "openracing-axis",
  "proptest",
  "workspace-hack",
 ]
@@ -5910,6 +5919,7 @@ dependencies = [
 name = "racing-wheel-moza-wheelbase-report"
 version = "0.1.0"
 dependencies = [
+ "openracing-axis",
  "proptest",
  "workspace-hack",
 ]
@@ -6068,6 +6078,7 @@ dependencies = [
 name = "racing-wheel-srp"
 version = "0.1.0"
 dependencies = [
+ "openracing-axis",
  "proptest",
  "workspace-hack",
 ]

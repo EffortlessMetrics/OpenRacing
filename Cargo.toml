@@ -30,6 +30,7 @@ members = [
     "crates/openracing-tracing",
     "crates/openracing-scheduler",
     "crates/openracing-curves",
+    "crates/openracing-axis",
     "crates/openracing-errors",
     "crates/openracing-filters",
     "crates/openracing-pipeline",
@@ -126,6 +127,7 @@ openracing-atomic = { path = "crates/openracing-atomic" }
 openracing-tracing = { path = "crates/openracing-tracing" }
 openracing-scheduler = { path = "crates/openracing-scheduler" }
 openracing-curves = { path = "crates/openracing-curves" }
+openracing-axis = { path = "crates/openracing-axis" }
 openracing-errors = { path = "crates/openracing-errors" }
 openracing-filters = { path = "crates/openracing-filters" }
 openracing-pipeline = { path = "crates/openracing-pipeline" }
