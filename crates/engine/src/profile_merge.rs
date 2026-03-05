@@ -277,8 +277,8 @@ impl ProfileMergeEngine {
         hasher.finish()
     }
 
-    // Default value detection methods for deterministic merging
-    // TODO: Used for future profile optimization implementation
+    // Default value detection methods for deterministic merging.
+    // Reserved for future profile optimization (skip merging default values).
 
     #[allow(dead_code)]
     fn is_default_gain(&self, gain: Gain) -> bool {
