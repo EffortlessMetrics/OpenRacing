@@ -63,6 +63,8 @@ mod simucube_tests;
 mod thrustmaster_tests;
 #[cfg(test)]
 mod vrs_tests;
+#[cfg(test)]
+mod autodetect_tests;
 
 pub use racing_wheel_hid_moza_protocol::{DeviceWriter, FfbConfig, VendorProtocol};
 
