@@ -1,0 +1,765 @@
+# Racing Wheel Suite — Linux hwdb overrides for joystick classification
+#
+# Many racing peripherals (especially pedals and handbrakes with
+# accelerometer axes) are misclassified by the default udev/hwdb rules
+# as accelerometers instead of joysticks.  This breaks SDL, Proton, and
+# Steam game detection on Linux.
+#
+# This file marks every supported device as ID_INPUT_JOYSTICK=1 and
+# explicitly clears ID_INPUT_ACCELEROMETER=0 so that applications see
+# them as game controllers.
+#
+# Installation:
+#   sudo cp 99-racing-wheel-suite.hwdb /etc/udev/hwdb.d/
+#   sudo systemd-hwdb update
+#   sudo udevadm trigger
+#
+# Source format: JacKeTUs/simracing-hwdb
+#
+# SPDX-License-Identifier: MIT OR Apache-2.0
+# Copyright (c) Racing Wheel Suite contributors
+
+###############################################################################
+# Wheelbases (Force Feedback)
+###############################################################################
+
+# --- Logitech ---
+
+# Logitech WingMan Formula Force
+id-input:modalias:input:*v046DpC291*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Logitech FF GP
+id-input:modalias:input:*v046DpC293*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Logitech Driving Force
+id-input:modalias:input:*v046DpC294*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Logitech MOMO
+id-input:modalias:input:*v046DpC295*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Logitech Driving Force Pro
+id-input:modalias:input:*v046DpC298*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Logitech G25
+id-input:modalias:input:*v046DpC299*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Logitech Driving Force GT
+id-input:modalias:input:*v046DpC29A*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Logitech G27
+id-input:modalias:input:*v046DpC29B*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Logitech Speed Force
+id-input:modalias:input:*v046DpC29C*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Logitech G29
+id-input:modalias:input:*v046DpC24F*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Logitech G920
+id-input:modalias:input:*v046DpC262*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Logitech G923
+id-input:modalias:input:*v046DpC266*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Logitech G923 PS
+id-input:modalias:input:*v046DpC267*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Logitech G923 Xbox HID++
+id-input:modalias:input:*v046DpC26D*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Logitech G923 Xbox
+id-input:modalias:input:*v046DpC26E*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Logitech G Pro
+id-input:modalias:input:*v046DpC268*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Logitech G Pro Xbox
+id-input:modalias:input:*v046DpC272*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Logitech MOMO2
+id-input:modalias:input:*v046DpCA03*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Logitech Vibration Wheel
+id-input:modalias:input:*v046DpCA04*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# --- Fanatec ---
+
+# Fanatec CSW V2
+id-input:modalias:input:*v0EB7p0001*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Fanatec CSW V2.5
+id-input:modalias:input:*v0EB7p0004*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Fanatec CSL Elite PS4
+id-input:modalias:input:*v0EB7p0005*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Fanatec DD1
+id-input:modalias:input:*v0EB7p0006*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Fanatec DD2
+id-input:modalias:input:*v0EB7p0007*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Fanatec CSR Elite
+id-input:modalias:input:*v0EB7p0011*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Fanatec CSL DD / DD Pro
+id-input:modalias:input:*v0EB7p0020*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Fanatec GT DD Pro
+id-input:modalias:input:*v0EB7p0024*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Fanatec ClubSport DD+
+id-input:modalias:input:*v0EB7p01E9*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Fanatec CSL Elite
+id-input:modalias:input:*v0EB7p0E03*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# --- Thrustmaster ---
+
+# Thrustmaster Pre-init
+id-input:modalias:input:*v044FpB65D*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Thrustmaster T500 RS
+id-input:modalias:input:*v044FpB65E*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Thrustmaster T300RS PS4
+id-input:modalias:input:*v044FpB66D*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Thrustmaster T300RS PS3
+id-input:modalias:input:*v044FpB66E*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Thrustmaster T300RS GT
+id-input:modalias:input:*v044FpB66F*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Thrustmaster TX
+id-input:modalias:input:*v044FpB669*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Thrustmaster T150
+id-input:modalias:input:*v044FpB677*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Thrustmaster TMX
+id-input:modalias:input:*v044FpB67F*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Thrustmaster T-GT II
+id-input:modalias:input:*v044FpB681*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Thrustmaster TS-PC
+id-input:modalias:input:*v044FpB689*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Thrustmaster TS-XW GIP
+id-input:modalias:input:*v044FpB691*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Thrustmaster TS-XW
+id-input:modalias:input:*v044FpB692*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Thrustmaster T248
+id-input:modalias:input:*v044FpB696*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Thrustmaster T248X
+id-input:modalias:input:*v044FpB69A*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Thrustmaster T818
+id-input:modalias:input:*v044FpB69B*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Thrustmaster NASCAR
+id-input:modalias:input:*v044FpB605*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Thrustmaster FGT Rumble
+id-input:modalias:input:*v044FpB651*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Thrustmaster RGT FF
+id-input:modalias:input:*v044FpB653*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Thrustmaster FGT FF
+id-input:modalias:input:*v044FpB654*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Thrustmaster F430 FF
+id-input:modalias:input:*v044FpB65A*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Thrustmaster TX Racing
+id-input:modalias:input:*v044FpB664*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Thrustmaster Ferrari 458 Xbox (via 24C6)
+id-input:modalias:input:*v24C6p5B00*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# --- Moza ---
+
+# Moza R16/R21
+id-input:modalias:input:*v346Ep0000*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Moza R9
+id-input:modalias:input:*v346Ep0002*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Moza R5
+id-input:modalias:input:*v346Ep0004*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Moza R3
+id-input:modalias:input:*v346Ep0005*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Moza R12
+id-input:modalias:input:*v346Ep0006*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Moza R16/R21 V2
+id-input:modalias:input:*v346Ep0010*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Moza R9 V2
+id-input:modalias:input:*v346Ep0012*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Moza R5 V2
+id-input:modalias:input:*v346Ep0014*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Moza R3 V2
+id-input:modalias:input:*v346Ep0015*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Moza R12 V2
+id-input:modalias:input:*v346Ep0016*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# --- Simagic ---
+
+# Simagic Alpha/M10 legacy
+id-input:modalias:input:*v0483p0522*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Simagic EVO Sport
+id-input:modalias:input:*v3670p0500*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Simagic EVO
+id-input:modalias:input:*v3670p0501*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Simagic EVO Pro
+id-input:modalias:input:*v3670p0502*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# --- VRS ---
+
+# VRS DirectForce Pro
+id-input:modalias:input:*v0483pA355*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# --- Simucube ---
+
+# Simucube SC1
+id-input:modalias:input:*v16D0p0D5A*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Simucube SC2 Ultimate
+id-input:modalias:input:*v16D0p0D5F*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Simucube SC2 Pro
+id-input:modalias:input:*v16D0p0D60*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Simucube SC2 Sport
+id-input:modalias:input:*v16D0p0D61*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# --- Asetek ---
+
+# Asetek Invicta
+id-input:modalias:input:*v2433pF300*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Asetek Forte
+id-input:modalias:input:*v2433pF301*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Asetek La Prima
+id-input:modalias:input:*v2433pF303*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Asetek Tony Kanaan
+id-input:modalias:input:*v2433pF306*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# --- Cammus ---
+
+# Cammus C5
+id-input:modalias:input:*v3416p0301*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Cammus C12
+id-input:modalias:input:*v3416p0302*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# --- PXN ---
+
+# PXN V10
+id-input:modalias:input:*v11FFp3245*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# PXN V12
+id-input:modalias:input:*v11FFp1212*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# PXN V12 Lite
+id-input:modalias:input:*v11FFp1112*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# PXN V12 Lite 2
+id-input:modalias:input:*v11FFp1211*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# PXN GT987
+id-input:modalias:input:*v11FFp2141*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# --- FFBeast ---
+
+# FFBeast Wheel
+id-input:modalias:input:*v045Bp59D7*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# --- OpenFFBoard ---
+
+# OpenFFBoard
+id-input:modalias:input:*v1209pFFB0*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# --- AccuForce ---
+
+# AccuForce Pro
+id-input:modalias:input:*v1FC9p804C*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# --- Granite Devices ---
+
+# Granite Devices IONI
+id-input:modalias:input:*v1D50p6050*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Granite Devices IONI Premium
+id-input:modalias:input:*v1D50p6051*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Granite Devices ARGON
+id-input:modalias:input:*v1D50p6052*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# --- Leo Bodnar ---
+
+# Leo Bodnar Wheel Interface
+id-input:modalias:input:*v1DD2p000E*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Leo Bodnar FFB Joystick
+id-input:modalias:input:*v1DD2p000F*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# --- FlashFire ---
+
+# FlashFire 900R
+id-input:modalias:input:*v2F24p010D*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# --- Guillemot ---
+
+# Guillemot FF Wheel
+id-input:modalias:input:*v06F8p0004*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# --- MMOS ---
+
+# MMOS FFB Controller
+id-input:modalias:input:*vF055p0FFB*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+###############################################################################
+# Peripherals (pedals, shifters, handbrakes, button boxes)
+###############################################################################
+
+# --- Moza ---
+
+# Moza Pedals
+id-input:modalias:input:*v346Ep0003*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Moza H-Shifter
+id-input:modalias:input:*v346Ep0020*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Moza Sequential Shifter
+id-input:modalias:input:*v346Ep0021*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Moza Handbrake
+id-input:modalias:input:*v346Ep0022*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# --- Fanatec ---
+
+# Fanatec Pedals V1/V2
+id-input:modalias:input:*v0EB7p1839*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Fanatec Pedals V3
+id-input:modalias:input:*v0EB7p183B*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Fanatec Pedals CSL Elite
+id-input:modalias:input:*v0EB7p6204*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Fanatec Pedals CSL LC
+id-input:modalias:input:*v0EB7p6205*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Fanatec Pedals CSL V2 LC
+id-input:modalias:input:*v0EB7p6206*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Fanatec Shifter
+id-input:modalias:input:*v0EB7p1A92*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Fanatec Handbrake
+id-input:modalias:input:*v0EB7p1A93*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# --- Thrustmaster ---
+
+# Thrustmaster TPR Pedals
+id-input:modalias:input:*v044FpB68F*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Thrustmaster T-LCM Pedals
+id-input:modalias:input:*v044FpB371*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# --- Asetek ---
+
+# Asetek Pedals Invicta
+id-input:modalias:input:*v2433pF100*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Asetek Pedals Forte
+id-input:modalias:input:*v2433pF101*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Asetek Pedals La Prima
+id-input:modalias:input:*v2433pF102*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# --- Heusinkveld ---
+
+# Heusinkveld Sprint
+id-input:modalias:input:*v30B7p1001*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Heusinkveld Ultimate+
+id-input:modalias:input:*v30B7p1003*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Heusinkveld Handbrake V2
+id-input:modalias:input:*v30B7p1002*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Heusinkveld Sprint legacy
+id-input:modalias:input:*v04D8pF6D0*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Heusinkveld Ultimate+ legacy
+id-input:modalias:input:*v04D8pF6D2*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Heusinkveld Pro
+id-input:modalias:input:*v04D8pF6D3*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Heusinkveld Handbrake V1
+id-input:modalias:input:*v10C4p8B82*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Heusinkveld Sequential Shifter
+id-input:modalias:input:*vA020p3142*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# --- Simagic EVO ---
+
+# Simagic EVO Handbrake
+id-input:modalias:input:*v3670p0A04*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# --- VRS ---
+
+# VRS Pedals
+id-input:modalias:input:*v0483pA3BE*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# --- Cammus ---
+
+# Cammus CP5 Pedals
+id-input:modalias:input:*v3416p1018*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Cammus LC100 Pedals
+id-input:modalias:input:*v3416p1019*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# --- Leo Bodnar ---
+
+# Leo Bodnar Button Box
+id-input:modalias:input:*v1DD2p000C*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Leo Bodnar Pedals Controller
+id-input:modalias:input:*v1DD2p100C*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# Leo Bodnar Pedals LC
+id-input:modalias:input:*v1DD2p22D0*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# --- SHH ---
+
+# SHH Shifter
+id-input:modalias:input:*v16C0p05E1*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# --- Oddor ---
+
+# Oddor Handbrake
+id-input:modalias:input:*v1021p1888*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# --- SimGrade ---
+
+# SimGrade VX-Pro Pedals
+id-input:modalias:input:*v1209p3115*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# --- SimJack ---
+
+# SimJack PRO Pedals
+id-input:modalias:input:*v2497p5757*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# --- SimLab ---
+
+# SimLab Handbrake XB1
+id-input:modalias:input:*v04D8pE760*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# --- SimNet ---
+
+# SimNet SP Pedals
+id-input:modalias:input:*vCAFEpA301*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# --- SimRuito ---
+
+# SimRuito Pedals
+id-input:modalias:input:*v5487p5401*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# --- SimSonn ---
+
+# SimSonn Pedals
+id-input:modalias:input:*vDDFDp5008*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# SimSonn Plus X
+id-input:modalias:input:*vDDFDp6011*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1
+
+# --- SimTrecs ---
+
+# SimTrecs ProPedal GT
+id-input:modalias:input:*v03EBp2406*
+ ID_INPUT_ACCELEROMETER=0
+ ID_INPUT_JOYSTICK=1

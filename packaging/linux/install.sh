@@ -141,20 +141,26 @@ install_udev_rules() {
     
     local udev_rules_file="/etc/udev/rules.d/99-racing-wheel-suite.rules"
     local modprobe_conf="/etc/modprobe.d/90-racing-wheel-quirks.conf"
+    local hwdb_file="/etc/udev/hwdb.d/99-racing-wheel-suite.hwdb"
     
     if [ "$EUID" -eq 0 ]; then
         # Running as root
         cp packaging/linux/99-racing-wheel-suite.rules "$udev_rules_file"
         cp packaging/linux/90-racing-wheel-quirks.conf "$modprobe_conf"
+        cp packaging/linux/99-racing-wheel-suite.hwdb "$hwdb_file"
+        systemd-hwdb update
         udevadm control --reload-rules
         udevadm trigger
         log_info "udev rules installed system-wide"
+        log_info "hwdb entries installed (joystick classification for racing peripherals)"
         log_info "HID quirks (modprobe.d) installed — reboot or reload usbhid for Asetek wheels"
     else
         # Not running as root - provide instructions
         log_warn "Not running as root. udev rules need to be installed manually:"
         log_warn "sudo cp packaging/linux/99-racing-wheel-suite.rules $udev_rules_file"
         log_warn "sudo cp packaging/linux/90-racing-wheel-quirks.conf $modprobe_conf"
+        log_warn "sudo cp packaging/linux/99-racing-wheel-suite.hwdb $hwdb_file"
+        log_warn "sudo systemd-hwdb update"
         log_warn "sudo udevadm control --reload-rules"
         log_warn "sudo udevadm trigger"
         log_warn "Reboot (or reload usbhid) for Asetek wheel quirks to take effect"
@@ -210,6 +216,8 @@ print_post_install_instructions() {
     echo "2. Install udev rules (if not done automatically):"
     echo "   sudo cp packaging/linux/99-racing-wheel-suite.rules /etc/udev/rules.d/"
     echo "   sudo cp packaging/linux/90-racing-wheel-quirks.conf /etc/modprobe.d/"
+    echo "   sudo cp packaging/linux/99-racing-wheel-suite.hwdb /etc/udev/hwdb.d/"
+    echo "   sudo systemd-hwdb update"
     echo "   sudo udevadm control --reload-rules && sudo udevadm trigger"
     echo "3. Add your user to required groups:"
     echo "   sudo usermod -a -G input,plugdev $USER"
