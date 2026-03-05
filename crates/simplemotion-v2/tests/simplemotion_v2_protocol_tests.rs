@@ -853,8 +853,8 @@ fn known_bytes_get_status_seq0() -> Result<(), Box<dyn std::error::Error>> {
     assert_eq!(buf[1], 0x00, "seq");
     assert_eq!(u16::from_le_bytes([buf[2], buf[3]]), 0x0003, "GetStatus");
     // All param/data bytes should be zero
-    for i in 4..14 {
-        assert_eq!(buf[i], 0x00, "byte {} should be zero for GetStatus", i);
+    for (i, &byte) in buf.iter().enumerate().take(14).skip(4) {
+        assert_eq!(byte, 0x00, "byte {} should be zero for GetStatus", i);
     }
     // CRC must match
     let expected_crc = compute_crc8(&buf[..14]);
@@ -1504,8 +1504,8 @@ fn encode_with_oversized_buffer() -> Result<(), Box<dyn std::error::Error>> {
     let len = encode_command(&cmd, &mut buf)?;
     assert_eq!(len, 15);
     // Bytes beyond 15 should be zeroed (encode fills then writes)
-    for i in 15..64 {
-        assert_eq!(buf[i], 0, "byte {} beyond packet should be zero", i);
+    for (i, &byte) in buf.iter().enumerate().take(64).skip(15) {
+        assert_eq!(byte, 0, "byte {} beyond packet should be zero", i);
     }
     Ok(())
 }
