@@ -311,6 +311,182 @@ mod tests {
         assert!(results.benchmarks.is_empty());
         assert_eq!(results.summary, BenchmarkResult::default());
     }
+
+    /// Default BenchmarkResult (all zeros) should pass gates since 0 ≤ every threshold.
+    #[test]
+    fn test_default_result_passes_gates() {
+        assert!(BenchmarkResult::default().meets_performance_gates());
+    }
+
+    /// Exactly-at-threshold values should pass (≤ is inclusive).
+    #[test]
+    fn test_exact_threshold_boundary_passes() {
+        let result = BenchmarkResult::new(1000.0, 0.25, 0.00001, 50.0, 200.0);
+        assert!(result.meets_performance_gates());
+    }
+
+    /// One epsilon above each threshold should fail.
+    #[test]
+    fn test_epsilon_above_threshold_fails_each_metric() {
+        let base = BenchmarkResult::new(500.0, 0.10, 0.000005, 30.0, 100.0);
+        assert!(base.meets_performance_gates());
+
+        // rt_loop_us just over 1000
+        let r = BenchmarkResult::new(1000.001, 0.10, 0.000005, 30.0, 100.0);
+        assert!(!r.meets_performance_gates());
+
+        // jitter_p99_ms just over 0.25
+        let r = BenchmarkResult::new(500.0, 0.250001, 0.000005, 30.0, 100.0);
+        assert!(!r.meets_performance_gates());
+
+        // missed_tick_rate just over 0.00001
+        let r = BenchmarkResult::new(500.0, 0.10, 0.0000100001, 30.0, 100.0);
+        assert!(!r.meets_performance_gates());
+
+        // processing_time_median_us just over 50
+        let r = BenchmarkResult::new(500.0, 0.10, 0.000005, 50.001, 100.0);
+        assert!(!r.meets_performance_gates());
+
+        // processing_time_p99_us just over 200
+        let r = BenchmarkResult::new(500.0, 0.10, 0.000005, 30.0, 200.001);
+        assert!(!r.meets_performance_gates());
+    }
+
+    /// All metrics simultaneously failing should still fail gates.
+    #[test]
+    fn test_all_metrics_failing_simultaneously() {
+        let result = BenchmarkResult::new(2000.0, 1.0, 0.1, 500.0, 1000.0);
+        assert!(!result.meets_performance_gates());
+    }
+
+    /// JSON output from BenchmarkResults matches the format expected by Python validator.
+    #[test]
+    fn test_json_format_matches_python_validator_schema() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let mut results = BenchmarkResults::new();
+        results.add_benchmark(BenchmarkEntry {
+            name: "rt_timing/1khz_tick_precision".to_string(),
+            percentiles: Percentiles {
+                p50: 50_000,
+                p99: 200_000,
+            },
+            custom_metrics: CustomMetrics {
+                missed_tick_rate: 0.000001,
+                e2e_latency_p99_us: 200.0,
+                rt_heap_allocs: 0,
+            },
+            sample_count: 1000,
+        });
+        results.set_summary(BenchmarkResult::new(200.0, 0.20, 0.000001, 25.0, 150.0));
+
+        let json = results.to_json()?;
+        let parsed: serde_json::Value = serde_json::from_str(&json)?;
+
+        // Verify top-level structure expected by validate_performance.py
+        assert!(parsed.get("benchmarks").is_some());
+        assert!(parsed.get("summary").is_some());
+
+        let summary = &parsed["summary"];
+        assert!(summary.get("rt_loop_us").is_some());
+        assert!(summary.get("jitter_p99_ms").is_some());
+        assert!(summary.get("missed_tick_rate").is_some());
+        assert!(summary.get("processing_time_median_us").is_some());
+        assert!(summary.get("processing_time_p99_us").is_some());
+
+        let bench = &parsed["benchmarks"][0];
+        assert!(bench.get("name").is_some());
+        assert!(bench.get("percentiles").is_some());
+        assert!(bench["percentiles"].get("p50").is_some());
+        assert!(bench["percentiles"].get("p99").is_some());
+        assert!(bench.get("custom_metrics").is_some());
+        assert!(bench["custom_metrics"].get("missed_tick_rate").is_some());
+        assert!(bench["custom_metrics"].get("e2e_latency_p99_us").is_some());
+        assert!(bench["custom_metrics"].get("rt_heap_allocs").is_some());
+        assert!(bench.get("sample_count").is_some());
+
+        Ok(())
+    }
+
+    /// from_json rejects invalid JSON gracefully.
+    #[test]
+    fn test_from_json_rejects_invalid_json() {
+        let result = BenchmarkResults::from_json("not valid json");
+        assert!(result.is_err());
+    }
+
+    /// from_json rejects JSON with missing required fields.
+    #[test]
+    fn test_from_json_rejects_missing_fields() {
+        let result = BenchmarkResults::from_json(r#"{"benchmarks": []}"#);
+        assert!(result.is_err());
+    }
+
+    /// Benchmark entries can be accumulated via add_benchmark.
+    #[test]
+    fn test_add_multiple_benchmarks() {
+        let mut results = BenchmarkResults::new();
+        for i in 0..5 {
+            results.add_benchmark(BenchmarkEntry {
+                name: format!("bench_{i}"),
+                percentiles: Percentiles { p50: i, p99: i * 2 },
+                custom_metrics: CustomMetrics {
+                    missed_tick_rate: 0.0,
+                    e2e_latency_p99_us: 0.0,
+                    rt_heap_allocs: 0,
+                },
+                sample_count: 100,
+            });
+        }
+        assert_eq!(results.benchmarks.len(), 5);
+        assert_eq!(results.benchmarks[3].name, "bench_3");
+    }
+
+    /// write_to_file produces a readable JSON file that round-trips.
+    #[test]
+    fn test_write_to_file_roundtrip() -> Result<(), Box<dyn std::error::Error>> {
+        let dir = std::env::temp_dir().join("openracing_bench_test");
+        std::fs::create_dir_all(&dir)?;
+        let path = dir.join("test_output.json");
+        let path_str = path.to_str().ok_or("invalid path")?;
+
+        let mut results = BenchmarkResults::new();
+        results.set_summary(BenchmarkResult::new(100.0, 0.10, 0.000005, 25.0, 100.0));
+        results.write_to_file(path_str)?;
+
+        let contents = std::fs::read_to_string(&path)?;
+        let loaded = BenchmarkResults::from_json(&contents)?;
+        assert_eq!(results, loaded);
+
+        std::fs::remove_file(&path)?;
+        Ok(())
+    }
+
+    /// Percentiles preserve nanosecond precision in large values.
+    #[test]
+    fn test_percentiles_large_values() -> Result<(), serde_json::Error> {
+        let p = Percentiles {
+            p50: u64::MAX / 2,
+            p99: u64::MAX - 1,
+        };
+        let json = serde_json::to_string(&p)?;
+        let parsed: Percentiles = serde_json::from_str(&json)?;
+        assert_eq!(p, parsed);
+        Ok(())
+    }
+
+    /// CustomMetrics with zero heap allocations round-trips.
+    #[test]
+    fn test_custom_metrics_zero_allocs() -> Result<(), serde_json::Error> {
+        let cm = CustomMetrics {
+            missed_tick_rate: 0.0,
+            e2e_latency_p99_us: 0.0,
+            rt_heap_allocs: 0,
+        };
+        let json = serde_json::to_string(&cm)?;
+        let parsed: CustomMetrics = serde_json::from_str(&json)?;
+        assert_eq!(cm, parsed);
+        Ok(())
+    }
 }
 
 /// Property-based tests for benchmark JSON round-trip.

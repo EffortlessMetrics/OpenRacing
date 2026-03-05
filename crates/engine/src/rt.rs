@@ -91,3 +91,88 @@ impl PerformanceMetrics {
         self.p99_jitter_ns as f64 / 1000.0
     }
 }
+
+#[cfg(test)]
+mod perf_metrics_tests {
+    use super::*;
+
+    #[test]
+    fn test_missed_tick_rate_zero_total_ticks() {
+        let m = PerformanceMetrics::default();
+        assert_eq!(m.missed_tick_rate(), 0.0);
+    }
+
+    #[test]
+    fn test_missed_tick_rate_no_misses() {
+        let m = PerformanceMetrics {
+            total_ticks: 10_000,
+            missed_ticks: 0,
+            ..Default::default()
+        };
+        assert_eq!(m.missed_tick_rate(), 0.0);
+    }
+
+    #[test]
+    fn test_missed_tick_rate_one_in_hundred_thousand() {
+        let m = PerformanceMetrics {
+            total_ticks: 100_000,
+            missed_ticks: 1,
+            ..Default::default()
+        };
+        // 1/100_000 = 0.00001 => exactly the 0.001% threshold
+        assert!((m.missed_tick_rate() - 0.00001).abs() < 1e-12);
+    }
+
+    #[test]
+    fn test_missed_tick_rate_all_missed() {
+        let m = PerformanceMetrics {
+            total_ticks: 500,
+            missed_ticks: 500,
+            ..Default::default()
+        };
+        assert_eq!(m.missed_tick_rate(), 1.0);
+    }
+
+    #[test]
+    fn test_p99_jitter_us_conversion() {
+        let m = PerformanceMetrics {
+            p99_jitter_ns: 250_000,
+            ..Default::default()
+        };
+        // 250_000 ns = 250 µs
+        assert!((m.p99_jitter_us() - 250.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_p99_jitter_us_zero() {
+        let m = PerformanceMetrics::default();
+        assert_eq!(m.p99_jitter_us(), 0.0);
+    }
+
+    #[test]
+    fn test_p99_jitter_us_large_value() {
+        let m = PerformanceMetrics {
+            p99_jitter_ns: 1_000_000_000, // 1 second
+            ..Default::default()
+        };
+        assert!((m.p99_jitter_us() - 1_000_000.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_p99_jitter_us_sub_microsecond() {
+        let m = PerformanceMetrics {
+            p99_jitter_ns: 500, // 0.5µs
+            ..Default::default()
+        };
+        assert!((m.p99_jitter_us() - 0.5).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_default_performance_metrics_values() {
+        let m = PerformanceMetrics::default();
+        assert_eq!(m.total_ticks, 0);
+        assert_eq!(m.missed_ticks, 0);
+        assert_eq!(m.max_jitter_ns, 0);
+        assert_eq!(m.p99_jitter_ns, 0);
+    }
+}
