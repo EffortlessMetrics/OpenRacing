@@ -395,9 +395,7 @@ fn scheduler_adaptive_clamps_period() -> TestResult {
 #[test]
 fn scheduler_record_processing_time_ema_initial() -> TestResult {
     let mut s = AbsoluteScheduler::new_1khz();
-    s.set_adaptive_scheduling(
-        AdaptiveSchedulingConfig::new().with_ema_alpha(0.5),
-    );
+    s.set_adaptive_scheduling(AdaptiveSchedulingConfig::new().with_ema_alpha(0.5));
     s.record_processing_time_us(200);
     let st = s.adaptive_scheduling();
     // First sample should seed the EMA directly.
@@ -408,9 +406,7 @@ fn scheduler_record_processing_time_ema_initial() -> TestResult {
 #[test]
 fn scheduler_record_processing_time_ema_converges() -> TestResult {
     let mut s = AbsoluteScheduler::new_1khz();
-    s.set_adaptive_scheduling(
-        AdaptiveSchedulingConfig::new().with_ema_alpha(0.5),
-    );
+    s.set_adaptive_scheduling(AdaptiveSchedulingConfig::new().with_ema_alpha(0.5));
     s.record_processing_time_us(100);
     s.record_processing_time_us(200);
     let st = s.adaptive_scheduling();
@@ -585,7 +581,7 @@ fn pll_average_phase_error_empty() -> TestResult {
 fn pll_average_phase_error_symmetric() -> TestResult {
     let mut pll = PLL::new(1_000_000);
     let _ = pll.update(1_010_000); // +10us
-    let _ = pll.update(990_000);   // -10us
+    let _ = pll.update(990_000); // -10us
     // Accumulated: +10000 + (-10000) = 0, average ~0
     assert!(pll.average_phase_error_ns().abs() < 1.0);
     Ok(())
