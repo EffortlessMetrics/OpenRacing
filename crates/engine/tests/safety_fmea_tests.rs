@@ -4,12 +4,12 @@
 //! interlock verification, torque limiting, timing budgets, multi-fault
 //! scenarios, and recovery paths.
 
+use racing_wheel_engine::safety::fault_injection::{InjectionContext, RecoveryCondition};
 use racing_wheel_engine::safety::{
     ButtonCombo, FaultInjectionScenario, FaultInjectionSystem, FaultType, HardwareWatchdog,
     InterlockAck, SafetyInterlockState, SafetyInterlockSystem, SafetyService, SafetyState,
     SoftwareWatchdog, TorqueLimit, TriggerCondition, WatchdogError, WatchdogTimeoutHandler,
 };
-use racing_wheel_engine::safety::fault_injection::{InjectionContext, RecoveryCondition};
 use std::time::{Duration, Instant};
 
 // =========================================================================
@@ -21,7 +21,12 @@ fn svc() -> SafetyService {
 }
 
 fn svc_fast() -> SafetyService {
-    SafetyService::with_timeouts(5.0, 25.0, Duration::from_millis(50), Duration::from_millis(20))
+    SafetyService::with_timeouts(
+        5.0,
+        25.0,
+        Duration::from_millis(50),
+        Duration::from_millis(20),
+    )
 }
 
 fn interlock(timeout_ms: u32) -> SafetyInterlockSystem {
