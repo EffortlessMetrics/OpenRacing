@@ -30,6 +30,8 @@ mod accuforce_tests;
 #[cfg(test)]
 mod asetek_tests;
 #[cfg(test)]
+mod autodetect_tests;
+#[cfg(test)]
 mod button_box_tests;
 #[cfg(test)]
 mod cammus_tests;
