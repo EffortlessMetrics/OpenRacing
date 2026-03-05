@@ -1,0 +1,23 @@
+#!/usr/bin/make -f
+
+%:
+	dh $@
+
+override_dh_auto_build:
+	cargo build --release --bin wheeld --bin wheelctl
+
+override_dh_auto_install:
+	install -Dm755 target/release/wheeld debian/openracing/usr/bin/wheeld
+	install -Dm755 target/release/wheelctl debian/openracing/usr/bin/wheelctl
+	install -Dm644 packaging/linux/wheeld.service.template debian/openracing/usr/lib/systemd/user/openracing.service
+	sed -i 's|%INSTALL_PATH%|/usr|g' debian/openracing/usr/lib/systemd/user/openracing.service
+	install -Dm644 packaging/linux/99-racing-wheel-suite.rules debian/openracing/etc/udev/rules.d/99-racing-wheel-suite.rules
+	install -Dm644 packaging/linux/99-racing-wheel-suite.hwdb debian/openracing/etc/udev/hwdb.d/99-racing-wheel-suite.hwdb
+	install -Dm644 packaging/linux/90-racing-wheel-quirks.conf debian/openracing/etc/modprobe.d/90-racing-wheel-quirks.conf
+
+override_dh_auto_test:
+	# Tests require hardware; skip in package build
+	true
+
+override_dh_auto_clean:
+	cargo clean || true

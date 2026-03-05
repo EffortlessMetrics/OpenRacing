@@ -1,0 +1,60 @@
+# Flatpak manifest for OpenRacing
+#
+# Build with:
+#   flatpak-builder --user --install --force-clean build-dir \
+#     packaging/linux/com.github.openracing.OpenRacing.yml
+#
+# Run:
+#   flatpak run com.github.openracing.OpenRacing
+#
+# Note: The Flatpak sandbox restricts direct HID device access.
+# Users must grant device permissions via Flatseal or:
+#   flatpak override --user --device=all com.github.openracing.OpenRacing
+
+app-id: com.github.openracing.OpenRacing
+runtime: org.freedesktop.Platform
+runtime-version: '24.08'
+sdk: org.freedesktop.Sdk
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.rust-stable
+
+command: wheelctl
+
+finish-args:
+  # HID device access for racing wheels, pedals, shifters
+  - --device=all
+  # D-Bus session bus (systemd user service integration)
+  - --socket=session-bus
+  # Network access for telemetry/game integration
+  - --share=network
+  # IPC for gRPC communication between CLI and service
+  - --share=ipc
+  # Wayland + X11 for UI components
+  - --socket=wayland
+  - --socket=fallback-x11
+  # Filesystem access for profiles and config
+  - --filesystem=xdg-config/racing-wheel-suite:create
+  - --filesystem=xdg-data/racing-wheel-suite:create
+  # Access to game telemetry shared memory (read-only)
+  - --env=RUST_LOG=info
+
+modules:
+  - name: openracing
+    buildsystem: simple
+    build-options:
+      append-path: /usr/lib/sdk/rust-stable/bin
+      env:
+        CARGO_HOME: /run/build/openracing/cargo
+    build-commands:
+      - cargo build --release --workspace --bin wheeld --bin wheelctl
+      - install -Dm755 target/release/wheeld ${FLATPAK_DEST}/bin/wheeld
+      - install -Dm755 target/release/wheelctl ${FLATPAK_DEST}/bin/wheelctl
+      - install -Dm644 packaging/linux/99-racing-wheel-suite.rules ${FLATPAK_DEST}/share/openracing/99-racing-wheel-suite.rules
+      - install -Dm644 packaging/linux/99-racing-wheel-suite.hwdb ${FLATPAK_DEST}/share/openracing/99-racing-wheel-suite.hwdb
+      - install -Dm644 packaging/linux/90-racing-wheel-quirks.conf ${FLATPAK_DEST}/share/openracing/90-racing-wheel-quirks.conf
+      - install -Dm644 README.md ${FLATPAK_DEST}/share/doc/openracing/README.md
+      - install -Dm644 LICENSE-MIT ${FLATPAK_DEST}/share/licenses/openracing/LICENSE-MIT
+      - install -Dm644 LICENSE-APACHE ${FLATPAK_DEST}/share/licenses/openracing/LICENSE-APACHE
+    sources:
+      - type: dir
+        path: ../../

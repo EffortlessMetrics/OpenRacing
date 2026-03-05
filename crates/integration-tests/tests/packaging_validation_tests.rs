@@ -612,6 +612,9 @@ fn packaging_linux_directory_complete() -> Result<(), Box<dyn std::error::Error>
         "90-racing-wheel-quirks.conf",
         "install.sh",
         "wheeld.service.template",
+        "openracing.spec",
+        "com.github.openracing.OpenRacing.yml",
+        "debian/control",
     ];
     for f in &required_files {
         let path = linux_dir.join(f);
@@ -1425,6 +1428,489 @@ fn wix_manifest_per_machine_install() -> Result<(), Box<dyn std::error::Error>> 
     assert!(
         content.contains("perMachine"),
         "WXS must use perMachine install scope for service registration"
+    );
+    Ok(())
+}
+
+// ============================================================================
+// RPM spec file validation
+// ============================================================================
+
+#[test]
+fn rpm_spec_file_exists() -> Result<(), Box<dyn std::error::Error>> {
+    let path = repo_root().join("packaging/linux/openracing.spec");
+    assert!(path.exists(), "RPM spec file missing: {}", path.display());
+    Ok(())
+}
+
+#[test]
+fn rpm_spec_has_required_sections() -> Result<(), Box<dyn std::error::Error>> {
+    let content = read_packaging_file("packaging/linux/openracing.spec")?;
+    let required = [
+        "%prep",
+        "%install",
+        "%files",
+        "%post",
+        "%preun",
+        "%changelog",
+    ];
+    let mut missing = Vec::new();
+    for section in &required {
+        if !content.contains(section) {
+            missing.push(*section);
+        }
+    }
+    assert!(missing.is_empty(), "RPM spec missing sections: {missing:?}");
+    Ok(())
+}
+
+#[test]
+fn rpm_spec_has_correct_package_name() -> Result<(), Box<dyn std::error::Error>> {
+    let content = read_packaging_file("packaging/linux/openracing.spec")?;
+    assert!(
+        content.contains("Name:           openracing"),
+        "RPM spec must use package name 'openracing'"
+    );
+    Ok(())
+}
+
+#[test]
+fn rpm_spec_has_license() -> Result<(), Box<dyn std::error::Error>> {
+    let content = read_packaging_file("packaging/linux/openracing.spec")?;
+    assert!(
+        content.contains("License:") && content.contains("MIT"),
+        "RPM spec must declare MIT license"
+    );
+    Ok(())
+}
+
+#[test]
+fn rpm_spec_installs_binaries() -> Result<(), Box<dyn std::error::Error>> {
+    let content = read_packaging_file("packaging/linux/openracing.spec")?;
+    assert!(
+        content.contains("wheeld") && content.contains("wheelctl"),
+        "RPM spec must install both wheeld and wheelctl"
+    );
+    Ok(())
+}
+
+#[test]
+fn rpm_spec_installs_udev_rules() -> Result<(), Box<dyn std::error::Error>> {
+    let content = read_packaging_file("packaging/linux/openracing.spec")?;
+    assert!(
+        content.contains("99-racing-wheel-suite.rules"),
+        "RPM spec must install udev rules"
+    );
+    assert!(
+        content.contains("_udevrulesdir"),
+        "RPM spec must use %_udevrulesdir macro for udev rules path"
+    );
+    Ok(())
+}
+
+#[test]
+fn rpm_spec_installs_systemd_service() -> Result<(), Box<dyn std::error::Error>> {
+    let content = read_packaging_file("packaging/linux/openracing.spec")?;
+    assert!(
+        content.contains("openracing.service"),
+        "RPM spec must install systemd service"
+    );
+    assert!(
+        content.contains("_userunitdir"),
+        "RPM spec must use %_userunitdir macro for user service path"
+    );
+    Ok(())
+}
+
+#[test]
+fn rpm_spec_has_url() -> Result<(), Box<dyn std::error::Error>> {
+    let content = read_packaging_file("packaging/linux/openracing.spec")?;
+    assert!(
+        content.contains("URL:") && content.contains("github.com"),
+        "RPM spec must have project URL"
+    );
+    Ok(())
+}
+
+#[test]
+fn rpm_spec_post_reloads_udev() -> Result<(), Box<dyn std::error::Error>> {
+    let content = read_packaging_file("packaging/linux/openracing.spec")?;
+    // After %post, udev rules should be reloaded
+    let post_idx = content.find("%post");
+    let preun_idx = content.find("%preun");
+    if let (Some(start), Some(end)) = (post_idx, preun_idx) {
+        let post_section = &content[start..end];
+        assert!(
+            post_section.contains("udev"),
+            "RPM %post must reload udev rules"
+        );
+    }
+    Ok(())
+}
+
+// ============================================================================
+// Flatpak manifest validation
+// ============================================================================
+
+#[test]
+fn flatpak_manifest_exists() -> Result<(), Box<dyn std::error::Error>> {
+    let path = repo_root().join("packaging/linux/com.github.openracing.OpenRacing.yml");
+    assert!(
+        path.exists(),
+        "Flatpak manifest missing: {}",
+        path.display()
+    );
+    Ok(())
+}
+
+#[test]
+fn flatpak_manifest_has_correct_app_id() -> Result<(), Box<dyn std::error::Error>> {
+    let content = read_packaging_file("packaging/linux/com.github.openracing.OpenRacing.yml")?;
+    assert!(
+        content.contains("app-id: com.github.openracing.OpenRacing"),
+        "Flatpak manifest must have correct reverse-DNS app-id"
+    );
+    Ok(())
+}
+
+#[test]
+fn flatpak_manifest_has_runtime() -> Result<(), Box<dyn std::error::Error>> {
+    let content = read_packaging_file("packaging/linux/com.github.openracing.OpenRacing.yml")?;
+    assert!(
+        content.contains("runtime: org.freedesktop.Platform"),
+        "Flatpak manifest must specify freedesktop Platform runtime"
+    );
+    assert!(
+        content.contains("sdk: org.freedesktop.Sdk"),
+        "Flatpak manifest must specify freedesktop Sdk"
+    );
+    Ok(())
+}
+
+#[test]
+fn flatpak_manifest_grants_device_access() -> Result<(), Box<dyn std::error::Error>> {
+    let content = read_packaging_file("packaging/linux/com.github.openracing.OpenRacing.yml")?;
+    assert!(
+        content.contains("--device=all"),
+        "Flatpak manifest must grant device access for HID racing wheels"
+    );
+    Ok(())
+}
+
+#[test]
+fn flatpak_manifest_installs_binaries() -> Result<(), Box<dyn std::error::Error>> {
+    let content = read_packaging_file("packaging/linux/com.github.openracing.OpenRacing.yml")?;
+    assert!(
+        content.contains("wheeld") && content.contains("wheelctl"),
+        "Flatpak manifest must install wheeld and wheelctl"
+    );
+    Ok(())
+}
+
+#[test]
+fn flatpak_manifest_has_rust_sdk_extension() -> Result<(), Box<dyn std::error::Error>> {
+    let content = read_packaging_file("packaging/linux/com.github.openracing.OpenRacing.yml")?;
+    assert!(
+        content.contains("rust-stable"),
+        "Flatpak manifest must include Rust SDK extension"
+    );
+    Ok(())
+}
+
+// ============================================================================
+// Debian packaging validation
+// ============================================================================
+
+#[test]
+fn debian_control_file_exists() -> Result<(), Box<dyn std::error::Error>> {
+    let path = repo_root().join("packaging/linux/debian/control");
+    assert!(
+        path.exists(),
+        "Debian control file missing: {}",
+        path.display()
+    );
+    Ok(())
+}
+
+#[test]
+fn debian_control_has_correct_package_name() -> Result<(), Box<dyn std::error::Error>> {
+    let content = read_packaging_file("packaging/linux/debian/control")?;
+    assert!(
+        content.contains("Package: openracing"),
+        "Debian control must use package name 'openracing'"
+    );
+    Ok(())
+}
+
+#[test]
+fn debian_control_has_source_section() -> Result<(), Box<dyn std::error::Error>> {
+    let content = read_packaging_file("packaging/linux/debian/control")?;
+    assert!(
+        content.contains("Source: openracing"),
+        "Debian control must have Source section"
+    );
+    assert!(
+        content.contains("Build-Depends:"),
+        "Debian control must specify Build-Depends"
+    );
+    Ok(())
+}
+
+#[test]
+fn debian_control_has_dependencies() -> Result<(), Box<dyn std::error::Error>> {
+    let content = read_packaging_file("packaging/linux/debian/control")?;
+    assert!(
+        content.contains("libudev"),
+        "Debian control must depend on libudev"
+    );
+    assert!(
+        content.contains("Recommends:") && content.contains("rtkit"),
+        "Debian control should recommend rtkit for real-time scheduling"
+    );
+    Ok(())
+}
+
+#[test]
+fn debian_control_has_homepage() -> Result<(), Box<dyn std::error::Error>> {
+    let content = read_packaging_file("packaging/linux/debian/control")?;
+    assert!(
+        content.contains("Homepage:") && content.contains("github.com"),
+        "Debian control must have Homepage field"
+    );
+    Ok(())
+}
+
+#[test]
+fn debian_control_has_description() -> Result<(), Box<dyn std::error::Error>> {
+    let content = read_packaging_file("packaging/linux/debian/control")?;
+    assert!(
+        content.contains("Description:"),
+        "Debian control must have Description field"
+    );
+    assert!(
+        content.contains("force feedback") || content.contains("racing wheel"),
+        "Debian control description must mention the product"
+    );
+    Ok(())
+}
+
+#[test]
+fn debian_rules_file_exists() -> Result<(), Box<dyn std::error::Error>> {
+    let path = repo_root().join("packaging/linux/debian/rules");
+    assert!(
+        path.exists(),
+        "Debian rules file missing: {}",
+        path.display()
+    );
+    Ok(())
+}
+
+#[test]
+fn debian_rules_installs_service() -> Result<(), Box<dyn std::error::Error>> {
+    let content = read_packaging_file("packaging/linux/debian/rules")?;
+    assert!(
+        content.contains("openracing.service"),
+        "Debian rules must install systemd service"
+    );
+    Ok(())
+}
+
+#[test]
+fn debian_copyright_file_exists() -> Result<(), Box<dyn std::error::Error>> {
+    let path = repo_root().join("packaging/linux/debian/copyright");
+    assert!(
+        path.exists(),
+        "Debian copyright file missing: {}",
+        path.display()
+    );
+    let content = read_packaging_file("packaging/linux/debian/copyright")?;
+    assert!(
+        content.contains("MIT") && content.contains("Apache"),
+        "Debian copyright must declare both MIT and Apache-2.0 licenses"
+    );
+    Ok(())
+}
+
+// ============================================================================
+// Udev rule advanced syntax validation
+// ============================================================================
+
+#[test]
+fn udev_rules_vid_values_are_lowercase() -> Result<(), Box<dyn std::error::Error>> {
+    let content = read_packaging_file("packaging/linux/99-racing-wheel-suite.rules")?;
+    let re = regex::Regex::new(r#"ATTRS\{idVendor\}=="([^"]*)""#)?;
+    let mut errors = Vec::new();
+    for (i, line) in content.lines().enumerate() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() || trimmed.starts_with('#') {
+            continue;
+        }
+        for caps in re.captures_iter(trimmed) {
+            if let Some(val) = caps.get(1) {
+                let v = val.as_str();
+                if v != v.to_lowercase() {
+                    errors.push(format!("Line {}: VID '{}' must be lowercase", i + 1, v));
+                }
+            }
+        }
+    }
+    assert!(
+        errors.is_empty(),
+        "udev rules VID case errors:\n{}",
+        errors.join("\n")
+    );
+    Ok(())
+}
+
+#[test]
+fn udev_rules_pid_values_are_lowercase() -> Result<(), Box<dyn std::error::Error>> {
+    let content = read_packaging_file("packaging/linux/99-racing-wheel-suite.rules")?;
+    let re = regex::Regex::new(r#"ATTRS\{idProduct\}=="([^"]*)""#)?;
+    let mut errors = Vec::new();
+    for (i, line) in content.lines().enumerate() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() || trimmed.starts_with('#') {
+            continue;
+        }
+        for caps in re.captures_iter(trimmed) {
+            if let Some(val) = caps.get(1) {
+                let v = val.as_str();
+                if v != v.to_lowercase() {
+                    errors.push(format!("Line {}: PID '{}' must be lowercase", i + 1, v));
+                }
+            }
+        }
+    }
+    assert!(
+        errors.is_empty(),
+        "udev rules PID case errors:\n{}",
+        errors.join("\n")
+    );
+    Ok(())
+}
+
+#[test]
+fn udev_rules_autosuspend_value_correct() -> Result<(), Box<dyn std::error::Error>> {
+    let content = read_packaging_file("packaging/linux/99-racing-wheel-suite.rules")?;
+    let re = regex::Regex::new(r#"ATTR\{power/autosuspend\}="([^"]*)""#)?;
+    let mut errors = Vec::new();
+    for (i, line) in content.lines().enumerate() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() || trimmed.starts_with('#') {
+            continue;
+        }
+        for caps in re.captures_iter(trimmed) {
+            if let Some(val) = caps.get(1)
+                && val.as_str() != "-1"
+            {
+                errors.push(format!(
+                    "Line {}: autosuspend should be '-1', got '{}'",
+                    i + 1,
+                    val.as_str()
+                ));
+            }
+        }
+    }
+    assert!(
+        errors.is_empty(),
+        "udev rules autosuspend errors:\n{}",
+        errors.join("\n")
+    );
+    Ok(())
+}
+
+// ============================================================================
+// File permission expectations in build script
+// ============================================================================
+
+#[test]
+fn build_script_sets_binary_permissions_755() -> Result<(), Box<dyn std::error::Error>> {
+    let content = read_packaging_file("packaging/linux/build-packages.sh")?;
+    assert!(
+        content.contains("755") && content.contains("wheeld"),
+        "Build script must set binary permissions to 755"
+    );
+    Ok(())
+}
+
+#[test]
+fn build_script_sets_config_permissions_644() -> Result<(), Box<dyn std::error::Error>> {
+    let content = read_packaging_file("packaging/linux/build-packages.sh")?;
+    assert!(
+        content.contains("644"),
+        "Build script must set config file permissions to 644"
+    );
+    Ok(())
+}
+
+#[test]
+fn rpm_spec_sets_correct_file_permissions() -> Result<(), Box<dyn std::error::Error>> {
+    let content = read_packaging_file("packaging/linux/openracing.spec")?;
+    assert!(
+        content.contains("install -m 755") && content.contains("wheeld"),
+        "RPM spec must install binaries with mode 755"
+    );
+    assert!(
+        content.contains("install -m 644") && content.contains("openracing.service"),
+        "RPM spec must install service file with mode 644"
+    );
+    Ok(())
+}
+
+// ============================================================================
+// Cross-format package metadata consistency
+// ============================================================================
+
+#[test]
+fn all_package_formats_use_same_name() -> Result<(), Box<dyn std::error::Error>> {
+    let rpm_spec = read_packaging_file("packaging/linux/openracing.spec")?;
+    let deb_control = read_packaging_file("packaging/linux/debian/control")?;
+    let flatpak = read_packaging_file("packaging/linux/com.github.openracing.OpenRacing.yml")?;
+
+    assert!(
+        rpm_spec.contains("Name:           openracing"),
+        "RPM spec package name must be 'openracing'"
+    );
+    assert!(
+        deb_control.contains("Package: openracing"),
+        "Debian package name must be 'openracing'"
+    );
+    assert!(
+        flatpak.contains("openracing"),
+        "Flatpak manifest must reference 'openracing'"
+    );
+    Ok(())
+}
+
+#[test]
+fn all_package_formats_have_license() -> Result<(), Box<dyn std::error::Error>> {
+    let rpm_spec = read_packaging_file("packaging/linux/openracing.spec")?;
+    let deb_copyright = read_packaging_file("packaging/linux/debian/copyright")?;
+
+    assert!(
+        rpm_spec.contains("MIT") && rpm_spec.contains("Apache"),
+        "RPM spec must declare dual license"
+    );
+    assert!(
+        deb_copyright.contains("MIT") && deb_copyright.contains("Apache"),
+        "Debian copyright must declare dual license"
+    );
+    Ok(())
+}
+
+#[test]
+fn all_package_formats_reference_homepage() -> Result<(), Box<dyn std::error::Error>> {
+    let rpm_spec = read_packaging_file("packaging/linux/openracing.spec")?;
+    let deb_control = read_packaging_file("packaging/linux/debian/control")?;
+
+    let homepage = "github.com/EffortlessMetrics/OpenRacing";
+    assert!(
+        rpm_spec.contains(homepage),
+        "RPM spec must reference project homepage"
+    );
+    assert!(
+        deb_control.contains(homepage),
+        "Debian control must reference project homepage"
     );
     Ok(())
 }
