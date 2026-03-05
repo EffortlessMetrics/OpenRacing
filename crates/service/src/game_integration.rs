@@ -72,10 +72,6 @@ impl Default for GameIntegrationService {
         let support_matrix = create_default_matrix();
         let config_writers: HashMap<String, Box<dyn ConfigWriter + Send + Sync>> = HashMap::new();
 
-        // Register config writers
-        // config_writers.insert("iracing".to_string(), Box::new(IRacingConfigWriter));
-        // config_writers.insert("acc".to_string(), Box::new(ACCConfigWriter));
-
         Self {
             support_matrix,
             config_writers,

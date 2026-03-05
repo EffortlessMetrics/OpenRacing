@@ -49,7 +49,6 @@ pub mod policies;
 pub mod ports;
 pub mod prelude;
 pub mod profile_merge;
-pub mod profile_service;
 pub mod protocol;
 pub mod rt;
 pub mod safety;
