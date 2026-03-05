@@ -33,7 +33,7 @@ OpenRacing is a safety-critical racing wheel and force feedback simulation softw
 ### Key Features
 
 - **Real-time Force Feedback at 1kHz** - Deterministic processing pipeline with sub-millisecond latency
-- **Multi-Game Integration** - Support for 28+ racing simulators including iRacing, ACC, Forza, BeamNG, and more (see [Supported Games](SETUP.md#4-game-setup))
+- **Multi-Game Integration** - Support for 60+ racing simulators including iRacing, ACC, Forza, BeamNG, and more (see [Supported Games](SETUP.md#4-game-setup))
 - **Safety-Critical Design** - Comprehensive fault detection and hardware watchdog integration
 - **Cross-Platform Support** - Windows 10+, Linux kernel 4.0+, and macOS
 - **Profile Management** - JSON-based force feedback profiles with schema validation

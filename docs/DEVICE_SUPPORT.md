@@ -1,6 +1,6 @@
 # Device Support Matrix
 
-Full device support matrix for OpenRacing. All 15 vendors and known PIDs are listed below.
+Full device support matrix for OpenRacing. 28 vendors with 150+ unique VID/PID pairs are listed below.
 
 For detailed capabilities (torque, encoder CPR, rotation, FFB effects), see [`DEVICE_CAPABILITIES.md`](DEVICE_CAPABILITIES.md).
 
@@ -237,12 +237,12 @@ For detailed capabilities (torque, encoder CPR, rotation, FFB effects), see [`DE
 
 | Metric | Value |
 |--------|-------|
-| Total vendors | 15 (wheelbases) + peripherals |
-| Total VID/PID pairs | ~90+ |
+| Total vendors | 28 (15 wheelbase + 13 peripheral-only) |
+| Total VID/PID pairs | 150+ |
 | Verified PIDs | ~65 |
-| Community PIDs | ~20 |
-| Estimated PIDs | ~10 |
-| Protocol crate test coverage | All 15 vendors with advanced proptest + deep tests |
+| Community PIDs | ~70 |
+| Estimated PIDs | ~15 |
+| Protocol crate test coverage | All 15 wheelbase vendors with advanced proptest + deep tests |
 
 ---
 
