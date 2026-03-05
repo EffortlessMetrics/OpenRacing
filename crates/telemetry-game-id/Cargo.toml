@@ -1,0 +1,19 @@
+[package]
+name = "racing-wheel-telemetry-game-id"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage = "https://github.com/EffortlessMetrics/OpenRacing"
+documentation = "https://docs.rs/racing-wheel-telemetry-game-id"
+publish = true
+description = "SRP microcrate for canonical telemetry game ID alias normalization"
+readme = "README.md"
+keywords = ["telemetry", "racing", "game-id", "normalization"]
+
+[package.metadata.cargo-udeps.ignore]
+normal = ["workspace-hack"]
+
+[dependencies]
+workspace-hack = { version = "0.1", path = "../../workspace-hack" }
