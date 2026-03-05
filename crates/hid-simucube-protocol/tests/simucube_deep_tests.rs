@@ -7,7 +7,6 @@
 
 use hid_simucube_protocol::{
     // PIDFF re-exports
-    BlockLoadReport,
     BlockLoadStatus,
     DURATION_INFINITE,
     EffectOp,
@@ -17,7 +16,6 @@ use hid_simucube_protocol::{
     HID_BUTTON_COUNT,
     HID_JOYSTICK_REPORT_MIN_BYTES,
     MAX_EFFECTS,
-    MAX_TORQUE_NM,
     MAX_TORQUE_PRO,
     MAX_TORQUE_SPORT,
     MAX_TORQUE_ULTIMATE,
