@@ -1,6 +1,7 @@
 # OpenRacing
 
 [![CI](https://github.com/EffortlessMetrics/OpenRacing/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/EffortlessMetrics/OpenRacing/actions/workflows/ci.yml)
+[![Coverage](https://github.com/EffortlessMetrics/OpenRacing/actions/workflows/coverage.yml/badge.svg?branch=main)](https://github.com/EffortlessMetrics/OpenRacing/actions/workflows/coverage.yml)
 [![codecov](https://codecov.io/gh/EffortlessMetrics/OpenRacing/branch/main/graph/badge.svg)](https://codecov.io/gh/EffortlessMetrics/OpenRacing)
 [![Documentation](https://img.shields.io/badge/docs-API-blue.svg)](https://effortlessmetrics.github.io/OpenRacing/)
 [![License: MIT OR Apache-2.0](https://img.shields.io/badge/License-MIT%20OR%20Apache--2.0-blue.svg)](LICENSE-MIT)
