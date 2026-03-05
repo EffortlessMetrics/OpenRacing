@@ -181,7 +181,7 @@ fn wheelbase_pids_in_f3xx_range() -> Result<(), Box<dyn std::error::Error>> {
     ];
     for pid in wb_pids {
         assert!(
-            pid >= 0xF300 && pid <= 0xF3FF,
+            (0xF300..=0xF3FF).contains(&pid),
             "Wheelbase PID 0x{pid:04X} should be in 0xF3xx range"
         );
     }
@@ -197,7 +197,7 @@ fn pedal_pids_in_f1xx_range() -> Result<(), Box<dyn std::error::Error>> {
     ];
     for pid in pedal_pids {
         assert!(
-            pid >= 0xF100 && pid <= 0xF1FF,
+            (0xF100..=0xF1FF).contains(&pid),
             "Pedal PID 0x{pid:04X} should be in 0xF1xx range"
         );
     }
@@ -832,7 +832,7 @@ fn tony_kanaan_has_same_torque_as_invicta() -> Result<(), Box<dyn std::error::Er
 
 #[test]
 fn always_poll_quirk_is_true() -> Result<(), Box<dyn std::error::Error>> {
-    assert!(hid_asetek_protocol::quirks::REQUIRES_ALWAYS_POLL_LINUX);
+    const { assert!(hid_asetek_protocol::quirks::REQUIRES_ALWAYS_POLL_LINUX) };
     Ok(())
 }
 
