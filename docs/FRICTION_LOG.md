@@ -4,7 +4,7 @@ Running record of pain points, blockers, and technical debt encountered during d
 
 Each entry has: **date**, **severity** (Low/Medium/High), **status** (Open/Resolved/Won't Fix), and a description + proposed remedy.
 
-**Summary (68 items):** 13 Open · 50 Resolved · 1 Partially Resolved · 1 Investigating · 2 Noted · 1 Won't Fix
+**Summary (71 items):** 12 Open · 2 In Progress · 52 Resolved · 1 Partially Resolved · 1 Investigating · 2 Noted · 1 Won't Fix
 
 ---
 
@@ -557,13 +557,15 @@ The OpenFFBoard alt PID `0xFFB1` is listed in the protocol crate but cannot be f
 
 ---
 
-### F-053 · macOS not in CI matrix (Medium · Open)
+### F-053 · macOS not in CI matrix (Medium · **In Progress**)
 
 **Encountered:** Wave 15 RC hardening (2025-06)
 
 The CI workflow matrix covers Linux and Windows but does not include macOS. macOS is a supported platform (macOS 10.15+) with platform-specific code paths (e.g., `thread_policy_set` for RT scheduling). Platform-specific compile errors and behavioral differences can go undetected until manual testing.
 
 **Remedy:** Add a macOS runner (`macos-latest`) to the CI matrix for at least the build and test jobs. Consider using `macos-13` for x86_64 and `macos-14` for ARM64 coverage.
+
+**Update:** PR #84 adds macOS (`macos-latest`) to the CI matrix for CLI, Service, and Workspace builds.
 
 ---
 
@@ -838,13 +840,45 @@ Rust crate names (in `Cargo.toml` `[package] name`) frequently differ from their
 
 ---
 
-### F-077 · Transient proptest timeout failures (Low · Open)
+### F-077 · Transient proptest timeout failures (Low · **In Progress**)
 
 **Encountered:** Wave 23-24 (2025-07)
 
 Proptest suites occasionally time out on CI runners under heavy parallel load (especially Windows). The default `PROPTEST_MAX_SHRINK_ITERS` and per-test timeout interact poorly when many proptest files run concurrently. Failures are non-deterministic and disappear on retry.
 
 **Remedy:** Set explicit `ProptestConfig { timeout: ... }` in flaky suites. Consider adding `PROPTEST_CASES` environment variable override in CI to reduce case count on slow runners. Document retry expectations in `docs/DEVELOPMENT.md`.
+
+**Update:** PR being prepared to add explicit timeout configs to all 1000-case suites.
+
+---
+
+### F-079 · Linux packages missing hwdb and modprobe quirks files (Medium · **Resolved**)
+
+**Encountered:** Wave 35 (2025-07)
+
+Linux deb/rpm/tarball packages did not include the hwdb joystick classification file or kernel quirks for `ALWAYS_POLL` devices, preventing full plug-and-play on installed packages. Users installing from packages would not get automatic device detection without manually copying hwdb and modprobe configuration files.
+
+**Resolved (PR #82):** Packaging scripts updated to include hwdb joystick classification file and modprobe quirks for `ALWAYS_POLL` devices in deb, rpm, and tarball outputs.
+
+---
+
+### F-080 · Documentation device/game counts stale (Low · **Resolved**)
+
+**Encountered:** Wave 35 (2025-07)
+
+README, SETUP, USER_GUIDE, and DEVICE_SUPPORT docs showed outdated counts (25+ vendors, 50+ games) when actual numbers are 28 vendors, 150+ devices, 60+ games. Stale counts underrepresent the project's device and game coverage.
+
+**Resolved (PR #81):** All documentation updated to reflect current counts: 28 vendors, 150+ devices, 60+ games.
+
+---
+
+### F-081 · UI Isolation Build fails on CI infrastructure timeout (Low · Open)
+
+**Encountered:** Wave 35 (2025-07)
+
+`rustup` download from `static.rust-lang.org` occasionally times out on Windows CI runners, causing UI Isolation Build to fail with "operation timed out". Not a code issue — retry resolves it.
+
+**Remedy:** Add retry logic to the CI workflow step that installs Rust toolchain, or increase the default timeout for `rustup` downloads. Low priority since retries resolve the issue.
 
 ---
 
@@ -904,10 +938,19 @@ Proptest suites occasionally time out on CI runners under heavy parallel load (e
 | F-052 | OpenFFBoard PID 0xFFB1 confirmed speculative | Wave 34 |
 | F-025 | Windows PowerShell shell sessions in agent env | Won't Fix |
 | F-029 | cargo-udeps false positives in CI | Wave 16 |
+| F-079 | Linux packages missing hwdb and modprobe quirks files | PR #82 |
+| F-080 | Documentation device/game counts stale | PR #81 |
 
 ---
 
 ## Recent Progress
+
+### Wave 35 — Packaging, Docs, CI Hardening (2025-07)
+- **F-053 (macOS CI):** Now in progress — PR #84 adds macOS to CI matrix for CLI, Service, and Workspace builds.
+- **F-077 (Proptest timeouts):** Now in progress — PR being prepared to add explicit timeout configs to all 1000-case suites.
+- **F-079 (Linux packaging):** Resolved (PR #82) — hwdb joystick classification and modprobe quirks for `ALWAYS_POLL` devices now included in deb/rpm/tarball packages.
+- **F-080 (Doc counts):** Resolved (PR #81) — README, SETUP, USER_GUIDE, DEVICE_SUPPORT updated to 28 vendors, 150+ devices, 60+ games.
+- **F-081 (CI rustup timeout):** Logged as open/low — intermittent `rustup` download timeout on Windows CI runners; retry resolves.
 
 ### Waves 22-24 — Golden Packets, Safety Soak, Compile-Fail, Doc-Tests (2025-07)
 - **942 new tests** added (13,075 → 14,017+ passing), plus 4 new fuzz targets (100+ total).
