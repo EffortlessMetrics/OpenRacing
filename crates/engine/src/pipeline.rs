@@ -812,8 +812,8 @@ impl PipelineCompiler {
         Ok(())
     }
 
-    /// Interpolate curve value for a given input
-    /// TODO: Used for future curve-based FFB effects implementation
+    /// Interpolate curve value for a given input.
+    /// Reserved for future curve-based FFB effects (Bezier, exponential, etc.).
     #[allow(dead_code)]
     fn interpolate_curve(&self, input: f32, curve_points: &[CurvePoint]) -> f32 {
         let clamped_input = input.clamp(0.0, 1.0);

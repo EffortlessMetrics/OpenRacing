@@ -32,6 +32,10 @@ mod tests {
 
     #[test]
     fn report_ids_match_pid_spec() {
+        // PXN uses standard USB HID PID (PIDFF) report IDs.
+        // These values are defined by the USB PID specification (pid1_01.pdf),
+        // not vendor-specific. Confirmed by Linux kernel hid-universal-pidff.c
+        // which lists PXN devices with no vendor-specific report-ID quirks.
         assert_eq!(report_ids::SET_EFFECT, 0x01);
         assert_eq!(report_ids::SET_ENVELOPE, 0x02);
         assert_eq!(report_ids::SET_CONDITION, 0x03);

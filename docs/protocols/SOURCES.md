@@ -367,7 +367,7 @@ See friction log entry **F-005** for the history of why this document was create
 | `0x2141` | PXN GT987 FF           | Verified |
 
 > **Note:** PXN VD4, VD6, and VD10 PIDs are unknown — they are not listed in the JacKeTUs compatibility table or any other public source at the time of writing.  
-> `FFB_REPORT_ID = 0x05` is an estimate; standard PIDFF uses `0x01`. Verify against a USB capture when hardware is available.
+> ~~`FFB_REPORT_ID = 0x05` was previously noted as an estimate, but this is incorrect.~~ PXN uses **standard USB HID PID** (PIDFF) confirmed by Linux kernel `hid-universal-pidff.c`. All PIDFF report IDs (`SET_EFFECT=0x01`, `SET_CONSTANT_FORCE=0x05`, etc.) are defined by the USB PID specification (pid1_01.pdf), not vendor-specific. No proprietary FFB report IDs are needed. **RESOLVED** (2025-07).
 
 ---
 
@@ -457,13 +457,13 @@ The following devices are known to exist but lack confirmed USB VID/PID values. 
 
 | Device | Status | Notes |
 |--------|--------|-------|
-| Turtle Beach VelocityOne Race | VID unknown | Not in linux-steering-wheels or hwdb; audio VID 0x1C59 does not apply |
+| Turtle Beach VelocityOne Race | VID/PID unknown | Not in linux-steering-wheels (listed with empty VID/PID/support fields as of 2025-07) or hwdb; audio VID 0x1C59 does not apply. No USB descriptor captures found in any public source. |
 | Cube Controls GT Pro V2 / Formula CSX-3 / GT-X2 / F-CORE | PIDs unverified | Input-only steering wheels (button boxes), NOT wheelbases. VID 0x0483 (STMicro shared) plausible; PIDs 0x0C73–0x0C75 are internal estimates not found in devicehunt.com, RetroBat Wheels.cs, SDL GameControllerDB, or any USB database. JacKeTUs/linux-steering-wheels, Reddit, and RaceDepartment checked 2025-07 — no entries. These devices do not produce force feedback. |
 | Asetek Invicta Pedals / Forte Pedals | PIDs 0xF100 / 0xF101 | Found in JacKeTUs/simracing-hwdb (`90-asetek.hwdb`). Not yet in our `hid-asetek-protocol` crate (which is wheelbase-only). Input-only devices; no force feedback. |
-| Cammus C15 / DDMAX (15 Nm) | PID unknown | Announced; not yet in community tables |
-| Simucube 3 | Not yet released | No public USB descriptor at time of writing |
-| Gomez Racer devices | Unknown | No public VID/PID found in any community source |
-| SIMTAG pedals | Unknown | No public VID/PID found in any community source |
-| PXN VD4 / VD6 / VD10 | PIDs unknown | Not in JacKeTUs table or any other public source |
+| Cammus C15 / DDMAX (15 Nm) | PID unknown | Announced; not yet in community tables or Linux kernel as of 2025-07. |
+| Simucube 3 | Not yet released | No public USB descriptor at time of writing. JacKeTUs/linux-steering-wheels notes (2025-07): "We can only speculate that PID descriptor is used in their new Simucube Hub. If that's the case, then wheelbase will work out of the box." |
+| Gomez Racer devices | Unknown | No public VID/PID found in any community source as of 2025-07. Not listed in linux-steering-wheels, simracing-hwdb, or any USB database. |
+| SIMTAG pedals | Unknown | No public VID/PID found in any community source as of 2025-07. Not listed in linux-steering-wheels, simracing-hwdb, or any USB database. |
+| PXN VD4 / VD6 / VD10 | PIDs unknown | Listed in JacKeTUs/linux-steering-wheels (Gold rating, hid-universal-pidff driver) but VID/PID fields are blank (as of 2025-07). These devices use PIDFF and work on Linux but specific PIDs need USB capture confirmation. |
 
 To contribute a USB capture, follow the guide in `docs/CONTRIBUTING_CAPTURES.md` (to be created).

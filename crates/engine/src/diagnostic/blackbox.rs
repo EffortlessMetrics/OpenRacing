@@ -149,8 +149,6 @@ pub struct BlackboxRecorder {
 
     // State
     start_time: Instant,
-    /// TODO: Used for future index optimization implementation
-    #[allow(dead_code)]
     last_index_time: Instant,
     index_entries: Vec<IndexEntry>,
     stats: RecordingStats,
@@ -369,7 +367,46 @@ impl BlackboxRecorder {
         };
 
         self.index_entries.push(entry);
+        self.last_index_time = Instant::now();
         Ok(())
+    }
+
+    /// Find the index entry closest to (but not after) the given timestamp.
+    ///
+    /// Uses binary search over the sorted index for O(log n) lookup,
+    /// suitable for large recordings with thousands of index entries.
+    pub fn find_index_at_timestamp(&self, timestamp_ms: u32) -> Option<&IndexEntry> {
+        if self.index_entries.is_empty() {
+            return None;
+        }
+        // Index entries are always sorted by timestamp_ms (appended chronologically).
+        // partition_point returns the first index where timestamp_ms > target,
+        // so the entry we want is at (partition_point - 1).
+        let pos = self
+            .index_entries
+            .partition_point(|e| e.timestamp_ms <= timestamp_ms);
+        if pos == 0 {
+            None
+        } else {
+            Some(&self.index_entries[pos - 1])
+        }
+    }
+
+    /// Find all index entries within the given time range `[start_ms, end_ms]`.
+    ///
+    /// Uses binary search for both bounds, yielding O(log n + k) where k
+    /// is the number of entries returned.
+    pub fn find_indices_in_range(&self, start_ms: u32, end_ms: u32) -> &[IndexEntry] {
+        if self.index_entries.is_empty() || start_ms > end_ms {
+            return &[];
+        }
+        let lo = self
+            .index_entries
+            .partition_point(|e| e.timestamp_ms < start_ms);
+        let hi = self
+            .index_entries
+            .partition_point(|e| e.timestamp_ms <= end_ms);
+        &self.index_entries[lo..hi]
     }
 
     /// Write accumulated stream data to file
@@ -624,5 +661,123 @@ mod tests {
         // With repetitive data, compression ratio should be good
         // (This is a basic test - actual compression depends on data patterns)
         assert!(stats.compression_ratio <= 1.0);
+    }
+
+    #[test]
+    fn test_find_index_at_timestamp_empty() {
+        let (config, _temp_dir) = create_test_config();
+        let recorder = BlackboxRecorder::new(config).unwrap();
+        assert!(recorder.find_index_at_timestamp(0).is_none());
+        assert!(recorder.find_index_at_timestamp(500).is_none());
+    }
+
+    #[test]
+    fn test_find_index_at_timestamp_binary_search() {
+        let (config, _temp_dir) = create_test_config();
+        let mut recorder = BlackboxRecorder::new(config).unwrap();
+
+        // Manually insert sorted index entries (100ms intervals)
+        for i in 0..20u32 {
+            recorder.index_entries.push(IndexEntry {
+                timestamp_ms: i * 100,
+                stream_a_offset: i as u64 * 1024,
+                stream_b_offset: 0,
+                stream_c_offset: 0,
+                frame_count: 100,
+            });
+        }
+
+        // Exact match: timestamp 500 should find entry at 500
+        let entry = recorder.find_index_at_timestamp(500);
+        assert!(entry.is_some());
+        assert_eq!(entry.unwrap().timestamp_ms, 500);
+
+        // Between entries: timestamp 550 should find entry at 500
+        let entry = recorder.find_index_at_timestamp(550);
+        assert!(entry.is_some());
+        assert_eq!(entry.unwrap().timestamp_ms, 500);
+
+        // Before first entry: timestamp 50 should find entry at 0
+        let entry = recorder.find_index_at_timestamp(50);
+        assert!(entry.is_some());
+        assert_eq!(entry.unwrap().timestamp_ms, 0);
+
+        // At last entry: timestamp 1900 should find entry at 1900
+        let entry = recorder.find_index_at_timestamp(1900);
+        assert!(entry.is_some());
+        assert_eq!(entry.unwrap().timestamp_ms, 1900);
+
+        // Beyond last entry: timestamp 5000 should find entry at 1900
+        let entry = recorder.find_index_at_timestamp(5000);
+        assert!(entry.is_some());
+        assert_eq!(entry.unwrap().timestamp_ms, 1900);
+    }
+
+    #[test]
+    fn test_find_indices_in_range() {
+        let (config, _temp_dir) = create_test_config();
+        let mut recorder = BlackboxRecorder::new(config).unwrap();
+
+        for i in 0..20u32 {
+            recorder.index_entries.push(IndexEntry {
+                timestamp_ms: i * 100,
+                stream_a_offset: i as u64 * 1024,
+                stream_b_offset: 0,
+                stream_c_offset: 0,
+                frame_count: 100,
+            });
+        }
+
+        // Range 200..500 should return entries at 200, 300, 400, 500
+        let entries = recorder.find_indices_in_range(200, 500);
+        assert_eq!(entries.len(), 4);
+        assert_eq!(entries[0].timestamp_ms, 200);
+        assert_eq!(entries[3].timestamp_ms, 500);
+
+        // Empty range: start > end
+        let entries = recorder.find_indices_in_range(500, 200);
+        assert!(entries.is_empty());
+
+        // Range beyond all entries
+        let entries = recorder.find_indices_in_range(3000, 4000);
+        assert!(entries.is_empty());
+
+        // Exact single entry
+        let entries = recorder.find_indices_in_range(300, 300);
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].timestamp_ms, 300);
+
+        // Full range
+        let entries = recorder.find_indices_in_range(0, 1900);
+        assert_eq!(entries.len(), 20);
+    }
+
+    #[test]
+    fn test_find_index_large_recording() {
+        let (config, _temp_dir) = create_test_config();
+        let mut recorder = BlackboxRecorder::new(config).unwrap();
+
+        // Simulate a 1-hour recording with 100ms index interval = 36000 entries
+        for i in 0..36_000u32 {
+            recorder.index_entries.push(IndexEntry {
+                timestamp_ms: i * 100,
+                stream_a_offset: i as u64 * 512,
+                stream_b_offset: 0,
+                stream_c_offset: 0,
+                frame_count: 100,
+            });
+        }
+
+        // Binary search should handle large index efficiently
+        let entry = recorder.find_index_at_timestamp(1_800_000); // 30 minutes
+        assert!(entry.is_some());
+        assert_eq!(entry.unwrap().timestamp_ms, 1_800_000);
+
+        let entry = recorder.find_index_at_timestamp(1_800_050); // Between entries
+        assert!(entry.is_some());
+        assert_eq!(entry.unwrap().timestamp_ms, 1_800_000);
+
+        let entries = recorder.find_indices_in_range(1_000_000, 1_001_000);
+        assert_eq!(entries.len(), 11); // 10 intervals of 100ms + endpoints
     }
 }
