@@ -214,6 +214,18 @@ mod property_tests {
     proptest! {
         #![proptest_config(proptest::test_runner::Config::with_cases(500))]
 
+        /// Arbitrary bytes never panic the input report parser.
+        #[test]
+        fn prop_parse_input_never_panics(data in proptest::collection::vec(any::<u8>(), 0..=128)) {
+            let _ = parse_input_report(&data);
+        }
+
+        /// Arbitrary bytes never panic the pedal report parser.
+        #[test]
+        fn prop_parse_pedal_never_panics(data in proptest::collection::vec(any::<u8>(), 0..=64)) {
+            let _ = parse_pedal_report(&data);
+        }
+
         #[test]
         fn prop_steering_center_is_zero(steering in 0u16..=65535u16) {
             let normalized = (steering as f32 - 32768.0) / 32768.0;
@@ -226,6 +238,22 @@ mod property_tests {
         fn prop_steering_range(steering in 0u16..=65535u16) {
             let normalized = (steering as f32 - 32768.0) / 32768.0;
             prop_assert!((-1.001..=1.001).contains(&normalized));
+        }
+
+        /// Valid reports have all axis values in [0.0, 1.0].
+        #[test]
+        fn prop_axes_bounded(
+            rest in proptest::collection::vec(any::<u8>(), 9..=32),
+        ) {
+            let mut data = vec![STANDARD_INPUT_REPORT_ID];
+            data.extend_from_slice(&rest);
+            if let Some(state) = parse_input_report(&data) {
+                prop_assert!(state.steering >= -1.0 && state.steering <= 1.001);
+                prop_assert!(state.throttle >= 0.0 && state.throttle <= 1.0);
+                prop_assert!(state.brake >= 0.0 && state.brake <= 1.0);
+                prop_assert!(state.clutch >= 0.0 && state.clutch <= 1.0);
+                prop_assert!(state.hat <= 0x0F);
+            }
         }
 
         #[test]
@@ -250,6 +278,18 @@ mod property_tests {
             data[2] = 0x80;
             if report_id == STANDARD_INPUT_REPORT_ID {
                 prop_assert!(parse_input_report(&data).is_some());
+            }
+        }
+
+        /// Truncated reports are safely rejected.
+        #[test]
+        fn prop_truncated_rejected(len in 0usize..10) {
+            let mut data = vec![STANDARD_INPUT_REPORT_ID; len.max(1)];
+            if !data.is_empty() {
+                data[0] = STANDARD_INPUT_REPORT_ID;
+            }
+            if data.len() < 10 {
+                prop_assert!(parse_input_report(&data).is_none());
             }
         }
     }

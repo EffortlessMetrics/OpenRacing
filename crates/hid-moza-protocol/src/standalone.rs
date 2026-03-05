@@ -192,3 +192,53 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+mod property_tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    proptest! {
+        #![proptest_config(proptest::test_runner::Config::with_cases(500))]
+
+        /// Arbitrary bytes never panic the HBP parser (with correct product_id).
+        #[test]
+        fn prop_hbp_never_panics(data in proptest::collection::vec(any::<u8>(), 0..=128)) {
+            let _ = parse_hbp_report(product_ids::HBP_HANDBRAKE, &data);
+        }
+
+        /// Arbitrary bytes never panic the SRP parser (with correct product_id).
+        #[test]
+        fn prop_srp_never_panics(data in proptest::collection::vec(any::<u8>(), 0..=128)) {
+            let _ = parse_srp_report(product_ids::SR_P_PEDALS, &data);
+        }
+
+        /// Arbitrary product IDs never panic the HBP parser.
+        #[test]
+        fn prop_hbp_any_pid_never_panics(
+            pid in any::<u16>(),
+            data in proptest::collection::vec(any::<u8>(), 0..=64),
+        ) {
+            let _ = parse_hbp_report(pid, &data);
+        }
+
+        /// Arbitrary product IDs never panic the SRP parser.
+        #[test]
+        fn prop_srp_any_pid_never_panics(
+            pid in any::<u16>(),
+            data in proptest::collection::vec(any::<u8>(), 0..=64),
+        ) {
+            let _ = parse_srp_report(pid, &data);
+        }
+
+        /// When HBP parse succeeds, axis values are in [0.0, 1.0].
+        #[test]
+        fn prop_hbp_axes_bounded(data in proptest::collection::vec(any::<u8>(), 2..=16)) {
+            if let StandaloneParseResult::ParsedBestEffort(axes) =
+                parse_hbp_report(product_ids::HBP_HANDBRAKE, &data)
+            {
+                prop_assert!(axes.primary >= 0.0 && axes.primary <= 1.0);
+            }
+        }
+    }
+}

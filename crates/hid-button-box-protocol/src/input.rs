@@ -454,3 +454,59 @@ mod tests {
         assert_eq!(cloned.hat, report.hat);
     }
 }
+
+#[cfg(test)]
+mod property_tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    proptest! {
+        #![proptest_config(proptest::test_runner::Config::with_cases(500))]
+
+        /// Arbitrary bytes never panic parse_gamepad.
+        #[test]
+        fn prop_gamepad_never_panics(data in proptest::collection::vec(any::<u8>(), 0..=128)) {
+            let _ = ButtonBoxInputReport::parse_gamepad(&data);
+        }
+
+        /// Arbitrary bytes never panic parse_extended.
+        #[test]
+        fn prop_extended_never_panics(data in proptest::collection::vec(any::<u8>(), 0..=128)) {
+            let _ = ButtonBoxInputReport::parse_extended(&data);
+        }
+
+        /// axis_normalized always returns a finite value.
+        #[test]
+        fn prop_axis_normalized_finite(
+            x in any::<i16>(),
+            y in any::<i16>(),
+            z in any::<i16>(),
+            rz in any::<i16>(),
+        ) {
+            let report = ButtonBoxInputReport {
+                axis_x: x,
+                axis_y: y,
+                axis_z: z,
+                axis_rz: rz,
+                ..Default::default()
+            };
+            for idx in 0..=5 {
+                prop_assert!(report.axis_normalized(idx).is_finite());
+            }
+        }
+
+        /// button() for out-of-range indices never panics.
+        #[test]
+        fn prop_button_out_of_range_safe(n in 32usize..=256) {
+            let report = ButtonBoxInputReport { buttons: u32::MAX, ..Default::default() };
+            prop_assert!(!report.button(n));
+        }
+
+        /// Truncated gamepad reports are safely rejected.
+        #[test]
+        fn prop_gamepad_truncated_rejected(len in 0usize..8) {
+            let data = vec![0u8; len];
+            prop_assert!(ButtonBoxInputReport::parse_gamepad(&data).is_err());
+        }
+    }
+}

@@ -141,3 +141,36 @@ mod tests {
         assert!(report.has_fault());
     }
 }
+
+#[cfg(test)]
+mod property_tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    proptest! {
+        #![proptest_config(proptest::test_runner::Config::with_cases(500))]
+
+        /// Arbitrary bytes never panic the Heusinkveld parser.
+        #[test]
+        fn prop_parse_never_panics(data in proptest::collection::vec(any::<u8>(), 0..=128)) {
+            let _ = HeusinkveldInputReport::parse(&data);
+        }
+
+        /// Valid reports produce finite normalized values.
+        #[test]
+        fn prop_normalized_values_finite(data in proptest::collection::vec(any::<u8>(), 7..=32)) {
+            if let Ok(report) = HeusinkveldInputReport::parse(&data) {
+                prop_assert!(report.throttle_normalized().is_finite());
+                prop_assert!(report.brake_normalized().is_finite());
+                prop_assert!(report.clutch_normalized().is_finite());
+            }
+        }
+
+        /// Truncated buffers produce errors, not panics.
+        #[test]
+        fn prop_truncated_rejected(len in 0usize..7) {
+            let data = vec![0u8; len];
+            prop_assert!(HeusinkveldInputReport::parse(&data).is_err());
+        }
+    }
+}
