@@ -22,7 +22,7 @@ pub mod windows;
 #[cfg(test)]
 mod windows_property_tests;
 
-#[cfg(unix)]
+#[cfg(target_os = "linux")]
 pub mod linux;
 
 /// Platform-specific HID port factory
@@ -32,14 +32,14 @@ pub fn create_hid_port() -> Result<Box<dyn HidPort>, Box<dyn std::error::Error>>
         Ok(Box::new(windows::WindowsHidPort::new()?))
     }
 
-    #[cfg(unix)]
+    #[cfg(target_os = "linux")]
     {
         Ok(Box::new(linux::LinuxHidPort::new()?))
     }
 
-    #[cfg(not(any(windows, unix)))]
+    #[cfg(not(any(windows, target_os = "linux")))]
     {
-        Err("Unsupported platform for HID operations".into())
+        Err("HID not yet implemented on this platform".into())
     }
 }
 
@@ -251,7 +251,7 @@ impl RTSetup {
             windows::apply_windows_rt_setup()?;
         }
 
-        #[cfg(unix)]
+        #[cfg(target_os = "linux")]
         {
             linux::apply_linux_rt_setup()?;
         }
@@ -266,7 +266,7 @@ impl RTSetup {
             windows::revert_windows_rt_setup()?;
         }
 
-        #[cfg(unix)]
+        #[cfg(target_os = "linux")]
         {
             linux::revert_linux_rt_setup()?;
         }

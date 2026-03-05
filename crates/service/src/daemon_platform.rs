@@ -1,10 +1,13 @@
 //! Platform-specific service daemon implementations
 
-use anyhow::{Context, Result};
-#[cfg(unix)]
+#[cfg(any(windows, target_os = "linux"))]
+use anyhow::Context;
+use anyhow::Result;
+#[cfg(target_os = "linux")]
 use std::path::PathBuf;
+#[allow(unused_imports)]
 use tracing::info;
-#[cfg(unix)]
+#[cfg(target_os = "linux")]
 use tracing::warn;
 
 use crate::daemon::ServiceDaemon;
@@ -77,8 +80,8 @@ impl ServiceDaemon {
     }
 }
 
-// Unix-specific implementations
-#[cfg(unix)]
+// Linux-specific implementations (systemd)
+#[cfg(target_os = "linux")]
 impl ServiceDaemon {
     pub(crate) async fn install_unix_service() -> Result<()> {
         let exe_path = std::env::current_exe().context("Failed to get current executable path")?;
@@ -179,5 +182,27 @@ WantedBy=default.target
 
         let status = String::from_utf8_lossy(&output.stdout);
         Ok(status.to_string())
+    }
+}
+
+// macOS stub implementations (launchd support planned)
+#[cfg(target_os = "macos")]
+impl ServiceDaemon {
+    pub(crate) async fn install_unix_service() -> Result<()> {
+        info!("macOS service installation not yet implemented (launchd support planned)");
+        Err(anyhow::anyhow!(
+            "macOS service installation not yet implemented"
+        ))
+    }
+
+    pub(crate) async fn uninstall_unix_service() -> Result<()> {
+        info!("macOS service uninstallation not yet implemented");
+        Err(anyhow::anyhow!(
+            "macOS service uninstallation not yet implemented"
+        ))
+    }
+
+    pub(crate) async fn status_unix_service() -> Result<String> {
+        Ok("macOS service status not yet implemented (launchd support planned)".to_string())
     }
 }
