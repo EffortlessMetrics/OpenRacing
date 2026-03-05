@@ -25,6 +25,8 @@ mod windows_property_tests;
 #[cfg(target_os = "linux")]
 pub mod linux;
 
+pub mod macos;
+
 /// Platform-specific HID port factory
 pub fn create_hid_port() -> Result<Box<dyn HidPort>, Box<dyn std::error::Error>> {
     #[cfg(windows)]
