@@ -105,11 +105,15 @@ pub mod handlers;
 pub mod prelude;
 pub mod server;
 pub mod transport;
+pub mod version;
 
 pub use codec::{MessageCodec, MessageDecoder, MessageEncoder};
 pub use error::{IpcError, IpcResult};
 pub use server::{IpcConfig, IpcServer};
 pub use transport::{Transport, TransportType};
+pub use version::{
+    FeatureFlags, NegotiationResult, ProtocolVersion, VersionInfo, VersionNegotiator,
+};
 
 /// Current wire protocol version
 pub const PROTOCOL_VERSION: &str = "1.0.0";

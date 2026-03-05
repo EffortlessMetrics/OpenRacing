@@ -14,4 +14,7 @@ pub use crate::server::{
     is_version_compatible,
 };
 pub use crate::transport::{Transport, TransportBuilder, TransportConfig, TransportType};
+pub use crate::version::{
+    FeatureFlags, NegotiationResult, ProtocolVersion, VersionInfo, VersionNegotiator,
+};
 pub use crate::{DEFAULT_TCP_PORT, MIN_CLIENT_VERSION, PROTOCOL_VERSION};
