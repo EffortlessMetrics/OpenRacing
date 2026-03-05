@@ -8,6 +8,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- 35 service lifecycle hardening tests for wheeld daemon (#237)
+- 127 deep diagnostics and observability tests (#236)
+- 128 cross-platform correctness tests for IPC, scheduler, and integration (#235)
+- 45 schema evolution and wire format stability tests (#234)
+- 78 plugin ABI hardening tests with version validation and compatibility checks (#227)
+- 117 deep tests for hardware watchdog and safety interlock system (#226)
+- Performance gate enforcement strengthening (#224)
+- IPC version negotiation, feature flags, and wire format tests (#221)
+- `openracing-capture-format` crate for device capture tooling (#220)
+- 5 game telemetry adapter improvements with protocol constants and tests (#216)
+- macOS DMG packaging configuration and tests (#213)
+- Linux packaging: RPM spec, Flatpak manifest, and Debian packaging with validation tests (#209)
+- 25 FMEA safety failure mode tests: fault injection, recovery, and safety interlocks (#208)
+- Kernel wire-format cross-check tests for 5 protocol crates (#207)
+
+### Changed
+- Documentation accuracy pass for RC readiness (#225)
+- Formatted vendor_timing_replay_tests.rs with rustfmt (#212)
+
+### Fixed
+- CHANGELOG section name and macOS extern block safety (#219)
+- Synced game_support_matrix.yaml canonical with telemetry adapter additions (#217)
+- CHANGELOG section name and macOS compilation errors (#215)
+- Resolved all clippy warnings across workspace (#211)
+- Removed unused imports in vendor_timing_replay_tests (#210)
+
+### Added
 - 126 deep telemetry adapter protocol tests: cross-adapter consistency, truncated packets, timing guarantees, field coverage, known-good data validation (#196)
 - 72 device capture tool improvements: protocol analysis, timing stats, replay pipeline validation, vendor detection, shared capture format (#194)
 - 102 plugin ecosystem safety tests: WASM sandbox boundaries, native ABI, capability model, budget enforcement, signing, lifecycle (#193)
