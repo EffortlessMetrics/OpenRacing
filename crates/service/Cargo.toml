@@ -75,8 +75,10 @@ proptest = { workspace = true }
 racing-wheel-telemetry-support = { path = "../telemetry-support" }
 zip = "7.2.0"
 
-[target.'cfg(unix)'.dependencies]
+[target.'cfg(target_os = "linux")'.dependencies]
 libudev = { workspace = true }
+
+[target.'cfg(unix)'.dependencies]
 libc = "0.2.180"
 
 [target.'cfg(windows)'.dependencies]

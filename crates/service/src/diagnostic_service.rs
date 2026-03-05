@@ -461,6 +461,7 @@ impl DiagnosticTest for RealtimeCapabilityTest {
     }
 
     async fn run(&self, _system_info: &SystemInfo) -> Result<DiagnosticResult> {
+        #[allow(unused_mut)]
         let mut metadata = HashMap::new();
         #[allow(unused_mut)]
         let mut suggested_actions = Vec::new();
