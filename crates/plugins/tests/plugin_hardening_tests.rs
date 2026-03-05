@@ -487,7 +487,7 @@ fn abi_compatibility_wrong_version_mismatch() {
             assert_eq!(expected, CURRENT_ABI_VERSION);
             assert_eq!(actual, wrong);
         }
-        AbiCheckResult::Compatible => panic!("expected Mismatch for wrong ABI version"),
+        _ => panic!("expected Mismatch for wrong ABI version"),
     }
 }
 

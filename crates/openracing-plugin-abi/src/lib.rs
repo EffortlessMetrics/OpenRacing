@@ -52,7 +52,8 @@ pub mod telemetry_frame;
 pub mod types;
 
 pub use constants::{
-    HOST_MODULE, PLUG_ABI_MAGIC, PLUG_ABI_VERSION, WASM_ABI_VERSION, capability_str, host_function,
+    HOST_MODULE, PLUG_ABI_MAGIC, PLUG_ABI_VERSION, WASM_ABI_VERSION, abi_version_major,
+    abi_version_minor, abi_version_pack, capability_str, host_function, is_abi_compatible,
     log_level, return_code, wasm_export, wasm_optional_export,
 };
 pub use host_functions::names as host_function_names;
