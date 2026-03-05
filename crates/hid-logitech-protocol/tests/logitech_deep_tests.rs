@@ -1181,7 +1181,7 @@ mod slot_proptests {
             prop_assert_eq!(cmd[0], 0xF8);
             prop_assert_eq!(cmd[1], 0x81);
             let val = u16::from_le_bytes([cmd[2], cmd[3]]);
-            prop_assert!(val >= MIN_RANGE && val <= MAX_RANGE, "range {} out of [{}, {}]", val, MIN_RANGE, MAX_RANGE);
+            prop_assert!((MIN_RANGE..=MAX_RANGE).contains(&val), "range {} out of [{}, {}]", val, MIN_RANGE, MAX_RANGE);
         }
     }
 }
