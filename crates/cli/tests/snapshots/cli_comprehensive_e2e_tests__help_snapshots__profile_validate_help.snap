@@ -1,0 +1,16 @@
+---
+source: crates/cli/tests/cli_comprehensive_e2e_tests.rs
+expression: stdout
+---
+Validate profile
+
+Usage: wheelctl profile validate [OPTIONS] <PATH>
+
+Arguments:
+  <PATH>  Profile path
+
+Options:
+  -d, --detailed    Show detailed validation info
+      --json        Output in JSON format for machine parsing
+  -v, --verbose...  Verbose logging
+  -h, --help        Print help

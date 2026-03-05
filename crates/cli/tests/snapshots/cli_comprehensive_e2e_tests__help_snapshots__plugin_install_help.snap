@@ -1,0 +1,16 @@
+---
+source: crates/cli/tests/cli_comprehensive_e2e_tests.rs
+expression: stdout
+---
+Install a plugin from the registry
+
+Usage: wheelctl plugin install [OPTIONS] <PLUGIN_ID>
+
+Arguments:
+  <PLUGIN_ID>  Plugin ID or name
+
+Options:
+      --json               Output in JSON format for machine parsing
+      --version <VERSION>  Specific version to install (defaults to latest)
+  -v, --verbose...         Verbose logging
+  -h, --help               Print help

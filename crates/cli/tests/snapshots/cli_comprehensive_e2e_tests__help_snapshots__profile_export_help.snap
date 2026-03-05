@@ -1,0 +1,17 @@
+---
+source: crates/cli/tests/cli_comprehensive_e2e_tests.rs
+expression: stdout
+---
+Export profile
+
+Usage: wheelctl profile export [OPTIONS] <PROFILE>
+
+Arguments:
+  <PROFILE>  Profile path or ID
+
+Options:
+      --json             Output in JSON format for machine parsing
+  -o, --output <OUTPUT>  Output file path
+      --signed           Include signature
+  -v, --verbose...       Verbose logging
+  -h, --help             Print help

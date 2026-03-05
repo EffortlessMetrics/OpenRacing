@@ -1,0 +1,17 @@
+---
+source: crates/cli/tests/cli_comprehensive_e2e_tests.rs
+expression: stdout
+---
+Set torque limits
+
+Usage: wheelctl safety limit [OPTIONS] <DEVICE> <TORQUE>
+
+Arguments:
+  <DEVICE>  Device ID or name
+  <TORQUE>  Maximum torque in Nm
+
+Options:
+      --global      Apply to all profiles
+      --json        Output in JSON format for machine parsing
+  -v, --verbose...  Verbose logging
+  -h, --help        Print help

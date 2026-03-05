@@ -1,0 +1,19 @@
+---
+source: crates/cli/tests/cli_comprehensive_e2e_tests.rs
+expression: stderr
+---
+Safety and control commands
+
+Usage: wheelctl safety [OPTIONS] <COMMAND>
+
+Commands:
+  enable  Enable high torque mode
+  stop    Emergency stop all devices
+  status  Show safety status
+  limit   Set torque limits
+  help    Print this message or the help of the given subcommand(s)
+
+Options:
+      --json        Output in JSON format for machine parsing
+  -v, --verbose...  Verbose logging
+  -h, --help        Print help

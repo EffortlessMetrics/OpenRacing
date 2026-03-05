@@ -1,0 +1,17 @@
+---
+source: crates/cli/tests/cli_comprehensive_e2e_tests.rs
+expression: stdout
+---
+Configure game for telemetry
+
+Usage: wheelctl game configure [OPTIONS] <GAME>
+
+Arguments:
+  <GAME>  Game ID
+
+Options:
+      --json         Output in JSON format for machine parsing
+  -p, --path <PATH>  Game installation path
+      --auto         Enable auto-configuration
+  -v, --verbose...   Verbose logging
+  -h, --help         Print help

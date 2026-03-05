@@ -1,0 +1,17 @@
+---
+source: crates/cli/tests/cli_comprehensive_e2e_tests.rs
+expression: stdout
+---
+Apply profile to device
+
+Usage: wheelctl profile apply [OPTIONS] <DEVICE> <PROFILE>
+
+Arguments:
+  <DEVICE>   Device ID or name
+  <PROFILE>  Profile path or ID
+
+Options:
+      --json             Output in JSON format for machine parsing
+      --skip-validation  Skip validation
+  -v, --verbose...       Verbose logging
+  -h, --help             Print help

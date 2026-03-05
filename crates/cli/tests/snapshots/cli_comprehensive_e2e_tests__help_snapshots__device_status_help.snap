@@ -1,0 +1,16 @@
+---
+source: crates/cli/tests/cli_comprehensive_e2e_tests.rs
+expression: stdout
+---
+Show device status and telemetry
+
+Usage: wheelctl device status [OPTIONS] <DEVICE>
+
+Arguments:
+  <DEVICE>  Device ID or name
+
+Options:
+      --json        Output in JSON format for machine parsing
+  -w, --watch       Watch status in real-time
+  -v, --verbose...  Verbose logging
+  -h, --help        Print help

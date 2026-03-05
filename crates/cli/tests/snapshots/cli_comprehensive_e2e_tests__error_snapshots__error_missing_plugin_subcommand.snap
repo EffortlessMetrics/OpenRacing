@@ -1,0 +1,21 @@
+---
+source: crates/cli/tests/cli_comprehensive_e2e_tests.rs
+expression: stderr
+---
+Plugin management commands
+
+Usage: wheelctl plugin [OPTIONS] <COMMAND>
+
+Commands:
+  list       List available plugins from registry
+  search     Search for plugins by name or description
+  install    Install a plugin from the registry
+  uninstall  Uninstall a plugin
+  info       Show detailed plugin information
+  verify     Verify an installed plugin's integrity and signature
+  help       Print this message or the help of the given subcommand(s)
+
+Options:
+      --json        Output in JSON format for machine parsing
+  -v, --verbose...  Verbose logging
+  -h, --help        Print help

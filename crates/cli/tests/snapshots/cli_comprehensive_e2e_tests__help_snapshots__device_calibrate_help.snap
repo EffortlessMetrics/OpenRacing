@@ -1,0 +1,17 @@
+---
+source: crates/cli/tests/cli_comprehensive_e2e_tests.rs
+expression: stdout
+---
+Calibrate device (center, DOR, pedals)
+
+Usage: wheelctl device calibrate [OPTIONS] <DEVICE> <CALIBRATION_TYPE>
+
+Arguments:
+  <DEVICE>            Device ID or name
+  <CALIBRATION_TYPE>  Calibration type [possible values: center, dor, pedals, all]
+
+Options:
+      --json        Output in JSON format for machine parsing
+  -y, --yes         Skip interactive prompts
+  -v, --verbose...  Verbose logging
+  -h, --help        Print help
