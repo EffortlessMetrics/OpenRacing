@@ -43,8 +43,6 @@ fn rotary(name: &str, offset: u16, mode: RotaryModeHint) -> RotaryBinding {
     }
 }
 
-
-
 // ── Map compilation correctness ──────────────────────────────────────────
 
 #[test]
