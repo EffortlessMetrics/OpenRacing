@@ -3,6 +3,7 @@
 //! This module provides platform-specific HID device adapters that implement
 //! the HidPort and HidDevice traits with real-time optimizations for each OS.
 
+#[cfg_attr(target_os = "macos", allow(unused_imports))]
 use crate::input::SnapshotMailbox as Seqlock;
 use crate::ports::HidPort;
 use crate::{DeviceInfo, TelemetryData};

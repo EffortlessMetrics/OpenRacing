@@ -245,9 +245,9 @@ impl MacOSHidEnumerator {
 #[cfg(target_os = "macos")]
 pub mod ffi_enumeration {
     use super::*;
+    use crate::hid::macos::MacHidError;
     use crate::hid::macos::device::ffi_device;
     use crate::hid::macos::iokit_ffi::{self, *};
-    use std::ffi::c_void;
 
     /// Create an IOHIDManager, open it, and enumerate matching devices.
     pub fn enumerate_system_devices(

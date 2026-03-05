@@ -25,7 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated ROADMAP test counts to 29,000+ and sprint priorities (#190)
 - Updated Devices Under Investigation table with latest research (#195)
 
-### Previously Added
+### Added (from prior waves)
 - 1027-line support bundle and diagnostic export test suite: bundle generation, content verification, redaction guarantees, export format validation (#186)
 - 103 telemetry normalization tests: unit conversion accuracy, cross-adapter consistency, NaN/Inf handling, normalization pipeline proptest (#185)
 - 69 config migration and profile management tests: schema version upgrades, profile serialization roundtrips, migration chain validation (#184)

@@ -7,7 +7,6 @@
 #![allow(non_camel_case_types, non_upper_case_globals, dead_code)]
 
 use std::ffi::c_void;
-use std::ptr;
 
 // ---------------------------------------------------------------------------
 // Core Foundation opaque types
