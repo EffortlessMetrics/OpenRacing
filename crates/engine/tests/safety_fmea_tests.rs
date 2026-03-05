@@ -65,7 +65,13 @@ const ALL_FAULTS: &[FaultType] = &[
 fn fault_usb_stall_enters_faulted() -> Result<(), String> {
     let mut s = svc();
     s.report_fault(FaultType::UsbStall);
-    assert!(matches!(s.state(), SafetyState::Faulted { fault: FaultType::UsbStall, .. }));
+    assert!(matches!(
+        s.state(),
+        SafetyState::Faulted {
+            fault: FaultType::UsbStall,
+            ..
+        }
+    ));
     Ok(())
 }
 
@@ -73,7 +79,13 @@ fn fault_usb_stall_enters_faulted() -> Result<(), String> {
 fn fault_encoder_nan_enters_faulted() -> Result<(), String> {
     let mut s = svc();
     s.report_fault(FaultType::EncoderNaN);
-    assert!(matches!(s.state(), SafetyState::Faulted { fault: FaultType::EncoderNaN, .. }));
+    assert!(matches!(
+        s.state(),
+        SafetyState::Faulted {
+            fault: FaultType::EncoderNaN,
+            ..
+        }
+    ));
     Ok(())
 }
 
@@ -81,7 +93,13 @@ fn fault_encoder_nan_enters_faulted() -> Result<(), String> {
 fn fault_thermal_limit_enters_faulted() -> Result<(), String> {
     let mut s = svc();
     s.report_fault(FaultType::ThermalLimit);
-    assert!(matches!(s.state(), SafetyState::Faulted { fault: FaultType::ThermalLimit, .. }));
+    assert!(matches!(
+        s.state(),
+        SafetyState::Faulted {
+            fault: FaultType::ThermalLimit,
+            ..
+        }
+    ));
     Ok(())
 }
 
@@ -89,7 +107,13 @@ fn fault_thermal_limit_enters_faulted() -> Result<(), String> {
 fn fault_overcurrent_enters_faulted() -> Result<(), String> {
     let mut s = svc();
     s.report_fault(FaultType::Overcurrent);
-    assert!(matches!(s.state(), SafetyState::Faulted { fault: FaultType::Overcurrent, .. }));
+    assert!(matches!(
+        s.state(),
+        SafetyState::Faulted {
+            fault: FaultType::Overcurrent,
+            ..
+        }
+    ));
     Ok(())
 }
 
@@ -97,7 +121,13 @@ fn fault_overcurrent_enters_faulted() -> Result<(), String> {
 fn fault_plugin_overrun_enters_faulted() -> Result<(), String> {
     let mut s = svc();
     s.report_fault(FaultType::PluginOverrun);
-    assert!(matches!(s.state(), SafetyState::Faulted { fault: FaultType::PluginOverrun, .. }));
+    assert!(matches!(
+        s.state(),
+        SafetyState::Faulted {
+            fault: FaultType::PluginOverrun,
+            ..
+        }
+    ));
     Ok(())
 }
 
@@ -105,7 +135,13 @@ fn fault_plugin_overrun_enters_faulted() -> Result<(), String> {
 fn fault_timing_violation_enters_faulted() -> Result<(), String> {
     let mut s = svc();
     s.report_fault(FaultType::TimingViolation);
-    assert!(matches!(s.state(), SafetyState::Faulted { fault: FaultType::TimingViolation, .. }));
+    assert!(matches!(
+        s.state(),
+        SafetyState::Faulted {
+            fault: FaultType::TimingViolation,
+            ..
+        }
+    ));
     Ok(())
 }
 
@@ -124,7 +160,13 @@ fn fault_safety_interlock_violation_enters_faulted() -> Result<(), String> {
 fn fault_hands_off_timeout_enters_faulted() -> Result<(), String> {
     let mut s = svc();
     s.report_fault(FaultType::HandsOffTimeout);
-    assert!(matches!(s.state(), SafetyState::Faulted { fault: FaultType::HandsOffTimeout, .. }));
+    assert!(matches!(
+        s.state(),
+        SafetyState::Faulted {
+            fault: FaultType::HandsOffTimeout,
+            ..
+        }
+    ));
     Ok(())
 }
 
@@ -132,7 +174,13 @@ fn fault_hands_off_timeout_enters_faulted() -> Result<(), String> {
 fn fault_pipeline_fault_enters_faulted() -> Result<(), String> {
     let mut s = svc();
     s.report_fault(FaultType::PipelineFault);
-    assert!(matches!(s.state(), SafetyState::Faulted { fault: FaultType::PipelineFault, .. }));
+    assert!(matches!(
+        s.state(),
+        SafetyState::Faulted {
+            fault: FaultType::PipelineFault,
+            ..
+        }
+    ));
     Ok(())
 }
 
@@ -782,9 +830,21 @@ fn multiple_sequential_faults_all_recorded() -> Result<(), String> {
 fn cascading_fault_overwrites_previous() -> Result<(), String> {
     let mut s = svc();
     s.report_fault(FaultType::UsbStall);
-    assert!(matches!(s.state(), SafetyState::Faulted { fault: FaultType::UsbStall, .. }));
+    assert!(matches!(
+        s.state(),
+        SafetyState::Faulted {
+            fault: FaultType::UsbStall,
+            ..
+        }
+    ));
     s.report_fault(FaultType::ThermalLimit);
-    assert!(matches!(s.state(), SafetyState::Faulted { fault: FaultType::ThermalLimit, .. }));
+    assert!(matches!(
+        s.state(),
+        SafetyState::Faulted {
+            fault: FaultType::ThermalLimit,
+            ..
+        }
+    ));
     Ok(())
 }
 
@@ -796,7 +856,13 @@ fn fault_after_fault_clear_cycle() -> Result<(), String> {
     s.clear_fault()?;
     assert!(matches!(s.state(), SafetyState::SafeTorque));
     s.report_fault(FaultType::Overcurrent);
-    assert!(matches!(s.state(), SafetyState::Faulted { fault: FaultType::Overcurrent, .. }));
+    assert!(matches!(
+        s.state(),
+        SafetyState::Faulted {
+            fault: FaultType::Overcurrent,
+            ..
+        }
+    ));
     Ok(())
 }
 
@@ -825,7 +891,10 @@ fn interlock_emergency_stop_after_safe_mode() -> Result<(), String> {
     sys.report_fault(FaultType::Overcurrent);
     assert!(matches!(sys.state(), SafetyInterlockState::SafeMode { .. }));
     sys.emergency_stop();
-    assert!(matches!(sys.state(), SafetyInterlockState::EmergencyStop { .. }));
+    assert!(matches!(
+        sys.state(),
+        SafetyInterlockState::EmergencyStop { .. }
+    ));
     Ok(())
 }
 
@@ -891,7 +960,8 @@ fn interlock_recovery_cycle() -> Result<(), Box<dyn std::error::Error>> {
     sys.report_fault(FaultType::ThermalLimit);
     assert!(matches!(sys.state(), SafetyInterlockState::SafeMode { .. }));
     std::thread::sleep(Duration::from_millis(120));
-    sys.clear_fault().map_err(|e| -> Box<dyn std::error::Error> { e.into() })?;
+    sys.clear_fault()
+        .map_err(|e| -> Box<dyn std::error::Error> { e.into() })?;
     assert_eq!(*sys.state(), SafetyInterlockState::Normal);
     Ok(())
 }
@@ -901,7 +971,10 @@ fn interlock_reset_after_emergency() -> Result<(), Box<dyn std::error::Error>> {
     let mut sys = interlock(100);
     sys.arm()?;
     sys.emergency_stop();
-    assert!(matches!(sys.state(), SafetyInterlockState::EmergencyStop { .. }));
+    assert!(matches!(
+        sys.state(),
+        SafetyInterlockState::EmergencyStop { .. }
+    ));
     sys.reset()?;
     assert_eq!(*sys.state(), SafetyInterlockState::Normal);
     Ok(())
@@ -1100,7 +1173,13 @@ fn hands_off_timeout_triggers_fault() -> Result<(), String> {
     assert!(matches!(s.state(), SafetyState::HighTorqueActive { .. }));
     // Simulate hands-off exceeding timeout
     s.check_hands_off_timeout(Duration::from_millis(100));
-    assert!(matches!(s.state(), SafetyState::Faulted { fault: FaultType::HandsOffTimeout, .. }));
+    assert!(matches!(
+        s.state(),
+        SafetyState::Faulted {
+            fault: FaultType::HandsOffTimeout,
+            ..
+        }
+    ));
     Ok(())
 }
 
