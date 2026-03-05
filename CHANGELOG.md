@@ -7,13 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
-- macOS compilation: moved libudev dependency to Linux-only, added macOS daemon stubs (#97)
-- CI: removed hardcoded CARGO_HOME path for cross-platform integration tests (#97)
-
 ### Added
+- Ed25519 fail-closed trust store for native plugin signing with real keypair verification, hex key import, and 15+ tests (#105)
+- WASM plugin epoch-based timeout enforcement with compilation timeouts, fuel exhaustion detection, and 27 tests (#108)
+- 65 IPC backward compatibility tests: protocol versioning, feature negotiation, wire format stability, graceful degradation (#107)
+- 40 motor runaway and power-loss FMEA tests: runaway detection, stall/brownout, watchdog, concurrent faults (#103)
+- API documentation (rustdoc) for safety-critical crates: HID ports, firmware update, staged rollout (#102)
 - 104 telemetry pipeline tests: data integrity, timestamp monotonicity, adapter edge cases, config roundtrips (#99)
 - 44 service integration tests: device, game, profile, diagnostic, safety, anticheat coverage (#100)
+
+### Changed
+- Ignore 7 RT scheduling integration tests on macOS CI runners lacking RT scheduling support (#106)
+
+### Fixed
+- macOS CI: RT scheduling integration tests no longer fail on macOS runners (#106)
+- macOS compilation: moved libudev dependency to Linux-only, added macOS daemon stubs (#97)
+- CI: removed hardcoded CARGO_HOME path for cross-platform integration tests (#97)
 
 ### Added
 
