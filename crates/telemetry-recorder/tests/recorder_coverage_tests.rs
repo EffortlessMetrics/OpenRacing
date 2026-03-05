@@ -191,7 +191,8 @@ fn player_get_next_frame_without_start_returns_none() {
 
 #[test]
 fn fixture_constant_speed_scenario() {
-    let recording = TestFixtureGenerator::generate_test_scenario(TestScenario::ConstantSpeed, 1.0, 60.0);
+    let recording =
+        TestFixtureGenerator::generate_test_scenario(TestScenario::ConstantSpeed, 1.0, 60.0);
 
     assert_eq!(recording.frames.len(), 60);
     for frame in &recording.frames {
@@ -202,7 +203,8 @@ fn fixture_constant_speed_scenario() {
 
 #[test]
 fn fixture_acceleration_scenario() {
-    let recording = TestFixtureGenerator::generate_test_scenario(TestScenario::Acceleration, 2.0, 30.0);
+    let recording =
+        TestFixtureGenerator::generate_test_scenario(TestScenario::Acceleration, 2.0, 30.0);
 
     assert_eq!(recording.frames.len(), 60);
 
@@ -217,7 +219,8 @@ fn fixture_acceleration_scenario() {
 
 #[test]
 fn fixture_cornering_scenario() {
-    let recording = TestFixtureGenerator::generate_test_scenario(TestScenario::Cornering, 1.0, 60.0);
+    let recording =
+        TestFixtureGenerator::generate_test_scenario(TestScenario::Cornering, 1.0, 60.0);
 
     assert_eq!(recording.frames.len(), 60);
     for frame in &recording.frames {
