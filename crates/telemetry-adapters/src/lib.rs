@@ -76,6 +76,9 @@ pub mod wrc_kylotonn;
 pub mod wreckfest;
 pub mod wtcr;
 
+#[cfg(test)]
+mod normalization_tests;
+
 /// Shared type alias for outbound telemetry streams.
 pub type TelemetryReceiver = mpsc::Receiver<TelemetryFrame>;
 
