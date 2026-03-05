@@ -70,3 +70,7 @@ path = "tests/scheduler_platform_tests.rs"
 [[test]]
 name = "adaptive_scheduling_tests"
 path = "tests/adaptive_scheduling_tests.rs"
+
+[[test]]
+name = "cross_platform_tests"
+path = "tests/cross_platform_tests.rs"
