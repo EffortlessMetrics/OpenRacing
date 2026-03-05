@@ -1,0 +1,5 @@
+---
+source: crates/openracing-ipc/tests/ipc_backward_compat_tests.rs
+expression: "format!(\"{:02x?}\", bytes.as_slice())"
+---
+[05, 00, 40, 00, 00, 00, 01, 00, 00, 00, 02, 00]
