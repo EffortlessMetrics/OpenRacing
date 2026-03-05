@@ -7,8 +7,8 @@
 
 use openracing_capture_ids::replay::CapturedReport;
 use openracing_capture_ids::{
-    DetectedVendor, analyze_capture_timing, detect_vendor_from_vid,
-    detect_vendor_from_vid_str, validate_replay_pipeline, vendor_label,
+    DetectedVendor, analyze_capture_timing, detect_vendor_from_vid, detect_vendor_from_vid_str,
+    validate_replay_pipeline, vendor_label,
 };
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
