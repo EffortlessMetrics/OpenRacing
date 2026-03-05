@@ -223,5 +223,5 @@ The following release features are planned for future milestones:
   - Plugin registry integration
 
 > **Note:** Linux .deb and .rpm packaging scripts already exist in `packaging/linux/build-packages.sh` and can be used for local builds.
-> The GitHub Actions release workflow (`.github/workflows/release.yml`) does not yet exist
-> and must be created before automated releases can be triggered by pushing a tag.
+> The GitHub Actions release workflow (`.github/workflows/release.yml`) is now in place
+> and will be triggered automatically when a version tag is pushed.

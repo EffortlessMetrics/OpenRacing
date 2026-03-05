@@ -17,7 +17,7 @@ cargo build --profile rt --bin wheeld      # RT profile for real-time components
 # Test
 cargo test --all-features --workspace      # All tests
 cargo test test_name --package racing-wheel-engine  # Single test
-cargo nextest run --workspace              # Faster test runner (requires cargo-nextest)
+cargo nextest run --all-features --workspace  # Faster test runner (requires cargo-nextest)
 
 # Lint and format
 cargo fmt --all                            # Format code
@@ -112,6 +112,8 @@ Current ADRs:
 - ADR-0004: Real-Time Scheduling Architecture
 - ADR-0005: Plugin Architecture
 - ADR-0006: Safety Interlocks and Fault Management
+- ADR-0007: Multi-Vendor HID Protocol Architecture
+- ADR-0008: Game Auto-Configure and Telemetry Bridge
 
 ## Platform Considerations
 
