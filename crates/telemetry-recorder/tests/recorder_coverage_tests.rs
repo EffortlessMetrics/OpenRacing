@@ -113,8 +113,7 @@ fn load_nonexistent_file_returns_error() {
 
 #[test]
 fn player_initial_state() {
-    let recording =
-        TestFixtureGenerator::generate_racing_session("test".to_string(), 1.0, 10.0);
+    let recording = TestFixtureGenerator::generate_racing_session("test".to_string(), 1.0, 10.0);
     let player = TelemetryPlayer::new(recording);
 
     assert_eq!(player.progress(), 0.0);
@@ -123,8 +122,7 @@ fn player_initial_state() {
 
 #[test]
 fn player_metadata_accessible() {
-    let recording =
-        TestFixtureGenerator::generate_racing_session("ac".to_string(), 2.0, 60.0);
+    let recording = TestFixtureGenerator::generate_racing_session("ac".to_string(), 2.0, 60.0);
     let player = TelemetryPlayer::new(recording);
 
     assert_eq!(player.metadata().game_id, "ac");
@@ -133,8 +131,7 @@ fn player_metadata_accessible() {
 
 #[test]
 fn player_playback_speed_clamped() {
-    let recording =
-        TestFixtureGenerator::generate_racing_session("test".to_string(), 1.0, 10.0);
+    let recording = TestFixtureGenerator::generate_racing_session("test".to_string(), 1.0, 10.0);
     let mut player = TelemetryPlayer::new(recording);
 
     player.set_playback_speed(0.01); // Below minimum
@@ -147,8 +144,7 @@ fn player_playback_speed_clamped() {
 
 #[test]
 fn player_reset_returns_to_start() {
-    let recording =
-        TestFixtureGenerator::generate_racing_session("test".to_string(), 1.0, 10.0);
+    let recording = TestFixtureGenerator::generate_racing_session("test".to_string(), 1.0, 10.0);
     let mut player = TelemetryPlayer::new(recording);
 
     player.start_playback();
@@ -183,8 +179,7 @@ fn player_empty_recording_is_finished() {
 
 #[test]
 fn player_get_next_frame_without_start_returns_none() {
-    let recording =
-        TestFixtureGenerator::generate_racing_session("test".to_string(), 1.0, 10.0);
+    let recording = TestFixtureGenerator::generate_racing_session("test".to_string(), 1.0, 10.0);
     let mut player = TelemetryPlayer::new(recording);
 
     assert!(player.get_next_frame().is_none());
@@ -196,8 +191,7 @@ fn player_get_next_frame_without_start_returns_none() {
 
 #[test]
 fn fixture_constant_speed_scenario() {
-    let recording =
-        TestFixtureGenerator::generate_test_scenario(TestScenario::ConstantSpeed, 1.0, 60.0);
+    let recording = TestFixtureGenerator::generate_test_scenario(TestScenario::ConstantSpeed, 1.0, 60.0);
 
     assert_eq!(recording.frames.len(), 60);
     for frame in &recording.frames {
@@ -208,8 +202,7 @@ fn fixture_constant_speed_scenario() {
 
 #[test]
 fn fixture_acceleration_scenario() {
-    let recording =
-        TestFixtureGenerator::generate_test_scenario(TestScenario::Acceleration, 2.0, 30.0);
+    let recording = TestFixtureGenerator::generate_test_scenario(TestScenario::Acceleration, 2.0, 30.0);
 
     assert_eq!(recording.frames.len(), 60);
 
@@ -224,8 +217,7 @@ fn fixture_acceleration_scenario() {
 
 #[test]
 fn fixture_cornering_scenario() {
-    let recording =
-        TestFixtureGenerator::generate_test_scenario(TestScenario::Cornering, 1.0, 60.0);
+    let recording = TestFixtureGenerator::generate_test_scenario(TestScenario::Cornering, 1.0, 60.0);
 
     assert_eq!(recording.frames.len(), 60);
     for frame in &recording.frames {
@@ -235,8 +227,7 @@ fn fixture_cornering_scenario() {
 
 #[test]
 fn fixture_pitstop_scenario() {
-    let recording =
-        TestFixtureGenerator::generate_test_scenario(TestScenario::PitStop, 1.0, 100.0);
+    let recording = TestFixtureGenerator::generate_test_scenario(TestScenario::PitStop, 1.0, 100.0);
 
     assert_eq!(recording.frames.len(), 100);
 
@@ -252,8 +243,7 @@ fn fixture_pitstop_scenario() {
 
 #[test]
 fn fixture_racing_session_timestamps_increasing() {
-    let recording =
-        TestFixtureGenerator::generate_racing_session("test".to_string(), 2.0, 60.0);
+    let recording = TestFixtureGenerator::generate_racing_session("test".to_string(), 2.0, 60.0);
 
     for window in recording.frames.windows(2) {
         assert!(
@@ -265,8 +255,7 @@ fn fixture_racing_session_timestamps_increasing() {
 
 #[test]
 fn fixture_racing_session_frame_count_matches_metadata() {
-    let recording =
-        TestFixtureGenerator::generate_racing_session("test".to_string(), 3.0, 60.0);
+    let recording = TestFixtureGenerator::generate_racing_session("test".to_string(), 3.0, 60.0);
 
     assert_eq!(recording.metadata.frame_count, recording.frames.len());
     assert_eq!(recording.metadata.frame_count, 180);
