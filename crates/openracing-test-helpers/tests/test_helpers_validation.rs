@@ -744,6 +744,7 @@ mod mock_profile_validation {
 
 // ── Fixture generation validation ──────────────────────────────────────────
 
+#[cfg(feature = "fixtures")]
 mod fixture_validation {
     use openracing_test_helpers::fixtures::*;
     use std::time::Duration;
