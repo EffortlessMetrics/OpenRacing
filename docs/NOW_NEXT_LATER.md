@@ -2,25 +2,26 @@
 
 One-screen execution plan for OpenRacing. Updated each sprint.
 
-**Project snapshot:** 83 crates · 26,900+ tests · 28 vendors · 61 games
+**Project snapshot:** 83 crates · 29,000+ tests · 505 proptests · 133 fuzz targets · 28 vendors · 61 games
 
 ---
 
 ## NOW (Active — this sprint)
 
-- CI green on all platforms — fix remaining failures on Ubuntu/Windows/macOS matrix
-- Merge remaining test PRs — clear backlog of open test-coverage PRs
-- CHANGELOG up to date — ensure all merged work since v0.3.0 is documented
-- Service integration test stabilization — re-enable remaining disabled tests
-- Code coverage in CI — configure line-level coverage reporting (llvm-cov)
+- CI green on all platforms — fix concurrency-group cancellation cascade (workflow_dispatch in progress)
+- Merge wave 121 PRs — CI hardening, macOS IOKit, integration test re-enablement, engine deep tests
+- Re-enable disabled integration tests — address technical debt item in ROADMAP
+- macOS IOKit HID driver — start actual device I/O on macOS (currently compile-only)
+- Engine blackbox/safety/pipeline deep tests — close remaining coverage gaps in safety-critical paths
 
 ## NEXT (Queued — next 2–4 sprints)
 
-- macOS IOKit HID driver implementation (`crates/hid-macos`) — unblock macOS device support
 - Packaging automation — deb/rpm in CI with signing, Windows MSI signing, macOS DMG + notarization
 - Adaptive RT scheduling — CPU governor integration for dynamic deadline adjustment
-- Plugin example crate — ecosystem adoption starter kit
+- PXN FFB_REPORT_ID verification — confirm 0x05 report ID with USB capture data
+- Code coverage in CI — configure line-level coverage reporting (llvm-cov)
 - Performance tuning — benchmark suite expansion, profiling under load
+- Device capture tooling refinement — openracing-capture protocol sniffer/mapper
 
 ## LATER (Backlog — future work)
 

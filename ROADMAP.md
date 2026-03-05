@@ -18,7 +18,7 @@ This document outlines the development roadmap for OpenRacing. It tracks the imp
 - **Safety System**: FMEA analysis, fault injection tests, safety interlocks, hardware watchdog, safe mode transitions, black box recording
 - **Multi-vendor Device Support**: 28 vendors (15 wheelbase manufacturers + 13 peripheral-only), 159 unique VID/PID pairs across all device protocol crates
 - **Protocol Documentation**: All supported devices documented in `docs/protocols/`; VID/PID constants locked to `docs/protocols/SOURCES.md` via `id_verification.rs` test suites
-- **Test Infrastructure**: 26,900+ tests across unit, integration, property-based (proptest), snapshot, and acceptance tests; 113 fuzz targets; all HID crates have cross-reference id_verification suites
+- **Test Infrastructure**: 29,000+ tests (29,066 #[test] + 505 proptest blocks), 133 fuzz targets; all HID crates have cross-reference id_verification suites
 - **Linux Packaging**: udev rules for all devices, hwdb for joystick classification (133 entries), kernel quirks (ALWAYS_POLL) for Asetek and Simagic
 - **CI Matrix**: Linux (ubuntu-latest/22.04/24.04) + Windows (windows-latest) + macOS (macos-latest) — macOS compilation fixed (PR #97), RT test ignores added (PR #106)
 
@@ -116,7 +116,7 @@ This document outlines the development roadmap for OpenRacing. It tracks the imp
 
 ### Phase 5: Polish & 1.0 RC 🔄 In Progress
 
-- [x] **Test Coverage**: 26,900+ tests across unit, integration, property-based, snapshot, and acceptance tests
+- [x] **Test Coverage**: 29,000+ tests (29,066 #[test] + 505 proptest blocks + 133 fuzz targets) across unit, integration, property-based, snapshot, and acceptance tests
 - [x] **Documentation**: Comprehensive (setup, user guide, device support, development)
 - [x] **Performance Gates**: CI-enforced benchmarks (P99 jitter ≤0.25ms, zero RT heap allocations)
 - [x] **Safety Hardening**
