@@ -1,0 +1,5 @@
+---
+source: crates/openracing-ipc/tests/ipc_backward_compat_tests.rs
+expression: "format!(\"{:02x?}\", buf.as_slice())"
+---
+[0a, 0f, 74, 65, 73, 74, 2d, 64, 65, 76, 69, 63, 65, 2d, 30, 30, 31]
