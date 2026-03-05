@@ -383,7 +383,16 @@ pub mod vendor_ids {
     pub const SIMTRECS: u16 = 0x03EB;
 }
 
-/// Known racing wheel product IDs organized by vendor
+/// Registry of known racing wheel product IDs organized by vendor.
+///
+/// Provides lookup, filtering, and name resolution for all supported HID
+/// racing peripherals (wheelbases, pedals, shifters, handbrakes). Used during
+/// device enumeration to determine whether a discovered HID device is a
+/// racing peripheral that OpenRacing should manage.
+///
+/// The registry is entirely `const`/`static` — no allocations occur during
+/// lookups, making it safe to call from any context including device hotplug
+/// handlers.
 pub struct SupportedDevices;
 
 impl SupportedDevices {
@@ -1134,7 +1143,26 @@ fn enumerate_hid_devices(
     Some(devices)
 }
 
-/// Windows-specific HID port implementation
+/// Windows-specific HID port implementation.
+///
+/// Manages device enumeration, hotplug monitoring, and lifecycle for HID
+/// racing peripherals on Windows. Uses `hidapi` for initial enumeration and
+/// `RegisterDeviceNotification` (via a message-only window) for real-time
+/// hotplug events (`WM_DEVICECHANGE`).
+///
+/// # Device Lifecycle
+///
+/// 1. **Enumeration** — On creation, scans all connected HID devices via `hidapi`
+///    and filters by [`SupportedDevices`].
+/// 2. **Monitoring** — A background thread pumps a message-only window to receive
+///    `WM_DEVICECHANGE` notifications for connect/disconnect events.
+/// 3. **Teardown** — Dropping the port stops the message pump and unregisters
+///    device notifications.
+///
+/// # Error Recovery
+///
+/// If `hidapi` fails to initialize, the port falls back to an empty device
+/// list and logs a warning. Device notifications still function for hotplug.
 pub struct WindowsHidPort {
     devices: Arc<RwLock<HashMap<DeviceId, HidDeviceInfo>>>,
     monitoring: Arc<AtomicBool>,
@@ -1147,6 +1175,17 @@ pub struct WindowsHidPort {
 }
 
 impl WindowsHidPort {
+    /// Create a new Windows HID port and initialize device enumeration.
+    ///
+    /// Attempts to initialize `hidapi` for device enumeration. If `hidapi`
+    /// initialization fails, the port is still created with an empty device
+    /// list and a warning is logged.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if critical Windows resources cannot be allocated.
+    /// Non-critical failures (e.g., `hidapi` init) are handled gracefully
+    /// with fallback behavior.
     pub fn new() -> std::result::Result<Self, Box<dyn std::error::Error>> {
         // Initialize hidapi
         let hid_api = match HidApi::new() {
@@ -2823,7 +2862,24 @@ impl HidDevice for WindowsHidDevice {
     }
 }
 
-/// Apply Windows-specific RT optimizations
+/// Apply Windows-specific RT optimizations for the HID thread.
+///
+/// Configures the current thread and process for low-latency HID
+/// communication:
+///
+/// - **MMCSS** — Joins the "Games" category for elevated thread priority
+///   and guaranteed CPU scheduling.
+/// - **Power throttling** — Disables process power throttling to prevent
+///   CPU frequency scaling during RT operation.
+/// - **Priority class** — Sets the process to `HIGH_PRIORITY_CLASS`.
+///
+/// Non-critical failures (e.g., MMCSS registration) are logged as warnings
+/// but do not cause the function to return an error.
+///
+/// # Errors
+///
+/// Currently always returns `Ok(())`. Individual optimizations that fail
+/// are logged as warnings.
 pub fn apply_windows_rt_setup() -> std::result::Result<(), Box<dyn std::error::Error>> {
     info!("Applying Windows RT optimizations");
 
@@ -2889,7 +2945,15 @@ pub fn apply_windows_rt_setup() -> std::result::Result<(), Box<dyn std::error::E
     Ok(())
 }
 
-/// Revert Windows RT optimizations
+/// Revert Windows RT optimizations applied by [`apply_windows_rt_setup`].
+///
+/// Leaves the MMCSS category, re-enables power throttling, and resets the
+/// process priority class to normal. Non-critical failures are logged as
+/// warnings.
+///
+/// # Errors
+///
+/// Currently always returns `Ok(())`.
 pub fn revert_windows_rt_setup() -> std::result::Result<(), Box<dyn std::error::Error>> {
     info!("Reverting Windows RT optimizations");
 

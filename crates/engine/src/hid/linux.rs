@@ -367,7 +367,25 @@ fn build_capabilities_from_identity(
     }
 }
 
-/// Linux-specific HID port implementation
+/// Linux-specific HID port implementation.
+///
+/// Manages device enumeration and hotplug monitoring for HID racing
+/// peripherals on Linux using `/dev/hidraw*` device nodes and `libudev`.
+///
+/// # Device Lifecycle
+///
+/// 1. **Enumeration** — Scans `/dev/hidraw*` nodes, reads device info via
+///    `ioctl`, and filters by known racing wheel vendor/product IDs.
+/// 2. **Monitoring** — Watches udev events for hidraw device add/remove to
+///    detect hotplug.
+/// 3. **Teardown** — Dropping the port stops monitoring and releases file
+///    descriptors.
+///
+/// # Permissions
+///
+/// Access to `/dev/hidraw*` requires appropriate udev rules. See
+/// `packaging/linux/99-racing-wheel-suite.rules` for the recommended
+/// configuration.
 pub struct LinuxHidPort {
     devices: Arc<RwLock<HashMap<DeviceId, HidDeviceInfo>>>,
     monitoring: Arc<AtomicBool>,
@@ -376,6 +394,15 @@ pub struct LinuxHidPort {
 }
 
 impl LinuxHidPort {
+    /// Create a new Linux HID port.
+    ///
+    /// Initializes the port with an empty device list and no active
+    /// monitoring. Call the port's enumeration method to discover
+    /// connected devices.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if required system resources cannot be allocated.
     pub fn new() -> Result<Self, Box<dyn std::error::Error>> {
         Ok(Self {
             devices: Arc::new(RwLock::new(HashMap::new())),
@@ -919,7 +946,33 @@ impl vendor::DeviceWriter for HidrawVendorWriter {
     }
 }
 
-/// Linux-specific HID device implementation with non-blocking I/O
+/// Linux-specific HID device implementation with non-blocking I/O.
+///
+/// Communicates with a single HID racing peripheral via `/dev/hidraw*`
+/// using non-blocking file I/O (`O_NONBLOCK`). Designed for the RT force
+/// feedback path where writes must complete without blocking.
+///
+/// # Device Lifecycle
+///
+/// 1. **Open** — [`LinuxHidDevice::new`] opens the hidraw node for reading
+///    and writing, initializes vendor-specific protocols (e.g., Moza raw
+///    transport), and sets up atomic health tracking fields.
+/// 2. **Operation** — Torque commands are written via non-blocking `write(2)`.
+///    Telemetry is read from the device. Health status (temperature, faults,
+///    communication errors) is tracked atomically.
+/// 3. **Close** — Dropping the device closes the file descriptors.
+///
+/// # Error Recovery
+///
+/// If the device node cannot be opened (e.g., permissions, device
+/// disconnected), the device is created in a degraded state with `None`
+/// file handles and a warning is logged.
+///
+/// # RT-Safety
+///
+/// All health-tracking fields use atomics for lock-free access from the
+/// RT thread. Write operations use `O_NONBLOCK` to avoid stalling the
+/// 1kHz loop.
 pub struct LinuxHidDevice {
     device_info: HidDeviceInfo,
     connected: AtomicBool,
@@ -940,6 +993,21 @@ pub struct LinuxHidDevice {
 }
 
 impl LinuxHidDevice {
+    /// Create a new Linux HID device and open its hidraw node.
+    ///
+    /// Opens the device path for both reading and writing. The write handle
+    /// uses `O_NONBLOCK` for RT-safe torque output. If the path contains
+    /// `"mock"`, file handles are skipped for testing.
+    ///
+    /// For Moza devices, the transport mode is determined by the
+    /// `OPENRACING_MOZA_TRANSPORT_MODE` environment variable (defaults to
+    /// raw hidraw).
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the device path cannot be opened and the device
+    /// is not a mock. Individual open failures (read or write) are logged
+    /// as warnings and the corresponding handle is set to `None`.
     pub fn new(device_info: HidDeviceInfo) -> Result<Self, Box<dyn std::error::Error>> {
         let created_at = Instant::now();
 
@@ -1344,7 +1412,23 @@ impl HidDevice for LinuxHidDevice {
     }
 }
 
-/// Apply Linux-specific RT optimizations
+/// Apply Linux-specific RT optimizations for the HID thread.
+///
+/// Configures the current thread and process for low-latency HID
+/// communication:
+///
+/// - **`mlockall`** — Locks all current and future memory pages to prevent
+///   page faults in the RT path.
+/// - **`SCHED_FIFO`** — Attempts to set real-time scheduling priority 50
+///   via direct `sched_setscheduler` (requires `CAP_SYS_NICE`) or rtkit.
+///
+/// Non-critical failures are logged as warnings but do not cause the
+/// function to return an error.
+///
+/// # Errors
+///
+/// Currently always returns `Ok(())`. Individual optimizations that fail
+/// are logged as warnings.
 pub fn apply_linux_rt_setup() -> Result<(), Box<dyn std::error::Error>> {
     info!("Applying Linux RT optimizations");
 
@@ -1411,7 +1495,14 @@ pub fn apply_linux_rt_setup() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-/// Revert Linux RT optimizations
+/// Revert Linux RT optimizations applied by [`apply_linux_rt_setup`].
+///
+/// Unlocks memory pages and resets the scheduling policy to `SCHED_OTHER`
+/// (normal). Non-critical failures are logged as warnings.
+///
+/// # Errors
+///
+/// Currently always returns `Ok(())`.
 pub fn revert_linux_rt_setup() -> Result<(), Box<dyn std::error::Error>> {
     info!("Reverting Linux RT optimizations");
 
