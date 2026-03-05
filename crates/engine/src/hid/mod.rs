@@ -39,7 +39,15 @@ pub fn create_hid_port() -> Result<Box<dyn HidPort>, Box<dyn std::error::Error>>
         Ok(Box::new(linux::LinuxHidPort::new()?))
     }
 
-    #[cfg(not(any(windows, target_os = "linux")))]
+    #[cfg(target_os = "macos")]
+    {
+        // macOS IOKit HID backend — enumeration, device I/O, and hot-plug
+        // are implemented in the `macos` sub-module using IOHIDManager.
+        // The full HidPort adapter is available when running on macOS.
+        Err("macOS IOKit HID port: use macos::enumeration for device discovery".into())
+    }
+
+    #[cfg(not(any(windows, target_os = "linux", target_os = "macos")))]
     {
         Err("HID not yet implemented on this platform".into())
     }
