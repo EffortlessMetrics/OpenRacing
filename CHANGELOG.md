@@ -8,6 +8,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- 126 deep telemetry adapter protocol tests: cross-adapter consistency, truncated packets, timing guarantees, field coverage, known-good data validation (#196)
+- 72 device capture tool improvements: protocol analysis, timing stats, replay pipeline validation, vendor detection, shared capture format (#194)
+- 102 plugin ecosystem safety tests: WASM sandbox boundaries, native ABI, capability model, budget enforcement, signing, lifecycle (#193)
+- macOS IOKit HID driver abstraction: device enumeration, open/close/read/write, hot-plug detection, safe FFI wrappers, 42 tests (#192)
+- 96 deep engine tests: blackbox recording, safety state machine exhaustive, pipeline determinism, proptest (#191)
+
+### Fixed
+- Broken intra-doc link `[to_binary]` → `[Self::to_binary]` in telemetry-recorder (#197)
+- Re-enabled 2 disabled integration tests, fixed 2 ignored tests to return Result (#189)
+- Blackbox index optimization: O(log n) binary search for timestamp lookups (#195)
+- PXN FFB report ID documentation clarified (standard PIDFF, not vendor-specific) (#195)
+
+### Changed
+- Added `workflow_dispatch` trigger to 6 CI workflows for manual re-triggering (#188)
+- Updated ROADMAP test counts to 29,000+ and sprint priorities (#190)
+- Updated Devices Under Investigation table with latest research (#195)
+
+### Previously Added
 - 1027-line support bundle and diagnostic export test suite: bundle generation, content verification, redaction guarantees, export format validation (#186)
 - 103 telemetry normalization tests: unit conversion accuracy, cross-adapter consistency, NaN/Inf handling, normalization pipeline proptest (#185)
 - 69 config migration and profile management tests: schema version upgrades, profile serialization roundtrips, migration chain validation (#184)
