@@ -1,0 +1,28 @@
+Source: openracing
+Section: utils
+Priority: optional
+Maintainer: OpenRacing Contributors <openracing@example.com>
+Build-Depends: debhelper-compat (= 13), cargo, rustc (>= 1.85)
+Standards-Version: 4.7.0
+Homepage: https://github.com/EffortlessMetrics/OpenRacing
+Vcs-Git: https://github.com/EffortlessMetrics/OpenRacing.git
+Vcs-Browser: https://github.com/EffortlessMetrics/OpenRacing
+Rules-Requires-Root: no
+
+Package: openracing
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, libudev1
+Recommends: rtkit
+Suggests: libwebkit2gtk-4.1-0
+Description: Professional racing wheel force feedback software suite
+ OpenRacing provides real-time force feedback processing at 1kHz
+ with safety-critical design for sim-racing enthusiasts.
+ .
+ Features:
+  - Real-time FFB at 1kHz with sub-millisecond latency
+  - Multi-game integration: iRacing, ACC, AMS2, rFactor 2
+  - Safety-critical design with FMEA analysis
+  - Plugin architecture (WASM + native)
+ .
+ The package installs the wheeld daemon for force feedback processing
+ and the wheelctl command-line interface for user interaction.
