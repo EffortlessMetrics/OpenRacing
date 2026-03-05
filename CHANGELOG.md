@@ -120,6 +120,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **`deny.toml` updated for cargo-deny 0.19**: license violation resolutions and advisory configuration updated to match current toolchain
 
+### Added
+
+- **FMEA deep fault injection tests** — 22 new scenarios covering corrupted HID reports, rapid connect/disconnect, communication timeout recovery, encoder health monitoring, concurrent fault escalation, and thermal hysteresis (PR #94)
+- **Protocol robustness tests** — 135 tests verifying all vendor HID parsers handle malformed, truncated, and corrupted input without panicking (PR #96)
+- **Gaming setup guide** for Linux/Proton/SDL and Windows game configuration (PR #92)
+- **NOW_NEXT_LATER execution plan** refreshed to reflect current sprint state (PR #93)
+
+### Changed
+
+- **Friction log updated** with recent progress and resolved items (PR #85)
+- **macOS compilation support** — libudev dependency gated to Linux-only, macOS stubs added for HID and daemon modules (PR #97)
+
+### Removed
+
+- **Dead code cleanup** — removed 714 lines of unused engine profile service (duplicate of active service layer) and commented-out config writer registration (PR #95)
+
 ## [1.0.0-rc.1] - 2026-11-01
 
 ### Added
