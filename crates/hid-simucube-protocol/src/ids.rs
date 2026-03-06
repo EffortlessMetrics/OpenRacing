@@ -166,3 +166,16 @@ mod tests {
         );
     }
 }
+
+pub mod product_ids {
+    use super::SimucubeModel;
+
+    pub const SIMUCUBE_2_SPORT: u16 = super::SIMUCUBE_2_SPORT_PID;
+    pub const SIMUCUBE_2_PRO: u16 = super::SIMUCUBE_2_PRO_PID;
+    pub const SIMUCUBE_2_ULTIMATE: u16 = super::SIMUCUBE_2_ULTIMATE_PID;
+    pub const SIMUCUBE_1: u16 = super::SIMUCUBE_1_PID;
+
+    pub fn model_from_product_id(pid: u16) -> SimucubeModel {
+        SimucubeModel::from_product_id(pid)
+    }
+}

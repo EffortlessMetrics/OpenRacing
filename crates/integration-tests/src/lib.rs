@@ -14,6 +14,7 @@
 #![deny(clippy::print_stdout)]
 
 pub mod acceptance;
+pub mod asetek_virtual;
 pub mod common;
 pub mod fanatec_virtual;
 pub mod ffbeast_virtual;
@@ -25,6 +26,7 @@ pub mod openffboard_virtual;
 pub mod performance;
 pub mod simagic_virtual;
 pub mod simplemotion_virtual;
+pub mod simucube_virtual;
 pub mod soak;
 pub mod stress;
 pub mod thrustmaster_virtual;
