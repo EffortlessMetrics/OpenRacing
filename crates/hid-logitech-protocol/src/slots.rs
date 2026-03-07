@@ -183,7 +183,7 @@ pub fn encode_spring(
         let adjusted_k = if k1 >= 0 {
             k1.saturating_sub(2048_i16.min(k1))
         } else {
-            k1.saturating_add(2048_i16.min((-k1).max(0)))
+            k1.saturating_add(2048i32.min((-(k1 as i32)).max(0)) as i16)
         };
         (d1_11, scale_coeff(adjusted_k, 4))
     };
@@ -194,7 +194,7 @@ pub fn encode_spring(
         let adjusted_k = if k2 >= 0 {
             k2.saturating_sub(2048_i16.min(k2))
         } else {
-            k2.saturating_add(2048_i16.min((-k2).max(0)))
+            k2.saturating_add(2048i32.min((-(k2 as i32)).max(0)) as i16)
         };
         (d2_11, scale_coeff(adjusted_k, 4))
     };
