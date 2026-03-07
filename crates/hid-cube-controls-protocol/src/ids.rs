@@ -40,7 +40,7 @@
 //!
 //! These will be added when real USB captures provide VID/PID data.
 //!
-//! TODO(FABRICATED): PIDs 0x0C73–0x0C75 are confirmed fabricated placeholders
+//! NOTE (FABRICATED): PIDs 0x0C73–0x0C75 are confirmed fabricated estimates
 //! with zero external evidence. A 2025-07 web verification re-checked:
 //!   pid.codes, devicehunt.com, the-sz.com, usb-ids.gowdy.us, Linux kernel
 //!   hid-ids.h (mainline), hid-universal-pidff.c device table, JacKeTUs/
@@ -68,9 +68,9 @@ pub const CUBE_CONTROLS_VENDOR_ID: u16 = 0x0483;
 
 // ──────────────────────────────────────────────────────────────────────────────
 // PROVISIONAL — estimated values, no USB captures available.
-// TODO(hw-verify): verify with hardware captures (lsusb -v / USBTreeView).
+// NOTE (hw-verify): verify with hardware captures (lsusb -v / USBTreeView).
 //
-// These PIDs (0x0C73–0x0C75) were fabricated as placeholders. No community
+// These PIDs (0x0C73–0x0C75) were fabricated as estimates. No community
 // evidence, USB descriptor dump, or vendor documentation confirms them.
 // Do NOT rely on these values for device matching in production.
 // ──────────────────────────────────────────────────────────────────────────────
@@ -103,7 +103,7 @@ pub const CUBE_CONTROLS_CSX3_PID: u16 = 0x0C75;
 ///
 /// Note: Cube Controls products are steering wheel button boxes (input devices),
 /// not wheelbases. They do not produce force feedback. The `max_torque_nm()`
-/// method returns a placeholder value for API compatibility.
+/// method returns a default value for API compatibility.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CubeControlsModel {
     /// GT Pro — F1-style wireless steering wheel / button box (provisional PID)

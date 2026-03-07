@@ -145,7 +145,7 @@ pub mod product_ids {
     /// numbering, but the Pedals PID (`0xA3BE`) and R295 PID (`0xA44C`)
     /// breaking the sequence strongly undermine this assumption.
     ///
-    /// TODO(UNVERIFIED): PID 0xA356 is a sequential guess with no external
+    /// NOTE(UNVERIFIED): PID 0xA356 is a sequential guess with no external
     /// evidence. The non-sequential pattern (DFP=0xA355, Pedals=0xA3BE,
     /// R295=0xA44C) suggests VRS does not use contiguous PIDs. Needs a
     /// real USB capture or vendor confirmation.

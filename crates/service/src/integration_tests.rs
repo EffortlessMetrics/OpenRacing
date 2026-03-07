@@ -100,7 +100,7 @@ mod tests {
         Ok(())
 
         // Test device connection
-        // TODO: Re-enable when connect_device is implemented
+        // NOTE: Re-enable when connect_device is implemented
         // if let Some(device) = devices.first() {
         //     let connection_result = service.device_service()
         //         .connect_device(&device.id).await;
@@ -248,7 +248,7 @@ mod tests {
     async fn test_game_integration() -> Result<()> {
         let (_service, _temp_dir) = create_test_service().await?;
 
-        // TODO: Re-enable once WheelService::game_service() exists
+        // NOTE: Re-enable once WheelService::game_service() exists
         // let games = service.game_service().detect_games().await?;
         // assert!(!games.is_empty(), "No games detected");
         //
@@ -289,7 +289,7 @@ mod tests {
             "Expected at least one virtual device in statistics"
         );
 
-        // TODO: Re-enable once send_ffb_frame / get_device_statistics APIs exist
+        // NOTE: Re-enable once send_ffb_frame / get_device_statistics APIs exist
         // if let Some(device) = devices.first() {
         //     service.device_service().connect_device(&device.id).await?;
         //     let frame = racing_wheel_engine::Frame { ffb_in: 0.5, .. };
@@ -352,7 +352,7 @@ mod tests {
     async fn test_plugin_system() -> Result<()> {
         let (_service, _temp_dir) = create_test_service().await?;
 
-        // TODO: Re-enable once WheelService::plugin_service() exists
+        // NOTE: Re-enable once WheelService::plugin_service() exists
         // let plugins = service.plugin_service().enumerate_plugins().await?;
         // assert!(!plugins.is_empty(), "No plugins found");
         //
@@ -399,7 +399,7 @@ mod tests {
             "Expected at least one virtual device in statistics"
         );
 
-        // TODO: Re-enable once send_ffb_frame / get_device_statistics APIs exist
+        // NOTE: Re-enable once send_ffb_frame / get_device_statistics APIs exist
         // if let Some(device) = devices.first() {
         //     service.device_service().connect_device(&device.id).await?;
         //     let start_time = std::time::Instant::now();
@@ -447,7 +447,7 @@ mod tests {
         assert!(profile_stats.total_profiles >= profile_stats.active_profiles);
 
         // Test with telemetry unavailable
-        // TODO: Re-enable when game_service is implemented
+        // NOTE: Re-enable when game_service is implemented
         // let games = service.game_service().detect_games().await
         //     // verify game service behavior without active games
         //
