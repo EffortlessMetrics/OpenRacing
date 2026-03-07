@@ -156,23 +156,19 @@ The Racing Wheel Software is designed to avoid behaviors commonly flagged by ant
 
 ### BattlEye
 - **Status:** Designed for compatibility (not validated)
-- **Reason:** No process injection, documented methods only
-- **Rationale:** Uses whitelisted system APIs only
+- **Rationale:** No process injection; uses only documented, whitelisted system APIs
 
 ### Easy Anti-Cheat (EAC)
 - **Status:** Designed for compatibility (not validated)
-- **Reason:** No kernel components, standard user-mode operation
-- **Rationale:** No flagged behaviors or techniques
+- **Rationale:** No kernel components or flagged behaviors; standard user-mode operation only
 
 ### Valve Anti-Cheat (VAC)
 - **Status:** Designed for compatibility (not validated)
-- **Reason:** No memory modification, external communication only
-- **Rationale:** Uses Steam-approved telemetry methods
+- **Rationale:** No memory modification; external communication via Steam-approved telemetry methods only
 
 ### Custom Anti-Cheat Systems
 - **Status:** Designed for compatibility (not validated)
-- **Reason:** Conservative approach using only documented methods
-- **Rationale:** Open source code available for audit
+- **Rationale:** Conservative approach using only documented methods; open source code available for audit
 
 ## Verification Methods
 
