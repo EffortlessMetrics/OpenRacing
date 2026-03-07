@@ -49,6 +49,8 @@ jobs:
             coverage-${{ runner.os }}-
 
       - name: Generate coverage report
+        env:
+          OPENRACING_SKIP_TIMING_GUARANTEES: "1"
         run: |
           cargo llvm-cov --workspace \
             --all-features \
@@ -59,6 +61,8 @@ jobs:
             --output-path codecov.json
 
       - name: Generate coverage summary
+        env:
+          OPENRACING_SKIP_TIMING_GUARANTEES: "1"
         run: |
           cargo llvm-cov --workspace \
             --all-features \

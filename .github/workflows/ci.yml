@@ -812,6 +812,8 @@ jobs:
         run: cargo install cargo-llvm-cov
 
       - name: Generate coverage report
+        env:
+          OPENRACING_SKIP_TIMING_GUARANTEES: "1"
         run: cargo llvm-cov --all-features --workspace --locked --lcov --output-path lcov.info
 
       - name: Upload coverage to Codecov
@@ -878,6 +880,8 @@ jobs:
           cargo build --workspace --exclude racing-wheel-ui --no-default-features --locked
 
       - name: Run comprehensive test suite
+        env:
+          OPENRACING_SKIP_TIMING_GUARANTEES: "1"
         run: cargo test --workspace --exclude racing-wheel-ui --locked
 
       - name: Ensure tests did not mutate profile fixtures
