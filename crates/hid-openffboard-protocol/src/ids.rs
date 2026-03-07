@@ -42,7 +42,7 @@ pub const OPENFFBOARD_PRODUCT_ID: u16 = 0xFFB0;
 /// Retained for possible future / community firmware builds, but should not
 /// be treated as confirmed.
 ///
-/// TODO(SPECULATIVE): PID 0xFFB1 has zero evidence from any source. Not
+/// NOTE (SPECULATIVE): PID 0xFFB1 has zero evidence from any source. Not
 /// registered on pid.codes, absent from firmware/configurator/kernel/community
 /// databases. Consider removing or gating behind a `speculative-pids` feature
 /// flag if no evidence surfaces.
