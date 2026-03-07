@@ -458,8 +458,8 @@ jobs:
 
       - name: Test minimal versions (nightly)
         run: |
-          cargo +nightly update -Z minimal-versions
-          cargo +nightly build --workspace -Z minimal-versions --locked
+          cargo +nightly update -Z direct-minimal-versions
+          cargo +nightly build --workspace -Z direct-minimal-versions --locked
 
   # Phase 6: Comprehensive lint gates and governance enforcement
   lint-gates:
