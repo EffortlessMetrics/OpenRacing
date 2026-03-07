@@ -1029,7 +1029,17 @@ mod timing_guarantees {
     const MAX_PARSE_TIME: Duration = Duration::from_millis(1);
     const ITERATIONS: usize = 100;
 
+    /// Check if running under coverage instrumentation
+    fn running_under_coverage() -> bool {
+        std::env::var_os("LLVM_PROFILE_FILE").is_some()
+    }
+
     fn measure_parse(adapter: &dyn TelemetryAdapter, data: &[u8]) -> TestResult {
+        if running_under_coverage() {
+            println!("SKIPPED: timing-sensitive telemetry parse test under coverage");
+            return Ok(());
+        }
+
         // Warm up
         for _ in 0..10 {
             let _ = adapter.normalize(data);
@@ -1075,6 +1085,11 @@ mod timing_guarantees {
 
     #[test]
     fn gt7_decrypted_parse_within_1ms() -> TestResult {
+        if running_under_coverage() {
+            println!("SKIPPED: timing-sensitive telemetry parse test under coverage");
+            return Ok(());
+        }
+
         let buf = make_gt7_decrypted();
         let start = Instant::now();
         for _ in 0..ITERATIONS {
