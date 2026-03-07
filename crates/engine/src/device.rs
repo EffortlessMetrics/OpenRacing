@@ -210,6 +210,11 @@ impl HidDevice for VirtualDevice {
             return Err(RTError::DeviceDisconnected);
         }
 
+        // Reject non-finite values before torque limit check
+        if !torque_nm.is_finite() {
+            return Err(RTError::InvalidConfig);
+        }
+
         let mut state = self.state.lock().map_err(|_| RTError::PipelineFault)?;
 
         // Validate torque is within device limits

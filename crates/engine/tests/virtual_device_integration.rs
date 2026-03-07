@@ -13,10 +13,20 @@ use racing_wheel_schemas::prelude::{DeviceId, DeviceType};
 use std::time::{Duration, Instant};
 use tracing_test::traced_test;
 
+/// Check if running under coverage instrumentation
+fn running_under_coverage() -> bool {
+    std::env::var_os("LLVM_PROFILE_FILE").is_some()
+}
+
 /// Test device enumeration performance (DM-01)
 #[tokio::test]
 #[traced_test]
 async fn test_device_enumeration_performance() -> Result<(), Box<dyn std::error::Error>> {
+    if running_under_coverage() {
+        println!("SKIPPED: timing-sensitive test under coverage");
+        return Ok(());
+    }
+
     let mut port = VirtualHidPort::new();
 
     // Add multiple virtual devices
@@ -263,6 +273,11 @@ async fn test_hands_on_detection() -> Result<(), Box<dyn std::error::Error>> {
 #[tokio::test]
 #[traced_test]
 async fn test_rt_loop_with_virtual_device() -> Result<(), Box<dyn std::error::Error>> {
+    if running_under_coverage() {
+        println!("SKIPPED: timing-sensitive test under coverage");
+        return Ok(());
+    }
+
     let config = TestHarnessConfig {
         update_rate_hz: 100.0, // Lower rate for faster testing
         test_duration: Duration::from_millis(500),
@@ -334,6 +349,11 @@ async fn test_rt_loop_with_virtual_device() -> Result<(), Box<dyn std::error::Er
 #[tokio::test]
 #[traced_test]
 async fn test_comprehensive_suite() -> Result<(), Box<dyn std::error::Error>> {
+    if running_under_coverage() {
+        println!("SKIPPED: timing-sensitive test under coverage");
+        return Ok(());
+    }
+
     let config = TestHarnessConfig {
         update_rate_hz: 100.0,                     // Lower rate for faster testing
         test_duration: Duration::from_millis(200), // Shorter duration
@@ -485,6 +505,11 @@ async fn test_device_hotplug() -> Result<(), Box<dyn std::error::Error>> {
 #[tokio::test]
 #[traced_test]
 async fn benchmark_device_enumeration() -> Result<(), Box<dyn std::error::Error>> {
+    if running_under_coverage() {
+        println!("SKIPPED: timing-sensitive test under coverage");
+        return Ok(());
+    }
+
     let mut port = VirtualHidPort::new();
 
     // Add many devices

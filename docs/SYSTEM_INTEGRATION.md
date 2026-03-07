@@ -1,10 +1,13 @@
 # Racing Wheel Software - System Integration Guide
 
-This document describes the complete system integration, including all components working together with graceful degradation, feature flags, and comprehensive validation.
+This document describes the intended system architecture, including how components are designed to work together with graceful degradation, feature flags, and validation.
 
 ## Overview
 
 The Racing Wheel Software is designed as a complete system with multiple integrated components:
+
+> [!NOTE]
+> The architecture below describes design targets and implemented code paths. The system has **not been end-to-end validated on real hardware or simulators**.
 
 - **Service Daemon (`wheeld`)**: Core service managing devices and force feedback
 - **Engine**: Real-time force feedback processing at 1kHz
@@ -168,9 +171,9 @@ The system is designed to continue operating even when components fail:
 
 ## Performance Requirements
 
-### Real-Time Guarantees
+### Real-Time Targets
 
-The system maintains strict performance requirements:
+The system targets the following performance requirements (current evidence comes from code-level tests and benchmarks; not yet validated end-to-end on real hardware):
 
 - **Tick Rate**: 1000 Hz (1ms intervals)
 - **Jitter**: p99 ≤ 0.25ms
@@ -239,24 +242,26 @@ All faults trigger immediate torque ramp-down within 50ms.
 
 ## Game Integration
 
-### Supported Games
+### Game Integration Targets
+
+The table below lists researched integration targets, not end-to-end validated game paths.
 
 | Game | Method | Config Files | Auto-Config | Status |
 |------|--------|--------------|-------------|---------|
-| iRacing | Shared Memory | app.ini | ✅ | Full Support |
-| ACC | UDP Broadcast | broadcasting.json | ✅ | Full Support |
-| Assetto Corsa | UDP OutGauge | — | ✅ | Full Support |
-| DiRT Rally 2.0 | Codemasters UDP | — | ✅ | Full Support |
-| Forza Motorsport / Horizon | Forza Data Out UDP | — | ✅ | Full Support |
-| BeamNG.drive | UDP OutGauge | — | ✅ | Full Support |
-| Project CARS 2 | Shared Memory | — | ❌ | Full Support |
+| iRacing | Shared Memory | app.ini | ✅ | Implemented |
+| ACC | UDP Broadcast | broadcasting.json | ✅ | Implemented |
+| Assetto Corsa | UDP OutGauge | — | ✅ | Implemented |
+| DiRT Rally 2.0 | Codemasters UDP | — | ✅ | Implemented |
+| Forza Motorsport / Horizon | Forza Data Out UDP | — | ✅ | Implemented |
+| BeamNG.drive | UDP OutGauge | — | ✅ | Implemented |
+| Project CARS 2 | Shared Memory | — | ❌ | Implemented |
 | AMS2 | Shared Memory | None | ❌ | Experimental |
 | rFactor 2 | Shared Memory | None | ❌ | Experimental |
 | F1 24/25 | Codemasters UDP | — | ✅ | Experimental |
 | EA SPORTS WRC | UDP | — | ✅ | Experimental |
 | Gran Turismo 7 | Encrypted UDP | — | ❌ | Experimental |
 
-> For the full list of 28+ supported games, see [SETUP.md — Supported Games](SETUP.md#supported-games).
+> For the full list of 28+ researched games, see [SETUP.md — Supported Games](SETUP.md#supported-games).
 
 ### Telemetry Processing
 
@@ -394,7 +399,7 @@ The report documents:
 1. **Unit Tests**: Individual component testing
 2. **Integration Tests**: Component interaction testing
 3. **Performance Tests**: Timing and throughput validation
-4. **Hardware-in-Loop**: Real device testing
+4. **Hardware-in-Loop**: Real device testing (planned — not yet implemented)
 5. **System Tests**: End-to-end workflow validation
 
 ### Continuous Integration
@@ -480,13 +485,13 @@ wheeld --mode=raw --rt-off  # Disable RT for analysis
 
 ## Conclusion
 
-The Racing Wheel Software provides a comprehensive, integrated system for racing wheel management with:
+The Racing Wheel Software is designed to provide a comprehensive, integrated system for racing wheel management with:
 
 - **Robust Architecture**: Modular design with clear interfaces
 - **Graceful Degradation**: Continues operation despite component failures
-- **Performance Guarantees**: Strict real-time requirements with monitoring
+- **Performance Targets**: Strict real-time requirements with monitoring
 - **Safety First**: Comprehensive safety system with fault detection
-- **Anti-Cheat Compatible**: Designed for compatibility with all major anti-cheat systems
+- **Anti-Cheat Compatibility (designed, not yet validated)**: Designed to avoid common anti-cheat concerns
 - **Extensible**: Plugin system for community contributions
 - **Observable**: Comprehensive diagnostics and monitoring
 

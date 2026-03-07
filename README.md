@@ -10,22 +10,29 @@
 [![Platform: macOS](https://img.shields.io/badge/platform-macOS-lightgrey.svg)](https://www.apple.com/macos)
 [![Rust](https://img.shields.io/badge/rust-nightly-orange.svg)](https://www.rust-lang.org)
 
-OpenRacing is a high-performance, safety-critical racing wheel and force feedback simulation software built in Rust. Designed for sim-racing enthusiasts and professionals, it delivers real-time force feedback processing at 1kHz with deterministic latency and comprehensive safety interlocks.
+> [!IMPORTANT]
+> **Project status: pre-validation**
+>
+> This repository is built from protocol research, public documentation, kernel drivers, vendor tools, and community captures. It has **not been end-to-end validated on real hardware or simulators**. Hardware and game tables below represent **research coverage and intended targets**, not confirmed compatibility.
 
-## Features
+OpenRacing is a Rust-based force-feedback and telemetry stack for sim-racing wheels, pedals, and related hardware. It targets real-time processing at 1kHz with deterministic latency and safety interlocks.
+
+## Architecture and goals
+
+The items below describe the current architecture and design targets. They are not a blanket claim of validated compatibility across every listed device, protocol, or game.
 
 - **Real-time Force Feedback at 1kHz** - Deterministic processing pipeline with sub-millisecond latency for authentic racing feel
 - **Multi-Game Integration** - Telemetry adapters for 61 simulators including iRacing, ACC, AMS2, rFactor 2, Forza, BeamNG.drive, Gran Turismo 7, Euro Truck Simulator 2, EA WRC, F1 25, and more
-- **Safety-Critical Design** - Comprehensive fault injection testing, FMEA analysis, hardware watchdog integration, and 29,900+ tests
+- **Safety-Critical Design** - Comprehensive fault injection testing, FMEA analysis, hardware watchdog integration, and 26,000+ tests
 - **Plugin Architecture** - Extensible plugin system supporting both WASM and native plugins for custom DSP, telemetry, and LED effects
 - **Cross-Platform Support** - Runs on Windows 10+ and Linux kernel 4.0+; macOS compiles but device I/O is not yet implemented
 - **Zero-Allocation Real-Time Path** - Memory-safe real-time processing without heap allocations
 - **Comprehensive Diagnostics** - Black box recording, replay analysis, and support bundle generation
 - **Profile Management** - JSON-based force feedback profiles with schema validation and backward compatibility
 
-## Supported Hardware
+## Hardware coverage
 
-OpenRacing supports 150+ devices across 28 vendors. VID/PIDs are sourced from kernel drivers, community hardware databases, and manufacturer documentation.
+OpenRacing contains research-backed VID/PID and protocol coverage for 150+ devices across 28 vendors. These entries are sourced from kernel drivers, community hardware databases, and manufacturer documentation — they are **not yet validated on real hardware**. See [Device Support Matrix](docs/DEVICE_SUPPORT.md) for per-device sourcing status.
 
 | Vendor | VID | Models | FFB |
 |--------|-----|--------|-----|
@@ -52,9 +59,9 @@ OpenRacing supports 150+ devices across 28 vendors. VID/PIDs are sourced from ke
 | **FlashFire** | `0x2F24` | 900R, ES900R | ⚠️ Partial |
 | **Generic HID button box** | `0x1209` | Arduino DIY, BangButtons, SimRacingInputs | Input only |
 
-## Supported Games
+## Telemetry coverage
 
-OpenRacing includes telemetry adapters for 61 racing games and simulators:
+OpenRacing includes telemetry adapter scaffolding for 61 racing games and simulators. These represent **researched or implemented adapters**, not end-to-end validated game paths. See [Game Support Matrix](docs/GAME_SUPPORT.md) for per-adapter status.
 
 | Game | Method | Port/Key |
 |------|--------|----------|
@@ -108,9 +115,7 @@ OpenRacing includes telemetry adapters for 61 racing games and simulators:
   - **Linux**: Kernel 4.0+, udev rules for device access
   - **macOS**: macOS 10.15 or later (compiles; device I/O not yet implemented)
 
-### Installation
-
-#### From Source
+### Building from source
 
 ```bash
 # Clone the repository
@@ -124,18 +129,15 @@ cargo build --release
 cargo install --path crates/cli
 ```
 
-#### Platform-Specific Installation
+#### Linux: udev rules
 
-**Linux:**
 ```bash
-# Install udev rules for device access
 sudo cp packaging/linux/99-racing-wheel-suite.rules /etc/udev/rules.d/
 sudo udevadm control --reload-rules
 sudo udevadm trigger
 ```
 
-**Windows:**
-Run the MSI installer from the [releases page](https://github.com/EffortlessMetrics/OpenRacing/releases).
+> **Note:** Packaged installers (MSI, deb, rpm) are not published yet.
 
 ### Basic Usage
 
@@ -164,6 +166,7 @@ wheelctl diag test
 - [Architecture Decision Records](docs/adr/INDEX.md) - Design decisions and technical rationale
 - [Power Management Guide](docs/POWER_MANAGEMENT_GUIDE.md) - Power management and device configuration
 - [Anticheat Compatibility](docs/ANTICHEAT_COMPATIBILITY.md) - Compatibility notes for various anticheat systems
+- [Project Status](docs/PROJECT_STATUS.md) - What is researched, implemented, and validated
 
 ## Project Structure
 
@@ -180,6 +183,16 @@ OpenRacing is organized as a Cargo workspace with 86 crates following the Single
 | **IPC & Transport** | `ipc`, `openracing-ipc` | gRPC + Unix socket transport layer |
 | **Compatibility** | [`compat`](crates/compat/) | Legacy API migration helpers |
 | **Testing** | [`integration-tests`](crates/integration-tests/) | End-to-end, performance gate, and soak tests |
+
+## Help validate
+
+If you can test OpenRacing on real hardware, please open an issue with:
+
+- Device make/model and firmware version
+- OS and version
+- Simulator/game title and version
+- Connection mode (USB / HID / serial / wireless)
+- Logs and reproduction steps
 
 ## Contributing
 

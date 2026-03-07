@@ -2,6 +2,9 @@
 
 Welcome to OpenRacing, a high-performance racing wheel and force feedback simulation software designed for sim-racing enthusiasts and professionals. This guide will help you get started with OpenRacing and make the most of its features.
 
+> [!IMPORTANT]
+> **Project status: pre-validation** — OpenRacing has not been end-to-end validated on real hardware or simulators. This guide describes intended functionality. See [Project Status](PROJECT_STATUS.md) for details.
+
 ## Table of Contents
 
 1. [Introduction](#introduction)
@@ -21,7 +24,7 @@ Welcome to OpenRacing, a high-performance racing wheel and force feedback simula
 
 ## Introduction
 
-OpenRacing is a safety-critical racing wheel and force feedback simulation software built in Rust. It delivers real-time force feedback processing at 1kHz with deterministic latency and comprehensive safety interlocks.
+OpenRacing is a safety-critical racing wheel and force feedback simulation software built in Rust. It targets real-time force feedback processing at 1kHz with deterministic latency and comprehensive safety interlocks.
 
 ### Who is OpenRacing for?
 
@@ -60,7 +63,7 @@ OpenRacing is a safety-critical racing wheel and force feedback simulation softw
 
 ### Supported Racing Wheels
 
-OpenRacing supports 28 vendors and their product lines through HID (Human Interface Device) communication:
+OpenRacing contains protocol implementations for 28 vendors and their product lines through HID (Human Interface Device) communication:
 
 - Moza Racing (R3, R5, R9, R12, R16, R21)
 - Fanatec CSL DD, GT DD Pro, Podium DD1/DD2, CSW v2.5
@@ -85,85 +88,24 @@ OpenRacing supports 28 vendors and their product lines through HID (Human Interf
 
 This section provides detailed installation instructions for all supported platforms. Choose the method that best suits your needs.
 
+> [!NOTE]
+> **Packaged installers are not published yet.** The platform-specific installer sections below describe planned packaging targets. Currently, OpenRacing must be [built from source](#building-from-source).
+
 ### Windows Installation
 
 OpenRacing supports Windows 10 and later (x64). Multiple installation methods are available.
 
-#### Using MSI Installer (Recommended)
+#### Packaged Installers (Planned)
 
-The MSI installer is the easiest way to install OpenRacing on Windows. It handles service registration, device permissions, and PATH configuration automatically.
+> [!NOTE]
+> **MSI installer, silent installation, and portable ZIP are planned packaging targets — not yet available.**
 
-1. Download the latest MSI installer (`OpenRacing-x.x.x-x64.msi`) from the [releases page](https://github.com/EffortlessMetrics/OpenRacing/releases)
-2. Double-click the installer to run it
-3. Follow the installation wizard:
-   - Accept the license agreement
-   - Choose installation directory (default: `C:\Program Files\OpenRacing`)
-   - Select components to install (CLI, Service, UI)
-   - Optionally enable power optimization
-4. Click "Install" and wait for completion
-5. Restart your computer if prompted
-
-**Installation Options:**
-
-| Option | Description | Default |
-|--------|-------------|---------|
-| `INSTALLDIR` | Installation directory | `C:\Program Files\OpenRacing` |
-| `OPTIMIZE_POWER` | Enable power optimization | `0` (disabled) |
-| `INSTALL_SERVICE` | Install wheeld service | `1` (enabled) |
-| `ADD_TO_PATH` | Add to system PATH | `1` (enabled) |
-
-**Example with options:**
-```cmd
-msiexec /i OpenRacing-1.0.0-x64.msi OPTIMIZE_POWER=1 INSTALLDIR="D:\OpenRacing"
-```
-
-#### Silent Installation
-
-For automated deployments or scripted installations, use silent installation mode:
-
-```cmd
-# Basic silent installation
-msiexec /i OpenRacing-1.0.0-x64.msi /quiet /norestart
-
-# Silent installation with logging
-msiexec /i OpenRacing-1.0.0-x64.msi /quiet /norestart /log install.log
-
-# Silent installation with custom options
-msiexec /i OpenRacing-1.0.0-x64.msi /quiet /norestart OPTIMIZE_POWER=1
-
-# Silent installation to custom directory
-msiexec /i OpenRacing-1.0.0-x64.msi /quiet /norestart INSTALLDIR="D:\OpenRacing"
-
-# Silent uninstallation
-msiexec /x OpenRacing-1.0.0-x64.msi /quiet /norestart
-```
-
-**Silent Installation Exit Codes:**
-
-| Code | Meaning |
-|------|---------|
-| 0 | Success |
-| 1602 | User cancelled |
-| 1603 | Fatal error |
-| 1618 | Another installation in progress |
-| 3010 | Reboot required |
-
-#### Portable ZIP Installation
-
-For users who prefer not to use an installer:
-
-1. Download `OpenRacing-x.x.x-x64-portable.zip` from the releases page
-2. Extract to your preferred location (e.g., `C:\OpenRacing`)
-3. Add the directory to your PATH:
-   ```cmd
-   setx PATH "%PATH%;C:\OpenRacing\bin"
-   ```
-4. Install the service manually:
-   ```cmd
-   # Run as Administrator
-   wheeld.exe install
-   sc start wheeld
-   ```
+The planned Windows installers will:
+- Register `wheeld` as a Windows service
+- Configure system PATH
+- Support configurable installation directory and optional power optimization
+- Provide silent installation mode for automated deployments
+- Offer a portable ZIP alternative for users who prefer no installer
 
 #### Windows Service Management
 
@@ -196,88 +138,27 @@ wheeld.exe uninstall
 
 OpenRacing supports modern Linux distributions with kernel 4.0+. Multiple package formats are available.
 
-#### Debian/Ubuntu (.deb Package)
+#### Packaged Installers (Planned)
 
-For Debian, Ubuntu 22.04+, Linux Mint, and other Debian-based distributions:
+> [!NOTE]
+> **Debian/Ubuntu (.deb), Fedora/RHEL (.rpm), and APT/DNF repository hosting are planned packaging targets — not yet available.**
 
-```bash
-# Download the .deb package
-wget https://github.com/EffortlessMetrics/OpenRacing/releases/download/v1.0.0/openracing_1.0.0_amd64.deb
-
-# Install the package
-sudo dpkg -i openracing_1.0.0_amd64.deb
-
-# Install any missing dependencies
-sudo apt-get install -f
-
-# Reload udev rules (installed automatically)
-sudo udevadm control --reload-rules
-sudo udevadm trigger
-
-# Enable and start the service
-systemctl --user enable --now wheeld
-```
-
-**Alternative: Using APT Repository**
-
-```bash
-# Add the OpenRacing repository
-curl -fsSL https://openracing.io/gpg.key | sudo gpg --dearmor -o /usr/share/keyrings/openracing-archive-keyring.gpg
-echo "deb [signed-by=/usr/share/keyrings/openracing-archive-keyring.gpg] https://apt.openracing.io stable main" | sudo tee /etc/apt/sources.list.d/openracing.list
-
-# Update and install
-sudo apt update
-sudo apt install openracing
-
-# Enable and start the service
-systemctl --user enable --now wheeld
-```
-
-#### Fedora/RHEL/CentOS (.rpm Package)
-
-For Fedora, RHEL 8+, CentOS Stream, Rocky Linux, and other RPM-based distributions:
-
-```bash
-# Download the .rpm package
-wget https://github.com/EffortlessMetrics/OpenRacing/releases/download/v1.0.0/openracing-1.0.0-1.x86_64.rpm
-
-# Install the package (Fedora)
-sudo dnf install ./openracing-1.0.0-1.x86_64.rpm
-
-# Or for older systems using yum
-sudo yum install ./openracing-1.0.0-1.x86_64.rpm
-
-# Reload udev rules
-sudo udevadm control --reload-rules
-sudo udevadm trigger
-
-# Enable and start the service
-systemctl --user enable --now wheeld
-```
-
-**Alternative: Using DNF/YUM Repository**
-
-```bash
-# Add the OpenRacing repository
-sudo dnf config-manager --add-repo https://rpm.openracing.io/openracing.repo
-
-# Install
-sudo dnf install openracing
-
-# Enable and start the service
-systemctl --user enable --now wheeld
-```
+The planned Linux packages will:
+- Install binaries and udev rules (`packaging/linux/99-racing-wheel-suite.rules`)
+- Register `wheeld` as a systemd user service
+- Handle dependency installation
+- Provide APT and DNF repository hosting for automatic updates
 
 #### Generic Linux (Tarball)
 
 For any Linux distribution or manual installation:
 
-```bash
-# Download the tarball
-wget https://github.com/EffortlessMetrics/OpenRacing/releases/download/v1.0.0/openracing-1.0.0-linux-x86_64.tar.gz
+> [!NOTE]
+> **Pre-built tarballs are not yet published.** The commands below show the intended installation steps once a release tarball is available. Currently, [build from source](#building-from-source-linux) instead.
 
+```bash
 # Extract to /opt (or your preferred location)
-sudo tar -xzf openracing-1.0.0-linux-x86_64.tar.gz -C /opt
+sudo tar -xzf openracing-<version>-linux-x86_64.tar.gz -C /opt
 
 # Create symlinks for CLI access
 sudo ln -s /opt/openracing/bin/wheelctl /usr/local/bin/wheelctl
@@ -295,7 +176,7 @@ systemctl --user daemon-reload
 systemctl --user enable --now wheeld
 ```
 
-#### Building from Source
+#### Building from Source (Linux)
 
 For developers or users who want the latest features:
 
@@ -392,32 +273,15 @@ OpenRacing compiles on macOS 10.15 (Catalina) and later, but the IOKit HID drive
 
 > **Note**: macOS support is compile-only. The IOKit HID driver and macOS-specific packaging (DMG, Homebrew, notarization) are planned but not yet available. You can build from source to experiment with non-device features.
 
-#### Using Homebrew (Recommended)
+#### Packaged Installers (Planned)
 
-```bash
-# Add the OpenRacing tap
-brew tap openracing/tap
+> [!NOTE]
+> **Homebrew tap, DMG installer, and pre-built tarballs are planned packaging targets — not yet available.** macOS support is currently compile-only (see note above).
 
-# Install OpenRacing
-brew install openracing
-
-# Start the service
-brew services start openracing
-```
-
-#### Manual Installation
-
-```bash
-# Download the macOS package
-curl -LO https://github.com/EffortlessMetrics/OpenRacing/releases/download/v1.0.0/openracing-1.0.0-macos-x86_64.tar.gz
-
-# Extract to /usr/local
-sudo tar -xzf openracing-1.0.0-macos-x86_64.tar.gz -C /usr/local
-
-# Install launchd service
-cp /usr/local/openracing/share/launchd/com.openracing.wheeld.plist ~/Library/LaunchAgents/
-launchctl load ~/Library/LaunchAgents/com.openracing.wheeld.plist
-```
+The planned macOS packages will:
+- Provide a Homebrew tap (`brew install openracing`)
+- Install a launchd service (`com.openracing.wheeld`)
+- Offer a pre-built tarball for manual installation
 
 #### Building from Source (macOS)
 
@@ -537,6 +401,29 @@ rm ~/Library/LaunchAgents/com.openracing.wheeld.plist
 sudo rm -rf /usr/local/openracing
 sudo rm /usr/local/bin/wheelctl /usr/local/bin/wheeld
 ```
+
+### Building from Source
+
+Until packaged installers are available, build from source on any platform:
+
+```bash
+# Install Rust toolchain (if not already installed)
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+source ~/.cargo/env
+
+# Clone the repository
+git clone https://github.com/EffortlessMetrics/OpenRacing.git
+cd OpenRacing
+
+# Build release binaries
+cargo build --release --workspace
+
+# The binaries will be in target/release/
+# - wheelctl (CLI tool)
+# - wheeld   (service daemon)
+```
+
+See the platform-specific sections above for instructions on installing udev rules (Linux) or launchd services (macOS).
 
 ---
 
@@ -1528,12 +1415,12 @@ OpenRacing can automatically switch profiles based on the game and car you're dr
 
 #### Anti-Cheat Concerns
 
-OpenRacing is designed to be fully compatible with all major anti-cheat systems:
+OpenRacing is designed to avoid common anti-cheat concerns (not yet validated — see [Anti-Cheat Compatibility](ANTICHEAT_COMPATIBILITY.md)):
 
 - No process injection
 - No kernel drivers
 - Uses only documented, legitimate APIs
-- All binaries are digitally signed
+- All binaries will be digitally signed (planned)
 
 For more details, see [ANTICHEAT_COMPATIBILITY.md](ANTICHEAT_COMPATIBILITY.md).
 
@@ -2302,12 +2189,12 @@ echo -1 | sudo tee /sys/bus/usb/devices/*/power/autosuspend_delay_ms
 
 ### Anti-Cheat Compatibility
 
-OpenRacing is designed to be fully compatible with all major anti-cheat systems:
+OpenRacing is designed to avoid common anti-cheat concerns (not yet validated — see [Anti-Cheat Compatibility](ANTICHEAT_COMPATIBILITY.md)):
 
 - **No Process Injection**: External communication only
 - **No Kernel Drivers**: User-space operation only
 - **Documented Methods**: Official APIs and documented interfaces
-- **Signed Binaries**: All executables digitally signed
+- **Signed Binaries**: All executables will be digitally signed (planned)
 
 For detailed information, see [ANTICHEAT_COMPATIBILITY.md](ANTICHEAT_COMPATIBILITY.md).
 
@@ -2431,7 +2318,7 @@ A: Safety interlocks cannot be disabled. They are essential for safe operation.
 ### Games
 
 **Q: Will OpenRacing get me banned?**  
-A: No, OpenRacing uses only legitimate, documented methods and is fully compatible with all major anti-cheat systems.
+A: OpenRacing uses only legitimate, documented methods and is designed to avoid common anti-cheat concerns, though this has not yet been validated in live game environments.
 
 **Q: Can I use OpenRacing with games not officially supported?**  
 A: OpenRacing provides basic FFB support for any game. Full telemetry integration requires game-specific adapters.
