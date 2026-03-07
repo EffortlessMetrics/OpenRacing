@@ -137,17 +137,17 @@ impl AsetekScenario {
         }
     }
 
+    /// Asetek wheelbases are plug-and-play - no initialization steps needed.
+    /// This matches the engine's AsetekProtocolHandler::initialize_device() contract.
     pub fn initialize(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        let device_control = [0x01, 0x01];
-        self.protocol
-            .send_feature_report(&mut self.device, 0x01, &device_control)?;
+        // Asetek devices self-configure on USB enumeration
+        // No feature reports required during init
         Ok(())
     }
 
+    /// Asetek shutdown is also a no-op - device handles cleanup internally.
     pub fn shutdown(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        let device_control = [0x01, 0x04];
-        self.protocol
-            .send_feature_report(&mut self.device, 0x01, &device_control)?;
+        // No explicit shutdown sequence needed
         Ok(())
     }
 }
