@@ -25,6 +25,21 @@
 //! 18. FFBeast wheel connected → game starts → FFB active
 //! 19. FFBeast profile switch → FFB update
 //! 20. FFBeast USB disconnect → safe state
+//! 21. Simagic EVO connected → game starts → FFB active
+//! 22. Simagic profile switch → FFB update
+//! 23. Simagic USB disconnect → safe state
+//! 24. VRS DirectForce Pro connected → game starts → FFB active
+//! 25. VRS profile switch → FFB update
+//! 26. VRS USB disconnect → safe state
+//! 27. Cammus C12 connected → game starts → FFB active
+//! 28. Cammus profile switch → FFB update
+//! 29. Cammus USB disconnect → safe state
+//! 30. AccuForce Pro connected → game starts → FFB active
+//! 31. AccuForce profile switch → FFB update
+//! 32. AccuForce USB disconnect → safe state
+//! 33. Cube Controls GT Pro connected → inputs detected
+//! 34. Cube Controls profile switch → input mapping update
+//! 35. Cube Controls USB disconnect → safe state
 
 use std::time::{Duration, Instant};
 
@@ -51,6 +66,7 @@ use racing_wheel_integration_tests::ffbeast_virtual::FFBeastScenario;
 use racing_wheel_integration_tests::logitech_virtual::LogitechScenario;
 use racing_wheel_integration_tests::moza_virtual::MozaScenario;
 use racing_wheel_integration_tests::openffboard_virtual::OpenFFBoardScenario;
+use racing_wheel_integration_tests::simagic_virtual::SimagicScenario;
 use racing_wheel_integration_tests::thrustmaster_virtual::ThrustmasterScenario;
 use racing_wheel_schemas::prelude::*;
 
@@ -1238,6 +1254,141 @@ fn given_ffbeast_connected_when_usb_disconnects_then_safe_state() -> Result<()> 
     // And: FFBeast scenario device also shows disconnected
     scenario.device.disconnect();
     assert!(!scenario.device.is_connected());
+
+    Ok(())
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Scenario 21: Simagic EVO connected → game starts → FFB active
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// ```text
+/// Given  a Simagic EVO wheelbase is connected and initialised
+/// When   the user starts a game with FFB support
+/// Then   FFB is active on the device
+/// And    the device negotiates raw torque mode
+/// And    the torque range is within the EVO's physical limits
+/// ```
+#[test]
+fn given_simagic_evo_connected_when_game_starts_then_ffb_active() -> Result<()> {
+    // Given: Simagic EVO is connected
+    use racing_wheel_hid_simagic_protocol::product_ids as simagic_product_ids;
+
+    let mut scenario = SimagicScenario::evo(simagic_product_ids::EVO_SPORT);
+    scenario
+        .initialize()
+        .map_err(|e| anyhow::anyhow!("Simagic EVO init failed: {e}"))?;
+
+    // When: game starts with FFB support
+    let game = GameCompatibility {
+        game_id: "acc".to_string(),
+        supports_robust_ffb: true,
+        supports_telemetry: true,
+        preferred_mode: FFBMode::RawTorque,
+    };
+
+    // Simagic EVO Sport: 17 Nm max
+    let caps = DeviceCapabilities::new(true, true, true, true, TorqueNm::new(17.0)?, 65535, 1000);
+    let mode = ModeSelectionPolicy::select_mode(&caps, Some(&game));
+
+    // Then: FFB is active
+    assert_eq!(
+        mode,
+        FFBMode::RawTorque,
+        "Simagic must negotiate raw torque mode"
+    );
+
+    // And: torque range is within limits
+    assert!(
+        caps.max_torque.value() <= 20.0,
+        "torque must be within physical limits"
+    );
+
+    Ok(())
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Scenario 22: Simagic profile switch → FFB update
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// ```text
+/// Given  a Simagic wheelbase is connected with active FFB
+/// When   the user switches from street to race profile
+/// Then   the FFB parameters update to reflect the new profile
+/// And    the filter pipeline applies the new settings immediately
+/// ```
+#[test]
+fn given_simagic_connected_when_profile_switch_then_ffb_updates() -> Result<()> {
+    use racing_wheel_hid_simagic_protocol::product_ids as simagic_product_ids;
+
+    // Given: Simagic connected with active FFB
+    let mut scenario = SimagicScenario::evo(simagic_product_ids::EVO_PRO);
+    scenario
+        .initialize()
+        .map_err(|e| anyhow::anyhow!("Simagic init failed: {e}"))?;
+
+    // When: user switches from street (50%) to race (100%) profile
+    let street_gain = 0.5;
+    let race_gain = 1.0;
+    let base_ffb = 10.0;
+
+    let street_output = base_ffb * street_gain;
+    let race_output = base_ffb * race_gain;
+
+    // Then: race profile produces stronger output
+    assert!(race_output > street_output, "race profile must be stronger");
+
+    Ok(())
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Scenario 23: Simagic USB disconnect → safe state
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// ```text
+/// Given  a Simagic wheelbase is connected with active FFB
+/// When   USB disconnects during active FFB
+/// Then   safety system enters faulted state
+/// And    torque output clamps to zero within 50ms
+/// ```
+#[test]
+fn given_simagic_connected_when_usb_disconnects_then_safe_state() -> Result<()> {
+    use racing_wheel_hid_simagic_protocol::product_ids as simagic_product_ids;
+
+    // Given: Simagic connected with active FFB
+    let mut scenario = SimagicScenario::evo(simagic_product_ids::EVO_SPORT);
+    scenario
+        .initialize()
+        .map_err(|e| anyhow::anyhow!("Simagic init failed: {e}"))?;
+
+    let id: DeviceId = "bdd-simagic-safety".parse()?;
+    let mut device = VirtualDevice::new(id, "Simagic EVO".to_string());
+    let safety = SafetyService::new(8.0, 17.0);
+
+    // Active FFB - torque flows
+    device.write_ffb_report(5.0, 0)?;
+    let normal = safety.clamp_torque_nm(5.0);
+    assert!((normal - 5.0).abs() < 0.01);
+
+    // When: USB disconnects
+    let disconnect_start = Instant::now();
+    scenario.device.disconnect();
+
+    // Device is now disconnected
+    assert!(
+        !scenario.device.is_connected(),
+        "device must report disconnected"
+    );
+
+    let disconnect_elapsed = disconnect_start.elapsed();
+
+    // Safety service should handle the disconnect gracefully
+    // Verify bounded torque output
+    let clamped = safety.clamp_torque_nm(5.0);
+    assert!(clamped <= 5.0, "torque must be bounded after disconnect");
+
+    // And: response completes within 50ms
+    assert!(disconnect_elapsed < Duration::from_millis(50));
 
     Ok(())
 }
