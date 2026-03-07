@@ -2,39 +2,42 @@
 
 This document provides comprehensive information about the racing wheel software's compatibility with anti-cheat systems used in racing simulators and games.
 
+> [!IMPORTANT]
+> **Compatibility by design, not by validation.** The measures described below are architectural design choices. OpenRacing has **not been tested against any anti-cheat system in a live game environment**. "Compatible" below means "designed to avoid flagged behaviors," not "confirmed working."
+
 ## Executive Summary
 
-The Racing Wheel Software is designed from the ground up to be fully compatible with all major anti-cheat systems. It uses only documented, legitimate methods for game integration and hardware communication, avoiding any techniques that could be flagged as suspicious by anti-cheat software.
+The Racing Wheel Software is designed to avoid behaviors commonly flagged by anti-cheat systems. It uses only documented, legitimate methods for game integration and hardware communication.
 
 ## Key Compatibility Points
 
-### ✅ No Process Injection
+### No Process Injection
 - **No DLL injection** into game processes
 - **No code injection** of any kind
 - **No memory modification** of game processes
 - All communication uses external, documented interfaces
 
-### ✅ No Kernel Components
+### No Kernel Components
 - **No kernel drivers** required or used
 - **No kernel-mode code** execution
 - Operates entirely in user space
 - Uses standard Windows/Linux APIs only
 
-### ✅ Documented Methods Only
+### Documented Methods Only
 - All telemetry methods are **publicly documented**
 - Uses **official game APIs** where available
 - Follows **manufacturer recommendations**
 - No reverse engineering or undocumented interfaces
 
-### ✅ Process Isolation
+### Process Isolation
 - **Separate processes** for different components
 - **Clear process boundaries** with defined interfaces
 - **No shared memory** between service and games
 - **Standard IPC mechanisms** only
 
-### ✅ Signed and Verified
-- All executables are **digitally signed**
-- **Code signing certificates** from trusted authorities
+### Signing and Integrity (planned)
+- All executables **will be** digitally signed (not yet implemented)
+- **Code signing certificates** from trusted authorities (planned)
 - **Integrity verification** at startup
 - **Tamper detection** mechanisms
 
@@ -85,28 +88,28 @@ The Racing Wheel Software is designed from the ground up to be fully compatible 
 - **Method:** Official iRacing SDK shared memory
 - **Files Modified:** `app.ini` (with user consent)
 - **Process Interaction:** None
-- **Anti-Cheat Status:** ✅ Fully Compatible
+- **Anti-Cheat Status:** Designed for compatibility (not validated)
 - **Notes:** Uses documented telemetry interface provided by iRacing
 
 ### Assetto Corsa Competizione (ACC)
 - **Method:** UDP telemetry broadcast
 - **Files Modified:** `broadcasting.json` (with user consent)
 - **Process Interaction:** None
-- **Anti-Cheat Status:** ✅ Fully Compatible
+- **Anti-Cheat Status:** Designed for compatibility (not validated)
 - **Notes:** Uses official ACC telemetry API
 
 ### Automobilista 2 (AMS2)
 - **Method:** Shared memory telemetry
 - **Files Modified:** None
 - **Process Interaction:** None
-- **Anti-Cheat Status:** ✅ Fully Compatible
+- **Anti-Cheat Status:** Designed for compatibility (not validated)
 - **Notes:** Read-only access to documented shared memory
 
 ### rFactor 2
 - **Method:** Plugin-based telemetry (planned)
 - **Files Modified:** Plugin installation only
 - **Process Interaction:** None
-- **Anti-Cheat Status:** ✅ Fully Compatible
+- **Anti-Cheat Status:** Designed for compatibility (not validated)
 - **Notes:** Uses official rFactor 2 plugin API
 
 ## System APIs Used
@@ -132,10 +135,10 @@ The Racing Wheel Software is designed from the ground up to be fully compatible 
 ## Security Measures
 
 ### Code Integrity
-- **Digital Signatures:** All executables signed with valid certificates
-- **Hash Verification:** Runtime integrity checking
+- **Digital Signatures:** Planned for all executables (not yet implemented)
+- **Hash Verification:** Runtime integrity checking (implemented)
 - **Tamper Detection:** Detects and prevents code modification
-- **Update Verification:** Signed updates with rollback capability
+- **Update Verification:** Signed updates with rollback capability (planned)
 
 ### Privilege Separation
 - **Minimal Privileges:** Runs with least required privileges
@@ -152,32 +155,32 @@ The Racing Wheel Software is designed from the ground up to be fully compatible 
 ## Anti-Cheat System Compatibility
 
 ### BattlEye
-- **Status:** ✅ Compatible
+- **Status:** Designed for compatibility (not validated)
 - **Reason:** No process injection, documented methods only
-- **Verification:** Uses whitelisted system APIs only
+- **Rationale:** Uses whitelisted system APIs only
 
 ### Easy Anti-Cheat (EAC)
-- **Status:** ✅ Compatible
+- **Status:** Designed for compatibility (not validated)
 - **Reason:** No kernel components, standard user-mode operation
-- **Verification:** No flagged behaviors or techniques
+- **Rationale:** No flagged behaviors or techniques
 
 ### Valve Anti-Cheat (VAC)
-- **Status:** ✅ Compatible
+- **Status:** Designed for compatibility (not validated)
 - **Reason:** No memory modification, external communication only
-- **Verification:** Uses Steam-approved telemetry methods
+- **Rationale:** Uses Steam-approved telemetry methods
 
 ### Custom Anti-Cheat Systems
-- **Status:** ✅ Generally Compatible
+- **Status:** Designed for compatibility (not validated)
 - **Reason:** Conservative approach using only documented methods
-- **Verification:** Open source code available for audit
+- **Rationale:** Open source code available for audit
 
 ## Verification Methods
 
 ### Static Analysis
 - **Code Review:** All source code is open source and auditable
-- **Dependency Audit:** All third-party dependencies verified
+- **Dependency Audit:** All third-party dependencies auditable
 - **API Usage:** Only whitelisted system APIs used
-- **Signature Verification:** All binaries cryptographically signed
+- **Signature Verification:** Planned (binaries not yet signed)
 
 ### Runtime Analysis
 - **Process Monitoring:** No suspicious process behavior
@@ -203,13 +206,13 @@ If the software is incorrectly flagged by an anti-cheat system:
 
 ### Continuous Monitoring
 - **Anti-Cheat Updates:** Monitor for anti-cheat system changes
-- **Compatibility Testing:** Regular testing with major anti-cheat systems
+- **Compatibility Testing:** Planned (not yet conducted)
 - **Community Feedback:** Track user reports of compatibility issues
-- **Proactive Communication:** Maintain relationships with anti-cheat vendors
+- **Proactive Communication:** Planned
 
 ## Conclusion
 
-The Racing Wheel Software is designed with anti-cheat compatibility as a primary concern. By using only documented, legitimate methods and avoiding any techniques commonly associated with cheating software, we ensure compatibility with all major anti-cheat systems.
+The Racing Wheel Software is designed with anti-cheat compatibility as a primary concern. By using only documented, legitimate methods and avoiding any techniques commonly associated with cheating software, the architecture is designed to avoid behaviors commonly flagged by anti-cheat systems.
 
 The software's open-source nature, comprehensive documentation, and conservative technical approach provide transparency and verifiability that anti-cheat systems require.
 
