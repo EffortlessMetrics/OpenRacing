@@ -267,7 +267,7 @@ fn create_test_haptics_config() -> HapticsConfig {
 
 /// Check if running under coverage instrumentation
 fn running_under_coverage() -> bool {
-    std::env::var_os("LLVM_PROFILE_FILE").is_some() || std::env::var_os("CARGO_LLVM_COV").is_some()
+    std::env::var_os("LLVM_PROFILE_FILE").is_some()
 }
 
 #[cfg(test)]
