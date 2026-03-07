@@ -1031,8 +1031,18 @@ mod timing_guarantees {
 
     /// Check if timing guarantees should be skipped (coverage or shared CI)
     fn skip_timing_guarantees() -> bool {
-        std::env::var_os("LLVM_PROFILE_FILE").is_some()
-            || std::env::var_os("OPENRACING_SKIP_TIMING_GUARANTEES").is_some()
+        if std::env::var_os("LLVM_PROFILE_FILE").is_some() {
+            return true;
+        }
+
+        std::env::var("OPENRACING_SKIP_TIMING_GUARANTEES")
+            .map(|v| {
+                matches!(
+                    v.trim().to_ascii_lowercase().as_str(),
+                    "1" | "true" | "yes" | "on"
+                )
+            })
+            .unwrap_or(false)
     }
 
     fn measure_parse(adapter: &dyn TelemetryAdapter, data: &[u8]) -> TestResult {

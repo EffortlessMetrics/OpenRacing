@@ -880,8 +880,6 @@ jobs:
           cargo build --workspace --exclude racing-wheel-ui --no-default-features --locked
 
       - name: Run comprehensive test suite
-        env:
-          OPENRACING_SKIP_TIMING_GUARANTEES: "1"
         run: cargo test --workspace --exclude racing-wheel-ui --locked
 
       - name: Ensure tests did not mutate profile fixtures
