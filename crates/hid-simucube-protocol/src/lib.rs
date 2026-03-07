@@ -91,6 +91,7 @@ pub use effects::{
     encode_set_effect, encode_set_envelope, encode_set_periodic, encode_set_ramp_force,
     parse_block_load,
 };
+pub use ids::product_ids;
 pub use ids::*;
 pub use input::*;
 pub use output::*;

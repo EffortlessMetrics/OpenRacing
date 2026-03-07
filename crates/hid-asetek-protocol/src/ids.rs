@@ -150,6 +150,19 @@ pub fn is_asetek_device(vendor_id: u16) -> bool {
     vendor_id == ASETEK_VENDOR_ID
 }
 
+pub mod product_ids {
+    use super::AsetekModel;
+
+    pub const INVICTA: u16 = super::ASETEK_INVICTA_PID;
+    pub const FORTE: u16 = super::ASETEK_FORTE_PID;
+    pub const LA_PRIMA: u16 = super::ASETEK_LAPRIMA_PID;
+    pub const TONY_KANAAN: u16 = super::ASETEK_TONY_KANAAN_PID;
+
+    pub fn model_from_product_id(pid: u16) -> AsetekModel {
+        AsetekModel::from_product_id(pid)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

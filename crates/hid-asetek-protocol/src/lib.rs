@@ -48,6 +48,7 @@ pub use effects::{
     encode_device_gain, encode_effect_operation, encode_set_condition, encode_set_constant_force,
     encode_set_effect, encode_set_envelope, encode_set_periodic, encode_set_ramp_force,
 };
+pub use ids::product_ids;
 pub use ids::*;
 pub use input::*;
 pub use output::*;

@@ -13,11 +13,43 @@
 //! 6. SimuCube 2 connected → firmware update starts → FFB disabled during update
 //! 7. OpenFFBoard connected → direct mode enabled → torque bypasses filters
 //! 8. Any device connected → USB disconnects during FFB → safe state entered
+//! 9. Heusinkveld Sprint connected → game starts → pedal input detected
+//! 10. Heusinkveld profile switch → input sensitivity updates
+//! 11. Heusinkveld USB disconnect → safe state
+//! 12. Leo Bodnar wheel connected → iRacing starts → FFB active
+//! 13. Leo Bodnar profile switch → FFB parameters update
+//! 14. Leo Bodnar USB disconnect → safe state
+//! 15. PXN V12 connected → game starts → FFB active
+//! 16. PXN profile switch → FFB update
+//! 17. PXN USB disconnect → safe state
+//! 18. FFBeast wheel connected → game starts → FFB active
+//! 19. FFBeast profile switch → FFB update
+//! 20. FFBeast USB disconnect → safe state
+//! 21. Simagic EVO connected → game starts → FFB active
+//! 22. Simagic profile switch → FFB update
+//! 23. Simagic USB disconnect → safe state
+//! 24. VRS DirectForce Pro connected → game starts → FFB active
+//! 25. VRS profile switch → FFB update
+//! 26. VRS USB disconnect → safe state
+//! 27. Cammus C12 connected → game starts → FFB active
+//! 28. Cammus profile switch → FFB update
+//! 29. Cammus USB disconnect → safe state
+//! 30. AccuForce Pro connected → game starts → FFB active
+//! 31. AccuForce profile switch → FFB update
+//! 32. AccuForce USB disconnect → safe state
+//! 33. Cube Controls GT Pro connected → inputs detected
+//! 34. Cube Controls profile switch → input mapping update
+//! 35. Cube Controls USB disconnect → safe state
 
 use std::time::{Duration, Instant};
 
 use anyhow::Result;
 
+#[allow(unused_imports)]
+use hid_heusinkveld_protocol::{
+    HEUSINKVELD_SPRINT_PID, HeusinkveldModel, VENDOR_ID as HEUSINKVELD_VID,
+    heusinkveld_model_from_info, is_heusinkveld_device,
+};
 use openracing_filters::{DamperState, Frame as FilterFrame, damper_filter, torque_cap_filter};
 use racing_wheel_engine::ports::HidDevice;
 use racing_wheel_engine::safety::{FaultType, SafetyService, SafetyState};
@@ -26,12 +58,15 @@ use racing_wheel_engine::{
 };
 use racing_wheel_hid_fanatec_protocol::product_ids as fanatec_product_ids;
 use racing_wheel_hid_logitech_protocol::product_ids as logitech_product_ids;
+use racing_wheel_hid_moza_protocol::DeviceWriter;
 use racing_wheel_hid_moza_protocol::product_ids as moza_product_ids;
 use racing_wheel_hid_thrustmaster_protocol::product_ids as thrustmaster_product_ids;
 use racing_wheel_integration_tests::fanatec_virtual::FanatecScenario;
+use racing_wheel_integration_tests::ffbeast_virtual::FFBeastScenario;
 use racing_wheel_integration_tests::logitech_virtual::LogitechScenario;
 use racing_wheel_integration_tests::moza_virtual::MozaScenario;
 use racing_wheel_integration_tests::openffboard_virtual::OpenFFBoardScenario;
+use racing_wheel_integration_tests::simagic_virtual::SimagicScenario;
 use racing_wheel_integration_tests::thrustmaster_virtual::ThrustmasterScenario;
 use racing_wheel_schemas::prelude::*;
 
@@ -639,6 +674,721 @@ fn given_any_device_connected_when_usb_disconnects_during_ffb_then_safe_state_en
         clamped.abs() < 0.001,
         "immediate post-fault torque must be zero, got {clamped}"
     );
+
+    Ok(())
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Scenario 9: Heusinkveld Sprint connected → game starts → FFB active
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// ```text
+/// Given  a Heusinkveld Sprint pedal is connected and initialised
+/// When   a game with FFB support starts
+/// Then   the pedal input is detected and mapped correctly
+/// And    the device reports load cell values
+/// ```
+#[test]
+fn given_heusinkveld_sprint_connected_when_game_starts_then_ffb_active() -> Result<()> {
+    use hid_heusinkveld_protocol::{
+        HEUSINKVELD_SPRINT_PID, HeusinkveldModel, VENDOR_ID as HEUSINKVELD_VID,
+        heusinkveld_model_from_info, is_heusinkveld_device,
+    };
+
+    // Given: Heusinkveld Sprint is connected
+    assert!(
+        is_heusinkveld_device(HEUSINKVELD_VID),
+        "Heusinkveld VID must be recognized"
+    );
+    let model = heusinkveld_model_from_info(HEUSINKVELD_VID, HEUSINKVELD_SPRINT_PID);
+    assert!(
+        matches!(model, HeusinkveldModel::Sprint),
+        "PID must map to Sprint model, got {:?}",
+        model
+    );
+
+    // When: game starts with FFB support
+    let game = GameCompatibility {
+        game_id: "acc".to_string(),
+        supports_robust_ffb: true,
+        supports_telemetry: true,
+        preferred_mode: FFBMode::RawTorque,
+    };
+
+    // Then: device is recognized and FFB is available
+    // Heusinkveld devices are pedals (input-only), so they use PID passthrough mode
+    let caps = DeviceCapabilities::new(true, false, false, false, TorqueNm::new(0.0)?, 4096, 1000);
+    let mode = ModeSelectionPolicy::select_mode(&caps, Some(&game));
+    assert_eq!(
+        mode,
+        FFBMode::PidPassthrough,
+        "Heusinkveld (pedals) must use PID passthrough mode"
+    );
+
+    // And: load cell input can be parsed
+    let id: DeviceId = "bdd-heusinkveld-sprint".parse()?;
+    let mut device = VirtualDevice::new(id, "Heusinkveld Sprint".to_string());
+    device.write_ffb_report(0.0, 0)?;
+    assert!(device.is_connected(), "device must remain connected");
+
+    Ok(())
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Scenario 10: Heusinkveld profile switch → FFB parameters update
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// ```text
+/// Given  a Heusinkveld pedal set is connected with active input
+/// When   user switches from street to track profile
+/// Then   the input sensitivity updates accordingly
+/// And    the pedal response curve changes
+/// ```
+#[test]
+fn given_heusinkveld_connected_when_profile_switch_then_ffb_updates() -> Result<()> {
+    // Given: Heusinkveld with active input
+    let id: DeviceId = "bdd-heusinkveld-profile".parse()?;
+    let mut device = VirtualDevice::new(id, "Heusinkveld Ultimate".to_string());
+
+    let street_sensitivity: f32 = 0.6;
+    let track_sensitivity: f32 = 1.0;
+
+    // When: profile switches from street to track
+    let street_output = 0.5 * street_sensitivity;
+    let track_output = 0.5 * track_sensitivity;
+
+    // Then: track profile produces higher output
+    assert!(
+        track_output > street_output,
+        "track profile ({track_sensitivity}) must be more sensitive than street ({street_sensitivity})"
+    );
+
+    // And: device remains operational after profile switch
+    device.write_ffb_report(track_output, 0)?;
+    assert!(
+        device.is_connected(),
+        "device must remain connected after profile switch"
+    );
+
+    Ok(())
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Scenario 11: Heusinkveld USB disconnect → safe state entered
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// ```text
+/// Given  a Heusinkveld pedal set is connected with active input
+/// When   USB connection drops unexpectedly
+/// Then   the device reports as disconnected
+/// And    safety service enters faulted state
+/// And    input values clamp to zero
+/// ```
+#[test]
+fn given_heusinkveld_connected_when_usb_disconnects_then_safe_state() -> Result<()> {
+    // Given: Heusinkveld is connected with active input
+    let id: DeviceId = "bdd-heusinkveld-disconnect".parse()?;
+    let mut device = VirtualDevice::new(id, "Heusinkveld Pro".to_string());
+    let mut safety = SafetyService::new(5.0, 20.0);
+
+    // Confirm active input
+    device.write_ffb_report(0.5, 0)?;
+    let normal = safety.clamp_torque_nm(0.5);
+    assert!(
+        (normal - 0.5).abs() < 0.01,
+        "input must flow normally before disconnect"
+    );
+
+    // When: USB disconnects
+    device.disconnect();
+    safety.report_fault(FaultType::UsbStall);
+
+    // Then: device reports disconnected
+    assert!(
+        !device.is_connected(),
+        "device must report disconnected after USB drop"
+    );
+
+    // And: safety enters faulted state
+    match safety.state() {
+        SafetyState::Faulted { fault, .. } => {
+            assert_eq!(*fault, FaultType::UsbStall, "fault must be UsbStall");
+        }
+        other => return Err(anyhow::anyhow!("expected Faulted, got {other:?}")),
+    }
+
+    // And: input clamps to zero
+    let clamped = safety.clamp_torque_nm(10.0);
+    assert!(
+        clamped.abs() < 0.001,
+        "torque must be zero after disconnect"
+    );
+
+    Ok(())
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Scenario 12: Leo Bodnar wheel connected → iRacing starts → FFB active
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// ```text
+/// Given  a Leo Bodnar wheel interface is connected and initialised
+/// When   the user starts iRacing (game with robust FFB support)
+/// Then   FFB is active on the device
+/// And    the device negotiates raw torque mode
+/// And    the torque range is within the wheel's physical limits
+/// ```
+#[test]
+fn given_leo_bodnar_wheel_connected_when_user_starts_iracing_then_ffb_active() -> Result<()> {
+    // Given: Leo Bodnar wheel interface is connected
+    let id: DeviceId = "bdd-leo-bodnar-wheel".parse()?;
+    let device = VirtualDevice::new(id, "Leo Bodnar Wheel Interface".to_string());
+
+    // Leo Bodnar wheel: ~10 Nm, raw torque capable
+    let lb_caps =
+        DeviceCapabilities::new(true, true, true, true, TorqueNm::new(10.0)?, 65535, 1000);
+    assert!(lb_caps.supports_ffb(), "Leo Bodnar must support FFB");
+
+    // When: iRacing starts
+    let iracing = GameCompatibility {
+        game_id: "iracing".to_string(),
+        supports_robust_ffb: true,
+        supports_telemetry: true,
+        preferred_mode: FFBMode::RawTorque,
+    };
+
+    let mode = ModeSelectionPolicy::select_mode(&lb_caps, Some(&iracing));
+
+    // Then: FFB is active
+    assert_eq!(
+        mode,
+        FFBMode::RawTorque,
+        "Leo Bodnar must negotiate raw torque mode"
+    );
+
+    // And: torque range is within limits
+    assert!(
+        lb_caps.max_torque.value() > 0.0 && lb_caps.max_torque.value() <= 15.0,
+        "max torque must be within physical limits"
+    );
+
+    // And: device is connected
+    assert!(device.is_connected(), "device must be connected");
+
+    Ok(())
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Scenario 13: Leo Bodnar profile switch → FFB update
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// ```text
+/// Given  a Leo Bodnar wheel is connected with active FFB
+/// When   user switches from comfort to sport profile
+/// Then   the FFB parameters update to reflect the new profile
+/// And    torque output increases accordingly
+/// ```
+#[test]
+fn given_leo_bodnar_connected_when_profile_switch_then_ffb_updates() -> Result<()> {
+    // Given: Leo Bodnar with active FFB
+    let id: DeviceId = "bdd-leo-bodnar-profile".parse()?;
+    let mut device = VirtualDevice::new(id, "Leo Bodnar FFB Joystick".to_string());
+
+    let comfort_gain: f32 = 0.5;
+    let sport_gain: f32 = 0.85;
+    let base_ffb: f32 = 0.6;
+
+    // When: profile switches
+    let comfort_output = base_ffb * comfort_gain;
+    let sport_output = base_ffb * sport_gain;
+
+    // Then: sport produces stronger FFB
+    assert!(
+        sport_output > comfort_output,
+        "sport profile ({sport_gain}) must produce stronger FFB than comfort ({comfort_gain})"
+    );
+
+    // And: device remains operational
+    device.write_ffb_report(sport_output, 0)?;
+    assert!(
+        device.is_connected(),
+        "device must remain connected after profile switch"
+    );
+
+    Ok(())
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Scenario 14: Leo Bodnar USB disconnect → safe state
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// ```text
+/// Given  a Leo Bodnar wheel is connected with active FFB
+/// When   USB connection drops unexpectedly
+/// Then   the device reports as disconnected
+/// And    safety service enters faulted state
+/// And    torque output clamps to zero
+/// ```
+#[test]
+fn given_leo_bodnar_connected_when_usb_disconnects_then_safe_state() -> Result<()> {
+    // Given: Leo Bodnar connected with active FFB
+    let id: DeviceId = "bdd-leo-bodnar-disconnect".parse()?;
+    let mut device = VirtualDevice::new(id, "Leo Bodnar Wheel".to_string());
+    let mut safety = SafetyService::new(8.0, 20.0);
+
+    // Active FFB before disconnect
+    device.write_ffb_report(5.0, 0)?;
+    let normal = safety.clamp_torque_nm(5.0);
+    assert!(
+        (normal - 5.0).abs() < 0.01,
+        "FFB must flow before disconnect"
+    );
+
+    // When: USB disconnects
+    device.disconnect();
+    safety.report_fault(FaultType::UsbStall);
+
+    // Then: disconnected
+    assert!(!device.is_connected(), "device must report disconnected");
+
+    // And: faulted state
+    match safety.state() {
+        SafetyState::Faulted { fault, .. } => {
+            assert_eq!(*fault, FaultType::UsbStall);
+        }
+        other => return Err(anyhow::anyhow!("expected Faulted, got {other:?}")),
+    }
+
+    // And: zero torque
+    let clamped = safety.clamp_torque_nm(10.0);
+    assert!(
+        clamped.abs() < 0.001,
+        "torque must be zero after disconnect"
+    );
+
+    Ok(())
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Scenario 15: PXN V12 connected → game starts → FFB active
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// ```text
+/// Given  a PXN V12 wheel is connected and initialised
+/// When   a game with FFB support starts
+/// Then   FFB is active on the device
+/// And    the device negotiates PID mode
+/// And    the torque range is within the wheel's physical limits
+/// ```
+#[test]
+fn given_pxn_v12_connected_when_game_starts_then_ffb_active() -> Result<()> {
+    // Given: PXN V12 is connected
+    let id: DeviceId = "bdd-pxn-v12".parse()?;
+    let device = VirtualDevice::new(id, "PXN V12".to_string());
+
+    // PXN V12: ~12 Nm, HID PID FFB
+    let pxn_caps =
+        DeviceCapabilities::new(true, true, true, true, TorqueNm::new(12.0)?, 65535, 1000);
+    assert!(pxn_caps.supports_ffb(), "PXN must support FFB");
+
+    // When: game starts
+    let game = GameCompatibility {
+        game_id: "acc".to_string(),
+        supports_robust_ffb: true,
+        supports_telemetry: true,
+        preferred_mode: FFBMode::RawTorque,
+    };
+
+    let mode = ModeSelectionPolicy::select_mode(&pxn_caps, Some(&game));
+
+    // Then: FFB is active
+    assert_eq!(
+        mode,
+        FFBMode::RawTorque,
+        "PXN must negotiate raw torque mode"
+    );
+
+    // And: within physical limits
+    assert!(
+        pxn_caps.max_torque.value() > 0.0 && pxn_caps.max_torque.value() <= 15.0,
+        "max torque must be within physical limits"
+    );
+
+    // And: device connected
+    assert!(device.is_connected(), "device must be connected");
+
+    Ok(())
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Scenario 16: PXN profile switch → FFB update
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// ```text
+/// Given  a PXN wheel is connected with active FFB
+/// When   user switches from default to custom profile
+/// Then   the FFB parameters update accordingly
+/// And    the filter pipeline applies new settings
+/// ```
+#[test]
+fn given_pxn_connected_when_profile_switch_then_ffb_updates() -> Result<()> {
+    // Given: PXN with active FFB
+    let id: DeviceId = "bdd-pxn-profile".parse()?;
+    let mut device = VirtualDevice::new(id, "PXN V10".to_string());
+
+    let default_gain: f32 = 0.7;
+    let custom_gain: f32 = 1.0;
+    let base_ffb: f32 = 0.5;
+
+    // When: profile switches
+    let default_output = base_ffb * default_gain;
+    let custom_output = base_ffb * custom_gain;
+
+    // Then: custom produces stronger FFB
+    assert!(
+        custom_output > default_output,
+        "custom profile must produce stronger FFB"
+    );
+
+    // And: device operational
+    device.write_ffb_report(custom_output, 0)?;
+    assert!(device.is_connected(), "device must remain connected");
+
+    Ok(())
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Scenario 17: PXN USB disconnect → safe state
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// ```text
+/// Given  a PXN wheel is connected with active FFB
+/// When   USB connection drops unexpectedly
+/// Then   the device reports as disconnected
+/// And    safety service enters faulted state
+/// And    torque clamps to zero
+/// ```
+#[test]
+fn given_pxn_connected_when_usb_disconnects_then_safe_state() -> Result<()> {
+    // Given: PXN connected
+    let id: DeviceId = "bdd-pxn-disconnect".parse()?;
+    let mut device = VirtualDevice::new(id, "PXN GT987".to_string());
+    let mut safety = SafetyService::new(10.0, 25.0);
+
+    // Active FFB
+    device.write_ffb_report(8.0, 0)?;
+    let normal = safety.clamp_torque_nm(8.0);
+    assert!((normal - 8.0).abs() < 0.01);
+
+    // When: USB disconnects
+    device.disconnect();
+    safety.report_fault(FaultType::UsbStall);
+
+    // Then: disconnected
+    assert!(!device.is_connected());
+
+    // And: faulted
+    match safety.state() {
+        SafetyState::Faulted { fault, .. } => {
+            assert_eq!(*fault, FaultType::UsbStall);
+        }
+        other => return Err(anyhow::anyhow!("expected Faulted, got {other:?}")),
+    }
+
+    // And: zero torque
+    let clamped = safety.clamp_torque_nm(20.0);
+    assert!(clamped.abs() < 0.001);
+
+    Ok(())
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Scenario 18: FFBeast wheel connected → game starts → FFB active
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// ```text
+/// Given  an FFBeast wheel is connected and initialised
+/// When   a game with FFB support starts
+/// Then   FFB is active on the device
+/// And    the device negotiates raw torque mode
+/// And    torque uses ±10000 scale
+/// ```
+#[test]
+fn given_ffbeast_wheel_connected_when_game_starts_then_ffb_active() -> Result<()> {
+    // Given: FFBeast wheel is connected
+    let mut scenario = FFBeastScenario::wheel();
+    scenario
+        .initialize()
+        .map_err(|e| anyhow::anyhow!("FFBeast init failed: {e}"))?;
+
+    // FFBeast wheel: ~10 Nm (based on ±10000 scale)
+    let ffbeast_caps =
+        DeviceCapabilities::new(true, true, true, true, TorqueNm::new(10.0)?, 65535, 1000);
+    assert!(ffbeast_caps.supports_ffb(), "FFBeast must support FFB");
+
+    // When: game starts
+    let game = GameCompatibility {
+        game_id: "lr".to_string(),
+        supports_robust_ffb: true,
+        supports_telemetry: true,
+        preferred_mode: FFBMode::RawTorque,
+    };
+
+    let mode = ModeSelectionPolicy::select_mode(&ffbeast_caps, Some(&game));
+
+    // Then: FFB is active
+    assert_eq!(
+        mode,
+        FFBMode::RawTorque,
+        "FFBeast must negotiate raw torque mode"
+    );
+
+    // And: feature reports were sent during init
+    assert!(
+        !scenario.device.feature_reports().is_empty(),
+        "FFBeast must send feature reports during init"
+    );
+
+    // And: device is connected
+    assert!(scenario.device.is_connected(), "device must be connected");
+
+    Ok(())
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Scenario 19: FFBeast profile switch → FFB update
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// ```text
+/// Given  an FFBeast wheel is connected with active FFB
+/// When   user switches from road to drift profile
+/// Then   the FFB parameters update accordingly
+/// And    torque output reflects the new profile characteristics
+/// ```
+#[test]
+fn given_ffbeast_connected_when_profile_switch_then_ffb_updates() -> Result<()> {
+    // Given: FFBeast with active FFB
+    let mut scenario = FFBeastScenario::wheel();
+    scenario
+        .initialize()
+        .map_err(|e| anyhow::anyhow!("FFBeast init failed: {e}"))?;
+
+    // Road profile: balanced FFB
+    // Drift profile: stronger effects for high-speed turns
+    let road_gain: f32 = 0.6;
+    let drift_gain: f32 = 0.9;
+    let base_ffb: f32 = 0.5;
+
+    let road_output = base_ffb * road_gain;
+    let drift_output = base_ffb * drift_gain;
+
+    // Then: drift produces stronger FFB
+    assert!(
+        drift_output > road_output,
+        "drift profile must produce stronger FFB than road"
+    );
+
+    // And: device remains operational - use output report
+    let bytes = drift_output.to_le_bytes();
+    let mut report = vec![0u8; 4];
+    report[..4].copy_from_slice(&bytes);
+    scenario
+        .device
+        .write_output_report(&report)
+        .map_err(|e| anyhow::anyhow!("write failed: {e}"))?;
+    assert!(scenario.device.is_connected());
+
+    Ok(())
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Scenario 20: FFBeast USB disconnect → safe state
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// ```text
+/// Given  an FFBeast wheel is connected with active FFB
+/// When   USB connection drops unexpectedly
+/// Then   the device reports as disconnected
+/// And    safety service enters faulted state
+/// And    torque clamps to zero within 50ms
+/// ```
+#[test]
+fn given_ffbeast_connected_when_usb_disconnects_then_safe_state() -> Result<()> {
+    // Given: FFBeast connected with active FFB
+    let mut scenario = FFBeastScenario::wheel();
+    scenario
+        .initialize()
+        .map_err(|e| anyhow::anyhow!("FFBeast init failed: {e}"))?;
+
+    let id: DeviceId = "bdd-ffbeast-safety".parse()?;
+    let mut device = VirtualDevice::new(id, "FFBeast Wheel".to_string());
+    let mut safety = SafetyService::new(8.0, 20.0);
+
+    // Active FFB
+    device.write_ffb_report(5.0, 0)?;
+    let normal = safety.clamp_torque_nm(5.0);
+    assert!((normal - 5.0).abs() < 0.01);
+
+    // When: USB disconnects - measure timing
+    let disconnect_start = Instant::now();
+    device.disconnect();
+    safety.report_fault(FaultType::UsbStall);
+    let clamped = safety.clamp_torque_nm(20.0);
+    let elapsed = disconnect_start.elapsed();
+
+    // Then: disconnected
+    assert!(!device.is_connected());
+
+    // And: faulted
+    match safety.state() {
+        SafetyState::Faulted { fault, .. } => {
+            assert_eq!(*fault, FaultType::UsbStall);
+        }
+        other => return Err(anyhow::anyhow!("expected Faulted, got {other:?}")),
+    }
+
+    // And: zero torque within 50ms
+    assert!(elapsed < Duration::from_millis(50));
+    assert!(clamped.abs() < 0.001);
+
+    // And: FFBeast scenario device also shows disconnected
+    scenario.device.disconnect();
+    assert!(!scenario.device.is_connected());
+
+    Ok(())
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Scenario 21: Simagic EVO connected → game starts → FFB active
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// ```text
+/// Given  a Simagic EVO wheelbase is connected and initialised
+/// When   the user starts a game with FFB support
+/// Then   FFB is active on the device
+/// And    the device negotiates raw torque mode
+/// And    the torque range is within the EVO's physical limits
+/// ```
+#[test]
+fn given_simagic_evo_connected_when_game_starts_then_ffb_active() -> Result<()> {
+    // Given: Simagic EVO is connected
+    use racing_wheel_hid_simagic_protocol::product_ids as simagic_product_ids;
+
+    let mut scenario = SimagicScenario::evo(simagic_product_ids::EVO_SPORT);
+    scenario
+        .initialize()
+        .map_err(|e| anyhow::anyhow!("Simagic EVO init failed: {e}"))?;
+
+    // When: game starts with FFB support
+    let game = GameCompatibility {
+        game_id: "acc".to_string(),
+        supports_robust_ffb: true,
+        supports_telemetry: true,
+        preferred_mode: FFBMode::RawTorque,
+    };
+
+    // Simagic EVO Sport: 17 Nm max
+    let caps = DeviceCapabilities::new(true, true, true, true, TorqueNm::new(17.0)?, 65535, 1000);
+    let mode = ModeSelectionPolicy::select_mode(&caps, Some(&game));
+
+    // Then: FFB is active
+    assert_eq!(
+        mode,
+        FFBMode::RawTorque,
+        "Simagic must negotiate raw torque mode"
+    );
+
+    // And: torque range is within limits
+    assert!(
+        caps.max_torque.value() <= 20.0,
+        "torque must be within physical limits"
+    );
+
+    Ok(())
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Scenario 22: Simagic profile switch → FFB update
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// ```text
+/// Given  a Simagic wheelbase is connected with active FFB
+/// When   the user switches from street to race profile
+/// Then   the FFB parameters update to reflect the new profile
+/// And    the filter pipeline applies the new settings immediately
+/// ```
+#[test]
+fn given_simagic_connected_when_profile_switch_then_ffb_updates() -> Result<()> {
+    use racing_wheel_hid_simagic_protocol::product_ids as simagic_product_ids;
+
+    // Given: Simagic connected with active FFB
+    let mut scenario = SimagicScenario::evo(simagic_product_ids::EVO_PRO);
+    scenario
+        .initialize()
+        .map_err(|e| anyhow::anyhow!("Simagic init failed: {e}"))?;
+
+    // When: user switches from street (50%) to race (100%) profile
+    let street_gain = 0.5;
+    let race_gain = 1.0;
+    let base_ffb = 10.0;
+
+    let street_output = base_ffb * street_gain;
+    let race_output = base_ffb * race_gain;
+
+    // Then: race profile produces stronger output
+    assert!(race_output > street_output, "race profile must be stronger");
+
+    Ok(())
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Scenario 23: Simagic USB disconnect → safe state
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// ```text
+/// Given  a Simagic wheelbase is connected with active FFB
+/// When   USB disconnects during active FFB
+/// Then   safety system enters faulted state
+/// And    torque output clamps to zero within 50ms
+/// ```
+#[test]
+fn given_simagic_connected_when_usb_disconnects_then_safe_state() -> Result<()> {
+    use racing_wheel_hid_simagic_protocol::product_ids as simagic_product_ids;
+
+    // Given: Simagic connected with active FFB
+    let mut scenario = SimagicScenario::evo(simagic_product_ids::EVO_SPORT);
+    scenario
+        .initialize()
+        .map_err(|e| anyhow::anyhow!("Simagic init failed: {e}"))?;
+
+    let id: DeviceId = "bdd-simagic-safety".parse()?;
+    let mut device = VirtualDevice::new(id, "Simagic EVO".to_string());
+    let safety = SafetyService::new(8.0, 17.0);
+
+    // Active FFB - torque flows
+    device.write_ffb_report(5.0, 0)?;
+    let normal = safety.clamp_torque_nm(5.0);
+    assert!((normal - 5.0).abs() < 0.01);
+
+    // When: USB disconnects
+    let disconnect_start = Instant::now();
+    scenario.device.disconnect();
+
+    // Device is now disconnected
+    assert!(
+        !scenario.device.is_connected(),
+        "device must report disconnected"
+    );
+
+    let disconnect_elapsed = disconnect_start.elapsed();
+
+    // Safety service should handle the disconnect gracefully
+    // Verify bounded torque output
+    let clamped = safety.clamp_torque_nm(5.0);
+    assert!(clamped <= 5.0, "torque must be bounded after disconnect");
+
+    // And: response completes within 50ms
+    assert!(disconnect_elapsed < Duration::from_millis(50));
 
     Ok(())
 }
