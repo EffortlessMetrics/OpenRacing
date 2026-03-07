@@ -14,8 +14,11 @@
 #![deny(clippy::print_stdout)]
 
 pub mod acceptance;
+pub mod accuforce_virtual;
 pub mod asetek_virtual;
+pub mod cammus_virtual;
 pub mod common;
+pub mod cube_controls_virtual;
 pub mod fanatec_virtual;
 pub mod ffbeast_virtual;
 pub mod fixtures;
@@ -31,6 +34,7 @@ pub mod soak;
 pub mod stress;
 pub mod thrustmaster_virtual;
 pub mod user_journeys;
+pub mod vrs_virtual;
 
 use anyhow::Result;
 use std::time::Duration;

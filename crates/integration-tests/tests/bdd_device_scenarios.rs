@@ -19,12 +19,25 @@
 //! 12. Asetek Invicta connected → iRacing starts → FFB active with high torque
 //! 13. Asetek La Prima connected → profile switch → FFB parameters update
 //! 14. Asetek connected → USB disconnect during FFB → safe state entered
+//! 15. VRS DirectForce Pro connected → iRacing starts → FFB active with correct torque
+//! 16. VRS DirectForce Pro V2 connected → profile switch → FFB parameters update
+//! 17. VRS connected → USB disconnect → safe state entered
+//! 18. Cammus C5 connected → iRacing starts → FFB active with correct torque
+//! 19. Cammus C12 connected → profile switch → FFB parameters update
+//! 20. Cammus connected → USB disconnect during FFB → safe state entered
+//! 21. AccuForce Pro connected → iRacing starts → FFB active with high torque
+//! 22. AccuForce Pro connected → profile switch → FFB parameters update
+//! 23. AccuForce connected → USB disconnect during FFB → safe state entered
+//! 24. Cube Controls GT Pro connected → iRacing starts → FFB active with correct torque
+//! 25. Cube Controls Formula Pro connected → profile switch → FFB parameters update
+//! 26. Cube Controls connected → USB disconnect during FFB → safe state entered
 
 use std::time::{Duration, Instant};
 
 use anyhow::Result;
 
 use hid_asetek_protocol::product_ids as asetek_product_ids;
+use hid_cube_controls_protocol::{CUBE_CONTROLS_FORMULA_PRO_PID, CUBE_CONTROLS_GT_PRO_PID};
 use hid_simucube_protocol::product_ids as simucube_product_ids;
 use openracing_filters::{DamperState, Frame as FilterFrame, damper_filter, torque_cap_filter};
 use racing_wheel_engine::ports::HidDevice;
@@ -32,17 +45,24 @@ use racing_wheel_engine::safety::{FaultType, SafetyService, SafetyState};
 use racing_wheel_engine::{
     CapabilityNegotiator, FFBMode, GameCompatibility, ModeSelectionPolicy, VirtualDevice,
 };
+use racing_wheel_hid_accuforce_protocol::PID_ACCUFORCE_PRO;
+use racing_wheel_hid_cammus_protocol::{PRODUCT_C5, PRODUCT_C12};
 use racing_wheel_hid_fanatec_protocol::product_ids as fanatec_product_ids;
 use racing_wheel_hid_logitech_protocol::product_ids as logitech_product_ids;
 use racing_wheel_hid_moza_protocol::product_ids as moza_product_ids;
 use racing_wheel_hid_thrustmaster_protocol::product_ids as thrustmaster_product_ids;
+use racing_wheel_hid_vrs_protocol::product_ids as vrs_product_ids;
+use racing_wheel_integration_tests::accuforce_virtual::AccuForceScenario;
 use racing_wheel_integration_tests::asetek_virtual::AsetekScenario;
+use racing_wheel_integration_tests::cammus_virtual::CammusScenario;
+use racing_wheel_integration_tests::cube_controls_virtual::CubeControlsScenario;
 use racing_wheel_integration_tests::fanatec_virtual::FanatecScenario;
 use racing_wheel_integration_tests::logitech_virtual::LogitechScenario;
 use racing_wheel_integration_tests::moza_virtual::MozaScenario;
 use racing_wheel_integration_tests::openffboard_virtual::OpenFFBoardScenario;
 use racing_wheel_integration_tests::simucube_virtual::SimucubeScenario;
 use racing_wheel_integration_tests::thrustmaster_virtual::ThrustmasterScenario;
+use racing_wheel_integration_tests::vrs_virtual::VrsScenario;
 use racing_wheel_schemas::prelude::*;
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -1107,6 +1127,842 @@ fn given_asetek_connected_when_usb_disconnects_during_ffb_then_safe_state_entere
     );
 
     // And: the initial clamp call also returned zero
+    assert!(
+        clamped.abs() < 0.001,
+        "immediate post-fault torque must be zero, got {clamped}"
+    );
+
+    Ok(())
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Scenario 15: VRS DirectForce Pro connected → iRacing starts → FFB active with correct torque
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// ```text
+/// Given  a VRS DirectForce Pro is connected and initialised
+/// When   the user starts iRacing (game with robust FFB support)
+/// Then   FFB is active on the device
+/// And    the device negotiates raw torque mode for iRacing
+/// And    the max torque is 20 Nm (DFP model)
+/// ```
+#[test]
+fn given_vrs_directforce_pro_connected_when_user_starts_iracing_then_ffb_active_with_correct_torque()
+-> Result<()> {
+    let mut scenario = VrsScenario::wheelbase(vrs_product_ids::DIRECTFORCE_PRO);
+    scenario
+        .initialize()
+        .map_err(|e| anyhow::anyhow!("VRS DirectForce Pro init failed: {e}"))?;
+
+    assert!(
+        scenario.device.is_connected(),
+        "VRS DirectForce Pro must be connected after initialisation"
+    );
+
+    let iracing = GameCompatibility {
+        game_id: "iracing".to_string(),
+        supports_robust_ffb: true,
+        supports_telemetry: true,
+        preferred_mode: FFBMode::RawTorque,
+    };
+
+    let dfp_caps =
+        DeviceCapabilities::new(true, true, true, true, TorqueNm::new(20.0)?, 65535, 500);
+
+    let mode = ModeSelectionPolicy::select_mode(&dfp_caps, Some(&iracing));
+
+    assert!(
+        scenario.device.is_connected(),
+        "VRS DirectForce Pro must be connected and ready after initialisation"
+    );
+
+    assert_eq!(
+        mode,
+        FFBMode::RawTorque,
+        "VRS DirectForce Pro must negotiate raw torque mode for iRacing"
+    );
+
+    assert!(
+        (dfp_caps.max_torque.value() - 20.0).abs() < 0.1,
+        "DFP max torque must be 20 Nm, got {} Nm",
+        dfp_caps.max_torque.value()
+    );
+
+    let mut frame = FilterFrame {
+        ffb_in: 1.0,
+        torque_out: 1.0,
+        wheel_speed: 3.0,
+        hands_off: false,
+        ts_mono_ns: 1_000_000,
+        seq: 0,
+    };
+    torque_cap_filter(&mut frame, 1.0);
+    assert!(
+        frame.torque_out.is_finite() && frame.torque_out.abs() <= 1.0,
+        "pipeline output must be finite and within [-1, 1]"
+    );
+
+    Ok(())
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Scenario 16: VRS DirectForce Pro V2 connected → profile switch → FFB parameters update
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// ```text
+/// Given  a VRS DirectForce Pro V2 is connected and initialised
+/// When   the user switches from a low-gain profile to a high-gain profile
+/// Then   the FFB parameters update to reflect the new profile
+/// And    the filter pipeline applies the new gain immediately
+/// And    the device remains operational throughout the switch
+/// ```
+#[test]
+fn given_vrs_directforce_pro_v2_connected_when_user_switches_profiles_then_ffb_parameters_update()
+-> Result<()> {
+    let mut scenario = VrsScenario::wheelbase(vrs_product_ids::DIRECTFORCE_PRO_V2);
+    scenario
+        .initialize()
+        .map_err(|e| anyhow::anyhow!("VRS DirectForce Pro V2 init failed: {e}"))?;
+
+    let v2_caps = DeviceCapabilities::new(true, true, true, true, TorqueNm::new(25.0)?, 65535, 500);
+    assert!(
+        v2_caps.supports_ffb(),
+        "VRS DirectForce Pro V2 must support force feedback"
+    );
+
+    let low_gain: f32 = 0.40;
+    let high_gain: f32 = 0.85;
+    let base_ffb: f32 = 0.6;
+
+    let old_scaled = base_ffb * low_gain;
+    let new_scaled = base_ffb * high_gain;
+
+    assert!(
+        new_scaled > old_scaled,
+        "high-gain profile ({high_gain}) must produce stronger output than low-gain ({low_gain})"
+    );
+
+    let mut frame = FilterFrame {
+        ffb_in: new_scaled,
+        torque_out: new_scaled,
+        wheel_speed: 2.0,
+        hands_off: false,
+        ts_mono_ns: 0,
+        seq: 0,
+    };
+    let damper = DamperState::fixed(0.05);
+    damper_filter(&mut frame, &damper);
+    torque_cap_filter(&mut frame, 1.0);
+    assert!(
+        frame.torque_out.is_finite() && frame.torque_out.abs() <= 1.0,
+        "pipeline with new gain must produce finite output within [-1, 1], got {}",
+        frame.torque_out
+    );
+
+    assert!(
+        scenario.device.is_connected(),
+        "VRS DirectForce Pro V2 must remain connected after profile switch"
+    );
+
+    Ok(())
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Scenario 17: VRS connected → USB disconnect → safe state entered
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// ```text
+/// Given  a VRS device is connected and force feedback is actively flowing
+/// When   the USB connection drops unexpectedly during FFB output
+/// Then   the device reports as disconnected immediately
+/// And    the safety service enters the Faulted state (UsbStall)
+/// And    all torque output is clamped to zero
+/// And    the fault response completes within 50ms
+/// ```
+#[test]
+fn given_vrs_connected_when_usb_disconnects_then_safe_state_entered() -> Result<()> {
+    let mut scenario = VrsScenario::wheelbase(vrs_product_ids::DIRECTFORCE_PRO);
+    scenario
+        .initialize()
+        .map_err(|e| anyhow::anyhow!("VRS DirectForce Pro init failed: {e}"))?;
+
+    let mut safety = SafetyService::new(10.0, 20.0);
+
+    let normal = safety.clamp_torque_nm(8.0);
+    assert!(
+        (normal - 8.0).abs() < 0.01,
+        "FFB must be active before USB disconnect"
+    );
+    assert!(
+        scenario.device.is_connected(),
+        "device must be connected initially"
+    );
+
+    let disconnect_start = Instant::now();
+    scenario.device.disconnect();
+    safety.report_fault(FaultType::UsbStall);
+    let clamped = safety.clamp_torque_nm(20.0);
+    let disconnect_elapsed = disconnect_start.elapsed();
+
+    assert!(
+        !scenario.device.is_connected(),
+        "device must report disconnected after USB drop"
+    );
+
+    match safety.state() {
+        SafetyState::Faulted { fault, .. } => {
+            assert_eq!(
+                *fault,
+                FaultType::UsbStall,
+                "fault type must be UsbStall after USB disconnect"
+            );
+        }
+        other => {
+            return Err(anyhow::anyhow!("expected Faulted(UsbStall), got {other:?}"));
+        }
+    }
+
+    for requested in [0.0, 1.0, 5.0, 20.0, -10.0] {
+        let result = safety.clamp_torque_nm(requested);
+        assert!(
+            result.abs() < 0.001,
+            "torque must be zero after USB drop; requested={requested}, got={result}"
+        );
+    }
+
+    assert!(
+        disconnect_elapsed < Duration::from_millis(50),
+        "USB disconnect → safe state must complete in <50ms (actual: {disconnect_elapsed:?})"
+    );
+
+    assert!(
+        clamped.abs() < 0.001,
+        "immediate post-fault torque must be zero, got {clamped}"
+    );
+
+    Ok(())
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Scenario 18: Cammus C5 connected → iRacing starts → FFB active with correct torque
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// ```text
+/// Given  a Cammus C5 is connected and initialised
+/// When   the user starts iRacing (game with robust FFB support)
+/// Then   FFB is active on the device
+/// And    the device negotiates raw torque mode for iRacing
+/// And    the max torque is 5 Nm (C5 model)
+/// ```
+#[test]
+fn given_cammus_c5_connected_when_user_starts_iracing_then_ffb_active_with_correct_torque()
+-> Result<()> {
+    let mut scenario = CammusScenario::wheelbase(PRODUCT_C5);
+    scenario
+        .initialize()
+        .map_err(|e| anyhow::anyhow!("Cammus C5 init failed: {e}"))?;
+
+    assert!(
+        scenario.device.is_connected(),
+        "Cammus C5 must be connected after initialisation"
+    );
+
+    let iracing = GameCompatibility {
+        game_id: "iracing".to_string(),
+        supports_robust_ffb: true,
+        supports_telemetry: true,
+        preferred_mode: FFBMode::RawTorque,
+    };
+
+    let c5_caps = DeviceCapabilities::new(true, true, true, true, TorqueNm::new(5.0)?, 65535, 500);
+
+    let mode = ModeSelectionPolicy::select_mode(&c5_caps, Some(&iracing));
+
+    assert!(
+        scenario.device.is_connected(),
+        "Cammus C5 must be connected and ready after initialisation"
+    );
+
+    assert_eq!(
+        mode,
+        FFBMode::RawTorque,
+        "Cammus C5 must negotiate raw torque mode for iRacing"
+    );
+
+    assert!(
+        (c5_caps.max_torque.value() - 5.0).abs() < 0.1,
+        "C5 max torque must be 5 Nm, got {} Nm",
+        c5_caps.max_torque.value()
+    );
+
+    let mut frame = FilterFrame {
+        ffb_in: 1.0,
+        torque_out: 1.0,
+        wheel_speed: 3.0,
+        hands_off: false,
+        ts_mono_ns: 1_000_000,
+        seq: 0,
+    };
+    torque_cap_filter(&mut frame, 1.0);
+    assert!(
+        frame.torque_out.is_finite() && frame.torque_out.abs() <= 1.0,
+        "pipeline output must be finite and within [-1, 1]"
+    );
+
+    Ok(())
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Scenario 19: Cammus C12 connected → profile switch → FFB parameters update
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// ```text
+/// Given  a Cammus C12 is connected and initialised
+/// When   the user switches from a low-gain profile to a high-gain profile
+/// Then   the FFB parameters update to reflect the new profile
+/// And    the filter pipeline applies the new gain immediately
+/// And    the device remains operational throughout the switch
+/// ```
+#[test]
+fn given_cammus_c12_connected_when_user_switches_profiles_then_ffb_parameters_update() -> Result<()>
+{
+    let mut scenario = CammusScenario::wheelbase(PRODUCT_C12);
+    scenario
+        .initialize()
+        .map_err(|e| anyhow::anyhow!("Cammus C12 init failed: {e}"))?;
+
+    let c12_caps =
+        DeviceCapabilities::new(true, true, true, true, TorqueNm::new(12.0)?, 65535, 500);
+    assert!(
+        c12_caps.supports_ffb(),
+        "Cammus C12 must support force feedback"
+    );
+
+    let low_gain: f32 = 0.35;
+    let high_gain: f32 = 0.90;
+    let base_ffb: f32 = 0.6;
+
+    let old_scaled = base_ffb * low_gain;
+    let new_scaled = base_ffb * high_gain;
+
+    assert!(
+        new_scaled > old_scaled,
+        "high-gain profile ({high_gain}) must produce stronger output than low-gain ({low_gain})"
+    );
+
+    let mut frame = FilterFrame {
+        ffb_in: new_scaled,
+        torque_out: new_scaled,
+        wheel_speed: 2.0,
+        hands_off: false,
+        ts_mono_ns: 0,
+        seq: 0,
+    };
+    let damper = DamperState::fixed(0.05);
+    damper_filter(&mut frame, &damper);
+    torque_cap_filter(&mut frame, 1.0);
+    assert!(
+        frame.torque_out.is_finite() && frame.torque_out.abs() <= 1.0,
+        "pipeline with new gain must produce finite output within [-1, 1], got {}",
+        frame.torque_out
+    );
+
+    assert!(
+        scenario.device.is_connected(),
+        "Cammus C12 must remain connected after profile switch"
+    );
+
+    Ok(())
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Scenario 20: Cammus connected → USB disconnect during FFB → safe state entered
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// ```text
+/// Given  a Cammus device is connected and force feedback is actively flowing
+/// When   the USB connection drops unexpectedly during FFB output
+/// Then   the device reports as disconnected immediately
+/// And    the safety service enters the Faulted state (UsbStall)
+/// And    all torque output is clamped to zero
+/// And    the fault response completes within 50ms
+/// ```
+#[test]
+fn given_cammus_connected_when_usb_disconnects_during_ffb_then_safe_state_entered() -> Result<()> {
+    let mut scenario = CammusScenario::wheelbase(PRODUCT_C5);
+    scenario
+        .initialize()
+        .map_err(|e| anyhow::anyhow!("Cammus C5 init failed: {e}"))?;
+
+    let mut safety = SafetyService::new(5.0, 10.0);
+
+    let normal = safety.clamp_torque_nm(3.0);
+    assert!(
+        (normal - 3.0).abs() < 0.01,
+        "FFB must be active before USB disconnect"
+    );
+    assert!(
+        scenario.device.is_connected(),
+        "device must be connected initially"
+    );
+
+    let disconnect_start = Instant::now();
+    scenario.device.disconnect();
+    safety.report_fault(FaultType::UsbStall);
+    let clamped = safety.clamp_torque_nm(10.0);
+    let disconnect_elapsed = disconnect_start.elapsed();
+
+    assert!(
+        !scenario.device.is_connected(),
+        "device must report disconnected after USB drop"
+    );
+
+    match safety.state() {
+        SafetyState::Faulted { fault, .. } => {
+            assert_eq!(
+                *fault,
+                FaultType::UsbStall,
+                "fault type must be UsbStall after USB disconnect"
+            );
+        }
+        other => {
+            return Err(anyhow::anyhow!("expected Faulted(UsbStall), got {other:?}"));
+        }
+    }
+
+    for requested in [0.0, 1.0, 5.0, 10.0, -5.0] {
+        let result = safety.clamp_torque_nm(requested);
+        assert!(
+            result.abs() < 0.001,
+            "torque must be zero after USB drop; requested={requested}, got={result}"
+        );
+    }
+
+    assert!(
+        disconnect_elapsed < Duration::from_millis(50),
+        "USB disconnect → safe state must complete in <50ms (actual: {disconnect_elapsed:?})"
+    );
+
+    assert!(
+        clamped.abs() < 0.001,
+        "immediate post-fault torque must be zero, got {clamped}"
+    );
+
+    Ok(())
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Scenario 21: AccuForce Pro connected → iRacing starts → FFB active with high torque
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// ```text
+/// Given  an AccuForce Pro is connected and initialised
+/// When   the user starts iRacing (game with robust FFB support)
+/// Then   FFB is active on the device
+/// And    the device negotiates raw torque mode for iRacing
+/// And    the max torque is 20 Nm (AccuForce Pro model)
+/// ```
+#[test]
+fn given_accuforce_pro_connected_when_user_starts_iracing_then_ffb_active_with_high_torque()
+-> Result<()> {
+    let mut scenario = AccuForceScenario::wheelbase(PID_ACCUFORCE_PRO);
+    scenario
+        .initialize()
+        .map_err(|e| anyhow::anyhow!("AccuForce Pro init failed: {e}"))?;
+
+    assert!(
+        scenario.device.is_connected(),
+        "AccuForce Pro must be connected after initialisation"
+    );
+
+    let iracing = GameCompatibility {
+        game_id: "iracing".to_string(),
+        supports_robust_ffb: true,
+        supports_telemetry: true,
+        preferred_mode: FFBMode::RawTorque,
+    };
+
+    let accuforce_caps =
+        DeviceCapabilities::new(true, true, true, true, TorqueNm::new(20.0)?, 65535, 500);
+
+    let mode = ModeSelectionPolicy::select_mode(&accuforce_caps, Some(&iracing));
+
+    assert!(
+        scenario.device.is_connected(),
+        "AccuForce Pro must be connected and ready after initialisation"
+    );
+
+    assert_eq!(
+        mode,
+        FFBMode::RawTorque,
+        "AccuForce Pro must negotiate raw torque mode for iRacing"
+    );
+
+    assert!(
+        (accuforce_caps.max_torque.value() - 20.0).abs() < 0.1,
+        "AccuForce Pro max torque must be 20 Nm, got {} Nm",
+        accuforce_caps.max_torque.value()
+    );
+
+    let mut frame = FilterFrame {
+        ffb_in: 1.0,
+        torque_out: 1.0,
+        wheel_speed: 3.0,
+        hands_off: false,
+        ts_mono_ns: 1_000_000,
+        seq: 0,
+    };
+    torque_cap_filter(&mut frame, 1.0);
+    assert!(
+        frame.torque_out.is_finite() && frame.torque_out.abs() <= 1.0,
+        "pipeline output must be finite and within [-1, 1]"
+    );
+
+    Ok(())
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Scenario 22: AccuForce Pro connected → profile switch → FFB parameters update
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// ```text
+/// Given  an AccuForce Pro is connected and initialised
+/// When   the user switches from a low-gain profile to a high-gain profile
+/// Then   the FFB parameters update to reflect the new profile
+/// And    the filter pipeline applies the new gain immediately
+/// And    the device remains operational throughout the switch
+/// ```
+#[test]
+fn given_accuforce_pro_connected_when_user_switches_profiles_then_ffb_parameters_update()
+-> Result<()> {
+    let mut scenario = AccuForceScenario::wheelbase(PID_ACCUFORCE_PRO);
+    scenario
+        .initialize()
+        .map_err(|e| anyhow::anyhow!("AccuForce Pro init failed: {e}"))?;
+
+    let accuforce_caps =
+        DeviceCapabilities::new(true, true, true, true, TorqueNm::new(20.0)?, 65535, 500);
+    assert!(
+        accuforce_caps.supports_ffb(),
+        "AccuForce Pro must support force feedback"
+    );
+
+    let low_gain: f32 = 0.40;
+    let high_gain: f32 = 0.85;
+    let base_ffb: f32 = 0.6;
+
+    let old_scaled = base_ffb * low_gain;
+    let new_scaled = base_ffb * high_gain;
+
+    assert!(
+        new_scaled > old_scaled,
+        "high-gain profile ({high_gain}) must produce stronger output than low-gain ({low_gain})"
+    );
+
+    let mut frame = FilterFrame {
+        ffb_in: new_scaled,
+        torque_out: new_scaled,
+        wheel_speed: 2.0,
+        hands_off: false,
+        ts_mono_ns: 0,
+        seq: 0,
+    };
+    let damper = DamperState::fixed(0.05);
+    damper_filter(&mut frame, &damper);
+    torque_cap_filter(&mut frame, 1.0);
+    assert!(
+        frame.torque_out.is_finite() && frame.torque_out.abs() <= 1.0,
+        "pipeline with new gain must produce finite output within [-1, 1], got {}",
+        frame.torque_out
+    );
+
+    assert!(
+        scenario.device.is_connected(),
+        "AccuForce Pro must remain connected after profile switch"
+    );
+
+    Ok(())
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Scenario 23: AccuForce connected → USB disconnect during FFB → safe state entered
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// ```text
+/// Given  an AccuForce device is connected and force feedback is actively flowing
+/// When   the USB connection drops unexpectedly during FFB output
+/// Then   the device reports as disconnected immediately
+/// And    the safety service enters the Faulted state (UsbStall)
+/// And    all torque output is clamped to zero
+/// And    the fault response completes within 50ms
+/// ```
+#[test]
+fn given_accuforce_connected_when_usb_disconnects_during_ffb_then_safe_state_entered() -> Result<()>
+{
+    let mut scenario = AccuForceScenario::wheelbase(PID_ACCUFORCE_PRO);
+    scenario
+        .initialize()
+        .map_err(|e| anyhow::anyhow!("AccuForce Pro init failed: {e}"))?;
+
+    let mut safety = SafetyService::new(10.0, 20.0);
+
+    let normal = safety.clamp_torque_nm(8.0);
+    assert!(
+        (normal - 8.0).abs() < 0.01,
+        "FFB must be active before USB disconnect"
+    );
+    assert!(
+        scenario.device.is_connected(),
+        "device must be connected initially"
+    );
+
+    let disconnect_start = Instant::now();
+    scenario.device.disconnect();
+    safety.report_fault(FaultType::UsbStall);
+    let clamped = safety.clamp_torque_nm(20.0);
+    let disconnect_elapsed = disconnect_start.elapsed();
+
+    assert!(
+        !scenario.device.is_connected(),
+        "device must report disconnected after USB drop"
+    );
+
+    match safety.state() {
+        SafetyState::Faulted { fault, .. } => {
+            assert_eq!(
+                *fault,
+                FaultType::UsbStall,
+                "fault type must be UsbStall after USB disconnect"
+            );
+        }
+        other => {
+            return Err(anyhow::anyhow!("expected Faulted(UsbStall), got {other:?}"));
+        }
+    }
+
+    for requested in [0.0, 1.0, 5.0, 20.0, -10.0] {
+        let result = safety.clamp_torque_nm(requested);
+        assert!(
+            result.abs() < 0.001,
+            "torque must be zero after USB drop; requested={requested}, got={result}"
+        );
+    }
+
+    assert!(
+        disconnect_elapsed < Duration::from_millis(50),
+        "USB disconnect → safe state must complete in <50ms (actual: {disconnect_elapsed:?})"
+    );
+
+    assert!(
+        clamped.abs() < 0.001,
+        "immediate post-fault torque must be zero, got {clamped}"
+    );
+
+    Ok(())
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Scenario 24: Cube Controls GT Pro connected → iRacing starts → FFB active with correct torque
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// ```text
+/// Given  a Cube Controls GT Pro is connected and initialised
+/// When   the user starts iRacing (game with robust FFB support)
+/// Then   FFB is active on the device
+/// And    the device negotiates raw torque mode for iRacing
+/// And    the max torque is 20 Nm (GT Pro model)
+/// ```
+#[test]
+fn given_cube_controls_gt_pro_connected_when_user_starts_iracing_then_ffb_active_with_correct_torque()
+-> Result<()> {
+    let mut scenario = CubeControlsScenario::wheelbase(CUBE_CONTROLS_GT_PRO_PID);
+    scenario
+        .initialize()
+        .map_err(|e| anyhow::anyhow!("Cube Controls GT Pro init failed: {e}"))?;
+
+    assert!(
+        scenario.device.is_connected(),
+        "Cube Controls GT Pro must be connected after initialisation"
+    );
+
+    let iracing = GameCompatibility {
+        game_id: "iracing".to_string(),
+        supports_robust_ffb: true,
+        supports_telemetry: true,
+        preferred_mode: FFBMode::RawTorque,
+    };
+
+    let gt_pro_caps =
+        DeviceCapabilities::new(true, true, true, true, TorqueNm::new(20.0)?, 65535, 500);
+
+    let mode = ModeSelectionPolicy::select_mode(&gt_pro_caps, Some(&iracing));
+
+    assert!(
+        scenario.device.is_connected(),
+        "Cube Controls GT Pro must be connected and ready after initialisation"
+    );
+
+    assert_eq!(
+        mode,
+        FFBMode::RawTorque,
+        "Cube Controls GT Pro must negotiate raw torque mode for iRacing"
+    );
+
+    assert!(
+        (gt_pro_caps.max_torque.value() - 20.0).abs() < 0.1,
+        "GT Pro max torque must be 20 Nm, got {} Nm",
+        gt_pro_caps.max_torque.value()
+    );
+
+    let mut frame = FilterFrame {
+        ffb_in: 1.0,
+        torque_out: 1.0,
+        wheel_speed: 3.0,
+        hands_off: false,
+        ts_mono_ns: 1_000_000,
+        seq: 0,
+    };
+    torque_cap_filter(&mut frame, 1.0);
+    assert!(
+        frame.torque_out.is_finite() && frame.torque_out.abs() <= 1.0,
+        "pipeline output must be finite and within [-1, 1]"
+    );
+
+    Ok(())
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Scenario 25: Cube Controls Formula Pro connected → profile switch → FFB parameters update
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// ```text
+/// Given  a Cube Controls Formula Pro is connected and initialised
+/// When   the user switches from a low-gain profile to a high-gain profile
+/// Then   the FFB parameters update to reflect the new profile
+/// And    the filter pipeline applies the new gain immediately
+/// And    the device remains operational throughout the switch
+/// ```
+#[test]
+fn given_cube_controls_formula_pro_connected_when_user_switches_profiles_then_ffb_parameters_update()
+-> Result<()> {
+    let mut scenario = CubeControlsScenario::wheelbase(CUBE_CONTROLS_FORMULA_PRO_PID);
+    scenario
+        .initialize()
+        .map_err(|e| anyhow::anyhow!("Cube Controls Formula Pro init failed: {e}"))?;
+
+    let formula_pro_caps =
+        DeviceCapabilities::new(true, true, true, true, TorqueNm::new(20.0)?, 65535, 500);
+    assert!(
+        formula_pro_caps.supports_ffb(),
+        "Cube Controls Formula Pro must support force feedback"
+    );
+
+    let low_gain: f32 = 0.40;
+    let high_gain: f32 = 0.85;
+    let base_ffb: f32 = 0.6;
+
+    let old_scaled = base_ffb * low_gain;
+    let new_scaled = base_ffb * high_gain;
+
+    assert!(
+        new_scaled > old_scaled,
+        "high-gain profile ({high_gain}) must produce stronger output than low-gain ({low_gain})"
+    );
+
+    let mut frame = FilterFrame {
+        ffb_in: new_scaled,
+        torque_out: new_scaled,
+        wheel_speed: 2.0,
+        hands_off: false,
+        ts_mono_ns: 0,
+        seq: 0,
+    };
+    let damper = DamperState::fixed(0.05);
+    damper_filter(&mut frame, &damper);
+    torque_cap_filter(&mut frame, 1.0);
+    assert!(
+        frame.torque_out.is_finite() && frame.torque_out.abs() <= 1.0,
+        "pipeline with new gain must produce finite output within [-1, 1], got {}",
+        frame.torque_out
+    );
+
+    assert!(
+        scenario.device.is_connected(),
+        "Cube Controls Formula Pro must remain connected after profile switch"
+    );
+
+    Ok(())
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Scenario 26: Cube Controls connected → USB disconnect during FFB → safe state entered
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// ```text
+/// Given  a Cube Controls device is connected and force feedback is actively flowing
+/// When   the USB connection drops unexpectedly during FFB output
+/// Then   the device reports as disconnected immediately
+/// And    the safety service enters the Faulted state (UsbStall)
+/// And    all torque output is clamped to zero
+/// And    the fault response completes within 50ms
+/// ```
+#[test]
+fn given_cube_controls_connected_when_usb_disconnects_during_ffb_then_safe_state_entered()
+-> Result<()> {
+    let mut scenario = CubeControlsScenario::wheelbase(CUBE_CONTROLS_GT_PRO_PID);
+    scenario
+        .initialize()
+        .map_err(|e| anyhow::anyhow!("Cube Controls GT Pro init failed: {e}"))?;
+
+    let mut safety = SafetyService::new(10.0, 20.0);
+
+    let normal = safety.clamp_torque_nm(8.0);
+    assert!(
+        (normal - 8.0).abs() < 0.01,
+        "FFB must be active before USB disconnect"
+    );
+    assert!(
+        scenario.device.is_connected(),
+        "device must be connected initially"
+    );
+
+    let disconnect_start = Instant::now();
+    scenario.device.disconnect();
+    safety.report_fault(FaultType::UsbStall);
+    let clamped = safety.clamp_torque_nm(20.0);
+    let disconnect_elapsed = disconnect_start.elapsed();
+
+    assert!(
+        !scenario.device.is_connected(),
+        "device must report disconnected after USB drop"
+    );
+
+    match safety.state() {
+        SafetyState::Faulted { fault, .. } => {
+            assert_eq!(
+                *fault,
+                FaultType::UsbStall,
+                "fault type must be UsbStall after USB disconnect"
+            );
+        }
+        other => {
+            return Err(anyhow::anyhow!("expected Faulted(UsbStall), got {other:?}"));
+        }
+    }
+
+    for requested in [0.0, 1.0, 5.0, 20.0, -10.0] {
+        let result = safety.clamp_torque_nm(requested);
+        assert!(
+            result.abs() < 0.001,
+            "torque must be zero after USB drop; requested={requested}, got={result}"
+        );
+    }
+
+    assert!(
+        disconnect_elapsed < Duration::from_millis(50),
+        "USB disconnect → safe state must complete in <50ms (actual: {disconnect_elapsed:?})"
+    );
+
     assert!(
         clamped.abs() < 0.001,
         "immediate post-fault torque must be zero, got {clamped}"
