@@ -265,6 +265,11 @@ fn create_test_haptics_config() -> HapticsConfig {
     )
 }
 
+/// Check if running under coverage instrumentation
+fn running_under_coverage() -> bool {
+    std::env::var_os("LLVM_PROFILE_FILE").is_some() || std::env::var_os("CARGO_LLVM_COV").is_some()
+}
+
 #[cfg(test)]
 mod jitter_isolation_tests {
     use super::*;
@@ -272,6 +277,11 @@ mod jitter_isolation_tests {
     #[cfg_attr(windows, ignore = "Requires RT scheduling for jitter assertions")]
     #[tokio::test]
     async fn test_baseline_ffb_jitter() {
+        if running_under_coverage() {
+            eprintln!("skipping timing-sensitive test under coverage");
+            return;
+        }
+
         // Test FFB engine alone without LED/haptics interference
         let ffb_engine = MockFfbEngine::new(1000.0); // 1kHz
 
@@ -303,6 +313,11 @@ mod jitter_isolation_tests {
     #[cfg_attr(windows, ignore = "Requires RT scheduling for jitter assertions")]
     #[tokio::test]
     async fn test_ffb_jitter_with_led_haptics_60hz() {
+        if running_under_coverage() {
+            eprintln!("skipping timing-sensitive test under coverage");
+            return;
+        }
+
         // Test FFB engine with LED/haptics running at 60Hz
         let ffb_engine = MockFfbEngine::new(1000.0); // 1kHz FFB
 
@@ -389,6 +404,11 @@ mod jitter_isolation_tests {
     #[cfg_attr(windows, ignore = "Requires RT scheduling for jitter assertions")]
     #[tokio::test]
     async fn test_ffb_jitter_with_led_haptics_200hz() {
+        if running_under_coverage() {
+            eprintln!("skipping timing-sensitive test under coverage");
+            return;
+        }
+
         // Test FFB engine with LED/haptics running at maximum 200Hz
         let ffb_engine = MockFfbEngine::new(1000.0); // 1kHz FFB
 
@@ -477,6 +497,11 @@ mod jitter_isolation_tests {
     #[cfg_attr(windows, ignore = "Requires RT scheduling for jitter assertions")]
     #[tokio::test]
     async fn test_comparative_jitter_analysis() {
+        if running_under_coverage() {
+            eprintln!("skipping timing-sensitive test under coverage");
+            return;
+        }
+
         // Compare FFB jitter with and without LED/haptics to prove isolation
 
         // Test 1: Baseline (FFB only)
@@ -589,6 +614,11 @@ mod jitter_isolation_tests {
     #[cfg_attr(windows, ignore = "Requires RT scheduling for jitter assertions")]
     #[tokio::test]
     async fn test_cpu_usage_isolation() {
+        if running_under_coverage() {
+            eprintln!("skipping timing-sensitive test under coverage");
+            return;
+        }
+
         // Test that LED/haptics don't cause excessive CPU usage that could affect FFB
         use std::sync::atomic::{AtomicU64, Ordering};
 
@@ -673,6 +703,11 @@ mod timing_validation_tests {
 
     #[tokio::test]
     async fn test_led_update_latency() {
+        if running_under_coverage() {
+            eprintln!("skipping timing-sensitive test under coverage");
+            return;
+        }
+
         // Test that LED updates happen within 20ms of telemetry input (LDH-01)
         let device_id = must(DeviceId::new("latency-test-device".to_string()));
         let led_config = create_test_led_config();
@@ -716,6 +751,11 @@ mod timing_validation_tests {
 
     #[tokio::test]
     async fn test_haptics_frequency_range() {
+        if running_under_coverage() {
+            eprintln!("skipping timing-sensitive test under coverage");
+            return;
+        }
+
         // Test that haptics operate in the 60-200Hz range (LDH-04)
         let device_id = must(DeviceId::new("frequency-test-device".to_string()));
         let led_config = create_test_led_config();
