@@ -20,6 +20,11 @@ use racing_wheel_schemas::prelude::{
 };
 use std::sync::Arc;
 
+/// Check if running under coverage instrumentation
+fn running_under_coverage() -> bool {
+    std::env::var_os("LLVM_PROFILE_FILE").is_some()
+}
+
 fn create_comprehensive_filter_config() -> Result<FilterConfig, Box<dyn std::error::Error>> {
     Ok(FilterConfig {
         reconstruction: 4, // Valid level
@@ -420,6 +425,11 @@ async fn test_monotonic_curve_validation_comprehensive() -> Result<(), Box<dyn s
 )]
 #[tokio::test]
 async fn test_pipeline_swap_atomicity_under_load() -> Result<(), Box<dyn std::error::Error>> {
+    if running_under_coverage() {
+        println!("SKIPPED: timing-sensitive test under coverage");
+        return Ok(());
+    }
+
     // Test that pipeline swaps remain atomic even under concurrent load
 
     let initial_pipeline = Pipeline::new();
@@ -545,6 +555,11 @@ fn test_ci_allocation_assertion() -> Result<(), Box<dyn std::error::Error>> {
 )]
 #[tokio::test]
 async fn test_end_to_end_performance_requirements() -> Result<(), Box<dyn std::error::Error>> {
+    if running_under_coverage() {
+        println!("SKIPPED: timing-sensitive test under coverage");
+        return Ok(());
+    }
+
     // Test that the complete system meets performance requirements
 
     let merge_engine = ProfileMergeEngine;
