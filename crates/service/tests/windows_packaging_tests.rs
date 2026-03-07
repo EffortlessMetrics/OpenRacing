@@ -414,13 +414,21 @@ fn escape_wix_quotes() {
 #[test]
 fn default_install_path_ends_with_openracing() {
     let p = windows_packaging::default_install_path();
-    assert!(p.ends_with("OpenRacing"));
+    let escaped = windows_packaging::escape_windows_path(&p);
+    assert!(
+        escaped.ends_with(r"Program Files\OpenRacing"),
+        "Install path should end with Program Files\\OpenRacing, got: {escaped}"
+    );
 }
 
 #[test]
 fn program_data_path_ends_with_openracing() {
     let p = windows_packaging::program_data_path();
-    assert!(p.ends_with("OpenRacing"));
+    let escaped = windows_packaging::escape_windows_path(&p);
+    assert!(
+        escaped.ends_with(r"ProgramData\OpenRacing"),
+        "ProgramData path should end with ProgramData\\OpenRacing, got: {escaped}"
+    );
 }
 
 #[test]

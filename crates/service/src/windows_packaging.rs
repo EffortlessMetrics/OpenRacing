@@ -605,18 +605,20 @@ mod tests {
     #[test]
     fn default_install_path_has_expected_components() {
         let p = default_install_path();
+        let escaped = escape_windows_path(&p);
         assert!(
-            p.ends_with("OpenRacing"),
-            "Install path should end with OpenRacing"
+            escaped.ends_with(r"Program Files\OpenRacing"),
+            "Install path should end with Program Files\\OpenRacing, got: {escaped}"
         );
     }
 
     #[test]
     fn program_data_path_has_expected_components() {
         let p = program_data_path();
+        let escaped = escape_windows_path(&p);
         assert!(
-            p.ends_with("OpenRacing"),
-            "ProgramData path should end with OpenRacing"
+            escaped.ends_with(r"ProgramData\OpenRacing"),
+            "ProgramData path should end with ProgramData\\OpenRacing, got: {escaped}"
         );
     }
 
