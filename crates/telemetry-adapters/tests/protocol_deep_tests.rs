@@ -1029,14 +1029,25 @@ mod timing_guarantees {
     const MAX_PARSE_TIME: Duration = Duration::from_millis(1);
     const ITERATIONS: usize = 100;
 
-    /// Check if running under coverage instrumentation
-    fn running_under_coverage() -> bool {
-        std::env::var_os("LLVM_PROFILE_FILE").is_some()
+    /// Check if timing guarantees should be skipped (coverage or shared CI)
+    fn skip_timing_guarantees() -> bool {
+        if std::env::var_os("LLVM_PROFILE_FILE").is_some() {
+            return true;
+        }
+
+        std::env::var("OPENRACING_SKIP_TIMING_GUARANTEES")
+            .map(|v| {
+                matches!(
+                    v.trim().to_ascii_lowercase().as_str(),
+                    "1" | "true" | "yes" | "on"
+                )
+            })
+            .unwrap_or(false)
     }
 
     fn measure_parse(adapter: &dyn TelemetryAdapter, data: &[u8]) -> TestResult {
-        if running_under_coverage() {
-            println!("SKIPPED: timing-sensitive telemetry parse test under coverage");
+        if skip_timing_guarantees() {
+            println!("SKIPPED: timing guarantee test under coverage/shared CI");
             return Ok(());
         }
 
@@ -1085,8 +1096,8 @@ mod timing_guarantees {
 
     #[test]
     fn gt7_decrypted_parse_within_1ms() -> TestResult {
-        if running_under_coverage() {
-            println!("SKIPPED: timing-sensitive telemetry parse test under coverage");
+        if skip_timing_guarantees() {
+            println!("SKIPPED: timing guarantee test under coverage/shared CI");
             return Ok(());
         }
 

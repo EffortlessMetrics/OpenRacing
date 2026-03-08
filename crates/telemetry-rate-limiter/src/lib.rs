@@ -343,8 +343,12 @@ mod tests {
             prop_assert_eq!(limiter.dropped_count(), 0);
         }
 
+        // Upper bound kept at 100k so min_interval (≥10µs) comfortably
+        // exceeds two back-to-back Instant::now() calls even under
+        // llvm-cov instrumentation.  The deterministic test at line 322
+        // already covers 1M Hz.
         #[test]
-        fn prop_second_immediate_call_rejected(rate in 1u32..=1_000_000u32) {
+        fn prop_second_immediate_call_rejected(rate in 1u32..=100_000u32) {
             let mut limiter = RateLimiter::new(rate);
             let _ = limiter.should_process();
             prop_assert!(!limiter.should_process());

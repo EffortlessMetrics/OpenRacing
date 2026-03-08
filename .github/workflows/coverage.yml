@@ -20,6 +20,8 @@ jobs:
     name: Code Coverage
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    permissions:
+      pull-requests: write
 
     steps:
       - uses: actions/checkout@v4
@@ -49,6 +51,8 @@ jobs:
             coverage-${{ runner.os }}-
 
       - name: Generate coverage report
+        env:
+          OPENRACING_SKIP_TIMING_GUARANTEES: "1"
         run: |
           cargo llvm-cov --workspace \
             --all-features \
@@ -59,6 +63,8 @@ jobs:
             --output-path codecov.json
 
       - name: Generate coverage summary
+        env:
+          OPENRACING_SKIP_TIMING_GUARANTEES: "1"
         run: |
           cargo llvm-cov --workspace \
             --all-features \

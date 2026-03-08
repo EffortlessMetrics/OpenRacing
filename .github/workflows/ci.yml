@@ -812,6 +812,8 @@ jobs:
         run: cargo install cargo-llvm-cov
 
       - name: Generate coverage report
+        env:
+          OPENRACING_SKIP_TIMING_GUARANTEES: "1"
         run: cargo llvm-cov --all-features --workspace --locked --lcov --output-path lcov.info
 
       - name: Upload coverage to Codecov

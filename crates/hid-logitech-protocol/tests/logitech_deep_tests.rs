@@ -347,6 +347,26 @@ fn spring_mixed_sign_coefficients() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+/// Regression: i16::MIN must not panic in spring encoding (overflow on negation).
+#[test]
+fn spring_i16_min_no_panic() -> Result<(), Box<dyn std::error::Error>> {
+    // k1 = i16::MIN was the exact failing input from proptest
+    let cmd = encode_spring(op::START, 0, 0, i16::MIN, 0, 0);
+    assert_eq!(cmd[0], (slot::SPRING << 4) | op::START);
+    assert_eq!(cmd[1], effect_type::SPRING);
+    // Sign bit for k1 should be 1 (negative)
+    assert_eq!(cmd[5] & 0x01, 1, "k1=MIN → s1=1");
+
+    // Also test k2 = i16::MIN
+    let cmd2 = encode_spring(op::START, 0, 0, 0, i16::MIN, 0);
+    assert_eq!((cmd2[5] >> 4) & 0x01, 1, "k2=MIN → s2=1");
+
+    // Both at MIN
+    let cmd3 = encode_spring(op::START, i16::MIN, i16::MIN, i16::MIN, i16::MIN, u16::MAX);
+    assert_eq!(cmd3.len(), SLOT_CMD_SIZE);
+    Ok(())
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // 4. Damper and friction coefficient extremes
 // ═══════════════════════════════════════════════════════════════════════════════
