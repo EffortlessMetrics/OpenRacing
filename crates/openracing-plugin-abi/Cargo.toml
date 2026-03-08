@@ -24,7 +24,7 @@ workspace-hack = { version = "0.1", path = "../../workspace-hack" }
 proptest = { workspace = true }
 quickcheck = "1.0.3"
 quickcheck_macros = "1.1.0"
-insta = "1.42.2"
+insta = "1.46.3"
 serde_json = { workspace = true }
 
 [features]

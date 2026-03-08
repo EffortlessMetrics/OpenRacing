@@ -21,6 +21,6 @@ tokio = { workspace = true }
 tracing = { workspace = true }
 
 [dev-dependencies]
-insta = { version = "1.44.1", features = ["yaml"] }
+insta = { version = "1.46.3", features = ["yaml"] }
 proptest = { workspace = true }
 tokio = { workspace = true, features = ["rt", "macros"] }
