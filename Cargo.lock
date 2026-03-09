@@ -6082,6 +6082,7 @@ dependencies = [
  "tonic",
  "tonic-prost",
  "tonic-prost-build",
+ "tracing",
  "trybuild",
  "workspace-hack",
 ]

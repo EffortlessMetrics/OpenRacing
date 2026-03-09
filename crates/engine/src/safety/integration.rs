@@ -372,7 +372,7 @@ impl IntegratedFaultManager {
 
         // Handle fault through FMEA system
         if let Err(e) = self.fmea_system.handle_fault(fault_type, current_torque) {
-            eprintln!("Error handling fault {:?}: {}", fault_type, e);
+            tracing::error!("Error handling fault {:?}: {}", fault_type, e);
         }
 
         // Report fault to safety service

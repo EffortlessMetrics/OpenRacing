@@ -722,7 +722,7 @@ impl ProfileMigrationService {
                 match self.migrate_file(&path) {
                     Ok(outcome) => outcomes.push(outcome),
                     Err(e) => {
-                        eprintln!("Failed to migrate {:?}: {}", path, e);
+                        tracing::warn!("Failed to migrate {:?}: {}", path, e);
                     }
                 }
             }
