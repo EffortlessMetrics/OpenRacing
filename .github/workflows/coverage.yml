@@ -46,7 +46,6 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            target
           key: coverage-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             coverage-${{ runner.os }}-
