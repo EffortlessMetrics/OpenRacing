@@ -1027,4 +1027,21 @@ mod tests {
         manager.clear_old_blackbox_markers(Duration::from_millis(1));
         assert_eq!(manager.get_blackbox_markers().len(), 0);
     }
+
+    #[test]
+    fn test_handle_fault_error_path_logs_and_continues() {
+        let mut manager = IntegratedFaultManager::new(5.0, 25.0, WatchdogConfig::default());
+
+        // Remove EncoderNaN from the FMEA matrix so handle_fault hits the error path
+        manager
+            .fmea_system
+            .fmea_matrix_mut()
+            .remove(FaultType::EncoderNaN);
+
+        // Call handle_fault with the removed fault type — hits tracing::error!, doesn't panic
+        manager.handle_fault(FaultType::EncoderNaN, 0.0);
+
+        // Function continued despite error: blackbox marker was still created
+        assert!(!manager.blackbox_markers.is_empty());
+    }
 }
