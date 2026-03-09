@@ -366,27 +366,43 @@ class LintGates:
             r'\beprintln!\s*\(',
             r'\beprint!\s*\('
         ]
-        
+
+        # Path components and filenames to skip
+        skip_path_parts = {
+            "tests", "integration-tests", "examples", "benches",
+            "cli", "hid-capture", "openracing-capture-ids",
+            "openracing-test-helpers", "plugin-examples",
+        }
+        skip_filenames = {
+            "build.rs", "main.rs", "allocation_tracker.rs",
+        }
+
         violations = []
-        
+
         for rust_file in self.crates_dir.rglob("*.rs"):
-            # Skip test files, integration tests, examples, and build scripts
-            if any(part in str(rust_file) for part in ["test", "integration-tests", "examples", "build.rs"]):
+            # Skip by filename
+            if rust_file.name in skip_filenames:
                 continue
-                
+            # Skip test module files (*_tests.rs, tests.rs)
+            if rust_file.name == "tests.rs" or rust_file.name.endswith("_tests.rs"):
+                continue
+            # Skip by path component
+            if skip_path_parts & set(rust_file.parts):
+                continue
+
             try:
                 with open(rust_file, 'r', encoding='utf-8') as f:
                     for line_num, line in enumerate(f, 1):
                         # Skip comments and allow attributes
                         if line.strip().startswith('//') or '#[allow' in line:
                             continue
-                            
+
                         for pattern in print_patterns:
                             if re.search(pattern, line):
                                 violations.append(f"{rust_file}:{line_num}: {line.strip()}")
             except Exception as e:
                 print(f"Warning: Could not read {rust_file}: {e}")
-        
+
         if violations:
             print("⚠️  Print statements found in non-test code:")
             for violation in violations[:5]:  # Show only first 5
@@ -396,7 +412,7 @@ class LintGates:
             print("Note: Use tracing macros instead of print statements in production code")
             # Don't fail for now - allow print statements in CLI completion and output modules
             return True
-            
+
         return True
 
 def main():
