@@ -28,6 +28,7 @@ jobs:
 
       - name: Check game support matrix files are identical
         run: |
-          python scripts/check_yaml_sync.py \
+          chmod +x scripts/check_yaml_sync.py
+          python3 scripts/check_yaml_sync.py \
             crates/telemetry-config/src/game_support_matrix.yaml \
             crates/telemetry-support/src/game_support_matrix.yaml

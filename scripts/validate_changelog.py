@@ -19,6 +19,12 @@ import argparse
 from pathlib import Path
 from typing import List, Tuple, Optional
 
+# Enable UTF-8 mode on Windows to handle emoji output
+if sys.platform == "win32":
+    import codecs
+    sys.stdout = codecs.getwriter('utf-8')(sys.stdout.buffer, 'strict')
+    sys.stderr = codecs.getwriter('utf-8')(sys.stderr.buffer, 'strict')
+
 
 def validate_changelog_exists(changelog_path: Path) -> List[str]:
     """Check that CHANGELOG.md exists."""

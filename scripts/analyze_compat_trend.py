@@ -13,6 +13,12 @@ from datetime import datetime, timedelta
 from pathlib import Path
 import statistics
 
+# Enable UTF-8 mode on Windows to handle emoji output
+if sys.platform == "win32":
+    import codecs
+    sys.stdout = codecs.getwriter('utf-8')(sys.stdout.buffer, 'strict')
+    sys.stderr = codecs.getwriter('utf-8')(sys.stderr.buffer, 'strict')
+
 def load_historical_data():
     """Load historical usage data from artifacts or local storage."""
     # In a real implementation, this would fetch from CI artifacts

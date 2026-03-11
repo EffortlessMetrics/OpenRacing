@@ -37,17 +37,18 @@ jobs:
     
     - name: Track current compat usage
       run: |
-        python scripts/track_compat_usage.py --current
+        chmod +x scripts/track_compat_usage.py
+        python3 scripts/track_compat_usage.py --current
         # Read total from the JSON file saved by --current
-        CURRENT_USAGE=$(python -c "import json; d=json.load(open('compat_current.json')); print(d.get('total_usages', 0))")
+        CURRENT_USAGE=$(python3 -c "import json; d=json.load(open('compat_current.json')); print(d.get('total_usages', 0))")
         echo "CURRENT_USAGE=$CURRENT_USAGE" >> $GITHUB_ENV
     
     - name: Get baseline usage count (main branch)
       if: github.event_name == 'pull_request'
       run: |
         git checkout origin/main
-        python scripts/track_compat_usage.py --current
-        BASELINE_USAGE=$(python -c "import json; d=json.load(open('compat_current.json')); print(d.get('total_usages', 0))")
+        python3 scripts/track_compat_usage.py --current
+        BASELINE_USAGE=$(python3 -c "import json; d=json.load(open('compat_current.json')); print(d.get('total_usages', 0))")
         echo "BASELINE_USAGE=$BASELINE_USAGE" >> $GITHUB_ENV
         git checkout ${{ github.sha }}
     
@@ -97,7 +98,8 @@ jobs:
         # Download recent metrics for trend analysis
         CURRENT=${CURRENT_USAGE:-0}
         BASELINE=${BASELINE_USAGE:-0}
-        python scripts/analyze_compat_trend.py --current $CURRENT --baseline $BASELINE
+        chmod +x scripts/analyze_compat_trend.py
+        python3 scripts/analyze_compat_trend.py --current $CURRENT --baseline $BASELINE
     
     - name: Comment on PR
       if: github.event_name == 'pull_request'

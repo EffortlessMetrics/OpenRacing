@@ -782,7 +782,7 @@ jobs:
       - name: Validate performance (Windows)
         if: runner.os == 'Windows'
         run: |
-          python scripts/validate_performance.py bench_results_${{ matrix.os }}.json --verbose
+          python3 scripts/validate_performance.py bench_results_${{ matrix.os }}.json --verbose
 
       - name: Upload platform benchmark results
         uses: actions/upload-artifact@v4

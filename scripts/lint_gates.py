@@ -18,6 +18,12 @@ import json
 from pathlib import Path
 from typing import List, Dict, Tuple, Optional
 
+# Enable UTF-8 mode on Windows to handle emoji output
+if sys.platform == "win32":
+    import codecs
+    sys.stdout = codecs.getwriter('utf-8')(sys.stdout.buffer, 'strict')
+    sys.stderr = codecs.getwriter('utf-8')(sys.stderr.buffer, 'strict')
+
 class LintGates:
     def __init__(self, root_dir: Path):
         self.root_dir = root_dir

@@ -120,12 +120,9 @@ jobs:
       with:
         node-version: '18'
     
-    - name: Install ajv-cli for JSON Schema validation
-      run: npm install -g ajv-cli
-    
     - name: Validate JSON Schema syntax
       run: |
-        ajv compile -s crates/schemas/schemas/profile.schema.json
+        npx ajv-cli compile -s crates/schemas/schemas/profile.schema.json
     
     - name: Test JSON Schema with valid examples
       run: |
@@ -160,7 +157,7 @@ jobs:
         EOF
         
         # Test valid profile
-        ajv validate -s crates/schemas/schemas/profile.schema.json -d test-data/valid-profile.json
+        npx ajv-cli validate -s crates/schemas/schemas/profile.schema.json -d test-data/valid-profile.json
         
         # Invalid profile example (missing required field)
         cat > test-data/invalid-profile.json << 'EOF'
@@ -187,7 +184,7 @@ jobs:
         EOF
         
         # Test invalid profile (should fail)
-        if ajv validate -s crates/schemas/schemas/profile.schema.json -d test-data/invalid-profile.json; then
+        if npx ajv-cli validate -s crates/schemas/schemas/profile.schema.json -d test-data/invalid-profile.json; then
           echo "ERROR: Invalid profile should have failed validation"
           exit 1
         else
