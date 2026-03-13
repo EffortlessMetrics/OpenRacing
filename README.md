@@ -23,7 +23,7 @@ The items below describe the current architecture and design targets. They are n
 
 - **Real-time Force Feedback at 1kHz** - Deterministic processing pipeline with sub-millisecond latency for authentic racing feel
 - **Multi-Game Integration** - Telemetry adapters for 61 simulators including iRacing, ACC, AMS2, rFactor 2, Forza, BeamNG.drive, Gran Turismo 7, Euro Truck Simulator 2, EA WRC, F1 25, and more
-- **Safety-Critical Design** - Comprehensive fault injection testing, FMEA analysis, hardware watchdog integration, and 26,000+ tests
+- **Safety-Critical Design** - Comprehensive fault injection testing, FMEA analysis, hardware watchdog integration, and 30,461+ tests
 - **Plugin Architecture** - Extensible plugin system supporting both WASM and native plugins for custom DSP, telemetry, and LED effects
 - **Cross-Platform Support** - Runs on Windows 10+ and Linux kernel 4.0+; macOS compiles but device I/O is not yet implemented
 - **Zero-Allocation Real-Time Path** - Memory-safe real-time processing without heap allocations
@@ -170,7 +170,7 @@ wheelctl diag test
 
 ## Project Structure
 
-OpenRacing is organized as a Cargo workspace with 86 crates following the Single Responsibility Principle:
+OpenRacing is organized as a Cargo workspace with 85 crates following the Single Responsibility Principle:
 
 | Category | Crates | Description |
 |----------|--------|-------------|
