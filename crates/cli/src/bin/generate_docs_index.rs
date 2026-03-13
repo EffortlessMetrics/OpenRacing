@@ -44,10 +44,10 @@ fn extract_adr_info(adr_path: &PathBuf) -> AdrInfo {
     let lines: Vec<&str> = content.lines().collect();
 
     // Pre-compile regex patterns for metadata extraction
-    let title_regex = Regex::new(r"^# (ADR-\d{4}: .+)").expect("valid regex");
-    let status_regex = Regex::new(r"^\*\*Status:\*\* (.+)").expect("valid regex");
-    let date_regex = Regex::new(r"^\*\*Date:\*\* (.+)").expect("valid regex");
-    let authors_regex = Regex::new(r"^\*\*Authors:\*\* (.+)").expect("valid regex");
+    let title_regex = Regex::new(r"^# (ADR-\d{4}: .+)").unwrap();
+    let status_regex = Regex::new(r"^\*\*Status:\*\* (.+)").unwrap();
+    let date_regex = Regex::new(r"^\*\*Date:\*\* (.+)").unwrap();
+    let authors_regex = Regex::new(r"^\*\*Authors:\*\* (.+)").unwrap();
 
     // Extract title
     if let Some(first_line) = lines.first() {
@@ -119,7 +119,7 @@ fn extract_adr_info(adr_path: &PathBuf) -> AdrInfo {
 
 fn generate_adr_index(adr_dir: &PathBuf) -> String {
     let mut adr_files = Vec::new();
-    let adr_pattern = Regex::new(r"^\d{4}-.*\.md$").expect("valid regex");
+    let adr_pattern = Regex::new(r"^\d{4}-.*\.md$").unwrap();
 
     if let Ok(entries) = fs::read_dir(adr_dir) {
         for entry in entries.flatten() {
@@ -183,7 +183,7 @@ fn generate_adr_index(adr_dir: &PathBuf) -> String {
 
     // Sort by date (newest first)
     let mut dated_adrs: Vec<(String, &PathBuf, AdrInfo)> = Vec::new();
-    let date_pattern = Regex::new(r"^\d{4}-\d{2}-\d{2}$").expect("valid regex");
+    let date_pattern = Regex::new(r"^\d{4}-\d{2}-\d{2}$").unwrap();
 
     for adr_path in &adr_files {
         let info = extract_adr_info(adr_path);

@@ -36,7 +36,7 @@ struct Args {
 
 fn find_adr_files(adr_dir: &PathBuf) -> Vec<PathBuf> {
     let mut adr_files = Vec::new();
-    let adr_pattern = Regex::new(r"^\d{4}-.*\.md$").expect("valid regex");
+    let adr_pattern = Regex::new(r"^\d{4}-.*\.md$").unwrap();
 
     if let Ok(entries) = fs::read_dir(adr_dir) {
         for entry in entries.flatten() {
@@ -150,7 +150,7 @@ fn validate_adr_format(adr_path: &PathBuf) -> Vec<String> {
 
 fn extract_requirement_references(adr_path: &PathBuf) -> HashSet<String> {
     let mut requirements = HashSet::new();
-    let req_pattern = Regex::new(r"\b([A-Z]{2,}-\d{2})\b").expect("valid regex");
+    let req_pattern = Regex::new(r"\b([A-Z]{2,}-\d{2})\b").unwrap();
 
     if let Ok(content) = fs::read_to_string(adr_path) {
         for cap in req_pattern.captures_iter(&content) {
@@ -186,7 +186,7 @@ fn validate_requirement_references(
         }
     };
 
-    let req_pattern = Regex::new(r"\b([A-Z]{2,}-\d{2})\b").expect("valid regex");
+    let req_pattern = Regex::new(r"\b([A-Z]{2,}-\d{2})\b").unwrap();
     let valid_reqs: HashSet<String> = req_pattern
         .captures_iter(&req_content)
         .filter_map(|cap| cap.get(1).map(|m| m.as_str().to_string()))
