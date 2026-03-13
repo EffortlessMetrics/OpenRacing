@@ -46,11 +46,14 @@ jobs:
     - name: Get baseline usage count (main branch)
       if: github.event_name == 'pull_request'
       run: |
+        # Stash any local changes (e.g., .pyc cache files from previous step)
+        git stash
         git checkout origin/main
         python3 scripts/track_compat_usage.py --current
         BASELINE_USAGE=$(python3 -c "import json; d=json.load(open('compat_current.json')); print(d.get('total_usages', 0))")
         echo "BASELINE_USAGE=$BASELINE_USAGE" >> $GITHUB_ENV
         git checkout ${{ github.sha }}
+        git stash pop
     
     - name: Check usage trend
       if: github.event_name == 'pull_request'
