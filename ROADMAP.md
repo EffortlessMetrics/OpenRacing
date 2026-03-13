@@ -4,7 +4,7 @@ This document outlines the development roadmap for OpenRacing. It tracks the imp
 
 ## Current Status (v1.0 RC - 2026)
 
-**Project Scale:** 86 workspace crates in the Rust workspace.
+**Project Scale:** 85 workspace crates in the Rust workspace.
 
 **Released Features:**
 - **Core FFB Engine**: Real-time force feedback processing at 1kHz with zero-allocation RT path (P99 jitter ≤0.25ms)
@@ -16,9 +16,9 @@ This document outlines the development roadmap for OpenRacing. It tracks the imp
 - **Tauri UI**: Device management, real-time telemetry display, profile application
 - **CLI Tools**: `wheelctl` for device management, diagnostics, and profile operations
 - **Safety System**: FMEA analysis, fault injection tests, safety interlocks, hardware watchdog, safe mode transitions, black box recording
-- **Multi-vendor Device Support**: 28 vendors (15 wheelbase manufacturers + 13 peripheral-only), 159 unique VID/PID pairs across all device protocol crates
+- **Multi-vendor Device Support**: 28 vendors (15 wheelbase manufacturers + 13 peripheral-only), 150+ unique VID/PID pairs across all device protocol crates
 - **Protocol Documentation**: All supported devices documented in `docs/protocols/`; VID/PID constants locked to `docs/protocols/SOURCES.md` via `id_verification.rs` test suites
-- **Test Infrastructure**: 29,900+ tests (29,955 #[test] + 509 proptest blocks), 117 fuzz targets; all HID crates have cross-reference id_verification suites
+- **Test Infrastructure**: 30,461+ tests (30,461 #[test] + 509 proptest blocks + 117 fuzz targets); all HID crates have cross-reference id_verification suites
 - **Linux Packaging**: udev rules for all devices, hwdb for joystick classification (133 entries), kernel quirks (ALWAYS_POLL) for Asetek and Simagic
 - **CI Matrix**: Linux (ubuntu-latest/22.04/24.04) + Windows (windows-latest) + macOS (macos-latest) — macOS compilation fixed (PR #97), RT test ignores added (PR #106)
 
