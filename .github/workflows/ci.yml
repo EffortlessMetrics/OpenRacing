@@ -120,7 +120,7 @@ jobs:
         run: cargo build -p wheelctl --locked
 
       - name: Test CLI help (smoke test)
-        run: cargo run -p wheelctl --locked -- --help
+        run: cargo run -p wheelctl --bin wheelctl --locked -- --help
 
   isolation-service:
     name: Service Isolation Build
