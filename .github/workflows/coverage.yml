@@ -58,7 +58,7 @@ jobs:
             --all-features \
             --exclude racing-wheel-ui \
             --exclude racing-wheel-integration-tests \
-            --ignore-filename-regex '(\.pb\.rs$|/tests/|/benches/|/fuzz/|/build\.rs$|_test\.rs$|/target/)' \
+            --ignore-filename-regex '(\.pb\.rs$|/tests/|/benches/|/fuzz/|/build\.rs$|_test\.rs$|/target/|yaml_sync_check\.rs$|validate_adr\.rs$|generate_docs_index\.rs$)' \
             --codecov \
             --output-path codecov.json
 
@@ -70,7 +70,7 @@ jobs:
             --all-features \
             --exclude racing-wheel-ui \
             --exclude racing-wheel-integration-tests \
-            --ignore-filename-regex '(\.pb\.rs$|/tests/|/benches/|/fuzz/|/build\.rs$|_test\.rs$|/target/)' \
+            --ignore-filename-regex '(\.pb\.rs$|/tests/|/benches/|/fuzz/|/build\.rs$|_test\.rs$|/target/|yaml_sync_check\.rs$|validate_adr\.rs$|generate_docs_index\.rs$)' \
             --text \
             --output-path coverage-summary.txt
           echo "### Code Coverage Summary" > coverage-report.md
