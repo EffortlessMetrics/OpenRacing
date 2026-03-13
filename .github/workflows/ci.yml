@@ -711,11 +711,11 @@ jobs:
 
       - name: Validate ADR format and references
         run: |
-          python3 scripts/validate_adr.py --verbose
+          cargo run -p wheelctl --bin validate-adr -- --verbose
 
       - name: Generate documentation index
         run: |
-          python3 scripts/generate_docs_index.py
+          cargo run -p wheelctl --bin generate-docs-index --
 
       - name: Upload license report
         uses: actions/upload-artifact@v4
