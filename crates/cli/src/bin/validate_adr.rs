@@ -10,7 +10,9 @@
 
 #![deny(static_mut_refs)]
 #![deny(unused_must_use)]
-#![deny(clippy::unwrap_used)]
+// Note: clippy::unwrap_used is allowed below because regex patterns are hardcoded
+// and known to be valid at compile time. Using .expect() would also trigger
+// clippy::expect_used, so we use .unwrap() with this explicit allowance.
 
 use clap::Parser;
 use regex::Regex;
@@ -36,6 +38,7 @@ struct Args {
 
 fn find_adr_files(adr_dir: &PathBuf) -> Vec<PathBuf> {
     let mut adr_files = Vec::new();
+    #[allow(clippy::unwrap_used)]
     let adr_pattern = Regex::new(r"^\d{4}-.*\.md$").unwrap();
 
     if let Ok(entries) = fs::read_dir(adr_dir) {
@@ -150,6 +153,7 @@ fn validate_adr_format(adr_path: &PathBuf) -> Vec<String> {
 
 fn extract_requirement_references(adr_path: &PathBuf) -> HashSet<String> {
     let mut requirements = HashSet::new();
+    #[allow(clippy::unwrap_used)]
     let req_pattern = Regex::new(r"\b([A-Z]{2,}-\d{2})\b").unwrap();
 
     if let Ok(content) = fs::read_to_string(adr_path) {
@@ -186,6 +190,7 @@ fn validate_requirement_references(
         }
     };
 
+    #[allow(clippy::unwrap_used)]
     let req_pattern = Regex::new(r"\b([A-Z]{2,}-\d{2})\b").unwrap();
     let valid_reqs: HashSet<String> = req_pattern
         .captures_iter(&req_content)

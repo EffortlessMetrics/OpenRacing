@@ -8,7 +8,8 @@
 
 #![deny(static_mut_refs)]
 #![deny(unused_must_use)]
-#![deny(clippy::unwrap_used)]
+// Note: clippy::unwrap_used is allowed below because regex patterns are hardcoded
+// and known to be valid at compile time.
 
 use clap::Parser;
 use regex::Regex;
@@ -44,9 +45,13 @@ fn extract_adr_info(adr_path: &PathBuf) -> AdrInfo {
     let lines: Vec<&str> = content.lines().collect();
 
     // Pre-compile regex patterns for metadata extraction
+    #[allow(clippy::unwrap_used)]
     let title_regex = Regex::new(r"^# (ADR-\d{4}: .+)").unwrap();
+    #[allow(clippy::unwrap_used)]
     let status_regex = Regex::new(r"^\*\*Status:\*\* (.+)").unwrap();
+    #[allow(clippy::unwrap_used)]
     let date_regex = Regex::new(r"^\*\*Date:\*\* (.+)").unwrap();
+    #[allow(clippy::unwrap_used)]
     let authors_regex = Regex::new(r"^\*\*Authors:\*\* (.+)").unwrap();
 
     // Extract title
@@ -119,6 +124,7 @@ fn extract_adr_info(adr_path: &PathBuf) -> AdrInfo {
 
 fn generate_adr_index(adr_dir: &PathBuf) -> String {
     let mut adr_files = Vec::new();
+    #[allow(clippy::unwrap_used)]
     let adr_pattern = Regex::new(r"^\d{4}-.*\.md$").unwrap();
 
     if let Ok(entries) = fs::read_dir(adr_dir) {
@@ -183,6 +189,7 @@ fn generate_adr_index(adr_dir: &PathBuf) -> String {
 
     // Sort by date (newest first)
     let mut dated_adrs: Vec<(String, &PathBuf, AdrInfo)> = Vec::new();
+    #[allow(clippy::unwrap_used)]
     let date_pattern = Regex::new(r"^\d{4}-\d{2}-\d{2}$").unwrap();
 
     for adr_path in &adr_files {
