@@ -7,7 +7,7 @@
 
 #![deny(static_mut_refs)]
 #![deny(unused_must_use)]
-#![deny(clippy::unwrap_used)]
+#![allow(clippy::unwrap_used)]
 
 use serde_yaml::Value;
 use std::collections::BTreeSet;
@@ -15,7 +15,7 @@ use std::env;
 use std::fs;
 
 /// Recursively sort dict keys so comparison is order-independent.
-fn sorted_yaml(value: &Value) -> Value {
+pub(crate) fn sorted_yaml(value: &Value) -> Value {
     match value {
         Value::Mapping(map) => {
             let mut sorted: Vec<(Value, Value)> = map
@@ -31,7 +31,7 @@ fn sorted_yaml(value: &Value) -> Value {
 }
 
 /// Return sorted list of "key: name" strings for each game entry.
-fn render_games(data: &Value) -> Vec<String> {
+pub(crate) fn render_games(data: &Value) -> Vec<String> {
     let mut lines = Vec::new();
 
     if let Some(games) = data.get("games").and_then(|v| v.as_mapping()) {
@@ -179,4 +179,134 @@ fn main() -> std::process::ExitCode {
     eprintln!("     generator once it is available (see docs/FRICTION_LOG.md F-001).");
 
     std::process::ExitCode::from(1)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_yaml::Value as YamlValue;
+
+    fn parse_yaml(s: &str) -> YamlValue {
+        serde_yaml::from_str(s).unwrap()
+    }
+
+    #[test]
+    fn test_sorted_yaml_simple_map() {
+        let yaml = parse_yaml("b: 2\na: 1");
+        let sorted = sorted_yaml(&yaml);
+        let text = serde_yaml::to_string(&sorted).unwrap();
+        assert!(text.starts_with("a: 1\nb: 2"));
+    }
+
+    #[test]
+    fn test_sorted_yaml_nested_map() {
+        let yaml = parse_yaml("z:\n  b: 2\n  a: 1\na:\n  b: 2");
+        let sorted = sorted_yaml(&yaml);
+        let text = serde_yaml::to_string(&sorted).unwrap();
+        // Top-level keys should be sorted
+        assert!(text.starts_with("a:\n"));
+        // Nested keys should also be sorted
+        assert!(text.contains("a: 1\n  b: 2"));
+    }
+
+    #[test]
+    fn test_sorted_yaml_array() {
+        let yaml = parse_yaml("[3, 1, 2]");
+        let sorted = sorted_yaml(&yaml);
+        let text = serde_yaml::to_string(&sorted).unwrap();
+        // Arrays are not sorted, only maps are sorted
+        assert!(text.contains("3") && text.contains("1") && text.contains("2"));
+    }
+
+    #[test]
+    fn test_sorted_yaml_preserves_values() {
+        let yaml = parse_yaml("x: 100\ny: hello");
+        let sorted = sorted_yaml(&yaml);
+        assert_eq!(sorted.get("x").and_then(|v| v.as_i64()), Some(100));
+        assert_eq!(sorted.get("y").and_then(|v| v.as_str()), Some("hello"));
+    }
+
+    #[test]
+    fn test_render_games_basic() {
+        let yaml = parse_yaml(
+            r#"
+games:
+  game_a:
+    name: Game A
+  game_b:
+    name: Game B
+"#,
+        );
+        let games = render_games(&yaml);
+        assert_eq!(games.len(), 2);
+        assert!(games.contains(&"game_a: Game A".to_string()));
+        assert!(games.contains(&"game_b: Game B".to_string()));
+    }
+
+    #[test]
+    fn test_render_games_sorted() {
+        let yaml = parse_yaml(
+            r#"
+games:
+  z_game:
+    name: Z Game
+  a_game:
+    name: A Game
+  m_game:
+    name: M Game
+"#,
+        );
+        let games = render_games(&yaml);
+        assert_eq!(games.len(), 3);
+        assert_eq!(games[0], "a_game: A Game");
+        assert_eq!(games[1], "m_game: M Game");
+        assert_eq!(games[2], "z_game: Z Game");
+    }
+
+    #[test]
+    fn test_render_games_missing_name() {
+        let yaml = parse_yaml(
+            r#"
+games:
+  game_a: {}
+"#,
+        );
+        let games = render_games(&yaml);
+        assert_eq!(games.len(), 1);
+        assert_eq!(games[0], "game_a: game_a");
+    }
+
+    #[test]
+    fn test_render_games_no_games() {
+        let yaml = parse_yaml("other: data");
+        let games = render_games(&yaml);
+        assert!(games.is_empty());
+    }
+
+    #[test]
+    fn test_identical_files() {
+        let yaml = parse_yaml("x: 1\ny: 2");
+        let norm_a = sorted_yaml(&yaml);
+        let norm_b = sorted_yaml(&yaml);
+        assert_eq!(norm_a, norm_b);
+    }
+
+    #[test]
+    fn test_different_files() {
+        let yaml_a = parse_yaml("x: 1\ny: 2");
+        let yaml_b = parse_yaml("x: 1\ny: 3");
+        let norm_a = sorted_yaml(&yaml_a);
+        let norm_b = sorted_yaml(&yaml_b);
+        assert_ne!(norm_a, norm_b);
+    }
+
+    #[test]
+    fn test_key_order_independent() {
+        // These should be equal after normalization
+        let yaml_a = parse_yaml("b: 2\na: 1");
+        let yaml_b = parse_yaml("a: 1\nb: 2");
+        let norm_a = sorted_yaml(&yaml_a);
+        let norm_b = sorted_yaml(&yaml_b);
+        assert_eq!(norm_a, norm_b);
+    }
 }

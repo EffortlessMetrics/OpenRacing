@@ -2,7 +2,7 @@
 
 This document outlines the development roadmap for OpenRacing. It tracks the implementation status of key features, architectural decisions, and future plans.
 
-## Current Status (v1.0 RC - 2026)
+## Current Status (v0.x.y - Pre-Hardware Sign-Off)
 
 **Project Scale:** 86 workspace crates in the Rust workspace.
 
@@ -114,7 +114,7 @@ This document outlines the development roadmap for OpenRacing. It tracks the imp
     - [x] Dynamic deadline adjustment based on system load
     - [ ] CPU governor integration
 
-### Phase 5: Polish & 1.0 RC 🔄 In Progress
+### Phase 5: Polish & v0.x.y 🔄 In Progress
 
 - [x] **Test Coverage**: 29,900+ tests (29,955 #[test] + 509 proptest blocks + 117 fuzz targets) across unit, integration, property-based, snapshot, and acceptance tests
 - [x] **Documentation**: Comprehensive (setup, user guide, device support, development)
@@ -148,7 +148,7 @@ This document outlines the development roadmap for OpenRacing. It tracks the imp
 
 ## Known Technical Debt
 
-The following TODOs exist in the codebase and should be addressed before v1.0.0:
+The following TODOs exist in the codebase and should be addressed before production release (post-hardware sign-off):
 
 | Location | Issue |
 |----------|-------|
@@ -169,8 +169,8 @@ The following TODOs exist in the codebase and should be addressed before v1.0.0:
 | v0.1.0  | 2025-01-01 | ✅ Released | Core Engine & Linux Support |
 | v0.2.0  | 2026-02-01 | ✅ Released | Windows Support & Tauri UI |
 | v0.3.0  | 2026-02-01 | ✅ Released | WASM Plugins, Game Telemetry, Curve FFB |
-| v1.0 RC | 2026-Q3   | ✅ Feature complete | 28 vendors, 61 game integrations, safety hardening, 29,900+ tests |
-| v1.0.0  | 2026-10-15 | Planned | Production Release with Security Audit |
+| v0.x.y  | 2026-Q3   | 🔄 In Progress | 28 vendors, 61 game integrations, safety hardening, 29,900+ tests, pre-hardware sign-off |
+| v1.0.0  | TBD       | Planned | Production Release with Hardware Sign-Off |
 
 ## Contributing
 
@@ -179,4 +179,4 @@ See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for development setup and contr
 Significant architectural changes require an ADR. See [docs/adr/README.md](docs/adr/README.md) for the process.
 
 ---
-*Last updated: 2026-Q3. This roadmap reflects the current project state: 86 crates, 28 vendors, 159 devices, 61 games, 29,900+ tests.*
+*Last updated: 2026-Q3. This roadmap reflects the current project state: 86 crates, 28 vendors, 159 devices, 61 games, 29,900+ tests. Version is v0.x.y until hardware sign-off.*

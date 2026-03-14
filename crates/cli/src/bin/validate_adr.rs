@@ -36,7 +36,7 @@ struct Args {
     verbose: bool,
 }
 
-fn find_adr_files(adr_dir: &PathBuf) -> Vec<PathBuf> {
+pub(crate) fn find_adr_files(adr_dir: &PathBuf) -> Vec<PathBuf> {
     let mut adr_files = Vec::new();
     #[allow(clippy::unwrap_used)]
     let adr_pattern = Regex::new(r"^\d{4}-.*\.md$").unwrap();
@@ -59,7 +59,7 @@ fn find_adr_files(adr_dir: &PathBuf) -> Vec<PathBuf> {
     adr_files
 }
 
-fn validate_adr_format(adr_path: &PathBuf) -> Vec<String> {
+pub(crate) fn validate_adr_format(adr_path: &PathBuf) -> Vec<String> {
     let mut errors = Vec::new();
 
     let content = match fs::read_to_string(adr_path) {
@@ -151,7 +151,7 @@ fn validate_adr_format(adr_path: &PathBuf) -> Vec<String> {
     errors
 }
 
-fn extract_requirement_references(adr_path: &PathBuf) -> HashSet<String> {
+pub(crate) fn extract_requirement_references(adr_path: &PathBuf) -> HashSet<String> {
     let mut requirements = HashSet::new();
     #[allow(clippy::unwrap_used)]
     let req_pattern = Regex::new(r"\b([A-Z]{2,}-\d{2})\b").unwrap();
@@ -276,5 +276,164 @@ fn main() -> std::process::ExitCode {
     } else {
         eprintln!("\n[ERROR] Found {} validation errors", total_errors);
         std::process::ExitCode::from(1)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Write;
+    use tempfile::NamedTempFile;
+
+    fn create_temp_adr(content: &str) -> NamedTempFile {
+        let mut file = NamedTempFile::new().unwrap();
+        file.write_all(content.as_bytes()).unwrap();
+        file
+    }
+
+    #[test]
+    fn test_validate_adr_format_valid() {
+        let adr_content = r#"# ADR-0001: Test Title
+
+**Status:** Proposed
+**Date:** 2026-01-01
+**Authors:** Test Author
+
+## Context
+This is the context.
+
+## Decision
+This is the decision.
+
+## Rationale
+This is the rationale.
+
+## Consequences
+This is the consequences.
+
+## References
+- Reference 1
+
+Requirements: TEST-01
+"#;
+        let file = create_temp_adr(adr_content);
+        let path = file.path().to_path_buf();
+        let errors = validate_adr_format(&path);
+        assert!(
+            errors.is_empty(),
+            "Expected no errors but got: {:?}",
+            errors
+        );
+    }
+
+    #[test]
+    fn test_validate_adr_format_missing_sections() {
+        let adr_content = r#"# ADR-0001: Test Title
+
+**Status:** Proposed
+**Date:** 2026-01-01
+**Authors:** Test Author
+
+## Context
+This is the context.
+"#;
+        let file = create_temp_adr(adr_content);
+        let path = file.path().to_path_buf();
+        let errors = validate_adr_format(&path);
+        assert!(!errors.is_empty());
+        assert!(
+            errors
+                .iter()
+                .any(|e| e.contains("Missing required sections"))
+        );
+    }
+
+    #[test]
+    fn test_validate_adr_format_invalid_status() {
+        let adr_content = r#"# ADR-0001: Test Title
+
+**Status:** InvalidStatus
+**Date:** 2026-01-01
+**Authors:** Test Author
+
+## Context
+This is the context.
+
+## Decision
+This is the decision.
+
+## Rationale
+This is the rationale.
+
+## Consequences
+This is the consequences.
+
+## References
+- Reference 1
+
+Requirements: TEST-01
+"#;
+        let file = create_temp_adr(adr_content);
+        let path = file.path().to_path_buf();
+        let errors = validate_adr_format(&path);
+        assert!(!errors.is_empty());
+        assert!(errors.iter().any(|e| e.contains("Invalid status")));
+    }
+
+    #[test]
+    fn test_validate_adr_format_no_requirements() {
+        let adr_content = r#"# ADR-0001: Test Title
+
+**Status:** Proposed
+**Date:** 2026-01-01
+**Authors:** Test Author
+
+## Context
+This is the context.
+
+## Decision
+This is the decision.
+
+## Rationale
+This is the rationale.
+
+## Consequences
+This is the consequences.
+
+## References
+- Reference 1
+"#;
+        let file = create_temp_adr(adr_content);
+        let path = file.path().to_path_buf();
+        let errors = validate_adr_format(&path);
+        assert!(!errors.is_empty());
+        assert!(errors.iter().any(|e| e.contains("requirement references")));
+    }
+
+    #[test]
+    fn test_extract_requirement_references() {
+        let adr_content = r#"# ADR-0001: Test
+
+This ADR references requirements ABC-01 and XYZ-99.
+
+Requirements: ABC-01, XYZ-99
+"#;
+        let file = create_temp_adr(adr_content);
+        let path = file.path().to_path_buf();
+        let refs = extract_requirement_references(&path);
+        assert!(refs.contains("ABC-01"));
+        assert!(refs.contains("XYZ-99"));
+    }
+
+    #[test]
+    fn test_extract_requirement_references_none() {
+        let adr_content = r#"# ADR-0001: Test
+
+No requirements here.
+"#;
+        let file = create_temp_adr(adr_content);
+        let path = file.path().to_path_buf();
+        let refs = extract_requirement_references(&path);
+        assert!(refs.is_empty());
     }
 }

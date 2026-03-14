@@ -34,7 +34,7 @@ struct AdrInfo {
     authors: String,
 }
 
-fn extract_adr_info(adr_path: &PathBuf) -> AdrInfo {
+pub(crate) fn extract_adr_info(adr_path: &PathBuf) -> AdrInfo {
     let mut info = AdrInfo::default();
 
     let content = match fs::read_to_string(adr_path) {
@@ -122,7 +122,9 @@ fn extract_adr_info(adr_path: &PathBuf) -> AdrInfo {
     info
 }
 
-fn generate_adr_index(adr_dir: &PathBuf) -> String {
+use std::path::Path;
+
+pub(crate) fn generate_adr_index(adr_dir: &Path) -> String {
     let mut adr_files = Vec::new();
     #[allow(clippy::unwrap_used)]
     let adr_pattern = Regex::new(r"^\d{4}-.*\.md$").unwrap();
@@ -231,4 +233,218 @@ fn main() -> std::process::ExitCode {
 
     println!("[OK] Generated ADR index: {:?}", index_file);
     std::process::ExitCode::from(0)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Write;
+    use tempfile::TempDir;
+
+    fn create_temp_adr(name: &str, content: &str) -> (TempDir, PathBuf) {
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join(name);
+        let mut file = std::fs::File::create(&file_path).unwrap();
+        file.write_all(content.as_bytes()).unwrap();
+        (temp_dir, file_path)
+    }
+
+    #[test]
+    fn test_extract_adr_info_basic() {
+        let (_temp_dir, adr_path) = create_temp_adr(
+            "0001-test.md",
+            r#"# ADR-0001: Test Title
+
+**Status:** Proposed
+**Date:** 2026-01-15
+**Authors:** Test Author
+
+## Context
+This is a test context.
+
+## Decision
+This is a test decision.
+
+## Rationale
+Test rationale.
+
+## Consequences
+Test consequences.
+"#,
+        );
+        let info = extract_adr_info(&adr_path);
+        assert_eq!(info.title, "ADR-0001: Test Title");
+        assert_eq!(info.status, "Proposed");
+        assert_eq!(info.date, "2026-01-15");
+        assert_eq!(info.authors, "Test Author");
+    }
+
+    #[test]
+    fn test_extract_adr_info_extracts_description() {
+        let (_temp_dir, adr_path) = create_temp_adr(
+            "0001-test.md",
+            r#"# ADR-0001: Test Title
+
+**Status:** Proposed
+**Date:** 2026-01-15
+**Authors:** Test Author
+
+## Context
+This is the first line of context.
+And this is the second line.
+
+## Decision
+This is a test decision.
+"#,
+        );
+        let info = extract_adr_info(&adr_path);
+        assert_eq!(info.description, "This is the first line of context.");
+    }
+
+    #[test]
+    fn test_extract_adr_info_defaults() {
+        // Test with minimal ADR content - title regex won't match because
+        // there's no colon and description after ADR number, so it falls back to filename
+        let (_temp_dir, adr_path) =
+            create_temp_adr("0001-test.md", "# ADR-0001\nNo metadata here.");
+        let info = extract_adr_info(&adr_path);
+        // Falls back to filename stem when title regex doesn't match
+        assert_eq!(info.title, "0001-test");
+        assert_eq!(info.status, "Unknown");
+        assert_eq!(info.date, "Unknown");
+        assert_eq!(info.authors, "Unknown");
+    }
+
+    #[test]
+    fn test_generate_adr_index() {
+        let temp_dir = TempDir::new().unwrap();
+
+        // Create multiple ADR files
+        let adr1 = temp_dir.path().join("0001-first.md");
+        std::fs::write(
+            &adr1,
+            r#"# ADR-0001: First ADR
+
+**Status:** Proposed
+**Date:** 2026-01-15
+**Authors:** Author One
+
+## Context
+Context 1.
+
+## Decision
+Decision 1.
+
+## Rationale
+Rationale 1.
+
+## Consequences
+Consequences 1.
+"#,
+        )
+        .unwrap();
+
+        let adr2 = temp_dir.path().join("0002-second.md");
+        std::fs::write(
+            &adr2,
+            r#"# ADR-0002: Second ADR
+
+**Status:** Accepted
+**Date:** 2026-01-10
+**Authors:** Author Two
+
+## Context
+Context 2.
+
+## Decision
+Decision 2.
+
+## Rationale
+Rationale 2.
+
+## Consequences
+Consequences 2.
+"#,
+        )
+        .unwrap();
+
+        let index = generate_adr_index(temp_dir.path());
+
+        // Check index content
+        assert!(index.contains("Architecture Decision Records Index"));
+        assert!(index.contains("Total ADRs: 2"));
+        assert!(index.contains("ADR-0001"));
+        assert!(index.contains("ADR-0002"));
+        assert!(index.contains("Proposed"));
+        assert!(index.contains("Accepted"));
+        assert!(index.contains("Status Summary"));
+    }
+
+    #[test]
+    fn test_generate_adr_index_status_summary() {
+        let temp_dir = TempDir::new().unwrap();
+
+        let adr1 = temp_dir.path().join("0001-proposed.md");
+        std::fs::write(
+            &adr1,
+            r#"# ADR-0001: Proposed ADR
+
+**Status:** Proposed
+**Date:** 2026-01-15
+**Authors:** Author
+
+## Context
+Context.
+
+## Decision
+Decision.
+
+## Rationale
+Rationale.
+
+## Consequences
+Consequences.
+"#,
+        )
+        .unwrap();
+
+        let adr2 = temp_dir.path().join("0002-accepted.md");
+        std::fs::write(
+            &adr2,
+            r#"# ADR-0002: Accepted ADR
+
+**Status:** Accepted
+**Date:** 2026-01-10
+**Authors:** Author
+
+## Context
+Context.
+
+## Decision
+Decision.
+
+## Rationale
+Rationale.
+
+## Consequences
+Consequences.
+"#,
+        )
+        .unwrap();
+
+        let index = generate_adr_index(temp_dir.path());
+
+        assert!(index.contains("**Proposed**: 1"));
+        assert!(index.contains("**Accepted**: 1"));
+    }
+
+    #[test]
+    fn test_adr_info_default() {
+        let info = AdrInfo::default();
+        assert!(info.title.is_empty());
+        assert!(info.description.is_empty());
+        assert!(info.status.is_empty());
+        assert!(info.date.is_empty());
+        assert!(info.authors.is_empty());
+    }
 }
