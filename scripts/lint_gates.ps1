@@ -310,25 +310,28 @@ function Test-LintAttributes {
 
 function Test-PrintStatements {
     Write-Status "Checking for print statements in non-test code..." "Info"
-    
+
+    # Path components and filenames to skip
+    $skipPathPattern = "([\\/](tests|integration-tests|examples|benches|cli|hid-capture|openracing-capture-ids|openracing-test-helpers|plugin-examples)[\\/])"
+    $skipFilePattern = "([\\/](build\.rs|main\.rs|allocation_tracker\.rs|tests\.rs|.*_tests\.rs))$"
+
     $violations = @()
-    
+
     Get-ChildItem -Path $cratesDir -Recurse -Filter "*.rs" | ForEach-Object {
-        # Skip test files and integration tests
-        if ($_.FullName -match "(test|integration-tests|examples|build\.rs)") {
+        if ($_.FullName -match $skipPathPattern -or $_.FullName -match $skipFilePattern) {
             return
         }
-        
+
         try {
             $content = Get-Content $_.FullName
             for ($i = 0; $i -lt $content.Count; $i++) {
                 $line = $content[$i]
-                
+
                 # Skip comments and allow attributes
                 if ($line.Trim().StartsWith('//') -or $line.Contains('#[allow')) {
                     continue
                 }
-                
+
                 if ($line -match 'println!|print!|dbg!|eprintln!|eprint!') {
                     $violations += "$($_.FullName):$($i + 1): $($line.Trim())"
                 }
@@ -338,7 +341,7 @@ function Test-PrintStatements {
             Write-Status "Warning: Could not read $($_.FullName): $_" "Warning"
         }
     }
-    
+
     if ($violations.Count -gt 0) {
         Write-Status "Print statements found in non-test code (allowed in CLI/examples)" "Warning"
         $violations[0..4] | ForEach-Object { Write-Host "  $_" }
@@ -347,7 +350,7 @@ function Test-PrintStatements {
         }
         return $true  # Don't fail - allow print statements in CLI completion and output modules
     }
-    
+
     return $true
 }
 

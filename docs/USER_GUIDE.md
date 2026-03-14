@@ -337,7 +337,7 @@ wheelctl device list
 
 **Expected output:**
 ```
-OpenRacing CLI version 1.0.0
+OpenRacing CLI version 0.1.0
 
 Service Health Status
   Service: Running
@@ -355,7 +355,7 @@ Service Health Status
 # Go to Settings > Apps > OpenRacing > Uninstall
 
 # Using MSI (silent)
-msiexec /x OpenRacing-1.0.0-x64.msi /quiet /norestart
+msiexec /x OpenRacing-0.1.0-x64.msi /quiet /norestart
 
 # Manual cleanup (if needed)
 sc stop wheeld
@@ -2362,4 +2362,4 @@ A: See [PLUGIN_DEVELOPMENT.md](PLUGIN_DEVELOPMENT.md) for information on creatin
 
 **Document Version**: 2.0
 **Last Updated**: 2026-02-15
-**OpenRacing Version**: 1.0.0
+**OpenRacing Version**: 0.1.0 (v0.x.y - pre-hardware sign-off)

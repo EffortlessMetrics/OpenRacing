@@ -722,7 +722,7 @@ impl ProfileMigrationService {
                 match self.migrate_file(&path) {
                     Ok(outcome) => outcomes.push(outcome),
                     Err(e) => {
-                        eprintln!("Failed to migrate {:?}: {}", path, e);
+                        tracing::warn!("Failed to migrate {:?}: {}", path, e);
                     }
                 }
             }
@@ -1130,6 +1130,32 @@ mod profile_migration_tests {
 
         assert!(!outcome.was_migrated());
         assert_eq!(outcome.migration_count(), 0);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_migrate_directory_logs_warning_on_file_error() -> MigrationResult<()> {
+        let temp_dir = TempDir::new().map_err(MigrationError::IoError)?;
+
+        // Create service with backups disabled — create_backup will fail,
+        // causing migrate_file to error for any legacy profile
+        let mut config = MigrationConfig::new(temp_dir.path().join("backups"));
+        config.create_backups = false;
+        let service = ProfileMigrationService::new(config)?;
+
+        // Create a directory with a legacy profile that needs migration
+        let profiles_dir = temp_dir.path().join("profiles");
+        fs::create_dir_all(&profiles_dir).map_err(MigrationError::IoError)?;
+
+        let legacy = create_legacy_profile(0.8, 900, 12.0);
+        fs::write(profiles_dir.join("test.json"), &legacy).map_err(MigrationError::IoError)?;
+
+        // migrate_directory catches the error, logs warning, returns Ok
+        let outcomes = service.migrate_directory(&profiles_dir)?;
+
+        // Failed migration not included in outcomes
+        assert!(outcomes.is_empty());
 
         Ok(())
     }
