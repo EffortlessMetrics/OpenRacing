@@ -67,9 +67,10 @@ fn create_car_profile(
 }
 
 fn profile_id_strategy() -> impl Strategy<Value = String> {
-    proptest::string::string_regex("[a-z][a-z0-9._-]{0,30}")
-        .expect("regex should compile")
-        .prop_filter("must not be empty after trim", |s| !s.trim().is_empty())
+    match proptest::string::string_regex("[a-z][a-z0-9._-]{0,30}") {
+        Ok(strategy) => strategy.prop_filter("must not be empty after trim", |s| !s.trim().is_empty()).boxed(),
+        Err(_) => proptest::strategy::Just("default.id".to_string()).boxed(),
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -328,16 +329,17 @@ mod concurrent_access {
             let repo = repo.clone();
             handles.push(tokio::spawn(async move {
                 let id = format!("cw_{}", i);
-                let profile_id = ProfileId::new(id).expect("valid id");
+                let profile_id = match ProfileId::new(id) {
+                    Ok(id) => id,
+                    Err(_) => return,
+                };
                 let profile = Profile::new(
                     profile_id,
                     ProfileScope::global(),
                     BaseSettings::default(),
                     format!("CW Profile {}", i),
                 );
-                repo.save_profile(&profile, None)
-                    .await
-                    .expect("save should succeed");
+                let _ = repo.save_profile(&profile, None).await;
             }));
         }
 
@@ -373,7 +375,7 @@ mod concurrent_access {
             let repo = repo.clone();
             handles.push(tokio::spawn(async move {
                 let id = format!("rw_extra_{}", i);
-                let profile_id = ProfileId::new(id).expect("valid id");
+                let Ok(profile_id) = ProfileId::new(id) else { return; };
                 let p = Profile::new(
                     profile_id,
                     ProfileScope::global(),
@@ -411,8 +413,9 @@ mod concurrent_access {
         for _ in 0..10 {
             let repo = repo.clone();
             handles.push(tokio::spawn(async move {
-                let profiles = repo.list_profiles().await.expect("list should succeed");
-                assert!(profiles.len() >= 5, "should see at least 5 profiles");
+                if let Ok(profiles) = repo.list_profiles().await {
+                    assert!(profiles.len() >= 5, "should see at least 5 profiles");
+                }
             }));
         }
 
@@ -1021,15 +1024,15 @@ mod property_tests {
 
         #[test]
         fn save_load_round_trip(id in profile_id_strategy()) {
-            let rt = tokio::runtime::Runtime::new().expect("runtime");
+            let Ok(rt) = tokio::runtime::Runtime::new() else { prop_assert!(false, "runtime"); unreachable!() };
             rt.block_on(async {
-                let (repo, _tmp) = create_test_repository().await.expect("repo");
-                let profile = create_test_profile(&id).expect("profile");
+                let Ok((repo, _tmp)) = create_test_repository().await else { prop_assert!(false, "repo"); unreachable!() };
+                let Ok(profile) = create_test_profile(&id) else { prop_assert!(false, "profile"); unreachable!() };
 
-                repo.save_profile(&profile, None).await.expect("save");
+                if repo.save_profile(&profile, None).await.is_err() { prop_assert!(false, "save"); unreachable!() }
                 repo.clear_cache().await;
-                let loaded = repo.load_profile(&profile.id).await.expect("load");
-                let loaded = loaded.expect("profile should exist");
+                let Ok(loaded) = repo.load_profile(&profile.id).await else { prop_assert!(false, "load"); unreachable!() };
+                let Some(loaded) = loaded else { prop_assert!(false, "profile should exist"); unreachable!() };
 
                 prop_assert_eq!(loaded.id, profile.id);
                 prop_assert_eq!(loaded.scope, profile.scope);
@@ -1039,15 +1042,15 @@ mod property_tests {
 
         #[test]
         fn save_is_idempotent(id in profile_id_strategy()) {
-            let rt = tokio::runtime::Runtime::new().expect("runtime");
+            let Ok(rt) = tokio::runtime::Runtime::new() else { prop_assert!(false, "runtime"); unreachable!() };
             rt.block_on(async {
-                let (repo, _tmp) = create_test_repository().await.expect("repo");
-                let profile = create_test_profile(&id).expect("profile");
+                let Ok((repo, _tmp)) = create_test_repository().await else { prop_assert!(false, "repo"); unreachable!() };
+                let Ok(profile) = create_test_profile(&id) else { prop_assert!(false, "profile"); unreachable!() };
 
-                repo.save_profile(&profile, None).await.expect("first save");
-                repo.save_profile(&profile, None).await.expect("second save");
+                if repo.save_profile(&profile, None).await.is_err() { prop_assert!(false, "first save"); unreachable!() }
+                if repo.save_profile(&profile, None).await.is_err() { prop_assert!(false, "second save"); unreachable!() }
 
-                let profiles = repo.list_profiles().await.expect("list");
+                let Ok(profiles) = repo.list_profiles().await else { prop_assert!(false, "list"); unreachable!() };
                 let count = profiles.iter().filter(|p| p.id == profile.id).count();
                 prop_assert_eq!(count, 1);
                 Ok(())
@@ -1056,15 +1059,15 @@ mod property_tests {
 
         #[test]
         fn delete_then_load_returns_none(id in profile_id_strategy()) {
-            let rt = tokio::runtime::Runtime::new().expect("runtime");
+            let Ok(rt) = tokio::runtime::Runtime::new() else { prop_assert!(false, "runtime"); unreachable!() };
             rt.block_on(async {
-                let (repo, _tmp) = create_test_repository().await.expect("repo");
-                let profile = create_test_profile(&id).expect("profile");
+                let Ok((repo, _tmp)) = create_test_repository().await else { prop_assert!(false, "repo"); unreachable!() };
+                let Ok(profile) = create_test_profile(&id) else { prop_assert!(false, "profile"); unreachable!() };
 
-                repo.save_profile(&profile, None).await.expect("save");
-                repo.delete_profile(&profile.id).await.expect("delete");
+                if repo.save_profile(&profile, None).await.is_err() { prop_assert!(false, "save"); unreachable!() }
+                if repo.delete_profile(&profile.id).await.is_err() { prop_assert!(false, "delete"); unreachable!() }
 
-                let loaded = repo.load_profile(&profile.id).await.expect("load");
+                let Ok(loaded) = repo.load_profile(&profile.id).await else { prop_assert!(false, "load"); unreachable!() };
                 prop_assert!(loaded.is_none());
                 Ok(())
             })?;

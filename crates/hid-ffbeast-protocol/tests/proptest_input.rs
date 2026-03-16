@@ -33,9 +33,12 @@ proptest! {
         data[6] = pos_bytes[1];
         data[7] = trq_bytes[0];
         data[8] = trq_bytes[1];
-        let r = FFBeastStateReport::parse(&data).expect("valid report");
-        prop_assert_eq!(r.position, pos);
-        prop_assert_eq!(r.torque, trq);
+        let r = FFBeastStateReport::parse(&data);
+        prop_assert!(r.is_some());
+        if let Some(r) = r {
+            prop_assert_eq!(r.position, pos);
+            prop_assert_eq!(r.torque, trq);
+        }
     }
 
     #[test]
@@ -44,10 +47,13 @@ proptest! {
         let bytes = pos.to_le_bytes();
         data[5] = bytes[0];
         data[6] = bytes[1];
-        let r = FFBeastStateReport::parse(&data).expect("valid report");
-        let normalized = r.position_normalized();
-        prop_assert!((-1.0..=1.0).contains(&normalized),
-            "position_normalized() = {} out of range", normalized);
+        let r = FFBeastStateReport::parse(&data);
+        prop_assert!(r.is_some());
+        if let Some(r) = r {
+            let normalized = r.position_normalized();
+            prop_assert!((-1.0..=1.0).contains(&normalized),
+                "position_normalized() = {} out of range", normalized);
+        }
     }
 
     #[test]
@@ -56,10 +62,13 @@ proptest! {
         let bytes = trq.to_le_bytes();
         data[7] = bytes[0];
         data[8] = bytes[1];
-        let r = FFBeastStateReport::parse(&data).expect("valid report");
-        let normalized = r.torque_normalized();
-        prop_assert!((-1.0..=1.0).contains(&normalized),
-            "torque_normalized() = {} out of range", normalized);
+        let r = FFBeastStateReport::parse(&data);
+        prop_assert!(r.is_some());
+        if let Some(r) = r {
+            let normalized = r.torque_normalized();
+            prop_assert!((-1.0..=1.0).contains(&normalized),
+                "torque_normalized() = {} out of range", normalized);
+        }
     }
 
     #[test]
@@ -74,11 +83,14 @@ proptest! {
         data[1] = major;
         data[2] = minor;
         data[3] = patch;
-        let r = FFBeastStateReport::parse(&data).expect("valid report");
-        prop_assert_eq!(r.firmware_version.release_type, release_type);
-        prop_assert_eq!(r.firmware_version.major, major);
-        prop_assert_eq!(r.firmware_version.minor, minor);
-        prop_assert_eq!(r.firmware_version.patch, patch);
+        let r = FFBeastStateReport::parse(&data);
+        prop_assert!(r.is_some());
+        if let Some(r) = r {
+            prop_assert_eq!(r.firmware_version.release_type, release_type);
+            prop_assert_eq!(r.firmware_version.major, major);
+            prop_assert_eq!(r.firmware_version.minor, minor);
+            prop_assert_eq!(r.firmware_version.patch, patch);
+        }
     }
 
     #[test]

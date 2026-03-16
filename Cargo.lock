@@ -4326,6 +4326,7 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror 2.0.18",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -4603,6 +4604,7 @@ name = "openracing-pidff-common"
 version = "0.1.0"
 dependencies = [
  "proptest",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -4723,6 +4725,7 @@ dependencies = [
  "serde",
  "thiserror 2.0.18",
  "tokio",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -6275,6 +6278,7 @@ dependencies = [
  "racing-wheel-telemetry-core",
  "tokio",
  "tracing",
+ "workspace-hack",
 ]
 
 [[package]]

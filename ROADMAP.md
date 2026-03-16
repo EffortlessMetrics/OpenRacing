@@ -137,14 +137,140 @@ This document outlines the development roadmap for OpenRacing. It tracks the imp
     - [x] Automatic profile schema version detection
     - [x] Profile migration with backup creation (idempotent)
 - [x] **Security**: Ed25519 trust store implemented with fail-closed mode (PR #105); native plugin signing end-to-end functional
+- [x] **Code Quality**: Workspace-wide elimination of `unwrap()` and `expect()` to enforce robust error handling, including within 29,900+ tests
+
+### Phase 5.5: First Hardware — Moza R5 Stack 🔲 Planned
+
+Safe, incremental onramp to the first working hardware setup. Each stage has a clear go/no-go gate before the next.
+
+**Reference hardware:**
+
+| Device | Type | VID | PID (V1 / V2) | Max Torque | Status |
+|--------|------|-----|----------------|------------|--------|
+| Moza R5 | Wheelbase (direct drive) | `0x346E` | `0x0004` / `0x0014` | 5.5 Nm | Protocol complete, needs HIL |
+| Moza KS | Wheel rim | — | rim ID `0x05` | — | Input parser ready |
+| Moza ES | Wheel rim | — | rim ID `0x06` | — | Input parser ready |
+| Moza SR-P | Pedals + clutch | `0x346E` | `0x0003` | — | Standalone parse ready |
+| Moza HBP | Handbrake | `0x346E` | `0x0022` | — | Standalone parse ready |
+
+**Stage 0 — Read-Only Enumeration** (zero-risk)
+- [ ] Plug in R5 + KS wheel → run `wheelctl device list` → verify VID/PID enumeration on Windows
+- [ ] Confirm product name resolves to "Moza R5" and model to `MozaModel::R5`
+- [ ] Plug in SR-P pedals standalone → verify enumeration as separate HID device (PID `0x0003`)
+- [ ] Plug in HBP handbrake standalone → verify enumeration (PID `0x0022`)
+- [ ] Capture raw HID report descriptor for R5 with `hid-capture` tool → save as golden fixture
+- [ ] **Gate: all 5 devices enumerate correctly; no FFB output sent**
+
+**Stage 1 — Input Report Capture** (read-only, no writes)
+- [ ] Read raw wheelbase input reports from R5 → validate `parse_wheelbase_input_report` output
+- [ ] Verify steering axis (u16) tracks physical wheel rotation continuously
+- [ ] Verify KS rim ID `0x05` appears in `funky` field; validate button/hat/rotary/encoder parsing
+- [ ] Swap to ES wheel → verify rim ID `0x06`; validate ES button count and joystick mode
+- [ ] Verify SR-P pedal axes (throttle, brake, clutch) via `parse_srp_usb_report_best_effort`
+- [ ] Verify HBP handbrake axis via `parse_hbp_usb_report_best_effort`
+- [ ] Verify aggregated pedal axes when SR-P is connected via wheelbase pedal port (passthrough)
+- [ ] Create known-good input report test fixtures from captured data
+- [ ] **Gate: all input parsing passes; axes track physical movement; no FFB output sent**
+
+**Stage 2 — Handshake & Feature Reports** (device writes, no FFB yet)
+- [ ] Execute `MozaProtocol::initialize_device()` handshake sequence against R5
+- [ ] Verify init state transitions: `Uninitialized → Initializing → Ready`
+- [ ] Verify `start_input_reports` (report `0x03`) succeeds (device begins streaming input)
+- [ ] Verify `set_ffb_mode` (report `0x11`, `Standard`) succeeds
+- [ ] Test `set_rotation_range` with known value (e.g. 540°) and verify physical soft-stop changes
+- [ ] Test handshake retry on simulated failure (unplug during init → `Failed` state → re-plug → retry)
+- [ ] Verify `MozaProtocol::reset_to_uninitialized()` on disconnect clears state
+- [ ] **Gate: handshake reliable; rotation range responds; no torque commands sent**
+
+**Stage 3 — Low-Torque FFB Output** (safety-critical — start at ≤10% max)
+- [ ] Ensure safety interlock is in `SafeTorque` state before any output
+- [ ] Register R5 with safety service at `5.5 Nm` max torque
+- [ ] Send constant zero-torque command via `MozaDirectTorqueEncoder::encode_zero()` → motor disabled
+- [ ] Send constant 0.55 Nm (10% of max) via `encode()` → verify subtle resistance on wheel
+- [ ] Verify motor-enable flag (byte 3, bit 0) is correctly set/cleared
+- [ ] Test `encode_zero()` immediately stops torque — critical for emergency path
+- [ ] Gradually increase to 25%, 50%, 75%, 100% of max torque with manual observation
+- [ ] Test rapid torque direction reversal (clockwise ↔ counter-clockwise)
+- [ ] Verify hardware watchdog: unplug USB mid-torque → wheel must go limp within 100ms
+- [ ] **Gate: FFB feels correct; safety interlock stops torque on fault; watchdog works**
+
+**Stage 4 — Game Telemetry Integration** (full loop: game → telemetry → FFB)
+- [ ] Start a supported game (e.g. Assetto Corsa, iRacing)
+- [ ] Verify game auto-detection and telemetry adapter startup
+- [ ] Verify telemetry data (speed, RPM, wheel angle) flows through pipeline
+- [ ] Verify FFB output reflects in-game forces (cornering, kerbs, surface detail)
+- [ ] Test game exit → FFB stops cleanly → no residual torque
+- [ ] Test device unplug during gameplay → safe state transition
+- [ ] Profile hot-swap: switch profiles during active FFB → verify smooth transition
+- [ ] **Gate: end-to-end loop works; FFB feels natural; safety transitions clean**
+
+**Stage 5 — Extended Validation & Soak**
+- [ ] 1-hour continuous FFB session with telemetry logging → check for jitter, missed ticks
+- [ ] Verify RT timing budget (1kHz loop, P99 jitter ≤ 0.25ms) with real device I/O
+- [ ] Full disconnect/reconnect cycle test (10x) → verify clean recovery every time
+- [ ] Test with both V1 (`0x0004`) and V2 (`0x0014`) R5 firmware if available
+- [ ] Compare `Standard` (PIDFF) vs `Direct` FFB mode feel and latency
+- [ ] Validate KS clutch paddles and rotary encoders work in-game for secondary controls
+- [ ] Save final golden captures and test fixtures for regression suite
+- [ ] **Gate: passes 1hr soak; all peripherals functional; ready for daily use**
+
+### Phase 6: Verification, Research & Hardening 🔲 Planned
+
+- [ ] **Hardware-in-the-Loop (HIL) Testing**
+    - [ ] USB capture validation against physical Fanatec, Logitech, and Thrustmaster devices
+    - [ ] Verify wire-format encoding with oscilloscope/protocol analyzer on at least 3 vendor wheelbases
+    - [ ] Validate FFB latency end-to-end (HID write → motor response) with hardware timing equipment
+    - [ ] Compare torque output accuracy against manufacturer calibration data
+- [ ] **Protocol Research & Cross-Validation**
+    - [ ] Cube Controls VID/PID hardware verification (currently PROVISIONAL — requires physical device captures)
+    - [ ] VRS DirectForce V2, Pedals V2, Handbrake, Shifter PID confirmation via USB captures
+    - [ ] OpenFFBoard `0xFFB1` alt PID field validation (currently removed from dispatch — confirm if real hardware uses it)
+    - [ ] Simucube 3 PID research once hardware ships
+    - [ ] Cross-validate all 159 VID/PID pairs against latest Linux kernel `hid-ids.h` and community sources
+    - [ ] Validate PXN VD-series PIDs (Gold status in JacKeTUs/simracing-hwdb but PIDs blank)
+- [ ] **Extended Soak & Stress Testing**
+    - [ ] 48-hour continuous operation soak test on Windows and Linux with real devices
+    - [ ] Memory leak detection under sustained 1kHz operation (valgrind/DHAT on Linux, ETW on Windows)
+    - [ ] Concurrent multi-device stress test (≥3 devices simultaneously)
+    - [ ] Profile hot-swap stress test under load (rapid profile switching during active FFB)
+    - [ ] IPC stress test with 50+ concurrent client connections
+- [ ] **Mutation Testing Expansion**
+    - [ ] Expand `cargo-mutants` coverage beyond engine safety to all protocol encoding/decoding paths
+    - [ ] Mutation testing for telemetry normalization pipeline (NaN/Inf rejection, unit conversion)
+    - [ ] Mutation testing for IPC codec (message framing, version negotiation)
+    - [ ] Target: zero surviving mutants in all safety-critical paths
+- [ ] **Fuzz Testing Hardening**
+    - [ ] Run all 117 fuzz targets for ≥1 hour each with corpus accumulation
+    - [ ] Integrate `cargo fuzz` coverage reports into CI dashboard
+    - [ ] Add structured fuzzing for IPC wire format (protobuf + custom framing)
+    - [ ] Add differential fuzzing: compare telemetry adapter output against reference implementations
+- [ ] **Community Device Capture Program**
+    - [ ] Publish `CONTRIBUTING_CAPTURES.md` workflow for community USB capture submissions
+    - [ ] Create golden capture corpus for regression testing (≥1 capture per vendor)
+    - [ ] Automate capture → test fixture pipeline (capture file → known-good byte sequence test)
+- [ ] **Service API Completion**
+    - [ ] Implement `WheelService::game_service()` accessor to unblock integration tests
+    - [ ] Implement `WheelService::plugin_service()` accessor to unblock integration tests
+    - [ ] Re-enable `test_game_integration` and `test_plugin_system` integration tests
+    - [ ] Implement `connect_device`, `send_ffb_frame`, `get_device_statistics` device APIs
+- [ ] **Deprecation & Symbol Rename (F-007)**
+    - [ ] Audit all protocol crates for symbols that need `#[deprecated]` migration
+    - [ ] Apply `#[deprecated(since = "...", note = "...")]` to identified symbols
+    - [ ] Update all internal call sites in the same pass
+    - [ ] Schedule removal of deprecated aliases for the following release
 
 ## Future Considerations
 
-- **Cloud Integration**: Profile sharing and cloud backup via OpenRacing Hub
-- **Mobile Companion App**: iOS/Android app for remote monitoring and quick adjustments
-- **AI/ML Integration**: Adaptive FFB tuning based on driving style analysis
-- **Wheel Manufacturer Partnerships**: Official SDK integrations
-- **VR Integration**: Direct telemetry to VR headsets for haptic feedback
+- **Cloud Integration**: Profile sharing and cloud backup via OpenRacing Hub; cross-machine profile sync
+- **Mobile Companion App**: iOS/Android app for remote monitoring, quick adjustments, and telemetry review
+- **AI/ML Integration**: Adaptive FFB tuning based on driving style analysis; automatic profile generation from telemetry sessions
+- **Wheel Manufacturer Partnerships**: Official SDK integrations with Fanatec, Moza, and Simagic for native API access
+- **VR Integration**: Direct telemetry to VR headsets for haptic feedback; motion rig integration via OpenXR
+- **Telemetry Dashboard**: Browser-based replay visualization, real-time telemetry overlay, and session comparison tools
+- **Advanced Diagnostics**: Live FFB waveform visualization, frequency spectrum analysis, and torque vs. wheel-angle plots
+- **Multi-Rig Support**: Manage multiple racing setups (e.g. motion rig + desktop) from a single profile repository
+- **Accessibility**: Screen reader support in Tauri UI, high-contrast mode, keyboard-only navigation
+- **Localization**: Multi-language support for UI and documentation (community-driven translations)
 
 ## Known Technical Debt
 
@@ -156,11 +282,14 @@ The following TODOs exist in the codebase and should be addressed before product
 | ~~Ed25519 trust store~~ | ~~Needs trust store for public key distribution~~ — **RESOLVED**: Fail-closed trust store implemented (PR #105) |
 | ~~`crates/service/src/crypto/mod.rs:204-205`~~ | ~~Implement PE/ELF embedded signature checking~~ — **RESOLVED**: PE/ELF/Mach-O parsing implemented via `goblin` |
 | ~~`crates/engine/src/diagnostic/blackbox.rs:152`~~ | ~~Index optimization for large recordings~~ — **RESOLVED**: Binary search (`find_index_at_timestamp`, `find_indices_in_range`) added with O(log n) lookup |
-| `crates/service/src/integration_tests.rs` | Re-enable disabled integration tests |
+| `crates/service/src/integration_tests.rs` | Re-enable disabled integration tests — blocked on `WheelService::game_service()` and `plugin_service()` accessors (see Phase 6) |
 | ~~`crates/hid-pxn-protocol/src/output.rs`~~ | ~~PXN FFB_REPORT_ID 0x05 is estimated; verify with USB capture~~ — **RESOLVED**: PXN uses standard PIDFF; `SET_CONSTANT_FORCE=0x05` is per USB PID spec, not vendor-specific |
 | ~~`docs/DEVICE_CAPABILITIES.md`~~ | ~~Cube Controls VID/PIDs provisional~~ — **RESOLVED**: Fabricated PIDs removed from FFB dispatch (PR #24) |
 | ~~`docs/protocols/SOURCES.md`~~ | ~~Devices Under Investigation table~~ — **UPDATED**: Research dates added, PXN VD-series status updated (Gold in JacKeTUs but PIDs blank), Simucube 3 speculation noted |
-| `F-007 (FRICTION_LOG)` | Symbol rename pattern — `#[deprecated]` guidance added to DEVELOPMENT.md; no code changes yet |
+| `F-007 (FRICTION_LOG)` | Symbol rename pattern — `#[deprecated]` guidance added to DEVELOPMENT.md; audit and code changes tracked in Phase 6 |
+| Cube Controls PIDs | PROVISIONAL — requires physical device captures to confirm; tracked in Phase 6 |
+| VRS V2 device PIDs | `0xA356`–`0xA35A` removed as fabricated — need real device captures to determine actual PIDs |
+| Soak test coverage | No automated 48-hour soak tests in CI yet; tracked in Phase 6 |
 
 ## Release Schedule
 
@@ -170,6 +299,7 @@ The following TODOs exist in the codebase and should be addressed before product
 | v0.2.0  | 2026-02-01 | ✅ Released | Windows Support & Tauri UI |
 | v0.3.0  | 2026-02-01 | ✅ Released | WASM Plugins, Game Telemetry, Curve FFB |
 | v0.x.y  | 2026-Q3   | 🔄 In Progress | 28 vendors, 61 game integrations, safety hardening, 29,900+ tests, pre-hardware sign-off |
+| v0.x.y+1| 2026-Q4   | 🔲 Planned | Phase 6: HIL testing, protocol research, soak tests, service API completion |
 | v1.0.0  | TBD       | Planned | Production Release with Hardware Sign-Off |
 
 ## Contributing
@@ -179,4 +309,4 @@ See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for development setup and contr
 Significant architectural changes require an ADR. See [docs/adr/README.md](docs/adr/README.md) for the process.
 
 ---
-*Last updated: 2026-Q3. This roadmap reflects the current project state: 86 crates, 28 vendors, 159 devices, 61 games, 29,900+ tests. Version is v0.x.y until hardware sign-off.*
+*Last updated: 2026-03-16. This roadmap reflects the current project state: 86 crates, 28 vendors, 159 devices, 61 games, 29,900+ tests. Version is v0.x.y until hardware sign-off.*

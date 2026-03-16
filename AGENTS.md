@@ -26,7 +26,7 @@ This file guides automated agents working in this repository. Follow it alongsid
 - Significant architectural changes require an ADR. See `docs/adr/README.md`.
 
 ## Code style and linting
-- Format: `cargo fmt --all`
+- Format: `python scripts/cargo_fmt_workspace.py` (avoid `cargo fmt --all` on Windows due to path length limit os error 206)
 - Lints: `cargo clippy --all-targets --all-features -- -D warnings`
 - Prefer small, readable diffs; keep APIs consistent across crates.
 

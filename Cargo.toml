@@ -224,6 +224,10 @@ panic = "abort"
 
 [profile.dev]
 panic = "abort"
+debug = "line-tables-only"  # Keeps stacktraces but saves massive disk space vs `debug = 2`
+
+[profile.test]
+debug = "line-tables-only"  # Prevents 60GiB target/ bloat during workspace cargo test
 
 # Performance-critical profile for RT components
 [profile.rt]

@@ -1621,8 +1621,21 @@ mod proptest_validation {
                 ..WheelSettings::default()
             };
             let original = WheelProfile::new("PropTest", "dev").with_settings(settings);
-            let json = serde_json::to_string(&original).expect("serialize");
-            let restored: WheelProfile = serde_json::from_str(&json).expect("deserialize");
+            
+            let json = match serde_json::to_string(&original) {
+                Ok(v) => v,
+                Err(e) => {
+                    prop_assert!(false, "serialize failed: {}", e);
+                    unreachable!()
+                }
+            };
+            let restored: WheelProfile = match serde_json::from_str(&json) {
+                Ok(v) => v,
+                Err(e) => {
+                    prop_assert!(false, "deserialize failed: {}", e);
+                    unreachable!()
+                }
+            };
 
             prop_assert!((original.settings.ffb.overall_gain - restored.settings.ffb.overall_gain).abs() < f32::EPSILON);
             prop_assert!((original.settings.ffb.torque_limit - restored.settings.ffb.torque_limit).abs() < f32::EPSILON);

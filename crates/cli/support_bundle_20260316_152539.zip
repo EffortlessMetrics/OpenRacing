@@ -1,0 +1,41 @@
+{
+  "blackbox_included": false,
+  "devices": [
+    {
+      "capabilities": {
+        "encoder_cpr": 2048,
+        "max_torque_nm": 8.0,
+        "min_report_period_us": 1000,
+        "supports_health_stream": true,
+        "supports_led_bus": true,
+        "supports_pid": true,
+        "supports_raw_torque_1khz": true
+      },
+      "device_type": "WheelBase",
+      "id": "wheel-001",
+      "name": "Fanatec DD Pro",
+      "state": "Connected"
+    },
+    {
+      "capabilities": {
+        "encoder_cpr": 1024,
+        "max_torque_nm": 0.0,
+        "min_report_period_us": 5000,
+        "supports_health_stream": true,
+        "supports_led_bus": false,
+        "supports_pid": false,
+        "supports_raw_torque_1khz": false
+      },
+      "device_type": "Pedals",
+      "id": "pedals-001",
+      "name": "Fanatec V3 Pedals",
+      "state": "Connected"
+    }
+  ],
+  "system_info": {
+    "arch": "x86_64",
+    "os": "windows",
+    "version": "0.1.0"
+  },
+  "timestamp": "2026-03-16T15:25:42.210096100Z"
+}

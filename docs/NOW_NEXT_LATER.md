@@ -4,34 +4,38 @@ One-screen execution plan for OpenRacing. Updated each sprint.
 
 **Project snapshot:** 86 crates · 29,900+ tests · 509 proptests · 117 fuzz targets · 28 vendors · 61 games
 
+**First hardware target:** Moza R5 + KS + ES + SR-P + HBP (Phase 5.5)
+
 ---
 
 ## NOW (Active — this sprint)
 
-- Documentation accuracy pass — verify all commands, counts, and feature claims across docs for RC readiness
-- CI green on all platforms — fix concurrency-group cancellation cascade (workflow_dispatch in progress)
-- Merge wave 121 PRs — CI hardening, macOS IOKit, integration test re-enablement, engine deep tests
-- Re-enable disabled integration tests — address remaining technical debt item in ROADMAP
-- Engine blackbox/safety/pipeline deep tests — close remaining coverage gaps in safety-critical paths
+- **Moza R5 hardware onramp (Stage 0–1)** — read-only enumeration and input capture with physical R5, KS, ES, SR-P, HBP devices; create golden test fixtures from captured reports
+- **Service API completion** — implement `WheelService::game_service()` and `plugin_service()` accessors; re-enable blocked integration tests
+- **Symbol rename audit (F-007)** — audit protocol crates for symbols needing `#[deprecated]` migration
 
 ## NEXT (Queued — next 2–4 sprints)
 
-- macOS IOKit HID driver — start actual device I/O on macOS (currently compile-only)
-- macOS DMG packaging with notarization
-- Packaging automation — deb/rpm in CI with signing, Windows MSI signing
-- Adaptive RT scheduling — CPU governor integration for dynamic deadline adjustment
-- Performance tuning — benchmark suite expansion, profiling under load
-- Device capture tooling refinement — openracing-capture protocol sniffer/mapper
+- **Moza R5 hardware onramp (Stage 2–4)** — handshake validation, low-torque FFB output (start at ≤10% max / 0.55 Nm), game telemetry integration, soak testing
+- **Protocol research & cross-validation** — Cube Controls, VRS V2, PXN VD-series PID confirmation via physical device captures
+- **Mutation testing expansion** — extend `cargo-mutants` to protocol encoding, telemetry normalization, and IPC codec
+- **Fuzz corpus accumulation** — run all 117 fuzz targets for ≥1 hour each
+- **macOS IOKit HID driver** — start actual device I/O on macOS
+- **Packaging automation** — deb/rpm + MSI signing in CI
+- **Performance tuning** — benchmark under sustained real-device load
 
 ## LATER (Backlog — future work)
 
-- Hardware-in-the-loop testing — USB capture validation against physical devices
-- Plugin marketplace / repository — searchable catalog with community submissions
-- Telemetry dashboard — replay visualization and real-time telemetry display tools
-- Flatpak packaging
-- BeamNG.drive deep protocol integration (native shared-memory path)
-- Community device capture contribution workflow
-- Mobile companion app (iOS/Android)
+- **Multi-vendor HIL testing** — Fanatec, Logitech, Thrustmaster device validation
+- **Extended soak testing** — 48-hour continuous operation, multi-device stress
+- **Cloud integration** — profile sharing and cross-machine sync
+- **Telemetry dashboard** — browser-based replay visualization and session comparison
+- **AI/ML integration** — adaptive FFB tuning from driving style analysis
+- **Plugin marketplace** — searchable catalog with community submissions
+- **VR / motion rig integration** — haptic feedback via OpenXR
+- **Mobile companion app** (iOS/Android)
+- **Accessibility** — screen reader support, high-contrast mode
+- **Localization** — multi-language UI and docs
 
 ---
 

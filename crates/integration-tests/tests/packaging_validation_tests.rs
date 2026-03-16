@@ -26,14 +26,12 @@ fn read_packaging_file(rel_path: &str) -> Result<String, Box<dyn std::error::Err
 
 /// Parse all VID/PID pairs from the udev rules file (hidraw section only).
 /// Returns `(vid_pid_pairs, vendor_wide_vids)`.
-fn parse_udev_rules(content: &str) -> (HashSet<(String, String)>, HashSet<String>) {
+fn parse_udev_rules(content: &str) -> Result<(HashSet<(String, String)>, HashSet<String>), Box<dyn std::error::Error>> {
     let vid_pid_re = regex::Regex::new(
         r#"ATTRS\{idVendor\}=="([0-9a-fA-F]{4})".*?ATTRS\{idProduct\}=="([0-9a-fA-F]{4})""#,
-    )
-    .expect("regex");
+    )?;
     let hidraw_vid_re =
-        regex::Regex::new(r#"SUBSYSTEM=="hidraw".*ATTRS\{idVendor\}=="([0-9a-fA-F]{4})""#)
-            .expect("regex");
+        regex::Regex::new(r#"SUBSYSTEM=="hidraw".*ATTRS\{idVendor\}=="([0-9a-fA-F]{4})""#)?;
 
     let mut pairs = HashSet::new();
     let mut vendor_wide = HashSet::new();
@@ -56,7 +54,7 @@ fn parse_udev_rules(content: &str) -> (HashSet<(String, String)>, HashSet<String
             vendor_wide.insert(vid);
         }
     }
-    (pairs, vendor_wide)
+    Ok((pairs, vendor_wide))
 }
 
 /// Known VID/PID pairs that MUST appear in udev rules (from HID protocol crates).
@@ -417,7 +415,7 @@ fn udev_rules_file_exists() -> Result<(), Box<dyn std::error::Error>> {
 fn udev_rules_all_known_vids_present() -> Result<(), Box<dyn std::error::Error>> {
     let path = repo_root().join("packaging/linux/99-racing-wheel-suite.rules");
     let content = fs::read_to_string(&path)?;
-    let (pairs, wide_vids) = parse_udev_rules(&content);
+    let (pairs, wide_vids) = parse_udev_rules(&content)?;
 
     let mut missing = Vec::new();
     for (vid, pid, desc) in known_vid_pids() {
@@ -441,7 +439,7 @@ fn udev_rules_all_known_vids_present() -> Result<(), Box<dyn std::error::Error>>
 fn udev_rules_vendor_wide_vids_present() -> Result<(), Box<dyn std::error::Error>> {
     let path = repo_root().join("packaging/linux/99-racing-wheel-suite.rules");
     let content = fs::read_to_string(&path)?;
-    let (_pairs, wide_vids) = parse_udev_rules(&content);
+    let (_pairs, wide_vids) = parse_udev_rules(&content)?;
 
     for vid in vendor_wide_vids() {
         assert!(
@@ -968,10 +966,9 @@ fn msi_build_script_exists() -> Result<(), Box<dyn std::error::Error>> {
 
 /// Parse VID/PID pairs from the hwdb file.
 /// Returns uppercase hex pairs like ("046D", "C299").
-fn parse_hwdb_vid_pids(content: &str) -> HashSet<(String, String)> {
+fn parse_hwdb_vid_pids(content: &str) -> Result<HashSet<(String, String)>, Box<dyn std::error::Error>> {
     let re =
-        regex::Regex::new(r"(?i)id-input:modalias:input:\*v([0-9A-Fa-f]{4})p([0-9A-Fa-f]{4})\*")
-            .expect("hwdb regex");
+        regex::Regex::new(r"(?i)id-input:modalias:input:\*v([0-9A-Fa-f]{4})p([0-9A-Fa-f]{4})\*")?;
     let mut pairs = HashSet::new();
     for line in content.lines() {
         let line = line.trim();
@@ -984,7 +981,7 @@ fn parse_hwdb_vid_pids(content: &str) -> HashSet<(String, String)> {
             pairs.insert((vid.as_str().to_uppercase(), pid.as_str().to_uppercase()));
         }
     }
-    pairs
+    Ok(pairs)
 }
 
 /// Known wheelbase VID/PID pairs that MUST have hwdb entries.
@@ -1092,7 +1089,7 @@ fn hwdb_vid_pid_values_are_uppercase() -> Result<(), Box<dyn std::error::Error>>
 #[test]
 fn hwdb_contains_all_known_wheelbases() -> Result<(), Box<dyn std::error::Error>> {
     let content = read_packaging_file("packaging/linux/99-racing-wheel-suite.hwdb")?;
-    let hwdb_pairs = parse_hwdb_vid_pids(&content);
+    let hwdb_pairs = parse_hwdb_vid_pids(&content)?;
     let mut missing = Vec::new();
 
     for (vid, pid, desc) in known_wheelbase_vid_pids() {
@@ -1128,7 +1125,7 @@ fn hwdb_sets_accelerometer_to_zero() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn hwdb_has_minimum_device_count() -> Result<(), Box<dyn std::error::Error>> {
     let content = read_packaging_file("packaging/linux/99-racing-wheel-suite.hwdb")?;
-    let pairs = parse_hwdb_vid_pids(&content);
+    let pairs = parse_hwdb_vid_pids(&content)?;
     assert!(
         pairs.len() >= 90,
         "hwdb file should have at least 90 device entries, found {}",

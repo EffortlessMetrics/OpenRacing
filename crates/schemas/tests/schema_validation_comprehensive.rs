@@ -532,11 +532,12 @@ fn device_capabilities_update_rate() -> TestResult {
 // ──────────────────────────────────────────────────────────────────────
 
 #[test]
-fn snapshot_default_normalized_telemetry_json() {
+fn snapshot_default_normalized_telemetry_json() -> TestResult {
     let t = NormalizedTelemetry::default();
     // Serialize excluding the non-serializable timestamp field by using serde_json
-    let value = serde_json::to_value(&t).expect("serialization must succeed");
+    let value = serde_json::to_value(&t)?;
     insta::assert_json_snapshot!("default_normalized_telemetry", value);
+    Ok(())
 }
 
 #[test]
@@ -560,10 +561,11 @@ fn snapshot_device_state_variant_names() {
 }
 
 #[test]
-fn snapshot_telemetry_flags_default() {
+fn snapshot_telemetry_flags_default() -> TestResult {
     let flags = TelemetryFlags::default();
-    let value = serde_json::to_value(&flags).expect("serialization must succeed");
+    let value = serde_json::to_value(&flags)?;
     insta::assert_json_snapshot!("telemetry_flags_default", value);
+    Ok(())
 }
 
 // ──────────────────────────────────────────────────────────────────────
@@ -672,8 +674,8 @@ mod proptest_coverage {
                 .brake(brake)
                 .build();
 
-            let json = serde_json::to_string(&t).expect("serialize");
-            let rt: NormalizedTelemetry = serde_json::from_str(&json).expect("deserialize");
+            let Ok(json) = serde_json::to_string(&t) else { prop_assert!(false, "serialize failed"); unreachable!() };
+            let Ok(rt) = serde_json::from_str::<NormalizedTelemetry>(&json) else { prop_assert!(false, "deserialize failed"); unreachable!() };
 
             prop_assert_eq!(rt.speed_ms, t.speed_ms);
             prop_assert_eq!(rt.rpm, t.rpm);

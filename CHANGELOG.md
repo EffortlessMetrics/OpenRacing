@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- ROADMAP Phase 5.5 (First Hardware — Moza R5 Stack): 6-stage incremental onramp from read-only enumeration through game telemetry integration for Moza R5 wheelbase, KS/ES wheels, SR-P pedals, and HBP handbrake
+- ROADMAP Phase 6 (Verification, Research & Hardening): HIL testing, protocol research, soak/stress testing, mutation/fuzz expansion, community device capture program, service API completion, F-007 deprecation audit
+- `docs/DEVELOPMENT.md` Error Handling Defaults section: codified workspace-wide ban on `unwrap()`/`expect()` with `Result`-returning test patterns and `let-else` property-test guidance
+- Extended Future Considerations in ROADMAP: telemetry dashboard, advanced diagnostics, multi-rig support, accessibility, localization
+- NOW_NEXT_LATER execution plan refreshed with service API completion, HIL prep, mutation testing expansion, and protocol research priorities
 - 35 service lifecycle hardening tests for wheeld daemon (#237)
 - 127 deep diagnostics and observability tests (#236)
 - 128 cross-platform correctness tests for IPC, scheduler, and integration (#235)

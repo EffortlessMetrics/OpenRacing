@@ -942,57 +942,76 @@ mod proptest_schemas {
         #[test]
         fn torque_always_roundtrips_through_json(val in 0.0f32..=50.0f32) {
             if let Ok(torque) = TorqueNm::new(val) {
-                let json = serde_json::to_string(&torque);
-                prop_assert!(json.is_ok());
-                let restored: Result<TorqueNm, _> = serde_json::from_str(&json.unwrap());
-                prop_assert!(restored.is_ok());
-                prop_assert!((restored.unwrap().value() - val).abs() < f32::EPSILON);
+                let Ok(json) = serde_json::to_string(&torque) else {
+                    prop_assert!(false, "serialize failed");
+                    unreachable!()
+                };
+                let Ok(restored) = serde_json::from_str::<TorqueNm>(&json) else {
+                    prop_assert!(false, "deserialize failed");
+                    unreachable!()
+                };
+                prop_assert!((restored.value() - val).abs() < f32::EPSILON);
             }
         }
 
         #[test]
         fn gain_always_roundtrips_through_json(val in 0.0f32..=1.0f32) {
             if let Ok(gain) = Gain::new(val) {
-                let json = serde_json::to_string(&gain);
-                prop_assert!(json.is_ok());
-                let restored: Result<Gain, _> = serde_json::from_str(&json.unwrap());
-                prop_assert!(restored.is_ok());
-                prop_assert!((restored.unwrap().value() - val).abs() < f32::EPSILON);
+                let Ok(json) = serde_json::to_string(&gain) else {
+                    prop_assert!(false, "serialize failed");
+                    unreachable!()
+                };
+                let Ok(restored) = serde_json::from_str::<Gain>(&json) else {
+                    prop_assert!(false, "deserialize failed");
+                    unreachable!()
+                };
+                prop_assert!((restored.value() - val).abs() < f32::EPSILON);
             }
         }
 
         #[test]
         fn frequency_always_roundtrips_through_json(val in 0.01f32..=100000.0f32) {
             if let Ok(freq) = FrequencyHz::new(val) {
-                let json = serde_json::to_string(&freq);
-                prop_assert!(json.is_ok());
-                let restored: Result<FrequencyHz, _> = serde_json::from_str(&json.unwrap());
-                prop_assert!(restored.is_ok());
-                prop_assert!((restored.unwrap().value() - val).abs() < f32::EPSILON);
+                let Ok(json) = serde_json::to_string(&freq) else {
+                    prop_assert!(false, "serialize failed");
+                    unreachable!()
+                };
+                let Ok(restored) = serde_json::from_str::<FrequencyHz>(&json) else {
+                    prop_assert!(false, "deserialize failed");
+                    unreachable!()
+                };
+                prop_assert!((restored.value() - val).abs() < f32::EPSILON);
             }
         }
 
         #[test]
         fn degrees_dor_roundtrip(val in 180.0f32..=2160.0f32) {
             if let Ok(deg) = Degrees::new_dor(val) {
-                let json = serde_json::to_string(&deg);
-                prop_assert!(json.is_ok());
-                let restored: Result<Degrees, _> = serde_json::from_str(&json.unwrap());
-                prop_assert!(restored.is_ok());
-                prop_assert!((restored.unwrap().value() - val).abs() < f32::EPSILON);
+                let Ok(json) = serde_json::to_string(&deg) else {
+                    prop_assert!(false, "serialize failed");
+                    unreachable!()
+                };
+                let Ok(restored) = serde_json::from_str::<Degrees>(&json) else {
+                    prop_assert!(false, "deserialize failed");
+                    unreachable!()
+                };
+                prop_assert!((restored.value() - val).abs() < f32::EPSILON);
             }
         }
 
         #[test]
         fn curve_point_roundtrip(input in 0.0f32..=1.0f32, output in 0.0f32..=1.0f32) {
             if let Ok(cp) = CurvePoint::new(input, output) {
-                let json = serde_json::to_string(&cp);
-                prop_assert!(json.is_ok());
-                let restored: Result<CurvePoint, _> = serde_json::from_str(&json.unwrap());
-                prop_assert!(restored.is_ok());
-                let r = restored.unwrap();
-                prop_assert!((r.input - input).abs() < f32::EPSILON);
-                prop_assert!((r.output - output).abs() < f32::EPSILON);
+                let Ok(json) = serde_json::to_string(&cp) else {
+                    prop_assert!(false, "serialize failed");
+                    unreachable!()
+                };
+                let Ok(restored) = serde_json::from_str::<CurvePoint>(&json) else {
+                    prop_assert!(false, "deserialize failed");
+                    unreachable!()
+                };
+                prop_assert!((restored.input - input).abs() < f32::EPSILON);
+                prop_assert!((restored.output - output).abs() < f32::EPSILON);
             }
         }
 
@@ -1008,11 +1027,15 @@ mod proptest_schemas {
         fn telemetry_value_float_roundtrip(val in -1000.0f32..=1000.0f32) {
             if val.is_finite() {
                 let tv = TelemetryValue::Float(val);
-                let json = serde_json::to_string(&tv);
-                prop_assert!(json.is_ok());
-                let restored: Result<TelemetryValue, _> = serde_json::from_str(&json.unwrap());
-                prop_assert!(restored.is_ok());
-                prop_assert_eq!(restored.unwrap(), tv);
+                let Ok(json) = serde_json::to_string(&tv) else {
+                    prop_assert!(false, "serialize failed");
+                    unreachable!()
+                };
+                let Ok(restored) = serde_json::from_str::<TelemetryValue>(&json) else {
+                    prop_assert!(false, "deserialize failed");
+                    unreachable!()
+                };
+                prop_assert_eq!(restored, tv);
             }
         }
 
@@ -1031,11 +1054,15 @@ mod proptest_schemas {
                 hands_on: true,
                 timestamp: 0,
             };
-            let json = serde_json::to_string(&data);
-            prop_assert!(json.is_ok());
-            let restored: Result<TelemetryData, _> = serde_json::from_str(&json.unwrap());
-            prop_assert!(restored.is_ok());
-            prop_assert_eq!(restored.unwrap(), data);
+            let Ok(json) = serde_json::to_string(&data) else {
+                prop_assert!(false, "serialize failed");
+                unreachable!()
+            };
+            let Ok(restored) = serde_json::from_str::<TelemetryData>(&json) else {
+                prop_assert!(false, "deserialize failed");
+                unreachable!()
+            };
+            prop_assert_eq!(restored, data);
         }
 
         #[test]

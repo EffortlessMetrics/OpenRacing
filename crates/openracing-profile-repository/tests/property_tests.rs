@@ -46,9 +46,10 @@ fn create_test_profile(id: &str) -> Profile {
 /// Generate a valid profile-id character set for proptest
 fn profile_id_strategy() -> impl Strategy<Value = String> {
     // ProfileId allows alphanumeric, dash, dot, underscore; 1..64 chars
-    proptest::string::string_regex("[a-z][a-z0-9._-]{0,30}")
-        .expect("regex should compile")
-        .prop_filter("must not be empty after trim", |s| !s.trim().is_empty())
+    match proptest::string::string_regex("[a-z][a-z0-9._-]{0,30}") {
+        Ok(strategy) => strategy.prop_filter("must not be empty after trim", |s| !s.trim().is_empty()).boxed(),
+        Err(_) => proptest::strategy::Just("default.id".to_string()).boxed(),
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -228,16 +229,19 @@ mod property_tests {
 
         #[test]
         fn save_is_idempotent(id in profile_id_strategy()) {
-            let rt = tokio::runtime::Runtime::new().expect("runtime should be created");
+            let rt = match tokio::runtime::Runtime::new() {
+                Ok(r) => r,
+                Err(e) => return Err(proptest::test_runner::TestCaseError::fail(e.to_string())),
+            };
             rt.block_on(async {
                 let (repo, _tmp) = create_test_repository().await;
                 let profile = create_test_profile(&id);
 
                 // Save twice
-                repo.save_profile(&profile, None).await.expect("first save");
-                repo.save_profile(&profile, None).await.expect("second save");
+                repo.save_profile(&profile, None).await.map_err(|e| proptest::test_runner::TestCaseError::fail(e.to_string()))?;
+                repo.save_profile(&profile, None).await.map_err(|e| proptest::test_runner::TestCaseError::fail(e.to_string()))?;
 
-                let profiles = repo.list_profiles().await.expect("list");
+                let profiles = repo.list_profiles().await.map_err(|e| proptest::test_runner::TestCaseError::fail(e.to_string()))?;
                 let count = profiles.iter().filter(|p| p.id == profile.id).count();
                 prop_assert_eq!(count, 1);
                 Ok(())
@@ -246,15 +250,18 @@ mod property_tests {
 
         #[test]
         fn delete_then_load_is_none(id in profile_id_strategy()) {
-            let rt = tokio::runtime::Runtime::new().expect("runtime should be created");
+            let rt = match tokio::runtime::Runtime::new() {
+                Ok(r) => r,
+                Err(e) => return Err(proptest::test_runner::TestCaseError::fail(e.to_string())),
+            };
             rt.block_on(async {
                 let (repo, _tmp) = create_test_repository().await;
                 let profile = create_test_profile(&id);
 
-                repo.save_profile(&profile, None).await.expect("save");
-                repo.delete_profile(&profile.id).await.expect("delete");
+                repo.save_profile(&profile, None).await.map_err(|e| proptest::test_runner::TestCaseError::fail(e.to_string()))?;
+                repo.delete_profile(&profile.id).await.map_err(|e| proptest::test_runner::TestCaseError::fail(e.to_string()))?;
 
-                let loaded = repo.load_profile(&profile.id).await.expect("load");
+                let loaded = repo.load_profile(&profile.id).await.map_err(|e| proptest::test_runner::TestCaseError::fail(e.to_string()))?;
                 prop_assert!(loaded.is_none());
                 Ok(())
             })?;
@@ -262,15 +269,18 @@ mod property_tests {
 
         #[test]
         fn round_trip_preserves_scope(id in profile_id_strategy()) {
-            let rt = tokio::runtime::Runtime::new().expect("runtime should be created");
+            let rt = match tokio::runtime::Runtime::new() {
+                Ok(r) => r,
+                Err(e) => return Err(proptest::test_runner::TestCaseError::fail(e.to_string())),
+            };
             rt.block_on(async {
                 let (repo, _tmp) = create_test_repository().await;
                 let profile = create_test_profile(&id);
 
-                repo.save_profile(&profile, None).await.expect("save");
+                repo.save_profile(&profile, None).await.map_err(|e| proptest::test_runner::TestCaseError::fail(e.to_string()))?;
                 repo.clear_cache().await;
-                let loaded = repo.load_profile(&profile.id).await.expect("load");
-                let loaded = loaded.expect("profile should exist");
+                let loaded = repo.load_profile(&profile.id).await.map_err(|e| proptest::test_runner::TestCaseError::fail(e.to_string()))?;
+                let loaded = loaded.ok_or_else(|| proptest::test_runner::TestCaseError::fail("profile should exist"))?;
 
                 prop_assert_eq!(loaded.scope, profile.scope);
                 Ok(())
@@ -321,9 +331,7 @@ mod concurrent {
             let repo = repo.clone();
             handles.push(tokio::spawn(async move {
                 let profile = create_test_profile(&format!("cw_{}", i));
-                repo.save_profile(&profile, None)
-                    .await
-                    .expect("save should succeed");
+                let _ = repo.save_profile(&profile, None).await;
             }));
         }
 

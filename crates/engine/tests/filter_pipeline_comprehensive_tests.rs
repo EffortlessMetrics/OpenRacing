@@ -1350,7 +1350,7 @@ mod parameter_validation {
         }
     }
 
-    fn linear_config() -> FilterConfig {
+    fn linear_config() -> Result<FilterConfig, String> {
         FilterConfig::new_complete(
             0,
             must(Gain::new(0.0)),
@@ -1366,13 +1366,13 @@ mod parameter_validation {
             BumpstopConfig::default(),
             HandsOffConfig::default(),
         )
-        .unwrap() // safe in test-helper setup
+        .map_err(|e| e.to_string())
     }
 
     #[tokio::test]
     async fn rejects_reconstruction_level_above_8() -> Result<(), String> {
         let compiler = PipelineCompiler::new();
-        let mut config = linear_config();
+        let mut config = linear_config()?;
         config.reconstruction = 10;
         let result = compiler.compile_pipeline(config).await;
         if result.is_ok() {
@@ -1403,7 +1403,7 @@ mod parameter_validation {
             BumpstopConfig::default(),
             HandsOffConfig::default(),
         )
-        .unwrap(); // setup
+        .map_err(|e| e.to_string())?; // setup
         let result = compiler.compile_pipeline(config).await;
         if result.is_ok() {
             return Err("should reject freq > 500 Hz".to_string());
@@ -1460,12 +1460,12 @@ mod parameter_validation {
             BumpstopConfig::default(),
             HandsOffConfig::default(),
         )
-        .unwrap(); // setup
+        .map_err(|e| e.to_string())?; // setup
         let result = compiler.compile_pipeline(config).await;
         if result.is_err() {
             return Err(format!("valid config should compile: {:?}", result));
         }
-        let compiled = result.unwrap(); // safe: we just checked is_ok
+        let compiled = result.map_err(|e| e.to_string())?; // safe: we just checked is_ok
         if compiled.pipeline.node_count() == 0 {
             return Err("compiled pipeline should have nodes".to_string());
         }
@@ -1491,10 +1491,10 @@ mod parameter_validation {
                 BumpstopConfig::default(),
                 HandsOffConfig::default(),
             )
-            .unwrap()
+            .map_err(|e| e.to_string())
         };
-        let r1 = compiler.compile_pipeline(mk_config()).await.unwrap(); // setup
-        let r2 = compiler.compile_pipeline(mk_config()).await.unwrap(); // setup
+        let r1 = compiler.compile_pipeline(mk_config()?).await.map_err(|e| e.to_string())?; // setup
+        let r2 = compiler.compile_pipeline(mk_config()?).await.map_err(|e| e.to_string())?; // setup
         if r1.config_hash != r2.config_hash {
             return Err(format!(
                 "same config → different hash: {:x} vs {:x}",
@@ -1522,10 +1522,10 @@ mod parameter_validation {
             BumpstopConfig::default(),
             HandsOffConfig::default(),
         )
-        .unwrap(); // setup
-        let config_b = linear_config();
-        let r1 = compiler.compile_pipeline(config_a).await.unwrap(); // setup
-        let r2 = compiler.compile_pipeline(config_b).await.unwrap(); // setup
+        .map_err(|e| e.to_string())?; // setup
+        let config_b = linear_config()?;
+        let r1 = compiler.compile_pipeline(config_a).await.map_err(|e| e.to_string())?; // setup
+        let r2 = compiler.compile_pipeline(config_b).await.map_err(|e| e.to_string())?; // setup
         if r1.config_hash == r2.config_hash {
             return Err("different configs should have different hashes".to_string());
         }
@@ -1557,8 +1557,8 @@ mod parameter_validation {
                 ..HandsOffConfig::default()
             },
         )
-        .unwrap(); // setup
-        let compiled = compiler.compile_pipeline(config).await.unwrap(); // setup
+        .map_err(|e| e.to_string())?; // setup
+        let compiled = compiler.compile_pipeline(config).await.map_err(|e| e.to_string())?; // setup
         // With all gains at zero, linear curve, and disabled bumpstop/hands-off → no nodes
         if compiled.pipeline.node_count() != 0 {
             return Err(format!(
