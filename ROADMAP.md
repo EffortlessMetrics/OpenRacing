@@ -139,9 +139,9 @@ This document outlines the development roadmap for OpenRacing. It tracks the imp
 - [x] **Security**: Ed25519 trust store implemented with fail-closed mode (PR #105); native plugin signing end-to-end functional
 - [x] **Code Quality**: Workspace-wide elimination of `unwrap()` and `expect()` to enforce robust error handling, including within 29,900+ tests
 
-### Phase 5.5: First Hardware — Moza R5 Stack 🔲 Planned
+### Phase 6: Device Enumeration — Moza R5 Stack 🔲 Planned
 
-Safe, incremental onramp to the first working hardware setup. Each stage has a clear go/no-go gate before the next.
+First hardware bring-up. Zero-risk read-only enumeration of all reference devices.
 
 **Reference hardware:**
 
@@ -153,7 +153,6 @@ Safe, incremental onramp to the first working hardware setup. Each stage has a c
 | Moza SR-P | Pedals + clutch | `0x346E` | `0x0003` | — | Standalone parse ready |
 | Moza HBP | Handbrake | `0x346E` | `0x0022` | — | Standalone parse ready |
 
-**Stage 0 — Read-Only Enumeration** (zero-risk)
 - [ ] Plug in R5 + KS wheel → run `wheelctl device list` → verify VID/PID enumeration on Windows
 - [ ] Confirm product name resolves to "Moza R5" and model to `MozaModel::R5`
 - [ ] Plug in SR-P pedals standalone → verify enumeration as separate HID device (PID `0x0003`)
@@ -161,7 +160,10 @@ Safe, incremental onramp to the first working hardware setup. Each stage has a c
 - [ ] Capture raw HID report descriptor for R5 with `hid-capture` tool → save as golden fixture
 - [ ] **Gate: all 5 devices enumerate correctly; no FFB output sent**
 
-**Stage 1 — Input Report Capture** (read-only, no writes)
+### Phase 7: Input Report Capture 🔲 Planned
+
+Read-only input validation. No writes to any device.
+
 - [ ] Read raw wheelbase input reports from R5 → validate `parse_wheelbase_input_report` output
 - [ ] Verify steering axis (u16) tracks physical wheel rotation continuously
 - [ ] Verify KS rim ID `0x05` appears in `funky` field; validate button/hat/rotary/encoder parsing
@@ -172,7 +174,10 @@ Safe, incremental onramp to the first working hardware setup. Each stage has a c
 - [ ] Create known-good input report test fixtures from captured data
 - [ ] **Gate: all input parsing passes; axes track physical movement; no FFB output sent**
 
-**Stage 2 — Handshake & Feature Reports** (device writes, no FFB yet)
+### Phase 8: Handshake & Feature Reports 🔲 Planned
+
+First device writes — feature reports for initialization and configuration. No FFB torque output yet.
+
 - [ ] Execute `MozaProtocol::initialize_device()` handshake sequence against R5
 - [ ] Verify init state transitions: `Uninitialized → Initializing → Ready`
 - [ ] Verify `start_input_reports` (report `0x03`) succeeds (device begins streaming input)
@@ -182,7 +187,10 @@ Safe, incremental onramp to the first working hardware setup. Each stage has a c
 - [ ] Verify `MozaProtocol::reset_to_uninitialized()` on disconnect clears state
 - [ ] **Gate: handshake reliable; rotation range responds; no torque commands sent**
 
-**Stage 3 — Low-Torque FFB Output** (safety-critical — start at ≤10% max)
+### Phase 9: Low-Torque FFB Output 🔲 Planned
+
+Safety-critical phase. Start at ≤10% of max torque (0.55 Nm) and ramp gradually with manual observation.
+
 - [ ] Ensure safety interlock is in `SafeTorque` state before any output
 - [ ] Register R5 with safety service at `5.5 Nm` max torque
 - [ ] Send constant zero-torque command via `MozaDirectTorqueEncoder::encode_zero()` → motor disabled
@@ -194,7 +202,10 @@ Safe, incremental onramp to the first working hardware setup. Each stage has a c
 - [ ] Verify hardware watchdog: unplug USB mid-torque → wheel must go limp within 100ms
 - [ ] **Gate: FFB feels correct; safety interlock stops torque on fault; watchdog works**
 
-**Stage 4 — Game Telemetry Integration** (full loop: game → telemetry → FFB)
+### Phase 10: Game Telemetry Integration 🔲 Planned
+
+Full loop: game → telemetry adapter → filter pipeline → FFB output → device.
+
 - [ ] Start a supported game (e.g. Assetto Corsa, iRacing)
 - [ ] Verify game auto-detection and telemetry adapter startup
 - [ ] Verify telemetry data (speed, RPM, wheel angle) flows through pipeline
@@ -204,7 +215,10 @@ Safe, incremental onramp to the first working hardware setup. Each stage has a c
 - [ ] Profile hot-swap: switch profiles during active FFB → verify smooth transition
 - [ ] **Gate: end-to-end loop works; FFB feels natural; safety transitions clean**
 
-**Stage 5 — Extended Validation & Soak**
+### Phase 11: Extended Validation & Soak 🔲 Planned
+
+Sustained operation testing and final regression capture.
+
 - [ ] 1-hour continuous FFB session with telemetry logging → check for jitter, missed ticks
 - [ ] Verify RT timing budget (1kHz loop, P99 jitter ≤ 0.25ms) with real device I/O
 - [ ] Full disconnect/reconnect cycle test (10x) → verify clean recovery every time
@@ -214,7 +228,9 @@ Safe, incremental onramp to the first working hardware setup. Each stage has a c
 - [ ] Save final golden captures and test fixtures for regression suite
 - [ ] **Gate: passes 1hr soak; all peripherals functional; ready for daily use**
 
-### Phase 6: Verification, Research & Hardening 🔲 Planned
+### Phase 12: Multi-Vendor Verification, Research & Hardening 🔲 Planned
+
+Expand beyond Moza to all 28 vendors. Protocol research, extended stress testing, and ecosystem tooling.
 
 - [ ] **Hardware-in-the-Loop (HIL) Testing**
     - [ ] USB capture validation against physical Fanatec, Logitech, and Thrustmaster devices
@@ -259,6 +275,7 @@ Safe, incremental onramp to the first working hardware setup. Each stage has a c
     - [ ] Update all internal call sites in the same pass
     - [ ] Schedule removal of deprecated aliases for the following release
 
+
 ## Future Considerations
 
 - **Cloud Integration**: Profile sharing and cloud backup via OpenRacing Hub; cross-machine profile sync
@@ -282,14 +299,14 @@ The following TODOs exist in the codebase and should be addressed before product
 | ~~Ed25519 trust store~~ | ~~Needs trust store for public key distribution~~ — **RESOLVED**: Fail-closed trust store implemented (PR #105) |
 | ~~`crates/service/src/crypto/mod.rs:204-205`~~ | ~~Implement PE/ELF embedded signature checking~~ — **RESOLVED**: PE/ELF/Mach-O parsing implemented via `goblin` |
 | ~~`crates/engine/src/diagnostic/blackbox.rs:152`~~ | ~~Index optimization for large recordings~~ — **RESOLVED**: Binary search (`find_index_at_timestamp`, `find_indices_in_range`) added with O(log n) lookup |
-| `crates/service/src/integration_tests.rs` | Re-enable disabled integration tests — blocked on `WheelService::game_service()` and `plugin_service()` accessors (see Phase 6) |
+| `crates/service/src/integration_tests.rs` | Re-enable disabled integration tests — blocked on `WheelService::game_service()` and `plugin_service()` accessors (see Phase 12) |
 | ~~`crates/hid-pxn-protocol/src/output.rs`~~ | ~~PXN FFB_REPORT_ID 0x05 is estimated; verify with USB capture~~ — **RESOLVED**: PXN uses standard PIDFF; `SET_CONSTANT_FORCE=0x05` is per USB PID spec, not vendor-specific |
 | ~~`docs/DEVICE_CAPABILITIES.md`~~ | ~~Cube Controls VID/PIDs provisional~~ — **RESOLVED**: Fabricated PIDs removed from FFB dispatch (PR #24) |
 | ~~`docs/protocols/SOURCES.md`~~ | ~~Devices Under Investigation table~~ — **UPDATED**: Research dates added, PXN VD-series status updated (Gold in JacKeTUs but PIDs blank), Simucube 3 speculation noted |
-| `F-007 (FRICTION_LOG)` | Symbol rename pattern — `#[deprecated]` guidance added to DEVELOPMENT.md; audit and code changes tracked in Phase 6 |
-| Cube Controls PIDs | PROVISIONAL — requires physical device captures to confirm; tracked in Phase 6 |
+| `F-007 (FRICTION_LOG)` | Symbol rename pattern — `#[deprecated]` guidance added to DEVELOPMENT.md; audit and code changes tracked in Phase 12 |
+| Cube Controls PIDs | PROVISIONAL — requires physical device captures to confirm; tracked in Phase 12 |
 | VRS V2 device PIDs | `0xA356`–`0xA35A` removed as fabricated — need real device captures to determine actual PIDs |
-| Soak test coverage | No automated 48-hour soak tests in CI yet; tracked in Phase 6 |
+| Soak test coverage | No automated 48-hour soak tests in CI yet; tracked in Phases 11–12 |
 
 ## Release Schedule
 
@@ -299,7 +316,9 @@ The following TODOs exist in the codebase and should be addressed before product
 | v0.2.0  | 2026-02-01 | ✅ Released | Windows Support & Tauri UI |
 | v0.3.0  | 2026-02-01 | ✅ Released | WASM Plugins, Game Telemetry, Curve FFB |
 | v0.x.y  | 2026-Q3   | 🔄 In Progress | 28 vendors, 61 game integrations, safety hardening, 29,900+ tests, pre-hardware sign-off |
-| v0.x.y+1| 2026-Q4   | 🔲 Planned | Phase 6: HIL testing, protocol research, soak tests, service API completion |
+| v0.x.y+1| 2026-Q3/Q4| 🔲 Planned | Phases 6–9: Moza R5 hardware bring-up — enumeration, input capture, handshake, low-torque FFB |
+| v0.x.y+2| 2026-Q4   | 🔲 Planned | Phases 10–11: Game telemetry integration, extended soak testing, daily-driver readiness |
+| v0.x.y+3| 2027-Q1   | 🔲 Planned | Phase 12: Multi-vendor HIL testing, protocol research, mutation/fuzz hardening |
 | v1.0.0  | TBD       | Planned | Production Release with Hardware Sign-Off |
 
 ## Contributing

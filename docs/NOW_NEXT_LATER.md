@@ -4,30 +4,28 @@ One-screen execution plan for OpenRacing. Updated each sprint.
 
 **Project snapshot:** 86 crates · 29,900+ tests · 509 proptests · 117 fuzz targets · 28 vendors · 61 games
 
-**First hardware target:** Moza R5 + KS + ES + SR-P + HBP (Phase 5.5)
+**First hardware target:** Moza R5 + KS + ES + SR-P + HBP (Phases 6–11)
 
 ---
 
 ## NOW (Active — this sprint)
 
-- **Moza R5 hardware onramp (Stage 0–1)** — read-only enumeration and input capture with physical R5, KS, ES, SR-P, HBP devices; create golden test fixtures from captured reports
+- **Phase 6: Device Enumeration** — plug in R5, KS, SR-P, HBP; run `wheelctl device list`; capture HID report descriptors as golden fixtures
+- **Phase 7: Input Report Capture** — validate `parse_wheelbase_input_report` with live R5 data; verify steering, pedal, handbrake axes track physical movement
 - **Service API completion** — implement `WheelService::game_service()` and `plugin_service()` accessors; re-enable blocked integration tests
-- **Symbol rename audit (F-007)** — audit protocol crates for symbols needing `#[deprecated]` migration
 
 ## NEXT (Queued — next 2–4 sprints)
 
-- **Moza R5 hardware onramp (Stage 2–4)** — handshake validation, low-torque FFB output (start at ≤10% max / 0.55 Nm), game telemetry integration, soak testing
-- **Protocol research & cross-validation** — Cube Controls, VRS V2, PXN VD-series PID confirmation via physical device captures
-- **Mutation testing expansion** — extend `cargo-mutants` to protocol encoding, telemetry normalization, and IPC codec
-- **Fuzz corpus accumulation** — run all 117 fuzz targets for ≥1 hour each
+- **Phase 8: Handshake & Feature Reports** — execute `initialize_device()` against R5; validate init state machine; test rotation range control
+- **Phase 9: Low-Torque FFB Output** — safety-gated torque output starting at ≤10% (0.55 Nm); ramp to 100% with manual observation; watchdog validation
+- **Phase 10: Game Telemetry Integration** — full loop from game telemetry through FFB to wheel; test with Assetto Corsa / iRacing
+- **Mutation testing expansion** — extend `cargo-mutants` to protocol encoding and telemetry paths
 - **macOS IOKit HID driver** — start actual device I/O on macOS
-- **Packaging automation** — deb/rpm + MSI signing in CI
-- **Performance tuning** — benchmark under sustained real-device load
 
 ## LATER (Backlog — future work)
 
-- **Multi-vendor HIL testing** — Fanatec, Logitech, Thrustmaster device validation
-- **Extended soak testing** — 48-hour continuous operation, multi-device stress
+- **Phase 11: Extended Validation & Soak** — 1hr continuous FFB, disconnect/reconnect stress, V1 vs V2 firmware, Standard vs Direct FFB comparison
+- **Phase 12: Multi-Vendor Verification** — Fanatec, Logitech, Thrustmaster HIL; protocol research; 48hr soak; community capture program
 - **Cloud integration** — profile sharing and cross-machine sync
 - **Telemetry dashboard** — browser-based replay visualization and session comparison
 - **AI/ML integration** — adaptive FFB tuning from driving style analysis
