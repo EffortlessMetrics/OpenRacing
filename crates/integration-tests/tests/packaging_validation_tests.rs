@@ -6,6 +6,9 @@ use std::collections::HashSet;
 use std::fs;
 use std::path::PathBuf;
 
+/// Parsed udev rules: (VID/PID pairs, vendor-wide VIDs).
+type UdevRules = (HashSet<(String, String)>, HashSet<String>);
+
 /// Return the repository root (two levels up from the integration-tests crate).
 fn repo_root() -> PathBuf {
     let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
@@ -26,7 +29,7 @@ fn read_packaging_file(rel_path: &str) -> Result<String, Box<dyn std::error::Err
 
 /// Parse all VID/PID pairs from the udev rules file (hidraw section only).
 /// Returns `(vid_pid_pairs, vendor_wide_vids)`.
-fn parse_udev_rules(content: &str) -> Result<(HashSet<(String, String)>, HashSet<String>), Box<dyn std::error::Error>> {
+fn parse_udev_rules(content: &str) -> Result<UdevRules, Box<dyn std::error::Error>> {
     let vid_pid_re = regex::Regex::new(
         r#"ATTRS\{idVendor\}=="([0-9a-fA-F]{4})".*?ATTRS\{idProduct\}=="([0-9a-fA-F]{4})""#,
     )?;

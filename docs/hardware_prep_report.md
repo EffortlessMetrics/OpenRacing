@@ -178,6 +178,15 @@ All transitions produce zero torque in `SafeMode` and `EmergencyStop`. Property-
 
 ## 7. Protocol Notes
 
+### Moza Pit House Interaction & Windows HID Sharing
+
+- **Interface Model**: Moza devices expose both HID (FFB/Input) and CDC ACM (Serial Configuration) interfaces. Pit House primarily uses the Serial interface for settings but holds a shared HID handle for FFB and input monitoring.
+- **Windows HID Access**: OpenRacing uses `hidapi` on Windows, which defaults to `FILE_SHARE_READ | FILE_SHARE_WRITE`. This allows OpenRacing and Pit House to share the same HID device simultaneously.
+- **Protocol Concurrency**: Both applications may attempt to send the 3-step feature report handshake (0x02, 0x03, 0x11). 
+    - **Conflict Risk**: If OpenRacing requests `Direct` FFB mode (0x02) while Pit House requests `Standard` (0x00), the device state may flip-flop.
+    - **Stability Strategy**: Simulation (Phase 3) will verify OpenRacing’s behavior under handshake race conditions.
+- **Fingerprinting Parity**: Windows currently lacks raw HID report descriptor fingerprints. High-risk features (High Torque) require the `OPENRACING_MOZA_ALLOW_UNKNOWN_SIGNATURE=1` override until `IOCTL_HID_GET_REPORT_DESCRIPTOR` or a WinRT bridge is implemented.
+
 ### HID vs Serial/CDC ACM
 
 Moza devices expose **two** USB interfaces:
@@ -200,6 +209,8 @@ Some Moza devices support firmware update via Moza Pit House. During testing:
 - **Do not** send firmware update commands
 - **Avoid** holding specific button combinations during boot that might trigger DFU/bootloader mode
 - OpenRacing does not implement any DFU commands; this is a manual-only risk
+
+---
 
 ## 8. Known Gaps
 
