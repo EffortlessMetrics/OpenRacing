@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - ROADMAP Phases 6–11 (First Hardware — Moza R5 Stack): incremental onramp from read-only enumeration (Phase 6) through input capture (7), handshake (8), low-torque FFB (9), game integration (10), and soak testing (11) for Moza R5, KS/ES wheels, SR-P pedals, and HBP handbrake
+- `docs/hardware_prep_report.md`: desk research report covering build verification, VID/PID tables, report layouts, safety review (encode_zero byte-exact, watchdog 100ms, interlock transitions), Linux kernel PIDFF quirk confirmation, and DFU mode risk assessment
 - ROADMAP Phase 12 (Multi-Vendor Verification, Research & Hardening): HIL testing, protocol research, soak/stress testing, mutation/fuzz expansion, community device capture program, service API completion, F-007 deprecation audit
 - `docs/DEVELOPMENT.md` Error Handling Defaults section: codified workspace-wide ban on `unwrap()`/`expect()` with `Result`-returning test patterns and `let-else` property-test guidance
 - Extended Future Considerations in ROADMAP: telemetry dashboard, advanced diagnostics, multi-rig support, accessibility, localization

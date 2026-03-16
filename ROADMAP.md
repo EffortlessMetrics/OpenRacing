@@ -138,11 +138,11 @@ This document outlines the development roadmap for OpenRacing. It tracks the imp
     - [x] Profile migration with backup creation (idempotent)
 - [x] **Security**: Ed25519 trust store implemented with fail-closed mode (PR #105); native plugin signing end-to-end functional
 - [x] **Code Quality**: Workspace-wide elimination of `unwrap()` and `expect()` to enforce robust error handling, including within 29,900+ tests
-- [ ] **Hardware Readiness Prep** (prerequisites for Phases 6–11)
-    - [ ] *Software prerequisites*
-        - [ ] Verify `wheelctl device list` compiles and runs on Windows without any connected device (clean error path)
-        - [ ] Verify `hid-capture` tool compiles and runs on Windows; test with any USB HID device (mouse/keyboard) to confirm capture pipeline works
-        - [ ] Verify `wheeld` service starts, runs idle, and shuts down cleanly on Windows with no devices attached
+- [/] **Hardware Readiness Prep** (prerequisites for Phases 6–11) — see [hardware_prep_report.md](docs/hardware_prep_report.md)
+    - [/] *Software prerequisites*
+        - [x] Verify `wheelctl device list` compiles and runs on Windows without any connected device (clean error path)
+        - [x] Verify `hid-capture` tool compiles and runs on Windows; test with any USB HID device (mouse/keyboard) to confirm capture pipeline works
+        - [x] Verify `wheeld` service starts, runs idle, and shuts down cleanly on Windows with no devices attached
         - [ ] Confirm safety interlock state machine initializes to `Normal` with no devices and does not fault
         - [ ] Run full `cargo test --workspace` pass on the target Windows machine; all tests green
         - [ ] Run `cargo clippy --all-targets --all-features -- -D warnings`; clean
@@ -153,20 +153,20 @@ This document outlines the development roadmap for OpenRacing. It tracks the imp
         - [ ] Verify R5 works correctly through Moza Pit House (wheel centering, FFB test, pedal calibration)
         - [ ] Set up a dedicated test profile in Windows Device Manager to disable Moza Pit House auto-attach during OpenRacing tests
         - [ ] Prepare a USB hub or direct connection; avoid USB 2.0 hubs (prefer USB 3.0+ for 1kHz polling)
-    - [ ] *Safety review*
-        - [ ] Review `MozaDirectTorqueEncoder` max torque clamp logic one final time before hardware test
-        - [ ] Confirm `encode_zero()` produces exactly `[0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]` — the motor-disable command
-        - [ ] Review safety interlock `Normal → Warning → SafeMode → EmergencyStop` transitions with a desktop walkthrough
-        - [ ] Verify hardware watchdog timeout is 100ms; confirm the interlock triggers `encode_zero()` on fault
-        - [ ] Read through `crates/engine/src/hid/vendor/moza.rs` dispatch path end-to-end and document any assumptions
+    - [x] *Safety review*
+        - [x] Review `MozaDirectTorqueEncoder` max torque clamp logic one final time before hardware test
+        - [x] Confirm `encode_zero()` produces exactly `[0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]` — the motor-disable command
+        - [x] Review safety interlock `Normal → Warning → SafeMode → EmergencyStop` transitions with a desktop walkthrough
+        - [x] Verify hardware watchdog timeout is 100ms; confirm the interlock triggers `encode_zero()` on fault
+        - [x] Read through `crates/engine/src/hid/vendor/moza.rs` dispatch path end-to-end and document any assumptions
         - [ ] Identify emergency stop procedure: key combination or physical e-stop if available
-    - [ ] *Protocol research (desk work)*
-        - [ ] Cross-reference Moza R5 V1 (`0x0004`) report descriptor against boxflat serial protocol docs to understand which fields are HID vs CDC ACM
-        - [ ] Review Linux kernel `hid-universal-pidff.c` quirk for `HID_PIDFF_QUIRK_FIX_CONDITIONAL_DIRECTION` and confirm our `fix_conditional_direction: true` matches
-        - [ ] Review Lawstorant/boxflat HID name patterns for KS, ES, SR-P, HBP to predict how each device self-identifies on USB
-        - [ ] Document expected HID report sizes: R5 wheelbase input report, SR-P standalone report, HBP standalone report
-        - [ ] Review V2 PID mapping pattern (`V1 | 0x0010`) and confirm `0x0014` is the expected R5 V2 PID
-        - [ ] Check if R5 firmware supports Device Firmware Upgrade (DFU) mode and whether we need to avoid it during testing
+    - [x] *Protocol research (desk work)*
+        - [x] Cross-reference Moza R5 V1 (`0x0004`) report descriptor against boxflat serial protocol docs to understand which fields are HID vs CDC ACM
+        - [x] Review Linux kernel `hid-universal-pidff.c` quirk for `HID_PIDFF_QUIRK_FIX_CONDITIONAL_DIRECTION` and confirm our `fix_conditional_direction: true` matches
+        - [x] Review Lawstorant/boxflat HID name patterns for KS, ES, SR-P, HBP to predict how each device self-identifies on USB
+        - [x] Document expected HID report sizes: R5 wheelbase input report, SR-P standalone report, HBP standalone report
+        - [x] Review V2 PID mapping pattern (`V1 | 0x0010`) and confirm `0x0014` is the expected R5 V2 PID
+        - [x] Check if R5 firmware supports Device Firmware Upgrade (DFU) mode and whether we need to avoid it during testing
 
 ### Phase 6: Device Enumeration — Moza R5 Stack 🔲 Planned
 
