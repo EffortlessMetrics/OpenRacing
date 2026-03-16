@@ -159,7 +159,7 @@ This document outlines the development roadmap for OpenRacing. It tracks the imp
         - [x] Review safety interlock `Normal → Warning → SafeMode → EmergencyStop` transitions with a desktop walkthrough
         - [x] Verify hardware watchdog timeout is 100ms; confirm the interlock triggers `encode_zero()` on fault
         - [x] Read through `crates/engine/src/hid/vendor/moza.rs` dispatch path end-to-end and document any assumptions
-        - [ ] Identify emergency stop procedure: key combination or physical e-stop if available
+        - [x] Identify emergency stop procedure: physical USB unplug or software e-stop via API
     - [x] *Protocol research (desk work)*
         - [x] Cross-reference Moza R5 V1 (`0x0004`) report descriptor against boxflat serial protocol docs to understand which fields are HID vs CDC ACM
         - [x] Review Linux kernel `hid-universal-pidff.c` quirk for `HID_PIDFF_QUIRK_FIX_CONDITIONAL_DIRECTION` and confirm our `fix_conditional_direction: true` matches
