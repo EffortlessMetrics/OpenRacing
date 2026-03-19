@@ -1,5 +1,9 @@
 //! OWP-1 (Open Wheel Protocol) v0 Specification
 //!
+//! Implements the racing wheel communication protocol as specified in [ADR-0003: OWP-1 Protocol Specification].
+//!
+//! [ADR-0003]: file:///h:/Code/Rust/OpenRacing/docs/adr/0003-owp1-protocol.md
+//!
 //! This module implements the OWP-1 protocol for communication with racing wheel hardware.
 //! The protocol uses HID reports for bidirectional communication with endian-safe structures,
 //! sequence numbers, and CRC validation.

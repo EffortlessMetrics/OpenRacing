@@ -1,7 +1,8 @@
 //! Device abstraction and virtual device implementation
 
+use crate::RTResult;
 use crate::prelude::MutexExt;
-use crate::{RTError, RTResult};
+pub use openracing_errors::RTError;
 use racing_wheel_schemas::prelude::*;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -90,7 +91,8 @@ impl VirtualDevice {
             true,  // supports_raw_torque_1khz
             true,  // supports_health_stream
             true,  // supports_led_bus
-            TorqueNm::new(25.0).expect("25.0 is a valid torque"),
+            // SAFETY: 25.0 is within the valid range for TorqueNm
+            unsafe { TorqueNm::new_unchecked(25.0) },
             10000, // encoder_cpr
             1000,  // min_report_period_us (1ms = 1kHz)
         );

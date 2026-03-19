@@ -9,7 +9,7 @@ use crate::{
     pipeline::{CompiledPipeline, Pipeline},
     ports::{HidDevice, NormalizedTelemetry},
     rt::FFBMode,
-    rt::{Frame, PerformanceMetrics, RTError, RTResult},
+    rt::{Frame, PerformanceMetrics, RTResult},
     safety::integration::{FaultManagerContext, IntegratedFaultManager},
     safety::watchdog::SystemComponent,
     safety::{FaultType, SafetyService, SafetyState},
@@ -17,6 +17,7 @@ use crate::{
     tracing::{RTTraceEvent, TracingManager},
 };
 use crossbeam::channel::{Receiver, Sender, TrySendError};
+use openracing_errors::RTError;
 use racing_wheel_schemas::prelude::*;
 use std::{
     sync::{
@@ -830,6 +831,12 @@ impl Engine {
                     torque_nm: final_torque_nm,
                     seq: ctx.seq,
                 });
+            }
+
+            // Record heartbeats for critical components
+            if let Some(ref mut heartbeats) = ctx.component_heartbeats_scratch {
+                heartbeats.insert(SystemComponent::RtThread, true);
+                heartbeats.insert(SystemComponent::HidCommunication, true);
             }
 
             // Update metrics

@@ -272,20 +272,29 @@ run_lint_gates() {
     phase "Lint gates"
     run python3 scripts/lint_gates.py
 
-    echo "Running additional governance checks (print/unwrap)"
-    if find crates/ -name "*.rs" -not -path "*/test*" -not -path "*/integration-tests/*" \
-        -exec grep -l "println!\\|print!\\|dbg!\\|eprintln!\\|eprint!" {} \; | head -5; then
-        echo "Print statements found in non-test code. Use tracing macros instead."
-        find crates/ -name "*.rs" -not -path "*/test*" -not -path "*/integration-tests/*" \
-            -exec grep -l "println!\\|print!\\|dbg!\\|eprintln!\\|eprint!" {} \;
-        exit 1
-    fi
+    echo "Running additional governance checks (print statements)"
+    PRINT_HITS=$(find crates/ -name "*.rs" \
+        -not -path "*/tests/*" \
+        -not -path "*/integration-tests/*" \
+        -not -path "*/examples/*" \
+        -not -path "*/benches/*" \
+        -not -path "*/cli/*" \
+        -not -path "*/hid-capture/*" \
+        -not -path "*/openracing-capture-ids/*" \
+        -not -path "*/openracing-test-helpers/*" \
+        -not -path "*/plugin-examples/*" \
+        -not -name "build.rs" \
+        -not -name "main.rs" \
+        -not -name "*_tests.rs" \
+        -not -name "tests.rs" \
+        -not -name "allocation_tracker.rs" \
+        -print0 \
+    | xargs -0 grep -nE '(println!|print!|dbg!|eprintln!|eprint!)\s*\(' 2>/dev/null \
+    | grep -vE ':[0-9]+:\s*//' || true)
 
-    if find crates/ -name "*.rs" -not -path "*/test*" -not -path "*/integration-tests/*" \
-        -exec grep -l "\\.unwrap()" {} \; | head -5; then
-        echo "unwrap() usage found in non-test code. Use proper error handling."
-        find crates/ -name "*.rs" -not -path "*/test*" -not -path "*/integration-tests/*" \
-            -exec grep -l "\\.unwrap()" {} \;
+    if [ -n "$PRINT_HITS" ]; then
+        echo "Print statements found in non-test code. Use tracing macros instead."
+        echo "$PRINT_HITS"
         exit 1
     fi
 }

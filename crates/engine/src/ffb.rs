@@ -1,7 +1,9 @@
 //! Force Feedback Mode Matrix and Capability Negotiation
 //!
 //! This module implements the three FFB modes and device capability negotiation
-//! as specified in the design document.
+//! as specified in [ADR-0001: Force Feedback Mode Matrix].
+//!
+//! [ADR-0001]: file:///h:/Code/Rust/OpenRacing/docs/adr/0001-ffb-mode-matrix.md
 
 use racing_wheel_schemas::prelude::*;
 use std::fmt;

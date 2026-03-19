@@ -2,6 +2,13 @@
 //!
 //! Supports V1 (0x000x) and V2 (0x001x) hardware revisions.
 //!
+//! # Safety and Initialization
+//! This implementation follows [ADR-0006] regarding safety interlocks and
+//! handshake sequencing to ensure zero-torque states on fault.
+//!
+//! [ADR-0006]: file:///h:/Code/Rust/OpenRacing/docs/adr/0006-safety-interlocks.md
+
+//!
 //! # Serial configuration protocol (from boxflat community tool)
 //!
 //! Moza devices expose a CDC ACM serial interface for settings/configuration

@@ -204,14 +204,15 @@ fn normalized_telemetry_carries_car_and_track() {
 }
 
 #[test]
-fn game_input_with_telemetry_carries_ffb_scalar() {
+fn game_input_with_telemetry_carries_ffb_scalar() -> Result<(), String> {
     let tel = make_telemetry(0.75, 7000.0, 60.0, 0.05, 4);
     let input = make_game_input(0.75, Some(tel));
 
     assert!((input.ffb_scalar - 0.75).abs() < f32::EPSILON);
     assert!(input.telemetry.is_some());
-    let t = input.telemetry.as_ref().unwrap();
+    let t = input.telemetry.as_ref().ok_or("expected telemetry")?;
     assert!((t.rpm - 7000.0).abs() < f32::EPSILON);
+    Ok(())
 }
 
 #[test]

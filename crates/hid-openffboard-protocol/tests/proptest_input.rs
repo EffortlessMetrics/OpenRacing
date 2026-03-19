@@ -58,8 +58,9 @@ proptest! {
         }
         let parsed = OpenFFBoardInputReport::parse(&report);
         prop_assert!(parsed.is_some());
-        let p = parsed.expect("checked above");
-        prop_assert_eq!(p.axes, values);
+        if let Some(p) = parsed {
+            prop_assert_eq!(p.axes, values);
+        }
     }
 
     #[test]
@@ -69,8 +70,9 @@ proptest! {
         report[1..9].copy_from_slice(&buttons);
         let parsed = OpenFFBoardInputReport::parse(&report);
         prop_assert!(parsed.is_some());
-        let p = parsed.expect("checked above");
-        prop_assert_eq!(p.buttons, buttons);
+        if let Some(p) = parsed {
+            prop_assert_eq!(p.buttons, buttons);
+        }
     }
 
     #[test]
@@ -78,12 +80,15 @@ proptest! {
         let mut report = [0u8; INPUT_REPORT_LEN];
         report[0] = INPUT_REPORT_ID;
         report[1..9].copy_from_slice(&buttons);
-        let parsed = OpenFFBoardInputReport::parse(&report).expect("valid report");
-        for n in 0..MAX_BUTTONS {
-            let byte_idx = n / 8;
-            let bit_idx = n % 8;
-            let expected = (buttons[byte_idx] >> bit_idx) & 1 == 1;
-            prop_assert_eq!(parsed.button(n), expected, "button {} mismatch", n);
+        let parsed = OpenFFBoardInputReport::parse(&report);
+        prop_assert!(parsed.is_some());
+        if let Some(parsed) = parsed {
+            for n in 0..MAX_BUTTONS {
+                let byte_idx = n / 8;
+                let bit_idx = n % 8;
+                let expected = (buttons[byte_idx] >> bit_idx) & 1 == 1;
+                prop_assert_eq!(parsed.button(n), expected, "button {} mismatch", n);
+            }
         }
     }
 
@@ -92,9 +97,12 @@ proptest! {
         let mut report = [0u8; INPUT_REPORT_LEN];
         report[0] = INPUT_REPORT_ID;
         report[1..9].copy_from_slice(&buttons);
-        let parsed = OpenFFBoardInputReport::parse(&report).expect("valid report");
-        let expected: u32 = buttons.iter().map(|b| b.count_ones()).sum();
-        prop_assert_eq!(parsed.buttons_pressed(), expected);
+        let parsed = OpenFFBoardInputReport::parse(&report);
+        prop_assert!(parsed.is_some());
+        if let Some(parsed) = parsed {
+            let expected: u32 = buttons.iter().map(|b| b.count_ones()).sum();
+            prop_assert_eq!(parsed.buttons_pressed(), expected);
+        }
     }
 
     #[test]
@@ -104,23 +112,29 @@ proptest! {
         let bytes = raw_steering.to_le_bytes();
         report[9] = bytes[0];
         report[10] = bytes[1];
-        let parsed = OpenFFBoardInputReport::parse(&report).expect("valid report");
-        let normalized = parsed.steering_normalized();
-        prop_assert!((-1.0..=1.0).contains(&normalized),
-            "steering_normalized() = {} should be in [-1.0, 1.0]", normalized);
+        let parsed = OpenFFBoardInputReport::parse(&report);
+        prop_assert!(parsed.is_some());
+        if let Some(parsed) = parsed {
+            let normalized = parsed.steering_normalized();
+            prop_assert!((-1.0..=1.0).contains(&normalized),
+                "steering_normalized() = {} should be in [-1.0, 1.0]", normalized);
+        }
     }
 
     #[test]
     fn named_axis_accessors_match_array(report in valid_report()) {
-        let parsed = OpenFFBoardInputReport::parse(&report).expect("valid report");
-        prop_assert_eq!(parsed.x(), parsed.axes[0]);
-        prop_assert_eq!(parsed.y(), parsed.axes[1]);
-        prop_assert_eq!(parsed.z(), parsed.axes[2]);
-        prop_assert_eq!(parsed.rx(), parsed.axes[3]);
-        prop_assert_eq!(parsed.ry(), parsed.axes[4]);
-        prop_assert_eq!(parsed.rz(), parsed.axes[5]);
-        prop_assert_eq!(parsed.dial(), parsed.axes[6]);
-        prop_assert_eq!(parsed.slider(), parsed.axes[7]);
+        let parsed = OpenFFBoardInputReport::parse(&report);
+        prop_assert!(parsed.is_some());
+        if let Some(parsed) = parsed {
+            prop_assert_eq!(parsed.x(), parsed.axes[0]);
+            prop_assert_eq!(parsed.y(), parsed.axes[1]);
+            prop_assert_eq!(parsed.z(), parsed.axes[2]);
+            prop_assert_eq!(parsed.rx(), parsed.axes[3]);
+            prop_assert_eq!(parsed.ry(), parsed.axes[4]);
+            prop_assert_eq!(parsed.rz(), parsed.axes[5]);
+            prop_assert_eq!(parsed.dial(), parsed.axes[6]);
+            prop_assert_eq!(parsed.slider(), parsed.axes[7]);
+        }
     }
 
     #[test]

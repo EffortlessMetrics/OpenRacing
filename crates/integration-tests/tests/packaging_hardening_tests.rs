@@ -184,9 +184,8 @@ fn udev_rules_commas_separate_key_value_pairs() -> TestResult {
 // ============================================================================
 
 /// Extract all uppercase VIDs from the hwdb file.
-fn hwdb_vids(content: &str) -> HashSet<String> {
-    let re = regex::Regex::new(r"(?i)id-input:modalias:input:\*v([0-9A-Fa-f]{4})p")
-        .expect("hwdb vid regex");
+fn hwdb_vids(content: &str) -> Result<HashSet<String>, Box<dyn std::error::Error>> {
+    let re = regex::Regex::new(r"(?i)id-input:modalias:input:\*v([0-9A-Fa-f]{4})p")?;
     let mut vids = HashSet::new();
     for line in content.lines() {
         let trimmed = line.trim();
@@ -199,12 +198,12 @@ fn hwdb_vids(content: &str) -> HashSet<String> {
             vids.insert(vid.as_str().to_lowercase());
         }
     }
-    vids
+    Ok(vids)
 }
 
 /// Extract all VIDs from the udev rules file.
-fn udev_vids(content: &str) -> HashSet<String> {
-    let re = regex::Regex::new(r#"ATTRS\{idVendor\}=="([0-9a-fA-F]{4})""#).expect("udev vid regex");
+fn udev_vids(content: &str) -> Result<HashSet<String>, Box<dyn std::error::Error>> {
+    let re = regex::Regex::new(r#"ATTRS\{idVendor\}=="([0-9a-fA-F]{4})""#)?;
     let mut vids = HashSet::new();
     for line in content.lines() {
         let trimmed = line.trim();
@@ -217,7 +216,7 @@ fn udev_vids(content: &str) -> HashSet<String> {
             vids.insert(vid.as_str().to_lowercase());
         }
     }
-    vids
+    Ok(vids)
 }
 
 #[test]
@@ -225,8 +224,8 @@ fn hwdb_vids_mostly_overlap_udev_rule_vids() -> TestResult {
     let hwdb = read_file("packaging/linux/99-racing-wheel-suite.hwdb")?;
     let udev = read_file("packaging/linux/99-racing-wheel-suite.rules")?;
 
-    let hw_vids = hwdb_vids(&hwdb);
-    let ud_vids = udev_vids(&udev);
+    let hw_vids = hwdb_vids(&hwdb)?;
+    let ud_vids = udev_vids(&udev)?;
 
     let overlap = hw_vids.intersection(&ud_vids).count();
     // The hwdb may include VIDs for devices that don't need hidraw access
@@ -261,7 +260,7 @@ fn modprobe_quirk_vids_present_in_udev_rules() -> TestResult {
         }
     }
 
-    let ud_vids = udev_vids(&udev);
+    let ud_vids = udev_vids(&udev)?;
     let missing: Vec<_> = quirk_vids.difference(&ud_vids).collect();
     assert!(
         missing.is_empty(),
@@ -283,7 +282,7 @@ fn modprobe_quirk_vids_present_in_hwdb() -> TestResult {
         }
     }
 
-    let hw_vids = hwdb_vids(&hwdb_content);
+    let hw_vids = hwdb_vids(&hwdb_content)?;
     let missing: Vec<_> = quirk_vids.difference(&hw_vids).collect();
     assert!(
         missing.is_empty(),

@@ -5,7 +5,10 @@
 //! hardware or OS-level HID plumbing.
 
 #![deny(static_mut_refs)]
+#![deny(clippy::unwrap_used)]
 
+/// [ADR-0007]: Multi-Vendor HID Protocol Architecture
+/// This crate implements the Moza Racing protocol following the "SRP Microcrate" pattern.
 pub mod direct;
 pub mod ids;
 pub mod protocol;

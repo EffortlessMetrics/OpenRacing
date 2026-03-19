@@ -331,7 +331,7 @@ fn test_health_check_timeout_detection() -> TestResult {
 }
 
 #[test]
-fn test_component_failure_progression_to_faulted() {
+fn test_component_failure_progression_to_faulted() -> TestResult {
     let watchdog = WatchdogSystem::default();
     watchdog.heartbeat(SystemComponent::HidCommunication);
 
@@ -342,8 +342,9 @@ fn test_component_failure_progression_to_faulted() {
 
     let health = watchdog.get_component_health(SystemComponent::HidCommunication);
     assert!(health.is_some());
-    let health = health.expect("checked");
+    let health = health.ok_or("checked")?;
     assert_eq!(health.status, HealthStatus::Faulted);
+    Ok(())
 }
 
 #[test]
@@ -364,7 +365,7 @@ fn test_unregister_unknown_plugin_errors() {
 }
 
 #[test]
-fn test_faulted_component_recovers_on_heartbeat() {
+fn test_faulted_component_recovers_on_heartbeat() -> TestResult {
     let watchdog = WatchdogSystem::default();
     watchdog.heartbeat(SystemComponent::RtThread);
 
@@ -374,13 +375,14 @@ fn test_faulted_component_recovers_on_heartbeat() {
     }
     let health = watchdog
         .get_component_health(SystemComponent::RtThread)
-        .expect("component exists");
+        .ok_or("component exists")?;
     assert_eq!(health.status, HealthStatus::Faulted);
 
     // Heartbeat restores
     watchdog.heartbeat(SystemComponent::RtThread);
     let health = watchdog
         .get_component_health(SystemComponent::RtThread)
-        .expect("component exists");
+        .ok_or("component exists")?;
     assert_eq!(health.status, HealthStatus::Healthy);
+    Ok(())
 }

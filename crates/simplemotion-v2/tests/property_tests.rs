@@ -46,12 +46,15 @@ proptest! {
             .with_data(data);
 
         let mut buf = [0u8; 15];
-        let result = encode_command(&cmd, &mut buf);
-        prop_assert!(result.is_ok());
+        let Ok(_) = encode_command(&cmd, &mut buf) else {
+            prop_assert!(false, "encode must succeed");
+            unreachable!()
+        };
 
-        let decoded = decode_command(&buf);
-        prop_assert!(decoded.is_ok());
-        let decoded = decoded.expect("already checked");
+        let Ok(decoded) = decode_command(&buf) else {
+            prop_assert!(false, "decode must succeed");
+            unreachable!()
+        };
 
         prop_assert_eq!(decoded.seq, seq);
         prop_assert_eq!(decoded.cmd_type, cmd_type);
@@ -71,7 +74,10 @@ proptest! {
     ) {
         let cmd = SmCommand::new(seq, SmCommandType::SetTorque).with_data(data_val);
         let mut buf = [0u8; 15];
-        encode_command(&cmd, &mut buf).expect("encode must succeed");
+        let Ok(_) = encode_command(&cmd, &mut buf) else {
+            prop_assert!(false, "encode must succeed");
+            unreachable!()
+        };
 
         // Flip one bit
         buf[byte_idx] ^= 1 << bit_idx;
@@ -96,7 +102,10 @@ proptest! {
     ) {
         let cmd = SmCommand::new(seq, SmCommandType::GetStatus);
         let mut buf = [0u8; 15];
-        encode_command(&cmd, &mut buf).expect("encode must succeed");
+        let Ok(_) = encode_command(&cmd, &mut buf) else {
+            prop_assert!(false, "encode must succeed");
+            unreachable!()
+        };
 
         let original_crc = buf[14];
         buf[14] = corrupt_crc;
@@ -291,9 +300,10 @@ proptest! {
     #[test]
     fn prop_get_parameter_roundtrip(addr in any::<u16>(), seq in any::<u8>()) {
         let report = build_get_parameter(addr, seq);
-        let decoded = decode_command(&report);
-        prop_assert!(decoded.is_ok());
-        let decoded = decoded.expect("already checked");
+        let Ok(decoded) = decode_command(&report) else {
+            prop_assert!(false, "decode must succeed");
+            unreachable!()
+        };
         prop_assert_eq!(decoded.seq, seq);
         prop_assert_eq!(decoded.cmd_type, SmCommandType::GetParameter);
         prop_assert_eq!(decoded.param_addr, Some(addr));
@@ -303,9 +313,10 @@ proptest! {
     #[test]
     fn prop_set_parameter_roundtrip(addr in any::<u16>(), value in any::<i32>(), seq in any::<u8>()) {
         let report = build_set_parameter(addr, value, seq);
-        let decoded = decode_command(&report);
-        prop_assert!(decoded.is_ok());
-        let decoded = decoded.expect("already checked");
+        let Ok(decoded) = decode_command(&report) else {
+            prop_assert!(false, "decode must succeed");
+            unreachable!()
+        };
         prop_assert_eq!(decoded.seq, seq);
         prop_assert_eq!(decoded.cmd_type, SmCommandType::SetParameter);
         prop_assert_eq!(decoded.param_addr, Some(addr));
@@ -316,9 +327,10 @@ proptest! {
     #[test]
     fn prop_set_torque_roundtrip(torque in any::<i16>(), seq in any::<u8>()) {
         let report = build_set_torque_command(torque, seq);
-        let decoded = decode_command(&report);
-        prop_assert!(decoded.is_ok());
-        let decoded = decoded.expect("already checked");
+        let Ok(decoded) = decode_command(&report) else {
+            prop_assert!(false, "decode must succeed");
+            unreachable!()
+        };
         prop_assert_eq!(decoded.seq, seq);
         prop_assert_eq!(decoded.cmd_type, SmCommandType::SetTorque);
         prop_assert_eq!(decoded.data, Some(torque as i32));
@@ -376,8 +388,14 @@ proptest! {
         let cmd = SmCommand::new(seq, types[type_idx]).with_data(data);
         let mut buf1 = [0u8; 15];
         let mut buf2 = [0u8; 15];
-        encode_command(&cmd, &mut buf1).expect("encode must succeed");
-        encode_command(&cmd, &mut buf2).expect("encode must succeed");
+        let Ok(_) = encode_command(&cmd, &mut buf1) else {
+            prop_assert!(false, "encode must succeed");
+            unreachable!()
+        };
+        let Ok(_) = encode_command(&cmd, &mut buf2) else {
+            prop_assert!(false, "encode must succeed");
+            unreachable!()
+        };
         prop_assert_eq!(buf1, buf2, "CRC must be deterministic");
     }
 
@@ -390,7 +408,10 @@ proptest! {
         let size = 15 + extra;
         let mut buf = vec![0xFFu8; size];
         let cmd = SmCommand::new(seq, SmCommandType::GetStatus);
-        let len = encode_command(&cmd, &mut buf).expect("encode must succeed");
+        let Ok(len) = encode_command(&cmd, &mut buf) else {
+            prop_assert!(false, "encode must succeed");
+            unreachable!()
+        };
         prop_assert_eq!(len, 15);
         // Bytes beyond 15 must be zero (encode fills then writes)
         for &b in &buf[15..] {

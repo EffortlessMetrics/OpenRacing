@@ -181,9 +181,18 @@ impl SafetyPolicy {
 }
 
 impl Default for SafetyPolicy {
-    #[allow(clippy::expect_used)]
     fn default() -> Self {
-        Self::new().expect("SafetyPolicy::new() should not fail with default values")
+        const DEFAULT_SAFE: f32 = 5.0;
+        const DEFAULT_HIGH: f32 = 25.0;
+
+        Self {
+            max_safe_torque: unsafe { TorqueNm::new_unchecked(DEFAULT_SAFE) },
+            max_high_torque: unsafe { TorqueNm::new_unchecked(DEFAULT_HIGH) },
+            max_temperature_c: 80,
+            max_hands_off_duration: Duration::from_secs(5),
+            min_high_torque_interval: Duration::from_secs(2),
+            last_high_torque_request: None,
+        }
     }
 }
 

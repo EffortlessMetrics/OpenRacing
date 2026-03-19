@@ -28,6 +28,6 @@ jobs:
 
       - name: Check game support matrix files are identical
         run: |
-          python scripts/check_yaml_sync.py \
+          cargo run -p wheelctl --bin yaml-sync-check --locked -- \
             crates/telemetry-config/src/game_support_matrix.yaml \
             crates/telemetry-support/src/game_support_matrix.yaml

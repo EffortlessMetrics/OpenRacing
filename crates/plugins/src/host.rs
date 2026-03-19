@@ -1,4 +1,6 @@
 //! Plugin host system that manages both WASM and native plugins
+//!
+//! Ref: [ADR-0005: Plugin Architecture](file:///h:/Code/Rust/OpenRacing/docs/adr/0005-plugin-architecture.md)
 
 use std::collections::HashMap;
 use std::path::PathBuf;

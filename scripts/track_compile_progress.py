@@ -5,8 +5,15 @@ Track compilation progress by comparing current state to baseline.
 
 import json
 import subprocess
+import sys
 from pathlib import Path
 from datetime import datetime
+
+# Enable UTF-8 mode on Windows to handle emoji output
+if sys.platform == "win32":
+    import codecs
+    sys.stdout = codecs.getwriter('utf-8')(sys.stdout.buffer, 'strict')
+    sys.stderr = codecs.getwriter('utf-8')(sys.stderr.buffer, 'strict')
 
 def load_baseline():
     """Load the baseline from file."""

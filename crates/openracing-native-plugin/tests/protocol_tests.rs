@@ -882,7 +882,7 @@ fn shared_memory_header_has_atomics() {
 // ---------------------------------------------------------------------------
 
 #[tokio::test]
-async fn handshake_concurrent_host_queries() {
+async fn handshake_concurrent_host_queries() -> Result<(), Box<dyn std::error::Error>> {
     let host = Arc::new(NativePluginHost::new_with_defaults());
     let mut handles = Vec::new();
 
@@ -896,8 +896,9 @@ async fn handshake_concurrent_host_queries() {
     }
 
     for handle in handles {
-        let (count, loaded) = handle.await.expect("task should not panic");
+        let (count, loaded) = handle.await?;
         assert_eq!(count, 0);
         assert!(!loaded);
     }
+    Ok(())
 }

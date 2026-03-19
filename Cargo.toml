@@ -151,31 +151,34 @@ openracing-ffb = { path = "crates/openracing-ffb" }
 openracing-pidff-common = { path = "crates/pidff-common" }
 openracing-calibration = { path = "crates/openracing-calibration" }
 
+# System / platform
+libc = "0.2.182"
+
 # HID and hardware
 hidapi = "2.6.4"
 libudev = "0.3.0"
-crc32fast = "1.4.0"
+crc32fast = "1.5.0"
 
 # Schema and validation
 jsonschema = "0.40.2"
 
 # Testing
-criterion = "0.8.1"
+criterion = "0.8.2"
 proptest = "1.9.0"
 quickcheck = "1.0.3"
 quickcheck_macros = "1.1.0"
 hdrhistogram = "7.5.4"
-insta = "1.42.2"
+insta = "1.46.3"
 mockall = "0.14.0"
-tokio-test = "0.4"
+tokio-test = "0.4.5"
 wiremock = "0.6.5"
 statistical = "1.0.0"
-uuid = { version = "1.20.0", features = ["v4"] }
+uuid = { version = "1.21.0", features = ["v4"] }
 num_cpus = "1.17.0"
 
 # Additional dependencies
 base64 = "0.22.1"
-clap = { version = "4.5.56", features = ["derive"] }
+clap = { version = "4.5.60", features = ["derive"] }
 semver = "1.0.27"
 
 # Build dependencies
@@ -221,6 +224,10 @@ panic = "abort"
 
 [profile.dev]
 panic = "abort"
+debug = "line-tables-only"  # Keeps stacktraces but saves massive disk space vs `debug = 2`
+
+[profile.test]
+debug = "line-tables-only"  # Prevents 60GiB target/ bloat during workspace cargo test
 
 # Performance-critical profile for RT components
 [profile.rt]
@@ -229,7 +236,7 @@ debug = false
 overflow-checks = false
 
 # Windows linker workaround: integration tests pull in every workspace crate
-# which exceeds MSVC's PDB symbol-table limit (LNK1180/LNK1318) in debug mode.
+# which exceeds MSVC PDB symbol-table limit (LNK1180/LNK1318) in debug mode.
 # See docs/FRICTION_LOG.md F-004.
 [profile.test.package.racing-wheel-integration-tests]
 debug = false

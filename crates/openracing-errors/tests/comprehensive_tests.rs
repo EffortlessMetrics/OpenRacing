@@ -878,7 +878,7 @@ mod rt_error_codes {
 
     #[test]
     fn all_known_codes_roundtrip() -> Result<()> {
-        for code in 1..=10u8 {
+        for code in 1..=11u8 {
             let err = RTError::from_code(code);
             assert!(
                 err.is_some(),
@@ -892,7 +892,7 @@ mod rt_error_codes {
 
     #[test]
     fn unknown_codes_return_none() -> Result<()> {
-        for code in [0u8, 11, 50, 100, 128, 255] {
+        for code in [0u8, 12, 50, 100, 128, 255] {
             assert!(
                 RTError::from_code(code).is_none(),
                 "Code {code} should return None"

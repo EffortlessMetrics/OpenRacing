@@ -300,8 +300,8 @@ proptest! {
         for &s in &samples {
             cal.sample(s);
         }
-        let expected_min = *samples.iter().min().expect("non-empty");
-        let expected_max = *samples.iter().max().expect("non-empty");
+        let Some(expected_min) = samples.iter().min().copied() else { return Ok(()); };
+        let Some(expected_max) = samples.iter().max().copied() else { return Ok(()); };
         prop_assert_eq!(cal.min, expected_min);
         prop_assert_eq!(cal.max, expected_max);
     }

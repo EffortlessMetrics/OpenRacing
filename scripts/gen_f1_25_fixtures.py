@@ -1,6 +1,14 @@
+#!/usr/bin/env python3
 """Generate F1 25 binary fixture files for testing."""
 import struct
 import os
+import sys
+
+# Enable UTF-8 mode on Windows to handle emoji output
+if sys.platform == "win32":
+    import codecs
+    sys.stdout = codecs.getwriter('utf-8')(sys.stdout.buffer, 'strict')
+    sys.stderr = codecs.getwriter('utf-8')(sys.stderr.buffer, 'strict')
 
 PACKET_FORMAT = 2025
 GAME_YEAR = 25

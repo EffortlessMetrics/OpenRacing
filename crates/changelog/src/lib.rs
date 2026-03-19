@@ -300,4 +300,192 @@ mod tests {
 
         Ok(())
     }
+
+    #[test]
+    fn test_changelog_entry_is_empty() {
+        let entry = ChangelogEntry::default();
+        assert!(entry.is_empty());
+
+        let entry_with_content = ChangelogEntry {
+            added: vec!["feature".to_string()],
+            ..Default::default()
+        };
+        assert!(!entry_with_content.is_empty());
+    }
+
+    #[test]
+    fn test_changelog_entry_all_sections() -> Result<(), ChangelogError> {
+        let entry = ChangelogEntry {
+            version: Version::new(1, 0, 0),
+            date: NaiveDate::from_ymd_opt(2025, 6, 15)
+                .ok_or_else(|| ChangelogError::DateParse("Invalid date".to_string()))?,
+            added: vec!["New feature".to_string()],
+            changed: vec!["Changed behavior".to_string()],
+            deprecated: vec!["Old feature".to_string()],
+            removed: vec!["Deprecated feature".to_string()],
+            fixed: vec!["Bug fix".to_string()],
+            security: vec!["Security patch".to_string()],
+            breaking: vec!["Breaking change".to_string()],
+        };
+
+        let markdown = entry.to_markdown();
+        assert!(markdown.contains("### Added"));
+        assert!(markdown.contains("### Changed"));
+        assert!(markdown.contains("### Deprecated"));
+        assert!(markdown.contains("### Removed"));
+        assert!(markdown.contains("### Fixed"));
+        assert!(markdown.contains("### Security"));
+
+        let parsed = ChangelogEntry::from_markdown(&markdown)?;
+        assert_eq!(parsed.added.len(), 1);
+        assert_eq!(parsed.changed.len(), 1);
+        assert_eq!(parsed.deprecated.len(), 1);
+        assert_eq!(parsed.removed.len(), 1);
+        assert_eq!(parsed.fixed.len(), 1);
+        assert_eq!(parsed.security.len(), 1);
+        assert_eq!(parsed.breaking.len(), 1);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_empty_markdown() {
+        let result = ChangelogEntry::from_markdown("");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_invalid_version_header() {
+        let result = ChangelogEntry::from_markdown("## 1.0.0 - 2025-01-15");
+        assert!(result.is_err());
+
+        let result2 = ChangelogEntry::from_markdown("## [1.0.0]");
+        assert!(result2.is_err());
+    }
+
+    #[test]
+    fn test_parse_invalid_date() {
+        let result = ChangelogEntry::from_markdown("## [1.0.0] - invalid-date");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_multiple_items_per_section() -> Result<(), ChangelogError> {
+        let markdown = r#"## [1.0.0] - 2025-01-15
+
+### Added
+
+- Feature A
+- Feature B
+- Feature C
+
+### Fixed
+
+- Bug one
+- Bug two
+"#;
+        let entry = ChangelogEntry::from_markdown(markdown)?;
+        assert_eq!(entry.added.len(), 3);
+        assert_eq!(entry.added[0], "Feature A");
+        assert_eq!(entry.added[1], "Feature B");
+        assert_eq!(entry.added[2], "Feature C");
+        assert_eq!(entry.fixed.len(), 2);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_unknown_section_ignored() -> Result<(), ChangelogError> {
+        let markdown = r#"## [1.0.0] - 2025-01-15
+
+### Added
+
+- New feature
+
+### Unknown Section
+
+- Should be ignored
+"#;
+        let entry = ChangelogEntry::from_markdown(markdown)?;
+        assert_eq!(entry.added.len(), 1);
+        assert_eq!(entry.added[0], "New feature");
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_breaking_change_colon_variants() -> Result<(), ChangelogError> {
+        // Test both **BREAKING**: and **BREAKING:** formats
+        let markdown = r#"## [1.0.0] - 2025-01-15
+
+### Changed
+
+- **BREAKING**: Change one
+- **BREAKING:** Change two
+- Regular change
+"#;
+        let entry = ChangelogEntry::from_markdown(markdown)?;
+        assert_eq!(entry.breaking.len(), 2);
+        assert_eq!(entry.breaking[0], "Change one");
+        assert_eq!(entry.breaking[1], "Change two");
+        assert_eq!(entry.changed.len(), 1);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_display_trait_uses_to_markdown() -> Result<(), ChangelogError> {
+        let entry = ChangelogEntry {
+            version: Version::new(1, 2, 3),
+            date: NaiveDate::from_ymd_opt(2025, 6, 15)
+                .ok_or_else(|| ChangelogError::DateParse("Invalid date".to_string()))?,
+            added: vec!["Test feature".to_string()],
+            ..Default::default()
+        };
+
+        let display_str = format!("{}", entry);
+        assert!(display_str.contains("[1.2.3]"));
+        assert!(display_str.contains("2025-06-15"));
+        assert!(display_str.contains("Test feature"));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_to_markdown_empty_sections_not_included() -> Result<(), ChangelogError> {
+        let entry = ChangelogEntry {
+            version: Version::new(1, 0, 0),
+            date: NaiveDate::from_ymd_opt(2025, 1, 1)
+                .ok_or_else(|| ChangelogError::DateParse("Invalid date".to_string()))?,
+            added: vec!["Feature".to_string()],
+            changed: vec![],
+            deprecated: vec![],
+            removed: vec![],
+            fixed: vec![],
+            security: vec![],
+            breaking: vec![],
+        };
+
+        let markdown = entry.to_markdown();
+        assert!(markdown.contains("### Added"));
+        assert!(!markdown.contains("### Changed"));
+        assert!(!markdown.contains("### Deprecated"));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_changelog_error_display() {
+        let err = ChangelogError::InvalidFormat("test error".to_string());
+        assert_eq!(format!("{}", err), "Invalid changelog format: test error");
+
+        let err2 = ChangelogError::VersionParse("semver error".to_string());
+        assert_eq!(format!("{}", err2), "Failed to parse version: semver error");
+
+        let err3 = ChangelogError::DateParse("date error".to_string());
+        assert_eq!(format!("{}", err3), "Failed to parse date: date error");
+
+        let err4 = ChangelogError::MissingSection("section".to_string());
+        assert_eq!(format!("{}", err4), "Missing required section: section");
+    }
 }

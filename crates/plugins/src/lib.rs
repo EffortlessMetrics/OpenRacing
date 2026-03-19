@@ -1,5 +1,7 @@
 //! Racing Wheel Plugin System
 //!
+//! Ref: [ADR-0005: Plugin Architecture](file:///h:/Code/Rust/OpenRacing/docs/adr/0005-plugin-architecture.md)
+//!
 //! This crate provides a two-tier plugin system for the racing wheel software:
 //! 1. Safe WASM plugins with capability-based sandboxing (60-200Hz operations)
 //! 2. Fast native plugins with SPSC shared memory and RT watchdog

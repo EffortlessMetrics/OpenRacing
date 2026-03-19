@@ -11,6 +11,8 @@ OpenRacing follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html):
 - **Release candidates** (`v0.x.0-rc.N`): Final testing before stable release
 - **Stable releases** (`v1.0.0+`): Production-ready, backward compatible within major version
 
+> **Note**: OpenRacing remains in the v0.x.y range until the maintainer provides hardware sign-off on physical hardware. This is independent of feature completeness.
+
 ## Prerequisites
 
 Before creating a release:

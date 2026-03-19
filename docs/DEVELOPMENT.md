@@ -62,6 +62,11 @@ cargo test --all-features --workspace --exclude racing-wheel-ui
 - **Lint Guard**: All non-test crates must include `#![deny(static_mut_refs)]` to prevent regression
 - **Safe Alternatives**: Prefer `AtomicBool`, `OnceLock`, or `LazyLock` over unsafe static patterns
 
+#### Error Handling Defaults
+- **No `unwrap()`/`expect()`**: The workspace enforces a strict policy against `unwrap()` and `expect()`, **especially in tests**.
+- **Result-returning tests**: Tests should map errors by returning `Result<(), ErrorType>` (or `Result<(), Box<dyn std::error::Error>>`).
+- **Property-based tests**: In `proptest!` blocks (where `?` isn't always viable), use `let-else` combined with `prop_assert!()` and `unreachable!()` (e.g. `let Ok(val) = fallible() else { prop_assert!(false, "failed"); unreachable!() };`).
+
 ### 2. Performance Validation
 ```bash
 # Build RT profile

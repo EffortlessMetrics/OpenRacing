@@ -1,10 +1,14 @@
 //! HID adapter implementations with OS-specific RT optimizations
 //!
+//! This module provides platform-specific HID device adapters as specified in
+//! [ADR-0007: Multi-Vendor HID Protocol Architecture].
+//!
+//! [ADR-0007]: file:///h:/Code/Rust/OpenRacing/docs/adr/0007-multi-vendor-hid-protocol-architecture.md
+//!
 //! This module provides platform-specific HID device adapters that implement
 //! the HidPort and HidDevice traits with real-time optimizations for each OS.
 
 #[cfg_attr(target_os = "macos", allow(unused_imports))]
-use crate::input::SnapshotMailbox as Seqlock;
 use crate::ports::HidPort;
 use crate::{DeviceInfo, TelemetryData};
 use racing_wheel_schemas::prelude::*;
@@ -143,6 +147,8 @@ impl TorqueCommand {
 
 /// Maximum wire size of torque output reports used by current device encoders.
 pub const MAX_TORQUE_REPORT_SIZE: usize = 8;
+/// Maximum wire size of generic HID reports.
+pub const MAX_HID_REPORT_SIZE: usize = 64;
 
 /// Encode a torque report for the target device.
 ///
@@ -244,7 +250,8 @@ impl DeviceCapabilitiesReport {
             supports_raw_torque_1khz: (self.supports_raw_torque_1khz & 0x01) != 0,
             supports_health_stream: (self.supports_health_stream & 0x01) != 0,
             supports_led_bus: (self.supports_led_bus & 0x01) != 0,
-            max_torque: TorqueNm::new(clamped_nm).expect("clamped value is valid"),
+            // SAFETY: Value is clamped to [0.0, TorqueNm::MAX_TORQUE] above
+            max_torque: unsafe { TorqueNm::new_unchecked(clamped_nm) },
             encoder_cpr: self.encoder_cpr,
             min_report_period_us: self.min_report_period_us as u16,
         }

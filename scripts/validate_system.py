@@ -21,6 +21,12 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 import tempfile
 
+# Enable UTF-8 mode on Windows to handle emoji output
+if sys.platform == "win32":
+    import codecs
+    sys.stdout = codecs.getwriter('utf-8')(sys.stdout.buffer, 'strict')
+    sys.stderr = codecs.getwriter('utf-8')(sys.stderr.buffer, 'strict')
+
 class SystemValidator:
     """Comprehensive system validation"""
     

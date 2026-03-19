@@ -1,5 +1,7 @@
 //! IPC service implementation with domain/wire type conversion
 //!
+//! Ref: [ADR-0002: IPC Transport](file:///h:/Code/Rust/OpenRacing/docs/adr/0002-ipc-transport.md)
+//!
 //! This module provides the gRPC service implementation that uses the conversion
 //! layer to separate domain logic from wire protocol concerns.
 
