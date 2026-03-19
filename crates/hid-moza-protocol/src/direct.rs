@@ -3,6 +3,13 @@
 //! Provides a pure, testable encoder for Moza report `0x20`.
 //! Intentionally performs no I/O and no heap allocation.
 //!
+//! # Safety and Torque Encoding
+//! This implementation follows [ADR-0006] regarding torque command
+//! limits and motor-enable flag semantics.
+//!
+//! [ADR-0006]: file:///h:/Code/Rust/OpenRacing/docs/adr/0006-safety-interlocks.md
+
+//!
 //! # Torque command wire format (report ID 0x20, 8 bytes)
 //!
 //! | Byte | Field                    | Description                            |

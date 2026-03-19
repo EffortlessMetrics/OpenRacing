@@ -1621,7 +1621,7 @@ mod proptest_validation {
                 ..WheelSettings::default()
             };
             let original = WheelProfile::new("PropTest", "dev").with_settings(settings);
-            
+
             let json = match serde_json::to_string(&original) {
                 Ok(v) => v,
                 Err(e) => {

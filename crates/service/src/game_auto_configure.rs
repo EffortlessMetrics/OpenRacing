@@ -1,5 +1,7 @@
 //! Game Auto Configuration Module
 //!
+//! Ref: [ADR-0008: Game Auto-Configure](file:///h:/Code/Rust/OpenRacing/docs/adr/0008-game-auto-configure-telemetry-bridge.md)
+//!
 //! Automatically configures game telemetry the first time a game is detected.
 //! Stores a marker file at `~/.openracing/configured_games.json` so each game
 //! is only configured once.

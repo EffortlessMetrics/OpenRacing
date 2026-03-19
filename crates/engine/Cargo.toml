@@ -98,6 +98,7 @@ windows = { version = "0.62.2", features = [
     "Win32_System_Diagnostics_Etw",
     # Device notification features
     "Win32_UI_WindowsAndMessaging",
+    "Win32_Devices_DeviceAndDriverInstallation",
     "Win32_System_LibraryLoader",
     "Win32_Graphics_Gdi",
     # Overlapped I/O features for HID writes

@@ -252,6 +252,14 @@ impl IntegratedFaultManager {
             result.new_faults.push(fault);
         }
 
+        // Safety Hardening: Explicitly detect components that should be heartbeating
+        // but have never sent a single heartbeat.
+        let component_health = self.watchdog_system.get_health_summary();
+        if component_health.is_empty() {
+            // If we have no components registered but expect some, this is a startup failure.
+            result.new_faults.push(FaultType::SafetyInterlockViolation);
+        }
+
         // Update plugin execution tracking
         if let Some(plugin_execution) = &context.plugin_execution
             && let Some(fault) = self.watchdog_system.record_plugin_execution(

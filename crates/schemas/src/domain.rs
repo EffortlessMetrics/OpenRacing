@@ -152,6 +152,15 @@ impl TorqueNm {
         Ok(TorqueNm(value))
     }
 
+    /// Create a new torque value without validation
+    ///
+    /// # Safety
+    ///
+    /// The caller must ensure that the value is finite and within the range [0.0, MAX_TORQUE].
+    pub unsafe fn new_unchecked(value: f32) -> Self {
+        TorqueNm(value)
+    }
+
     /// Create torque from centi-Newton-meters (used in HID reports)
     pub fn from_cnm(cnm: u16) -> Result<Self, DomainError> {
         let nm = (cnm as f32) / 100.0;

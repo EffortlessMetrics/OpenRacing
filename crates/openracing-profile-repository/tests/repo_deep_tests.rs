@@ -68,7 +68,9 @@ fn create_car_profile(
 
 fn profile_id_strategy() -> impl Strategy<Value = String> {
     match proptest::string::string_regex("[a-z][a-z0-9._-]{0,30}") {
-        Ok(strategy) => strategy.prop_filter("must not be empty after trim", |s| !s.trim().is_empty()).boxed(),
+        Ok(strategy) => strategy
+            .prop_filter("must not be empty after trim", |s| !s.trim().is_empty())
+            .boxed(),
         Err(_) => proptest::strategy::Just("default.id".to_string()).boxed(),
     }
 }
@@ -375,7 +377,9 @@ mod concurrent_access {
             let repo = repo.clone();
             handles.push(tokio::spawn(async move {
                 let id = format!("rw_extra_{}", i);
-                let Ok(profile_id) = ProfileId::new(id) else { return; };
+                let Ok(profile_id) = ProfileId::new(id) else {
+                    return;
+                };
                 let p = Profile::new(
                     profile_id,
                     ProfileScope::global(),

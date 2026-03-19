@@ -1,7 +1,6 @@
 //! Real-time engine core types and structures
 
-pub use openracing_errors::RTError;
-pub use openracing_errors::RTResult;
+pub use openracing_errors::{RTError, RTResult};
 use std::time::Instant;
 
 /// Real-time frame data processed at 1kHz

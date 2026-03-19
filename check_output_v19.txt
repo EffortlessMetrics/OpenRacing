@@ -1,0 +1,24 @@
+    Checking racing-wheel-engine v0.1.0 (H:\Code\Rust\OpenRacing\crates\engine)
+warning: unused import: `AvRevertMmThreadCharacteristics`
+  --> crates\engine\src\hid\windows.rs:23:5
+   |
+23 |     AvRevertMmThreadCharacteristics, AvSetMmThreadCharacteristicsW,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused imports: `DBT_DEVICEARRIVAL` and `DBT_DEVICEREMOVECOMPLETE`
+  --> crates\engine\src\hid\windows.rs:33:38
+   |
+33 |     DEV_BROADCAST_DEVICEINTERFACE_W, DBT_DEVICEARRIVAL, DBT_DEVICEREMOVECOMPLETE,
+   |                                      ^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0308]: mismatched types
+   --> crates\engine\src\hid\windows.rs:508:34
+    |
+508 |                 dbcc_devicetype: DBT_DEVTYP_DEVICEINTERFACE,
+    |                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `u32`, found `DEV_BROADCAST_HDR_DEVICE_TYPE`
+
+For more information about this error, try `rustc --explain E0308`.
+warning: `racing-wheel-engine` (lib) generated 2 warnings
+error: could not compile `racing-wheel-engine` (lib) due to 1 previous error; 2 warnings emitted

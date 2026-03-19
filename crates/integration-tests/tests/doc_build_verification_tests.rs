@@ -54,7 +54,9 @@ fn collect_md_files(dir: &Path) -> Vec<PathBuf> {
 /// Extract relative markdown links from content (e.g. `[text](path.md)`).
 /// Ignores URLs (http/https), anchors-only links, and badge images.
 fn extract_md_links(content: &str) -> Vec<String> {
-    let Ok(link_re) = regex::Regex::new(r"\[([^\]]*)\]\(([^)]+)\)") else { return vec![]; };
+    let Ok(link_re) = regex::Regex::new(r"\[([^\]]*)\]\(([^)]+)\)") else {
+        return vec![];
+    };
     link_re
         .captures_iter(content)
         .filter_map(|cap| {

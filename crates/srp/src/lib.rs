@@ -4,6 +4,10 @@
 //! vendor protocol crates without pulling in additional runtime concerns.
 
 #![deny(static_mut_refs)]
+#![deny(clippy::unwrap_used)]
+
+/// [ADR-0007]: Multi-Vendor HID Protocol Architecture
+/// This crate follows the "SRP Microcrate" pattern for vendor-specific HID protocols.
 
 /// Offset of the first SR-P throttle axis byte (after report ID).
 pub const THROTTLE_START: usize = 1;

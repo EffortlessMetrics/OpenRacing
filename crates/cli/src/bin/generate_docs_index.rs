@@ -8,14 +8,28 @@
 
 #![deny(static_mut_refs)]
 #![deny(unused_must_use)]
-// Note: clippy::unwrap_used is allowed below because regex patterns are hardcoded
-// and known to be valid at compile time.
+#![deny(clippy::unwrap_used)]
 
+use anyhow::{Context, Result};
 use clap::Parser;
 use regex::Regex;
 use std::collections::HashMap;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+use std::sync::LazyLock;
+
+static TITLE_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^# (ADR-\d{4}: .+)").expect("invalid title regex"));
+static STATUS_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^\*\*Status:\*\* (.+)").expect("invalid status regex"));
+static DATE_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^\*\*Date:\*\* (.+)").expect("invalid date regex"));
+static AUTHORS_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^\*\*Authors:\*\* (.+)").expect("invalid authors regex"));
+static ADR_PATTERN: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^\d{4}-.*\.md$").expect("invalid adr pattern"));
+static DATE_PATTERN: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^\d{4}-\d{2}-\d{2}$").expect("invalid date pattern"));
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -44,19 +58,9 @@ pub(crate) fn extract_adr_info(adr_path: &PathBuf) -> AdrInfo {
 
     let lines: Vec<&str> = content.lines().collect();
 
-    // Pre-compile regex patterns for metadata extraction
-    #[allow(clippy::unwrap_used)]
-    let title_regex = Regex::new(r"^# (ADR-\d{4}: .+)").unwrap();
-    #[allow(clippy::unwrap_used)]
-    let status_regex = Regex::new(r"^\*\*Status:\*\* (.+)").unwrap();
-    #[allow(clippy::unwrap_used)]
-    let date_regex = Regex::new(r"^\*\*Date:\*\* (.+)").unwrap();
-    #[allow(clippy::unwrap_used)]
-    let authors_regex = Regex::new(r"^\*\*Authors:\*\* (.+)").unwrap();
-
     // Extract title
     if let Some(first_line) = lines.first() {
-        if let Some(cap) = title_regex.captures(first_line) {
+        if let Some(cap) = TITLE_REGEX.captures(first_line) {
             info.title = cap
                 .get(1)
                 .map(|m| m.as_str().to_string())
@@ -73,17 +77,17 @@ pub(crate) fn extract_adr_info(adr_path: &PathBuf) -> AdrInfo {
 
     // Extract metadata
     for line in lines.iter().take(20) {
-        if let Some(cap) = status_regex.captures(line) {
+        if let Some(cap) = STATUS_REGEX.captures(line) {
             info.status = cap
                 .get(1)
                 .map(|m| m.as_str().trim().to_string())
                 .unwrap_or_default();
-        } else if let Some(cap) = date_regex.captures(line) {
+        } else if let Some(cap) = DATE_REGEX.captures(line) {
             info.date = cap
                 .get(1)
                 .map(|m| m.as_str().trim().to_string())
                 .unwrap_or_default();
-        } else if let Some(cap) = authors_regex.captures(line) {
+        } else if let Some(cap) = AUTHORS_REGEX.captures(line) {
             info.authors = cap
                 .get(1)
                 .map(|m| m.as_str().trim().to_string())
@@ -122,12 +126,8 @@ pub(crate) fn extract_adr_info(adr_path: &PathBuf) -> AdrInfo {
     info
 }
 
-use std::path::Path;
-
 pub(crate) fn generate_adr_index(adr_dir: &Path) -> String {
     let mut adr_files = Vec::new();
-    #[allow(clippy::unwrap_used)]
-    let adr_pattern = Regex::new(r"^\d{4}-.*\.md$").unwrap();
 
     if let Ok(entries) = fs::read_dir(adr_dir) {
         for entry in entries.flatten() {
@@ -136,7 +136,7 @@ pub(crate) fn generate_adr_index(adr_dir: &Path) -> String {
                 && let Some(name) = path.file_name().and_then(|n| n.to_str())
                 && name != "template.md"
                 && name != "README.md"
-                && adr_pattern.is_match(name)
+                && ADR_PATTERN.is_match(name)
             {
                 adr_files.push(path);
             }
@@ -191,12 +191,10 @@ pub(crate) fn generate_adr_index(adr_dir: &Path) -> String {
 
     // Sort by date (newest first)
     let mut dated_adrs: Vec<(String, &PathBuf, AdrInfo)> = Vec::new();
-    #[allow(clippy::unwrap_used)]
-    let date_pattern = Regex::new(r"^\d{4}-\d{2}-\d{2}$").unwrap();
 
     for adr_path in &adr_files {
         let info = extract_adr_info(adr_path);
-        if date_pattern.is_match(&info.date) {
+        if DATE_PATTERN.is_match(&info.date) {
             dated_adrs.push((info.date.clone(), adr_path, info));
         }
     }
@@ -212,12 +210,11 @@ pub(crate) fn generate_adr_index(adr_dir: &Path) -> String {
     index_lines.join("\n")
 }
 
-fn main() -> std::process::ExitCode {
+fn main() -> Result<()> {
     let args = Args::parse();
 
     if !args.adr_dir.exists() {
-        eprintln!("[ERROR] ADR directory not found: {:?}", args.adr_dir);
-        return std::process::ExitCode::from(1);
+        anyhow::bail!("ADR directory not found: {:?}", args.adr_dir);
     }
 
     println!("[INFO] Generating documentation index...");
@@ -226,13 +223,11 @@ fn main() -> std::process::ExitCode {
 
     let index_file = args.adr_dir.join("INDEX.md");
 
-    if let Err(e) = fs::write(&index_file, &index_content) {
-        eprintln!("[ERROR] Failed to write index file: {}", e);
-        return std::process::ExitCode::from(1);
-    }
+    fs::write(&index_file, &index_content)
+        .with_context(|| format!("Failed to write index to {:?}", index_file))?;
 
     println!("[OK] Generated ADR index: {:?}", index_file);
-    std::process::ExitCode::from(0)
+    Ok(())
 }
 
 #[cfg(test)]
@@ -241,16 +236,16 @@ mod tests {
     use std::io::Write;
     use tempfile::TempDir;
 
-    fn create_temp_adr(name: &str, content: &str) -> (TempDir, PathBuf) {
-        let temp_dir = TempDir::new().unwrap();
+    fn create_temp_adr(name: &str, content: &str) -> Result<(TempDir, PathBuf)> {
+        let temp_dir = TempDir::new().context("tempdir_new")?;
         let file_path = temp_dir.path().join(name);
-        let mut file = std::fs::File::create(&file_path).unwrap();
-        file.write_all(content.as_bytes()).unwrap();
-        (temp_dir, file_path)
+        let mut file = std::fs::File::create(&file_path).context("file_create")?;
+        file.write_all(content.as_bytes()).context("write_all")?;
+        Ok((temp_dir, file_path))
     }
 
     #[test]
-    fn test_extract_adr_info_basic() {
+    fn test_extract_adr_info_basic() -> Result<()> {
         let (_temp_dir, adr_path) = create_temp_adr(
             "0001-test.md",
             r#"# ADR-0001: Test Title
@@ -271,16 +266,17 @@ Test rationale.
 ## Consequences
 Test consequences.
 "#,
-        );
+        )?;
         let info = extract_adr_info(&adr_path);
         assert_eq!(info.title, "ADR-0001: Test Title");
         assert_eq!(info.status, "Proposed");
         assert_eq!(info.date, "2026-01-15");
         assert_eq!(info.authors, "Test Author");
+        Ok(())
     }
 
     #[test]
-    fn test_extract_adr_info_extracts_description() {
+    fn test_extract_adr_info_extracts_description() -> Result<()> {
         let (_temp_dir, adr_path) = create_temp_adr(
             "0001-test.md",
             r#"# ADR-0001: Test Title
@@ -296,28 +292,30 @@ And this is the second line.
 ## Decision
 This is a test decision.
 "#,
-        );
+        )?;
         let info = extract_adr_info(&adr_path);
         assert_eq!(info.description, "This is the first line of context.");
+        Ok(())
     }
 
     #[test]
-    fn test_extract_adr_info_defaults() {
+    fn test_extract_adr_info_defaults() -> Result<()> {
         // Test with minimal ADR content - title regex won't match because
         // there's no colon and description after ADR number, so it falls back to filename
         let (_temp_dir, adr_path) =
-            create_temp_adr("0001-test.md", "# ADR-0001\nNo metadata here.");
+            create_temp_adr("0001-test.md", "# ADR-0001\nNo metadata here.")?;
         let info = extract_adr_info(&adr_path);
         // Falls back to filename stem when title regex doesn't match
         assert_eq!(info.title, "0001-test");
         assert_eq!(info.status, "Unknown");
         assert_eq!(info.date, "Unknown");
         assert_eq!(info.authors, "Unknown");
+        Ok(())
     }
 
     #[test]
-    fn test_generate_adr_index() {
-        let temp_dir = TempDir::new().unwrap();
+    fn test_generate_adr_index() -> Result<()> {
+        let temp_dir = TempDir::new().context("tempdir_new")?;
 
         // Create multiple ADR files
         let adr1 = temp_dir.path().join("0001-first.md");
@@ -342,7 +340,7 @@ Rationale 1.
 Consequences 1.
 "#,
         )
-        .unwrap();
+        .context("write_adr1")?;
 
         let adr2 = temp_dir.path().join("0002-second.md");
         std::fs::write(
@@ -366,7 +364,7 @@ Rationale 2.
 Consequences 2.
 "#,
         )
-        .unwrap();
+        .context("write_adr2")?;
 
         let index = generate_adr_index(temp_dir.path());
 
@@ -378,11 +376,12 @@ Consequences 2.
         assert!(index.contains("Proposed"));
         assert!(index.contains("Accepted"));
         assert!(index.contains("Status Summary"));
+        Ok(())
     }
 
     #[test]
-    fn test_generate_adr_index_status_summary() {
-        let temp_dir = TempDir::new().unwrap();
+    fn test_generate_adr_index_status_summary() -> Result<()> {
+        let temp_dir = TempDir::new().context("tempdir_new")?;
 
         let adr1 = temp_dir.path().join("0001-proposed.md");
         std::fs::write(
@@ -406,7 +405,7 @@ Rationale.
 Consequences.
 "#,
         )
-        .unwrap();
+        .context("write_adr1")?;
 
         let adr2 = temp_dir.path().join("0002-accepted.md");
         std::fs::write(
@@ -430,12 +429,13 @@ Rationale.
 Consequences.
 "#,
         )
-        .unwrap();
+        .context("write_adr2")?;
 
         let index = generate_adr_index(temp_dir.path());
 
         assert!(index.contains("**Proposed**: 1"));
         assert!(index.contains("**Accepted**: 1"));
+        Ok(())
     }
 
     #[test]

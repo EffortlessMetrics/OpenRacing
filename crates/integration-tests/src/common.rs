@@ -23,6 +23,7 @@ pub struct VirtualDevice {
     pub capabilities: DeviceCapabilities,
     pub connected: bool,
     pub last_torque_command: f32,
+    pub torque_history: Vec<(Instant, f32)>,
     pub telemetry_data: VirtualTelemetry,
 }
 
@@ -51,8 +52,32 @@ impl VirtualDevice {
             },
             connected: true,
             last_torque_command: 0.0,
+            torque_history: Vec::with_capacity(1000),
             telemetry_data: VirtualTelemetry::default(),
         })
+    }
+
+    pub fn set_torque(&mut self, torque: f32) {
+        self.last_torque_command = torque;
+        self.torque_history.push((Instant::now(), torque));
+        if self.torque_history.len() > 10000 {
+            self.torque_history.remove(0);
+        }
+    }
+
+    pub fn verify_torque_ramp_to_zero(&self, start_time: Instant, duration: Duration) -> bool {
+        let relevant_history: Vec<_> = self
+            .torque_history
+            .iter()
+            .filter(|(t, _)| *t >= start_time)
+            .collect();
+
+        relevant_history
+            .last()
+            .map(|(end_time, last_torque)| {
+                last_torque.abs() < 1e-6 && (*end_time - start_time) <= duration
+            })
+            .unwrap_or(false)
     }
 
     pub fn disconnect(&mut self) {

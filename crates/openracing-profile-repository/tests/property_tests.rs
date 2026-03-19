@@ -47,7 +47,9 @@ fn create_test_profile(id: &str) -> Profile {
 fn profile_id_strategy() -> impl Strategy<Value = String> {
     // ProfileId allows alphanumeric, dash, dot, underscore; 1..64 chars
     match proptest::string::string_regex("[a-z][a-z0-9._-]{0,30}") {
-        Ok(strategy) => strategy.prop_filter("must not be empty after trim", |s| !s.trim().is_empty()).boxed(),
+        Ok(strategy) => strategy
+            .prop_filter("must not be empty after trim", |s| !s.trim().is_empty())
+            .boxed(),
         Err(_) => proptest::strategy::Just("default.id".to_string()).boxed(),
     }
 }

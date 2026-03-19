@@ -10,15 +10,20 @@
 
 #![deny(static_mut_refs)]
 #![deny(unused_must_use)]
-// Note: clippy::unwrap_used is allowed below because regex patterns are hardcoded
-// and known to be valid at compile time. Using .expect() would also trigger
-// clippy::expect_used, so we use .unwrap() with this explicit allowance.
+#![deny(clippy::unwrap_used)]
 
+use anyhow::{Context, Result};
 use clap::Parser;
 use regex::Regex;
 use std::collections::HashSet;
 use std::fs;
 use std::path::PathBuf;
+use std::sync::LazyLock;
+
+static ADR_PATTERN: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^\d{4}-.*\.md$").expect("invalid adr pattern"));
+static REQ_PATTERN: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\b([A-Z]{2,}-\d{2})\b").expect("invalid req pattern"));
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -38,8 +43,6 @@ struct Args {
 
 pub(crate) fn find_adr_files(adr_dir: &PathBuf) -> Vec<PathBuf> {
     let mut adr_files = Vec::new();
-    #[allow(clippy::unwrap_used)]
-    let adr_pattern = Regex::new(r"^\d{4}-.*\.md$").unwrap();
 
     if let Ok(entries) = fs::read_dir(adr_dir) {
         for entry in entries.flatten() {
@@ -48,7 +51,7 @@ pub(crate) fn find_adr_files(adr_dir: &PathBuf) -> Vec<PathBuf> {
                 && let Some(name) = path.file_name().and_then(|n| n.to_str())
                 && name != "template.md"
                 && name != "README.md"
-                && adr_pattern.is_match(name)
+                && ADR_PATTERN.is_match(name)
             {
                 adr_files.push(path);
             }
@@ -153,11 +156,9 @@ pub(crate) fn validate_adr_format(adr_path: &PathBuf) -> Vec<String> {
 
 pub(crate) fn extract_requirement_references(adr_path: &PathBuf) -> HashSet<String> {
     let mut requirements = HashSet::new();
-    #[allow(clippy::unwrap_used)]
-    let req_pattern = Regex::new(r"\b([A-Z]{2,}-\d{2})\b").unwrap();
 
     if let Ok(content) = fs::read_to_string(adr_path) {
-        for cap in req_pattern.captures_iter(&content) {
+        for cap in REQ_PATTERN.captures_iter(&content) {
             if let Some(m) = cap.get(1) {
                 requirements.insert(m.as_str().to_string());
             }
@@ -190,9 +191,7 @@ fn validate_requirement_references(
         }
     };
 
-    #[allow(clippy::unwrap_used)]
-    let req_pattern = Regex::new(r"\b([A-Z]{2,}-\d{2})\b").unwrap();
-    let valid_reqs: HashSet<String> = req_pattern
+    let valid_reqs: HashSet<String> = REQ_PATTERN
         .captures_iter(&req_content)
         .filter_map(|cap| cap.get(1).map(|m| m.as_str().to_string()))
         .collect();
@@ -217,12 +216,11 @@ fn validate_requirement_references(
     errors
 }
 
-fn main() -> std::process::ExitCode {
+fn main() -> Result<()> {
     let args = Args::parse();
 
     if !args.adr_dir.exists() {
-        eprintln!("[ERROR] ADR directory not found: {:?}", args.adr_dir);
-        return std::process::ExitCode::from(1);
+        anyhow::bail!("ADR directory not found: {:?}", args.adr_dir);
     }
 
     println!("[INFO] Validating ADR files...");
@@ -230,8 +228,7 @@ fn main() -> std::process::ExitCode {
     let adr_files = find_adr_files(&args.adr_dir);
 
     if adr_files.is_empty() {
-        eprintln!("[ERROR] No ADR files found");
-        return std::process::ExitCode::from(1);
+        anyhow::bail!("No ADR files found");
     }
 
     if args.verbose {
@@ -272,10 +269,10 @@ fn main() -> std::process::ExitCode {
 
     if total_errors == 0 {
         println!("\n[OK] All {} ADR files are valid!", adr_files.len());
-        std::process::ExitCode::from(0)
+        Ok(())
     } else {
         eprintln!("\n[ERROR] Found {} validation errors", total_errors);
-        std::process::ExitCode::from(1)
+        std::process::exit(1);
     }
 }
 
@@ -285,14 +282,14 @@ mod tests {
     use std::io::Write;
     use tempfile::NamedTempFile;
 
-    fn create_temp_adr(content: &str) -> NamedTempFile {
-        let mut file = NamedTempFile::new().unwrap();
-        file.write_all(content.as_bytes()).unwrap();
-        file
+    fn create_temp_adr(content: &str) -> Result<NamedTempFile> {
+        let mut file = NamedTempFile::new().context("tempfile_new")?;
+        file.write_all(content.as_bytes()).context("write_all")?;
+        Ok(file)
     }
 
     #[test]
-    fn test_validate_adr_format_valid() {
+    fn test_validate_adr_format_valid() -> Result<()> {
         let adr_content = r#"# ADR-0001: Test Title
 
 **Status:** Proposed
@@ -316,7 +313,7 @@ This is the consequences.
 
 Requirements: TEST-01
 "#;
-        let file = create_temp_adr(adr_content);
+        let file = create_temp_adr(adr_content)?;
         let path = file.path().to_path_buf();
         let errors = validate_adr_format(&path);
         assert!(
@@ -324,10 +321,11 @@ Requirements: TEST-01
             "Expected no errors but got: {:?}",
             errors
         );
+        Ok(())
     }
 
     #[test]
-    fn test_validate_adr_format_missing_sections() {
+    fn test_validate_adr_format_missing_sections() -> Result<()> {
         let adr_content = r#"# ADR-0001: Test Title
 
 **Status:** Proposed
@@ -337,7 +335,7 @@ Requirements: TEST-01
 ## Context
 This is the context.
 "#;
-        let file = create_temp_adr(adr_content);
+        let file = create_temp_adr(adr_content)?;
         let path = file.path().to_path_buf();
         let errors = validate_adr_format(&path);
         assert!(!errors.is_empty());
@@ -346,10 +344,11 @@ This is the context.
                 .iter()
                 .any(|e| e.contains("Missing required sections"))
         );
+        Ok(())
     }
 
     #[test]
-    fn test_validate_adr_format_invalid_status() {
+    fn test_validate_adr_format_invalid_status() -> Result<()> {
         let adr_content = r#"# ADR-0001: Test Title
 
 **Status:** InvalidStatus
@@ -373,15 +372,16 @@ This is the consequences.
 
 Requirements: TEST-01
 "#;
-        let file = create_temp_adr(adr_content);
+        let file = create_temp_adr(adr_content)?;
         let path = file.path().to_path_buf();
         let errors = validate_adr_format(&path);
         assert!(!errors.is_empty());
         assert!(errors.iter().any(|e| e.contains("Invalid status")));
+        Ok(())
     }
 
     #[test]
-    fn test_validate_adr_format_no_requirements() {
+    fn test_validate_adr_format_no_requirements() -> Result<()> {
         let adr_content = r#"# ADR-0001: Test Title
 
 **Status:** Proposed
@@ -403,37 +403,40 @@ This is the consequences.
 ## References
 - Reference 1
 "#;
-        let file = create_temp_adr(adr_content);
+        let file = create_temp_adr(adr_content)?;
         let path = file.path().to_path_buf();
         let errors = validate_adr_format(&path);
         assert!(!errors.is_empty());
         assert!(errors.iter().any(|e| e.contains("requirement references")));
+        Ok(())
     }
 
     #[test]
-    fn test_extract_requirement_references() {
+    fn test_extract_requirement_references() -> Result<()> {
         let adr_content = r#"# ADR-0001: Test
 
 This ADR references requirements ABC-01 and XYZ-99.
 
 Requirements: ABC-01, XYZ-99
 "#;
-        let file = create_temp_adr(adr_content);
+        let file = create_temp_adr(adr_content)?;
         let path = file.path().to_path_buf();
         let refs = extract_requirement_references(&path);
         assert!(refs.contains("ABC-01"));
         assert!(refs.contains("XYZ-99"));
+        Ok(())
     }
 
     #[test]
-    fn test_extract_requirement_references_none() {
+    fn test_extract_requirement_references_none() -> Result<()> {
         let adr_content = r#"# ADR-0001: Test
 
 No requirements here.
 "#;
-        let file = create_temp_adr(adr_content);
+        let file = create_temp_adr(adr_content)?;
         let path = file.path().to_path_buf();
         let refs = extract_requirement_references(&path);
         assert!(refs.is_empty());
+        Ok(())
     }
 }

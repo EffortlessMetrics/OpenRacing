@@ -1,4 +1,9 @@
 //! Safety systems and fault handling
+//!
+//! Implements logic for safety interlocks, fault detection, and torque-shutdown
+//! as specified in [ADR-0006: Safety Interlocks and Fault Management].
+//!
+//! [ADR-0006]: file:///h:/Code/Rust/OpenRacing/docs/adr/0006-safety-interlocks.md
 
 use crate::hid::MozaInputState;
 use racing_wheel_schemas::prelude::TorqueNm;

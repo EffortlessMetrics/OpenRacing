@@ -4,6 +4,10 @@
 //! consume capture-validated parsing logic without pulling runtime concerns.
 
 #![deny(static_mut_refs)]
+#![deny(clippy::unwrap_used)]
+
+/// [ADR-0007]: Multi-Vendor HID Protocol Architecture
+/// This crate follows the "SRP Microcrate" pattern for vendor-specific HID protocols.
 
 /// Report ID and byte offsets for wheelbase-aggregated input reports.
 pub mod input_report {
