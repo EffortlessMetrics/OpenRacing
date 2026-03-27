@@ -8,7 +8,6 @@
 
 /// [ADR-0007]: Multi-Vendor HID Protocol Architecture
 /// This crate follows the "SRP Microcrate" pattern for vendor-specific HID protocols.
-
 /// Offset of the first SR-P throttle axis byte (after report ID).
 pub const THROTTLE_START: usize = 1;
 /// Offset of the first SR-P brake axis byte.

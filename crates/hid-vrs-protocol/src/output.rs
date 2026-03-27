@@ -228,7 +228,7 @@ impl VrsFrictionEncoder {
 /// Convert torque (Nm) to VRS magnitude units (±10000).
 #[inline]
 fn torque_to_magnitude(torque_nm: f32, max_torque_nm: f32) -> i16 {
-    let normalized = (torque_nm / max_torque_nm).clamp(-1.0, 1.0);
+    let normalized = openracing_hid_common::math::safe_clamp(torque_nm / max_torque_nm, -1.0, 1.0);
     (normalized * 10_000.0) as i16
 }
 

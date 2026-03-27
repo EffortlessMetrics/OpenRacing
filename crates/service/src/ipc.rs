@@ -697,8 +697,16 @@ impl WheelService for WheelServiceImpl {
                     }),
                     active_faults: status.active_faults,
                     telemetry: status.telemetry.map(|t| TelemetryData {
-                        wheel_angle_mdeg: (t.wheel_angle_deg * 1000.0) as i32,
-                        wheel_speed_mrad_s: (t.wheel_speed_rad_s * 1000.0) as i32,
+                        wheel_angle_mdeg: openracing_hid_common::math::safe_clamp(
+                            t.wheel_angle_deg * 1000.0,
+                            i32::MIN as f32,
+                            i32::MAX as f32,
+                        ) as i32,
+                        wheel_speed_mrad_s: openracing_hid_common::math::safe_clamp(
+                            t.wheel_speed_rad_s * 1000.0,
+                            i32::MIN as f32,
+                            i32::MAX as f32,
+                        ) as i32,
                         temp_c: t.temperature_c as u32,
                         faults: t.fault_flags as u32,
                         hands_on: t.hands_on,

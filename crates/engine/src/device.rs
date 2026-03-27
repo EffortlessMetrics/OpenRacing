@@ -11,43 +11,71 @@ use tokio::sync::mpsc;
 /// Telemetry data from device
 #[derive(Debug, Clone)]
 pub struct TelemetryData {
+    /// Current wheel angle in degrees (positive = clockwise)
     pub wheel_angle_deg: f32,
+    /// Current wheel rotational speed in radians per second
     pub wheel_speed_rad_s: f32,
+    /// Device temperature in degrees Celsius
     pub temperature_c: u8,
+    /// Bitmask of active device faults (see [`crate::protocol::fault_flags`])
     pub fault_flags: u8,
+    /// Whether hands-on-wheel detection is active
     pub hands_on: bool,
+    /// Timestamp when this telemetry snapshot was captured
     pub timestamp: Instant,
 }
 
 /// Generic non-RT control-surface snapshot used by input pipeline and diagnostics.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct DeviceInputs {
+    /// Monotonic tick counter from the device firmware
     pub tick: u32,
+    /// Raw button state bytes (up to 128 buttons, 1 bit each)
     pub buttons: [u8; 16],
+    /// Hat switch / D-pad position (0–8; 0 = center)
     pub hat: u8,
+    /// Absolute steering axis value (0–65535)
     pub steering: Option<u16>,
+    /// Absolute throttle axis value (0–65535)
     pub throttle: Option<u16>,
+    /// Absolute brake axis value (0–65535)
     pub brake: Option<u16>,
+    /// Left clutch paddle axis value (0–65535)
     pub clutch_left: Option<u16>,
+    /// Right clutch paddle axis value (0–65535)
     pub clutch_right: Option<u16>,
+    /// Combined clutch axis value (0–65535)
     pub clutch_combined: Option<u16>,
+    /// Left clutch paddle digital button state
     pub clutch_left_button: Option<bool>,
+    /// Right clutch paddle digital button state
     pub clutch_right_button: Option<bool>,
+    /// Handbrake axis value (0–65535)
     pub handbrake: Option<u16>,
+    /// Rotary encoder deltas (up to 8 encoders)
     pub rotaries: [i16; 8],
 }
 
 /// Device info for enumeration and management
 #[derive(Debug, Clone)]
 pub struct DeviceInfo {
+    /// Unique device identifier
     pub id: DeviceId,
+    /// Human-readable device name (e.g. "Moza R9 V2")
     pub name: String,
+    /// USB vendor ID
     pub vendor_id: u16,
+    /// USB product ID
     pub product_id: u16,
+    /// Device serial number (if reported by firmware)
     pub serial_number: Option<String>,
+    /// Manufacturer string (if reported by firmware)
     pub manufacturer: Option<String>,
+    /// OS-level device path used to open the HID handle
     pub path: String,
+    /// Negotiated device capabilities
     pub capabilities: DeviceCapabilities,
+    /// Whether the device is currently connected
     pub is_connected: bool,
 }
 
@@ -57,7 +85,9 @@ use crate::ports::{DeviceHealthStatus, HidDevice, HidPort};
 /// Device events for monitoring
 #[derive(Debug, Clone)]
 pub enum DeviceEvent {
+    /// A new device was detected and enumerated
     Connected(DeviceInfo),
+    /// A previously known device was physically disconnected
     Disconnected(DeviceInfo),
 }
 
@@ -79,7 +109,10 @@ struct VirtualDeviceState {
     last_torque_nm: f32,
     last_seq: u16,
     last_update: Instant,
-    torque_history: Vec<(Instant, f32)>,
+    /// Fixed-size ring buffer for torque history to avoid RT allocations
+    torque_history: [f32; 1024],
+    torque_history_idx: usize,
+    torque_history_len: usize,
 }
 
 impl VirtualDevice {
@@ -118,7 +151,9 @@ impl VirtualDevice {
             last_torque_nm: 0.0,
             last_seq: 0,
             last_update: Instant::now(),
-            torque_history: Vec::new(),
+            torque_history: [0.0; 1024],
+            torque_history_idx: 0,
+            torque_history_len: 0,
         };
 
         Self {
@@ -164,23 +199,19 @@ impl VirtualDevice {
         let temp_change = (torque_heating - ambient_cooling) * dt_s;
         state.temperature_c = ((state.temperature_c as f32 + temp_change).clamp(20.0, 100.0)) as u8;
 
-        // Simulate hands-on detection based on recent torque changes
-        let now = Instant::now();
-        state
-            .torque_history
-            .retain(|(time, _)| now.duration_since(*time) < Duration::from_secs(1));
-
-        if state.torque_history.len() > 10 {
-            let torque_variance: f32 = state
-                .torque_history
-                .windows(2)
-                .map(|w| (w[1].1 - w[0].1).abs())
-                .sum::<f32>()
-                / (state.torque_history.len() - 1) as f32;
+        // Hands-on detection based on torque variance in the ring buffer
+        if state.torque_history_len > 10 {
+            let mut sum_diff = 0.0;
+            for i in 0..state.torque_history_len.min(100) {
+                let curr_idx = (state.torque_history_idx + 1024 - i) % 1024;
+                let prev_idx = (state.torque_history_idx + 1024 - i - 1) % 1024;
+                sum_diff += (state.torque_history[curr_idx] - state.torque_history[prev_idx]).abs();
+            }
+            let torque_variance = sum_diff / state.torque_history_len.min(100) as f32;
             state.hands_on = torque_variance > 0.1;
         }
 
-        state.last_update = now;
+        state.last_update = Instant::now();
     }
 
     /// Inject a fault for testing
@@ -227,11 +258,13 @@ impl HidDevice for VirtualDevice {
 
         state.last_torque_nm = torque_nm;
         state.last_seq = seq;
-        state.torque_history.push((Instant::now(), torque_nm));
 
-        // Keep history bounded
-        if state.torque_history.len() > 1000 {
-            state.torque_history.drain(0..100);
+        // Push to ring buffer (no allocations)
+        let idx = (state.torque_history_idx + 1) % 1024;
+        state.torque_history_idx = idx;
+        state.torque_history[idx] = torque_nm;
+        if state.torque_history_len < 1024 {
+            state.torque_history_len += 1;
         }
 
         Ok(())
@@ -312,18 +345,13 @@ impl VirtualHidPort {
 
     /// Remove a device by ID
     pub fn remove_device(&mut self, id: &DeviceId) -> Result<(), Box<dyn std::error::Error>> {
-        {
-            let mut devices = self.devices.lock_or_panic();
-            devices.retain(|d| d.info.id != *id);
-        }
+        let mut devices = self.devices.lock_or_panic();
+        let device_info = devices
+            .iter()
+            .find(|d| d.info.id == *id)
+            .map(|d| d.info.clone());
 
-        let device_info = {
-            let devices = self.devices.lock_or_panic();
-            devices
-                .iter()
-                .find(|d| d.info.id == *id)
-                .map(|d| d.info.clone())
-        };
+        devices.retain(|d| d.info.id != *id);
 
         // Send disconnect event if monitoring
         if let Some(tx) = &self.event_tx
@@ -404,33 +432,27 @@ impl Default for VirtualHidPort {
 }
 
 #[cfg(test)]
-#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
     use std::time::Duration;
 
-    #[track_caller]
-    fn must<T, E: std::fmt::Debug>(r: Result<T, E>) -> T {
-        match r {
-            Ok(v) => v,
-            Err(e) => panic!("unexpected Err: {e:?}"),
-        }
-    }
+    type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
     #[test]
-    fn test_virtual_device_creation() {
-        let device_id = must("test-device".parse::<DeviceId>());
+    fn test_virtual_device_creation() -> Result<()> {
+        let device_id = "test-device".parse::<DeviceId>()?;
         let device = VirtualDevice::new(device_id, "Test Wheel".to_string());
 
         assert_eq!(device.device_info().id.as_str(), "test-device");
         assert_eq!(device.device_info().name, "Test Wheel");
         assert!(device.is_connected());
         assert_eq!(device.capabilities().max_torque.value(), 25.0);
+        Ok(())
     }
 
     #[test]
-    fn test_virtual_device_torque_write() {
-        let device_id = must("test-device".parse::<DeviceId>());
+    fn test_virtual_device_torque_write() -> Result<()> {
+        let device_id = "test-device".parse::<DeviceId>()?;
         let mut device = VirtualDevice::new(device_id, "Test Wheel".to_string());
 
         // Test normal torque write
@@ -445,41 +467,42 @@ mod tests {
         device.disconnect();
         let result = device.write_ffb_report(5.0, 3);
         assert_eq!(result, Err(RTError::DeviceDisconnected));
+        Ok(())
     }
 
     #[test]
-    fn test_virtual_device_telemetry() {
-        let device_id = must("test-device".parse::<DeviceId>());
+    fn test_virtual_device_telemetry() -> Result<()> {
+        let device_id = "test-device".parse::<DeviceId>()?;
         let mut device = VirtualDevice::new(device_id, "Test Wheel".to_string());
 
         // Write some torque
-        device.write_ffb_report(5.0, 1).unwrap();
+        device.write_ffb_report(5.0, 1)?;
 
         // Simulate physics
         device.simulate_physics(Duration::from_millis(10));
 
         // Read telemetry
-        let telemetry = device.read_telemetry().unwrap();
-        // Note: sequence field removed from TelemetryData
+        let telemetry = device.read_telemetry().ok_or("telemetry missing")?;
         assert!(telemetry.temperature_c >= 35);
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_virtual_hid_port() {
+    async fn test_virtual_hid_port() -> Result<()> {
         let mut port = VirtualHidPort::new();
 
         // Add a device
-        let device_id = must("test-device".parse::<DeviceId>());
+        let device_id = "test-device".parse::<DeviceId>()?;
         let device = VirtualDevice::new(device_id.clone(), "Test Wheel".to_string());
-        port.add_device(device).unwrap();
+        port.add_device(device)?;
 
         // List devices
-        let devices = port.list_devices().await.unwrap();
+        let devices = port.list_devices().await?;
         assert_eq!(devices.len(), 1);
         assert_eq!(devices[0].id.as_str(), "test-device");
 
         // Open device
-        let mut opened_device = port.open_device(&device_id).await.unwrap();
+        let mut opened_device = port.open_device(&device_id).await?;
         assert!(opened_device.is_connected());
 
         // Test device operations
@@ -488,22 +511,23 @@ mod tests {
 
         let telemetry = opened_device.read_telemetry();
         assert!(telemetry.is_some());
+        Ok(())
     }
 
     #[test]
-    fn test_virtual_device_physics_simulation() {
-        let device_id = must("test-device".parse::<DeviceId>());
+    fn test_virtual_device_physics_simulation() -> Result<()> {
+        let device_id = "test-device".parse::<DeviceId>()?;
         let mut device = VirtualDevice::new(device_id, "Test Wheel".to_string());
 
         // Apply constant torque
-        device.write_ffb_report(10.0, 1).unwrap();
+        device.write_ffb_report(10.0, 1)?;
 
         // Simulate for 100ms
         for _ in 0..10 {
             device.simulate_physics(Duration::from_millis(10));
         }
 
-        let telemetry = device.read_telemetry().unwrap();
+        let telemetry = device.read_telemetry().ok_or("telemetry missing")?;
 
         // Wheel should have moved and gained speed
         assert!(telemetry.wheel_angle_deg.abs() > 0.0);
@@ -511,27 +535,29 @@ mod tests {
 
         // Temperature should have increased slightly (or at least stayed at baseline)
         assert!(telemetry.temperature_c >= 35);
+        Ok(())
     }
 
     #[test]
-    fn test_fault_injection() {
-        let device_id = must("test-device".parse::<DeviceId>());
+    fn test_fault_injection() -> Result<()> {
+        let device_id = "test-device".parse::<DeviceId>()?;
         let mut device = VirtualDevice::new(device_id, "Test Wheel".to_string());
 
         // Initially no faults
-        let telemetry = device.read_telemetry().unwrap();
+        let telemetry = device.read_telemetry().ok_or("telemetry missing")?;
         assert_eq!(telemetry.fault_flags, 0);
 
         // Inject thermal fault
         device.inject_fault(0x04); // Thermal fault bit
 
-        let telemetry = device.read_telemetry().unwrap();
+        let telemetry = device.read_telemetry().ok_or("telemetry missing")?;
         assert_eq!(telemetry.fault_flags, 0x04);
 
         // Clear faults
         device.clear_faults();
 
-        let telemetry = device.read_telemetry().unwrap();
+        let telemetry = device.read_telemetry().ok_or("telemetry missing")?;
         assert_eq!(telemetry.fault_flags, 0);
+        Ok(())
     }
 }

@@ -501,6 +501,28 @@ impl WatchdogSystem {
             .any(|health_check| health_check.status == HealthStatus::Faulted)
     }
 
+    /// Check if any components are registered.
+    ///
+    /// # RT Safety
+    ///
+    /// This method is RT-safe and performs no allocations.
+    #[must_use]
+    pub fn has_registered_components(&self) -> bool {
+        let checks = self.health_checks.read();
+        !checks.is_empty()
+    }
+
+    /// Check if any plugins are currently quarantined.
+    ///
+    /// # RT Safety
+    ///
+    /// This method is RT-safe and performs no allocations.
+    #[must_use]
+    pub fn has_any_quarantined_plugins(&self) -> bool {
+        let manager = self.quarantine_manager.read();
+        !manager.is_empty()
+    }
+
     /// Get plugin performance metrics.
     #[must_use]
     #[allow(clippy::cast_precision_loss)]

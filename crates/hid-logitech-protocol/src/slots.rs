@@ -73,9 +73,13 @@ pub const SLOT_CMD_SIZE: usize = 7;
 
 /// Slot IDs matching the kernel's 4-slot system.
 pub mod slot {
+    /// Slot for constant force effects.
     pub const CONSTANT: u8 = 0;
+    /// Slot for spring condition effects.
     pub const SPRING: u8 = 1;
+    /// Slot for damper condition effects.
     pub const DAMPER: u8 = 2;
+    /// Slot for friction condition effects.
     pub const FRICTION: u8 = 3;
 }
 

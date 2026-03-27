@@ -8,20 +8,31 @@
 
 /// [ADR-0007]: Multi-Vendor HID Protocol Architecture
 /// This crate follows the "SRP Microcrate" pattern for vendor-specific HID protocols.
-
 /// Report ID and byte offsets for wheelbase-aggregated input reports.
 pub mod input_report {
+    /// HID report ID for the aggregated input report
     pub const REPORT_ID: u8 = 0x01;
+    /// Byte offset where the 16-bit LE steering axis begins
     pub const STEERING_START: usize = 1;
+    /// Byte offset where the 16-bit LE throttle axis begins
     pub const THROTTLE_START: usize = 3;
+    /// Byte offset where the 16-bit LE brake axis begins
     pub const BRAKE_START: usize = 5;
+    /// Byte offset where the 16-bit LE clutch axis begins
     pub const CLUTCH_START: usize = 7;
+    /// Byte offset where the 16-bit LE handbrake axis begins
     pub const HANDBRAKE_START: usize = 9;
+    /// Byte offset where the button bitmask begins
     pub const BUTTONS_START: usize = 11;
+    /// Number of bytes in the button bitmask (128 buttons)
     pub const BUTTONS_LEN: usize = 16;
+    /// Byte offset of the hat switch / D-pad value
     pub const HAT_START: usize = BUTTONS_START + BUTTONS_LEN;
+    /// Byte offset of the funky-switch / rim-identifier byte
     pub const FUNKY_START: usize = HAT_START + 1;
+    /// Byte offset where rotary encoder bytes begin
     pub const ROTARY_START: usize = FUNKY_START + 1;
+    /// Number of rotary encoder bytes
     pub const ROTARY_LEN: usize = 2;
 }
 
@@ -43,22 +54,29 @@ impl<'a> RawWheelbaseReport<'a> {
         Self { report }
     }
 
+    /// Returns the HID report ID (first byte), or `0` if the slice is empty.
     pub fn report_id(&self) -> u8 {
         self.report.first().copied().unwrap_or(0)
     }
 
+    /// Returns the raw byte slice backing this report.
     pub fn report_bytes(&self) -> &'a [u8] {
         self.report
     }
 
+    /// Returns a single byte at `offset`, or `None` if out of range.
     pub fn byte(&self, offset: usize) -> Option<u8> {
         self.report.get(offset).copied()
     }
 
+    /// Reads a little-endian `u16` axis value starting at `start`.
+    ///
+    /// Returns `None` if there are fewer than 2 bytes at that offset.
     pub fn axis_u16_le(&self, start: usize) -> Option<u16> {
         parse_axis(self.report, start)
     }
 
+    /// Reads a little-endian `u16` axis value, returning `0` when bytes are missing.
     pub fn axis_u16_or_zero(&self, start: usize) -> u16 {
         self.axis_u16_le(start).unwrap_or(0)
     }
@@ -67,24 +85,33 @@ impl<'a> RawWheelbaseReport<'a> {
 /// Raw wheelbase pedal samples from an aggregated report.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct WheelbasePedalAxesRaw {
+    /// Raw throttle axis value (0–65535)
     pub throttle: u16,
+    /// Raw brake axis value (0–65535)
     pub brake: u16,
+    /// Raw clutch axis value, if reported by hardware
     pub clutch: Option<u16>,
+    /// Raw handbrake axis value, if reported by hardware
     pub handbrake: Option<u16>,
 }
 
 /// Raw wheelbase input sample extracted from a single report.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct WheelbaseInputRaw {
+    /// Raw steering axis value (0–65535, center ≈ 32768)
     pub steering: u16,
+    /// Parsed pedal axis snapshot
     pub pedals: WheelbasePedalAxesRaw,
+    /// Button bitmask bytes (up to 128 buttons, 1 bit each)
     pub buttons: [u8; input_report::BUTTONS_LEN],
+    /// Hat switch / D-pad position (vendor-specific encoding)
     pub hat: u8,
     /// Vendor-specific byte immediately after `hat`.
     ///
     /// OpenRacing currently treats this as an opaque discriminator; some firmwares
     /// appear to use it as a rim identifier and it is used to gate rim-specific parsing.
     pub funky: u8,
+    /// Rotary encoder raw bytes
     pub rotary: [u8; input_report::ROTARY_LEN],
 }
 

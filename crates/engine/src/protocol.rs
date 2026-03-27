@@ -215,7 +215,8 @@ impl DeviceTelemetryReport {
         hands_on: bool,
         last_torque_seq: u16,
     ) -> Self {
-        let wheel_angle_mdeg = (wheel_angle_deg * 1000.0) as i32;
+        let wheel_angle_mdeg =
+            (wheel_angle_deg * 1000.0).clamp(i32::MIN as f32, i32::MAX as f32) as i32;
         let wheel_speed_mrad_s = (wheel_speed_rad_s * 1000.0).clamp(-32768.0, 32767.0) as i16;
         let hands_on_val = if hands_on { 1 } else { 0 };
 

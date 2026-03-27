@@ -6,19 +6,43 @@ use anyhow::{Result, anyhow};
 use serde_json::{Map, Value};
 use std::fs;
 use std::net::SocketAddr;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use tracing::info;
 
 use serde::{Deserialize, Serialize};
 
+/// Resolves a game-relative path, specially handling the "Documents/" prefix for Windows.
+fn resolve_game_path(game_path: &Path, relative_path: &str) -> PathBuf {
+    if let Some(stripped) = relative_path.strip_prefix("Documents/") {
+        #[cfg(windows)]
+        {
+            // Try to use USERPROFILE/Documents as the base
+            if let Some(user_profile) = std::env::var_os("USERPROFILE") {
+                let mut path = PathBuf::from(user_profile);
+                path.push("Documents");
+                return path.join(stripped.replace('/', "\\"));
+            }
+        }
+        // Fallback for non-Windows or if USERPROFILE is missing:
+        // Assume it might be relative to the game path or current dir
+    }
+    game_path.join(relative_path)
+}
+
 /// Configuration to be applied to a game
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TelemetryConfig {
+    /// True if telemetry is to be enabled, false to disable.
     pub enabled: bool,
+    /// Target update rate in Hz.
     pub update_rate_hz: u32,
+    /// Output method (e.g. "shared_memory", "udp").
     pub output_method: String,
+    /// Output target address or parameters.
     pub output_target: String,
+    /// List of telemetry fields that should be recorded.
     pub fields: Vec<String>,
+    /// iRacing-specific flag for enabling 360Hz high-rate telemetry.
     #[serde(default)]
     pub enable_high_rate_iracing_360hz: bool,
 }
@@ -26,19 +50,28 @@ pub struct TelemetryConfig {
 /// Represents a configuration change made to a game file
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ConfigDiff {
+    /// Path to the configuration file
     pub file_path: String,
+    /// INI-style section name, if applicable
     pub section: Option<String>,
+    /// Configuration key name
     pub key: String,
+    /// Value prior to modification
     pub old_value: Option<String>,
+    /// Value after modification
     pub new_value: String,
+    /// Add, Modify, or Remove operation
     pub operation: DiffOperation,
 }
 
 /// Type of configuration operation
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum DiffOperation {
+    /// Add a new key or file
     Add,
+    /// Modify an existing key or file
     Modify,
+    /// Remove an existing key
     Remove,
 }
 
@@ -564,7 +597,7 @@ impl ConfigWriter for IRacingConfigWriter {
     fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
         info!("Writing iRacing telemetry configuration");
 
-        let app_ini_path = game_path.join("Documents/iRacing/app.ini");
+        let app_ini_path = resolve_game_path(game_path, "Documents/iRacing/app.ini");
         let telemetry_enabled = if config.enabled { "1" } else { "0" };
 
         // Read existing app.ini if it exists.
@@ -613,7 +646,7 @@ impl ConfigWriter for IRacingConfigWriter {
     }
 
     fn validate_config(&self, game_path: &Path) -> Result<bool> {
-        let app_ini_path = game_path.join("Documents/iRacing/app.ini");
+        let app_ini_path = resolve_game_path(game_path, "Documents/iRacing/app.ini");
 
         if !app_ini_path.exists() {
             return Ok(false);
@@ -670,8 +703,10 @@ impl ConfigWriter for ACCConfigWriter {
     fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
         info!("Writing ACC telemetry configuration");
 
-        let broadcasting_json_path =
-            game_path.join("Documents/Assetto Corsa Competizione/Config/broadcasting.json");
+        let broadcasting_json_path = resolve_game_path(
+            game_path,
+            "Documents/Assetto Corsa Competizione/Config/broadcasting.json",
+        );
 
         let existed_before = broadcasting_json_path.exists();
         let existing_content = if broadcasting_json_path.exists() {
@@ -744,8 +779,10 @@ impl ConfigWriter for ACCConfigWriter {
     }
 
     fn validate_config(&self, game_path: &Path) -> Result<bool> {
-        let broadcasting_json_path =
-            game_path.join("Documents/Assetto Corsa Competizione/Config/broadcasting.json");
+        let broadcasting_json_path = resolve_game_path(
+            game_path,
+            "Documents/Assetto Corsa Competizione/Config/broadcasting.json",
+        );
 
         if !broadcasting_json_path.exists() {
             return Ok(false);
@@ -836,7 +873,7 @@ impl ConfigWriter for ACRallyConfigWriter {
     fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
         info!("Writing Assetto Corsa Rally telemetry probe configuration");
 
-        let probe_json_path = game_path.join(AC_RALLY_PROBE_RELATIVE_PATH);
+        let probe_json_path = resolve_game_path(game_path, AC_RALLY_PROBE_RELATIVE_PATH);
         let existed_before = probe_json_path.exists();
         let existing_content = if existed_before {
             Some(fs::read_to_string(&probe_json_path)?)
@@ -905,7 +942,7 @@ impl ConfigWriter for ACRallyConfigWriter {
     }
 
     fn validate_config(&self, game_path: &Path) -> Result<bool> {
-        let probe_json_path = game_path.join(AC_RALLY_PROBE_RELATIVE_PATH);
+        let probe_json_path = resolve_game_path(game_path, AC_RALLY_PROBE_RELATIVE_PATH);
         if !probe_json_path.exists() {
             return Ok(false);
         }
@@ -974,8 +1011,10 @@ impl ConfigWriter for AMS2ConfigWriter {
     fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
         info!("Writing AMS2 telemetry configuration");
 
-        let player_json_path =
-            game_path.join("Documents/Automobilista 2/UserData/player/player.json");
+        let player_json_path = resolve_game_path(
+            game_path,
+            "Documents/Automobilista 2/UserData/player/player.json",
+        );
         let existed_before = player_json_path.exists();
         let existing_content = if existed_before {
             Some(fs::read_to_string(&player_json_path)?)
@@ -1035,8 +1074,10 @@ impl ConfigWriter for AMS2ConfigWriter {
     }
 
     fn validate_config(&self, game_path: &Path) -> Result<bool> {
-        let player_json_path =
-            game_path.join("Documents/Automobilista 2/UserData/player/player.json");
+        let player_json_path = resolve_game_path(
+            game_path,
+            "Documents/Automobilista 2/UserData/player/player.json",
+        );
         if !player_json_path.exists() {
             return Ok(false);
         }
@@ -1246,7 +1287,7 @@ impl ConfigWriter for Dirt5ConfigWriter {
     fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
         info!("Writing Dirt 5 bridge contract configuration");
 
-        let contract_path = game_path.join(DIRT5_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, DIRT5_BRIDGE_RELATIVE_PATH);
         let existed_before = contract_path.exists();
         let existing_content = if existed_before {
             Some(fs::read_to_string(&contract_path)?)
@@ -1286,7 +1327,7 @@ impl ConfigWriter for Dirt5ConfigWriter {
     }
 
     fn validate_config(&self, game_path: &Path) -> Result<bool> {
-        let contract_path = game_path.join(DIRT5_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, DIRT5_BRIDGE_RELATIVE_PATH);
         if !contract_path.exists() {
             return Ok(false);
         }
@@ -1348,7 +1389,7 @@ impl ConfigWriter for DirtRally2ConfigWriter {
     fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
         info!("Writing DiRT Rally 2.0 bridge contract configuration");
 
-        let contract_path = game_path.join(DIRT_RALLY_2_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, DIRT_RALLY_2_BRIDGE_RELATIVE_PATH);
         let existed_before = contract_path.exists();
         let existing_content = if existed_before {
             Some(fs::read_to_string(&contract_path)?)
@@ -1389,7 +1430,7 @@ impl ConfigWriter for DirtRally2ConfigWriter {
     }
 
     fn validate_config(&self, game_path: &Path) -> Result<bool> {
-        let contract_path = game_path.join(DIRT_RALLY_2_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, DIRT_RALLY_2_BRIDGE_RELATIVE_PATH);
         if !contract_path.exists() {
             return Ok(false);
         }
@@ -1452,7 +1493,7 @@ impl ConfigWriter for RBRConfigWriter {
     fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
         info!("Writing RBR bridge contract configuration");
 
-        let contract_path = game_path.join(RBR_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, RBR_BRIDGE_RELATIVE_PATH);
         let existed_before = contract_path.exists();
         let existing_content = if existed_before {
             Some(fs::read_to_string(&contract_path)?)
@@ -1491,7 +1532,7 @@ impl ConfigWriter for RBRConfigWriter {
     }
 
     fn validate_config(&self, game_path: &Path) -> Result<bool> {
-        let contract_path = game_path.join(RBR_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, RBR_BRIDGE_RELATIVE_PATH);
         if !contract_path.exists() {
             return Ok(false);
         }
@@ -1561,7 +1602,7 @@ impl ConfigWriter for GranTurismo7ConfigWriter {
     fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
         info!("Writing Gran Turismo 7 bridge contract configuration");
 
-        let contract_path = game_path.join(GT7_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, GT7_BRIDGE_RELATIVE_PATH);
         let existed_before = contract_path.exists();
         let existing_content = if existed_before {
             Some(fs::read_to_string(&contract_path)?)
@@ -1600,7 +1641,7 @@ impl ConfigWriter for GranTurismo7ConfigWriter {
     }
 
     fn validate_config(&self, game_path: &Path) -> Result<bool> {
-        let contract_path = game_path.join(GT7_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, GT7_BRIDGE_RELATIVE_PATH);
         if !contract_path.exists() {
             return Ok(false);
         }
@@ -1661,7 +1702,7 @@ impl ConfigWriter for GranTurismo7SportsConfigWriter {
     fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
         info!("Writing Gran Turismo Sport bridge contract configuration");
 
-        let contract_path = game_path.join(GTS_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, GTS_BRIDGE_RELATIVE_PATH);
         let existed_before = contract_path.exists();
         let existing_content = if existed_before {
             Some(fs::read_to_string(&contract_path)?)
@@ -1700,7 +1741,7 @@ impl ConfigWriter for GranTurismo7SportsConfigWriter {
     }
 
     fn validate_config(&self, game_path: &Path) -> Result<bool> {
-        let contract_path = game_path.join(GTS_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, GTS_BRIDGE_RELATIVE_PATH);
         if !contract_path.exists() {
             return Ok(false);
         }
@@ -1761,7 +1802,7 @@ impl ConfigWriter for F1ConfigWriter {
     fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
         info!("Writing F1 bridge contract configuration");
 
-        let contract_path = game_path.join(F1_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, F1_BRIDGE_RELATIVE_PATH);
         let existed_before = contract_path.exists();
         let existing_content = if existed_before {
             Some(fs::read_to_string(&contract_path)?)
@@ -1801,7 +1842,7 @@ impl ConfigWriter for F1ConfigWriter {
     }
 
     fn validate_config(&self, game_path: &Path) -> Result<bool> {
-        let contract_path = game_path.join(F1_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, F1_BRIDGE_RELATIVE_PATH);
         if !contract_path.exists() {
             return Ok(false);
         }
@@ -1865,7 +1906,7 @@ impl ConfigWriter for F1_25ConfigWriter {
     fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
         info!("Writing F1 25 native UDP contract configuration");
 
-        let contract_path = game_path.join(F1_25_CONTRACT_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, F1_25_CONTRACT_RELATIVE_PATH);
         let existed_before = contract_path.exists();
         let existing_content = if existed_before {
             Some(fs::read_to_string(&contract_path)?)
@@ -1914,7 +1955,7 @@ impl ConfigWriter for F1_25ConfigWriter {
     }
 
     fn validate_config(&self, game_path: &Path) -> Result<bool> {
-        let contract_path = game_path.join(F1_25_CONTRACT_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, F1_25_CONTRACT_RELATIVE_PATH);
         if !contract_path.exists() {
             return Ok(false);
         }
@@ -1990,7 +2031,7 @@ impl ConfigWriter for F1NativeConfigWriter {
     fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
         info!("Writing F1 native UDP contract configuration");
 
-        let contract_path = game_path.join(F1_NATIVE_CONTRACT_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, F1_NATIVE_CONTRACT_RELATIVE_PATH);
         let existed_before = contract_path.exists();
         let existing_content = if existed_before {
             Some(fs::read_to_string(&contract_path)?)
@@ -2036,7 +2077,7 @@ impl ConfigWriter for F1NativeConfigWriter {
     }
 
     fn validate_config(&self, game_path: &Path) -> Result<bool> {
-        let contract_path = game_path.join(F1_NATIVE_CONTRACT_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, F1_NATIVE_CONTRACT_RELATIVE_PATH);
         if !contract_path.exists() {
             return Ok(false);
         }
@@ -2097,7 +2138,7 @@ impl Default for F1ManagerConfigWriter {
 impl ConfigWriter for F1ManagerConfigWriter {
     fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
         info!("Writing F1 Manager bridge contract (stub — no telemetry applicable)");
-        let contract_path = game_path.join(F1_MANAGER_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, F1_MANAGER_BRIDGE_RELATIVE_PATH);
         let existed_before = contract_path.exists();
         let existing_content = if existed_before {
             Some(fs::read_to_string(&contract_path)?)
@@ -2130,7 +2171,7 @@ impl ConfigWriter for F1ManagerConfigWriter {
     }
 
     fn validate_config(&self, game_path: &Path) -> Result<bool> {
-        let contract_path = game_path.join(F1_MANAGER_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, F1_MANAGER_BRIDGE_RELATIVE_PATH);
         if !contract_path.exists() {
             return Ok(false);
         }
@@ -2182,7 +2223,7 @@ impl ConfigWriter for AssettoCorsaConfigWriter {
     fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
         info!("Writing Assetto Corsa bridge contract configuration");
 
-        let contract_path = game_path.join(AC_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, AC_BRIDGE_RELATIVE_PATH);
         let existed_before = contract_path.exists();
         let existing_content = if existed_before {
             Some(fs::read_to_string(&contract_path)?)
@@ -2229,7 +2270,7 @@ impl ConfigWriter for AssettoCorsaConfigWriter {
     }
 
     fn validate_config(&self, game_path: &Path) -> Result<bool> {
-        let contract_path = game_path.join(AC_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, AC_BRIDGE_RELATIVE_PATH);
         if !contract_path.exists() {
             return Ok(false);
         }
@@ -2309,7 +2350,7 @@ impl ConfigWriter for ForzaMotorsportConfigWriter {
     fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
         info!("Writing Forza Motorsport bridge contract configuration");
 
-        let contract_path = game_path.join(FORZA_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, FORZA_BRIDGE_RELATIVE_PATH);
         let existed_before = contract_path.exists();
         let existing_content = if existed_before {
             Some(fs::read_to_string(&contract_path)?)
@@ -2354,7 +2395,7 @@ impl ConfigWriter for ForzaMotorsportConfigWriter {
     }
 
     fn validate_config(&self, game_path: &Path) -> Result<bool> {
-        let contract_path = game_path.join(FORZA_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, FORZA_BRIDGE_RELATIVE_PATH);
         if !contract_path.exists() {
             return Ok(false);
         }
@@ -2650,7 +2691,7 @@ impl ConfigWriter for BeamNGDriveConfigWriter {
     fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
         info!("Writing BeamNG.drive bridge contract configuration");
 
-        let contract_path = game_path.join(BEAMNG_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, BEAMNG_BRIDGE_RELATIVE_PATH);
         let existed_before = contract_path.exists();
         let existing_content = if existed_before {
             Some(fs::read_to_string(&contract_path)?)
@@ -2694,7 +2735,7 @@ impl ConfigWriter for BeamNGDriveConfigWriter {
     }
 
     fn validate_config(&self, game_path: &Path) -> Result<bool> {
-        let contract_path = game_path.join(BEAMNG_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, BEAMNG_BRIDGE_RELATIVE_PATH);
         if !contract_path.exists() {
             return Ok(false);
         }
@@ -2762,7 +2803,7 @@ impl ConfigWriter for PCars2ConfigWriter {
     fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
         info!("Writing Project CARS 2 bridge contract configuration");
 
-        let contract_path = game_path.join(PCARS2_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, PCARS2_BRIDGE_RELATIVE_PATH);
         let existed_before = contract_path.exists();
         let existing_content = if existed_before {
             Some(fs::read_to_string(&contract_path)?)
@@ -2805,7 +2846,7 @@ impl ConfigWriter for PCars2ConfigWriter {
     }
 
     fn validate_config(&self, game_path: &Path) -> Result<bool> {
-        let contract_path = game_path.join(PCARS2_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, PCARS2_BRIDGE_RELATIVE_PATH);
         if !contract_path.exists() {
             return Ok(false);
         }
@@ -2871,7 +2912,7 @@ impl ConfigWriter for LFSConfigWriter {
     fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
         info!("Writing Live For Speed bridge contract configuration");
 
-        let contract_path = game_path.join(LFS_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, LFS_BRIDGE_RELATIVE_PATH);
         let existed_before = contract_path.exists();
         let existing_content = if existed_before {
             Some(fs::read_to_string(&contract_path)?)
@@ -2915,7 +2956,7 @@ impl ConfigWriter for LFSConfigWriter {
     }
 
     fn validate_config(&self, game_path: &Path) -> Result<bool> {
-        let contract_path = game_path.join(LFS_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, LFS_BRIDGE_RELATIVE_PATH);
         if !contract_path.exists() {
             return Ok(false);
         }
@@ -2981,7 +3022,7 @@ impl ConfigWriter for WrcGenerationsConfigWriter {
     fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
         info!("Writing WRC Generations bridge contract configuration");
 
-        let contract_path = game_path.join(WRC_GENERATIONS_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, WRC_GENERATIONS_BRIDGE_RELATIVE_PATH);
         let existed_before = contract_path.exists();
         let existing_content = if existed_before {
             Some(fs::read_to_string(&contract_path)?)
@@ -3022,7 +3063,7 @@ impl ConfigWriter for WrcGenerationsConfigWriter {
     }
 
     fn validate_config(&self, game_path: &Path) -> Result<bool> {
-        let contract_path = game_path.join(WRC_GENERATIONS_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, WRC_GENERATIONS_BRIDGE_RELATIVE_PATH);
         if !contract_path.exists() {
             return Ok(false);
         }
@@ -3072,7 +3113,9 @@ impl ConfigWriter for WrcGenerationsConfigWriter {
 /// Which Kylotonn WRC title this config writer represents.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum WrcKylotonnVariant {
+    /// WRC 9
     Wrc9,
+    /// WRC 10
     Wrc10,
 }
 
@@ -3097,6 +3140,7 @@ impl WrcKylotonnVariant {
 /// Both titles broadcast a custom binary UDP stream on port 64000. This writer creates a
 /// bridge contract documenting the expected listener configuration.
 pub struct WrcKylotonnConfigWriter {
+    /// The specific title version (WRC 9 or WRC 10)
     pub variant: WrcKylotonnVariant,
 }
 
@@ -3105,7 +3149,7 @@ impl ConfigWriter for WrcKylotonnConfigWriter {
         let game_name = self.variant.display_name();
         info!("Writing {game_name} bridge contract configuration");
 
-        let contract_path = game_path.join(WRC_KYLOTONN_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, WRC_KYLOTONN_BRIDGE_RELATIVE_PATH);
         let existed_before = contract_path.exists();
         let existing_content = if existed_before {
             Some(fs::read_to_string(&contract_path)?)
@@ -3145,7 +3189,7 @@ impl ConfigWriter for WrcKylotonnConfigWriter {
     }
 
     fn validate_config(&self, game_path: &Path) -> Result<bool> {
-        let contract_path = game_path.join(WRC_KYLOTONN_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, WRC_KYLOTONN_BRIDGE_RELATIVE_PATH);
         if !contract_path.exists() {
             return Ok(false);
         }
@@ -3207,7 +3251,7 @@ impl ConfigWriter for Dirt4ConfigWriter {
     fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
         info!("Writing Dirt 4 bridge contract configuration");
 
-        let contract_path = game_path.join(DIRT4_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, DIRT4_BRIDGE_RELATIVE_PATH);
         let existed_before = contract_path.exists();
         let existing_content = if existed_before {
             Some(fs::read_to_string(&contract_path)?)
@@ -3247,7 +3291,7 @@ impl ConfigWriter for Dirt4ConfigWriter {
     }
 
     fn validate_config(&self, game_path: &Path) -> Result<bool> {
-        let contract_path = game_path.join(DIRT4_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, DIRT4_BRIDGE_RELATIVE_PATH);
         if !contract_path.exists() {
             return Ok(false);
         }
@@ -3305,7 +3349,7 @@ impl Default for Ets2ConfigWriter {
 impl ConfigWriter for Ets2ConfigWriter {
     fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
         info!("Writing ETS2 bridge contract configuration");
-        let contract_path = game_path.join(ETS2_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, ETS2_BRIDGE_RELATIVE_PATH);
         let existed_before = contract_path.exists();
         let existing_content = if existed_before {
             Some(fs::read_to_string(&contract_path)?)
@@ -3340,7 +3384,7 @@ impl ConfigWriter for Ets2ConfigWriter {
         }])
     }
     fn validate_config(&self, game_path: &Path) -> Result<bool> {
-        let contract_path = game_path.join(ETS2_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, ETS2_BRIDGE_RELATIVE_PATH);
         if !contract_path.exists() {
             return Ok(false);
         }
@@ -3385,7 +3429,7 @@ impl Default for AtsConfigWriter {
 impl ConfigWriter for AtsConfigWriter {
     fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
         info!("Writing ATS bridge contract configuration");
-        let contract_path = game_path.join(ATS_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, ATS_BRIDGE_RELATIVE_PATH);
         let existed_before = contract_path.exists();
         let existing_content = if existed_before {
             Some(fs::read_to_string(&contract_path)?)
@@ -3420,7 +3464,7 @@ impl ConfigWriter for AtsConfigWriter {
         }])
     }
     fn validate_config(&self, game_path: &Path) -> Result<bool> {
-        let contract_path = game_path.join(ATS_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, ATS_BRIDGE_RELATIVE_PATH);
         if !contract_path.exists() {
             return Ok(false);
         }
@@ -3465,7 +3509,7 @@ impl Default for WreckfestConfigWriter {
 impl ConfigWriter for WreckfestConfigWriter {
     fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
         info!("Writing Wreckfest bridge contract configuration");
-        let contract_path = game_path.join(WRECKFEST_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, WRECKFEST_BRIDGE_RELATIVE_PATH);
         let existed_before = contract_path.exists();
         let existing_content = if existed_before {
             Some(fs::read_to_string(&contract_path)?)
@@ -3500,7 +3544,7 @@ impl ConfigWriter for WreckfestConfigWriter {
         }])
     }
     fn validate_config(&self, game_path: &Path) -> Result<bool> {
-        let contract_path = game_path.join(WRECKFEST_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, WRECKFEST_BRIDGE_RELATIVE_PATH);
         if !contract_path.exists() {
             return Ok(false);
         }
@@ -3545,7 +3589,7 @@ impl Default for FlatOutConfigWriter {
 impl ConfigWriter for FlatOutConfigWriter {
     fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
         info!("Writing FlatOut bridge contract configuration");
-        let contract_path = game_path.join(FLATOUT_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, FLATOUT_BRIDGE_RELATIVE_PATH);
         let existed_before = contract_path.exists();
         let existing_content = if existed_before {
             Some(fs::read_to_string(&contract_path)?)
@@ -3580,7 +3624,7 @@ impl ConfigWriter for FlatOutConfigWriter {
         }])
     }
     fn validate_config(&self, game_path: &Path) -> Result<bool> {
-        let contract_path = game_path.join(FLATOUT_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, FLATOUT_BRIDGE_RELATIVE_PATH);
         if !contract_path.exists() {
             return Ok(false);
         }
@@ -3625,7 +3669,7 @@ impl Default for DakarDesertRallyConfigWriter {
 impl ConfigWriter for DakarDesertRallyConfigWriter {
     fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
         info!("Writing Dakar Desert Rally bridge contract configuration");
-        let contract_path = game_path.join(DAKAR_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, DAKAR_BRIDGE_RELATIVE_PATH);
         let existed_before = contract_path.exists();
         let existing_content = if existed_before {
             Some(fs::read_to_string(&contract_path)?)
@@ -3660,7 +3704,7 @@ impl ConfigWriter for DakarDesertRallyConfigWriter {
         }])
     }
     fn validate_config(&self, game_path: &Path) -> Result<bool> {
-        let contract_path = game_path.join(DAKAR_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, DAKAR_BRIDGE_RELATIVE_PATH);
         if !contract_path.exists() {
             return Ok(false);
         }
@@ -3705,7 +3749,7 @@ impl Default for RennsportConfigWriter {
 impl ConfigWriter for RennsportConfigWriter {
     fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
         info!("Writing Rennsport bridge contract configuration");
-        let contract_path = game_path.join(RENNSPORT_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, RENNSPORT_BRIDGE_RELATIVE_PATH);
         let existed_before = contract_path.exists();
         let existing_content = if existed_before {
             Some(fs::read_to_string(&contract_path)?)
@@ -3740,7 +3784,7 @@ impl ConfigWriter for RennsportConfigWriter {
         }])
     }
     fn validate_config(&self, game_path: &Path) -> Result<bool> {
-        let contract_path = game_path.join(RENNSPORT_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, RENNSPORT_BRIDGE_RELATIVE_PATH);
         if !contract_path.exists() {
             return Ok(false);
         }
@@ -3785,7 +3829,7 @@ impl Default for GridAutosportConfigWriter {
 impl ConfigWriter for GridAutosportConfigWriter {
     fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
         info!("Writing GRID Autosport bridge contract configuration");
-        let contract_path = game_path.join(GRID_AUTOSPORT_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, GRID_AUTOSPORT_BRIDGE_RELATIVE_PATH);
         let existed_before = contract_path.exists();
         let existing_content = if existed_before {
             Some(fs::read_to_string(&contract_path)?)
@@ -3823,7 +3867,7 @@ impl ConfigWriter for GridAutosportConfigWriter {
     }
 
     fn validate_config(&self, game_path: &Path) -> Result<bool> {
-        let contract_path = game_path.join(GRID_AUTOSPORT_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, GRID_AUTOSPORT_BRIDGE_RELATIVE_PATH);
         if !contract_path.exists() {
             return Ok(false);
         }
@@ -3877,7 +3921,7 @@ impl Default for Grid2019ConfigWriter {
 impl ConfigWriter for Grid2019ConfigWriter {
     fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
         info!("Writing GRID 2019 bridge contract configuration");
-        let contract_path = game_path.join(GRID_2019_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, GRID_2019_BRIDGE_RELATIVE_PATH);
         let existed_before = contract_path.exists();
         let existing_content = if existed_before {
             Some(fs::read_to_string(&contract_path)?)
@@ -3914,7 +3958,7 @@ impl ConfigWriter for Grid2019ConfigWriter {
     }
 
     fn validate_config(&self, game_path: &Path) -> Result<bool> {
-        let contract_path = game_path.join(GRID_2019_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, GRID_2019_BRIDGE_RELATIVE_PATH);
         if !contract_path.exists() {
             return Ok(false);
         }
@@ -3967,7 +4011,7 @@ impl Default for GridLegendsConfigWriter {
 impl ConfigWriter for GridLegendsConfigWriter {
     fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
         info!("Writing GRID Legends bridge contract configuration");
-        let contract_path = game_path.join(GRID_LEGENDS_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, GRID_LEGENDS_BRIDGE_RELATIVE_PATH);
         let existed_before = contract_path.exists();
         let existing_content = if existed_before {
             Some(fs::read_to_string(&contract_path)?)
@@ -4005,7 +4049,7 @@ impl ConfigWriter for GridLegendsConfigWriter {
     }
 
     fn validate_config(&self, game_path: &Path) -> Result<bool> {
-        let contract_path = game_path.join(GRID_LEGENDS_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, GRID_LEGENDS_BRIDGE_RELATIVE_PATH);
         if !contract_path.exists() {
             return Ok(false);
         }
@@ -4059,7 +4103,7 @@ impl Default for Dirt3ConfigWriter {
 impl ConfigWriter for Dirt3ConfigWriter {
     fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
         info!("Writing DiRT 3 bridge contract configuration");
-        let contract_path = game_path.join(DIRT3_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, DIRT3_BRIDGE_RELATIVE_PATH);
         let existed_before = contract_path.exists();
         let existing_content = if existed_before {
             Some(fs::read_to_string(&contract_path)?)
@@ -4096,7 +4140,7 @@ impl ConfigWriter for Dirt3ConfigWriter {
     }
 
     fn validate_config(&self, game_path: &Path) -> Result<bool> {
-        let contract_path = game_path.join(DIRT3_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, DIRT3_BRIDGE_RELATIVE_PATH);
         if !contract_path.exists() {
             return Ok(false);
         }
@@ -4149,7 +4193,7 @@ impl Default for RaceDriverGridConfigWriter {
 impl ConfigWriter for RaceDriverGridConfigWriter {
     fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
         info!("Writing Race Driver: GRID bridge contract configuration");
-        let contract_path = game_path.join(RACE_DRIVER_GRID_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, RACE_DRIVER_GRID_BRIDGE_RELATIVE_PATH);
         let existed_before = contract_path.exists();
         let existing_content = if existed_before {
             Some(fs::read_to_string(&contract_path)?)
@@ -4187,7 +4231,7 @@ impl ConfigWriter for RaceDriverGridConfigWriter {
     }
 
     fn validate_config(&self, game_path: &Path) -> Result<bool> {
-        let contract_path = game_path.join(RACE_DRIVER_GRID_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, RACE_DRIVER_GRID_BRIDGE_RELATIVE_PATH);
         if !contract_path.exists() {
             return Ok(false);
         }
@@ -4244,7 +4288,7 @@ impl Default for AutomobilistaConfigWriter {
 impl ConfigWriter for AutomobilistaConfigWriter {
     fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
         info!("Writing Automobilista 1 bridge contract configuration");
-        let contract_path = game_path.join(AUTOMOBILISTA_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, AUTOMOBILISTA_BRIDGE_RELATIVE_PATH);
         let existed_before = contract_path.exists();
         let existing_content = if existed_before {
             Some(fs::read_to_string(&contract_path)?)
@@ -4279,7 +4323,7 @@ impl ConfigWriter for AutomobilistaConfigWriter {
     }
 
     fn validate_config(&self, game_path: &Path) -> Result<bool> {
-        let contract_path = game_path.join(AUTOMOBILISTA_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, AUTOMOBILISTA_BRIDGE_RELATIVE_PATH);
         if !contract_path.exists() {
             return Ok(false);
         }
@@ -4330,7 +4374,7 @@ impl Default for KartKraftConfigWriter {
 impl ConfigWriter for KartKraftConfigWriter {
     fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
         info!("Writing KartKraft bridge contract configuration");
-        let contract_path = game_path.join(KARTKRAFT_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, KARTKRAFT_BRIDGE_RELATIVE_PATH);
         let existed_before = contract_path.exists();
         let existing_content = if existed_before {
             Some(fs::read_to_string(&contract_path)?)
@@ -4365,7 +4409,7 @@ impl ConfigWriter for KartKraftConfigWriter {
         }])
     }
     fn validate_config(&self, game_path: &Path) -> Result<bool> {
-        let contract_path = game_path.join(KARTKRAFT_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, KARTKRAFT_BRIDGE_RELATIVE_PATH);
         if !contract_path.exists() {
             return Ok(false);
         }
@@ -4410,7 +4454,7 @@ impl Default for RaceRoomConfigWriter {
 impl ConfigWriter for RaceRoomConfigWriter {
     fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
         info!("Writing RaceRoom bridge contract configuration");
-        let contract_path = game_path.join(RACEROOM_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, RACEROOM_BRIDGE_RELATIVE_PATH);
         let existed_before = contract_path.exists();
         let existing_content = if existed_before {
             Some(fs::read_to_string(&contract_path)?)
@@ -4444,7 +4488,7 @@ impl ConfigWriter for RaceRoomConfigWriter {
         }])
     }
     fn validate_config(&self, game_path: &Path) -> Result<bool> {
-        let contract_path = game_path.join(RACEROOM_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, RACEROOM_BRIDGE_RELATIVE_PATH);
         if !contract_path.exists() {
             return Ok(false);
         }
@@ -4480,7 +4524,7 @@ impl ConfigWriter for EAWRCConfigWriter {
     fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
         info!("Writing EA WRC telemetry configuration");
 
-        let telemetry_root = game_path.join("Documents/My Games/WRC/telemetry");
+        let telemetry_root = resolve_game_path(game_path, "Documents/My Games/WRC/telemetry");
         let config_path = telemetry_root.join("config.json");
         let structure_path = telemetry_root
             .join("udp")
@@ -4588,7 +4632,7 @@ impl ConfigWriter for EAWRCConfigWriter {
     }
 
     fn validate_config(&self, game_path: &Path) -> Result<bool> {
-        let telemetry_root = game_path.join("Documents/My Games/WRC/telemetry");
+        let telemetry_root = resolve_game_path(game_path, "Documents/My Games/WRC/telemetry");
         let config_path = telemetry_root.join("config.json");
         let structure_path = telemetry_root
             .join("udp")
@@ -4746,9 +4790,9 @@ fn upsert_ini_value(
             .skip(search_start)
         {
             let trimmed = line.trim();
-            if trimmed.starts_with(&key_prefix) {
+            if let Some(rest) = trimmed.strip_prefix(&key_prefix) {
                 key_line_index = Some(index);
-                previous_value = Some(trimmed[key_prefix.len()..].trim().to_string());
+                previous_value = Some(rest.trim().to_string());
                 break;
             }
         }
@@ -4832,7 +4876,7 @@ impl Default for NascarConfigWriter {
 impl ConfigWriter for NascarConfigWriter {
     fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
         info!("Writing NASCAR bridge contract configuration");
-        let contract_path = game_path.join(NASCAR_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, NASCAR_BRIDGE_RELATIVE_PATH);
         let existed_before = contract_path.exists();
         let existing_content = if existed_before {
             Some(fs::read_to_string(&contract_path)?)
@@ -4867,7 +4911,7 @@ impl ConfigWriter for NascarConfigWriter {
         }])
     }
     fn validate_config(&self, game_path: &Path) -> Result<bool> {
-        let contract_path = game_path.join(NASCAR_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, NASCAR_BRIDGE_RELATIVE_PATH);
         if !contract_path.exists() {
             return Ok(false);
         }
@@ -4912,7 +4956,7 @@ impl Default for Nascar21ConfigWriter {
 impl ConfigWriter for Nascar21ConfigWriter {
     fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
         info!("Writing NASCAR 21: Ignition bridge contract configuration");
-        let contract_path = game_path.join(NASCAR_21_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, NASCAR_21_BRIDGE_RELATIVE_PATH);
         let existed_before = contract_path.exists();
         let existing_content = if existed_before {
             Some(fs::read_to_string(&contract_path)?)
@@ -4948,7 +4992,7 @@ impl ConfigWriter for Nascar21ConfigWriter {
     }
 
     fn validate_config(&self, game_path: &Path) -> Result<bool> {
-        let contract_path = game_path.join(NASCAR_21_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, NASCAR_21_BRIDGE_RELATIVE_PATH);
         if !contract_path.exists() {
             return Ok(false);
         }
@@ -4994,7 +5038,7 @@ impl Default for LeMansUltimateConfigWriter {
 impl ConfigWriter for LeMansUltimateConfigWriter {
     fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
         info!("Writing Le Mans Ultimate bridge contract configuration");
-        let contract_path = game_path.join(LMU_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, LMU_BRIDGE_RELATIVE_PATH);
         let existed_before = contract_path.exists();
         let existing_content = if existed_before {
             Some(fs::read_to_string(&contract_path)?)
@@ -5029,7 +5073,7 @@ impl ConfigWriter for LeMansUltimateConfigWriter {
         }])
     }
     fn validate_config(&self, game_path: &Path) -> Result<bool> {
-        let contract_path = game_path.join(LMU_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, LMU_BRIDGE_RELATIVE_PATH);
         if !contract_path.exists() {
             return Ok(false);
         }
@@ -5074,7 +5118,7 @@ impl Default for WtcrConfigWriter {
 impl ConfigWriter for WtcrConfigWriter {
     fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
         info!("Writing WTCR bridge contract configuration");
-        let contract_path = game_path.join(WTCR_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, WTCR_BRIDGE_RELATIVE_PATH);
         let existed_before = contract_path.exists();
         let existing_content = if existed_before {
             Some(fs::read_to_string(&contract_path)?)
@@ -5110,7 +5154,7 @@ impl ConfigWriter for WtcrConfigWriter {
         }])
     }
     fn validate_config(&self, game_path: &Path) -> Result<bool> {
-        let contract_path = game_path.join(WTCR_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, WTCR_BRIDGE_RELATIVE_PATH);
         if !contract_path.exists() {
             return Ok(false);
         }
@@ -5156,7 +5200,7 @@ impl Default for TrackmaniaConfigWriter {
 impl ConfigWriter for TrackmaniaConfigWriter {
     fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
         info!("Writing Trackmania bridge contract configuration");
-        let contract_path = game_path.join(TRACKMANIA_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, TRACKMANIA_BRIDGE_RELATIVE_PATH);
         let existed_before = contract_path.exists();
         let existing_content = if existed_before {
             Some(fs::read_to_string(&contract_path)?)
@@ -5191,7 +5235,7 @@ impl ConfigWriter for TrackmaniaConfigWriter {
         }])
     }
     fn validate_config(&self, game_path: &Path) -> Result<bool> {
-        let contract_path = game_path.join(TRACKMANIA_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, TRACKMANIA_BRIDGE_RELATIVE_PATH);
         if !contract_path.exists() {
             return Ok(false);
         }
@@ -5236,7 +5280,7 @@ impl Default for SimHubConfigWriter {
 impl ConfigWriter for SimHubConfigWriter {
     fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
         info!("Writing SimHub bridge contract configuration");
-        let contract_path = game_path.join(SIMHUB_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, SIMHUB_BRIDGE_RELATIVE_PATH);
         let existed_before = contract_path.exists();
         let existing_content = if existed_before {
             Some(fs::read_to_string(&contract_path)?)
@@ -5272,7 +5316,7 @@ impl ConfigWriter for SimHubConfigWriter {
     }
 
     fn validate_config(&self, game_path: &Path) -> Result<bool> {
-        let contract_path = game_path.join(SIMHUB_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, SIMHUB_BRIDGE_RELATIVE_PATH);
         if !contract_path.exists() {
             return Ok(false);
         }
@@ -5318,7 +5362,7 @@ impl Default for MudRunnerConfigWriter {
 impl ConfigWriter for MudRunnerConfigWriter {
     fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
         info!("Writing MudRunner bridge contract configuration");
-        let contract_path = game_path.join(MUDRUNNER_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, MUDRUNNER_BRIDGE_RELATIVE_PATH);
         let existed_before = contract_path.exists();
         let existing_content = if existed_before {
             Some(fs::read_to_string(&contract_path)?)
@@ -5354,7 +5398,7 @@ impl ConfigWriter for MudRunnerConfigWriter {
     }
 
     fn validate_config(&self, game_path: &Path) -> Result<bool> {
-        let contract_path = game_path.join(MUDRUNNER_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, MUDRUNNER_BRIDGE_RELATIVE_PATH);
         if !contract_path.exists() {
             return Ok(false);
         }
@@ -5400,7 +5444,7 @@ impl Default for SnowRunnerConfigWriter {
 impl ConfigWriter for SnowRunnerConfigWriter {
     fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
         info!("Writing SnowRunner bridge contract configuration");
-        let contract_path = game_path.join(SNOWRUNNER_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, SNOWRUNNER_BRIDGE_RELATIVE_PATH);
         let existed_before = contract_path.exists();
         let existing_content = if existed_before {
             Some(fs::read_to_string(&contract_path)?)
@@ -5436,7 +5480,7 @@ impl ConfigWriter for SnowRunnerConfigWriter {
     }
 
     fn validate_config(&self, game_path: &Path) -> Result<bool> {
-        let contract_path = game_path.join(SNOWRUNNER_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, SNOWRUNNER_BRIDGE_RELATIVE_PATH);
         if !contract_path.exists() {
             return Ok(false);
         }
@@ -5484,7 +5528,7 @@ impl Default for MotoGPConfigWriter {
 impl ConfigWriter for MotoGPConfigWriter {
     fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
         info!("Writing MotoGP bridge contract configuration");
-        let contract_path = game_path.join(MOTOGP_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, MOTOGP_BRIDGE_RELATIVE_PATH);
         let existed_before = contract_path.exists();
         let existing_content = if existed_before {
             Some(fs::read_to_string(&contract_path)?)
@@ -5520,7 +5564,7 @@ impl ConfigWriter for MotoGPConfigWriter {
     }
 
     fn validate_config(&self, game_path: &Path) -> Result<bool> {
-        let contract_path = game_path.join(MOTOGP_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, MOTOGP_BRIDGE_RELATIVE_PATH);
         if !contract_path.exists() {
             return Ok(false);
         }
@@ -5568,7 +5612,7 @@ impl Default for Ride5ConfigWriter {
 impl ConfigWriter for Ride5ConfigWriter {
     fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
         info!("Writing RIDE 5 bridge contract configuration");
-        let contract_path = game_path.join(RIDE5_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, RIDE5_BRIDGE_RELATIVE_PATH);
         let existed_before = contract_path.exists();
         let existing_content = if existed_before {
             Some(fs::read_to_string(&contract_path)?)
@@ -5604,7 +5648,7 @@ impl ConfigWriter for Ride5ConfigWriter {
     }
 
     fn validate_config(&self, game_path: &Path) -> Result<bool> {
-        let contract_path = game_path.join(RIDE5_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, RIDE5_BRIDGE_RELATIVE_PATH);
         if !contract_path.exists() {
             return Ok(false);
         }
@@ -5749,7 +5793,7 @@ impl Default for VRally4ConfigWriter {
 impl ConfigWriter for VRally4ConfigWriter {
     fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
         info!("Writing V-Rally 4 bridge contract configuration");
-        let contract_path = game_path.join(V_RALLY_4_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, V_RALLY_4_BRIDGE_RELATIVE_PATH);
         let existed_before = contract_path.exists();
         let existing_content = if existed_before {
             Some(fs::read_to_string(&contract_path)?)
@@ -5785,7 +5829,7 @@ impl ConfigWriter for VRally4ConfigWriter {
     }
 
     fn validate_config(&self, game_path: &Path) -> Result<bool> {
-        let contract_path = game_path.join(V_RALLY_4_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, V_RALLY_4_BRIDGE_RELATIVE_PATH);
         if !contract_path.exists() {
             return Ok(false);
         }
@@ -5831,7 +5875,7 @@ impl Default for GravelConfigWriter {
 impl ConfigWriter for GravelConfigWriter {
     fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
         info!("Writing Gravel bridge contract configuration");
-        let contract_path = game_path.join(GRAVEL_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, GRAVEL_BRIDGE_RELATIVE_PATH);
         let existed_before = contract_path.exists();
         let existing_content = if existed_before {
             Some(fs::read_to_string(&contract_path)?)
@@ -5867,7 +5911,7 @@ impl ConfigWriter for GravelConfigWriter {
     }
 
     fn validate_config(&self, game_path: &Path) -> Result<bool> {
-        let contract_path = game_path.join(GRAVEL_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, GRAVEL_BRIDGE_RELATIVE_PATH);
         if !contract_path.exists() {
             return Ok(false);
         }
@@ -5913,7 +5957,7 @@ impl Default for SebLoebRallyConfigWriter {
 impl ConfigWriter for SebLoebRallyConfigWriter {
     fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
         info!("Writing Sébastien Loeb Rally EVO bridge contract configuration");
-        let contract_path = game_path.join(SEB_LOEB_RALLY_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, SEB_LOEB_RALLY_BRIDGE_RELATIVE_PATH);
         let existed_before = contract_path.exists();
         let existing_content = if existed_before {
             Some(fs::read_to_string(&contract_path)?)
@@ -5946,7 +5990,7 @@ impl ConfigWriter for SebLoebRallyConfigWriter {
     }
 
     fn validate_config(&self, game_path: &Path) -> Result<bool> {
-        let contract_path = game_path.join(SEB_LOEB_RALLY_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, SEB_LOEB_RALLY_BRIDGE_RELATIVE_PATH);
         if !contract_path.exists() {
             return Ok(false);
         }
@@ -5989,7 +6033,7 @@ impl Default for ACC2ConfigWriter {
 impl ConfigWriter for ACC2ConfigWriter {
     fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
         info!("Writing ACC2 bridge contract (stub — no telemetry protocol published)");
-        let contract_path = game_path.join(ACC2_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, ACC2_BRIDGE_RELATIVE_PATH);
         let existed_before = contract_path.exists();
         let existing_content = if existed_before {
             Some(fs::read_to_string(&contract_path)?)
@@ -6022,7 +6066,7 @@ impl ConfigWriter for ACC2ConfigWriter {
     }
 
     fn validate_config(&self, game_path: &Path) -> Result<bool> {
-        let contract_path = game_path.join(ACC2_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, ACC2_BRIDGE_RELATIVE_PATH);
         if !contract_path.exists() {
             return Ok(false);
         }
@@ -6065,7 +6109,7 @@ impl Default for ACEvoConfigWriter {
 impl ConfigWriter for ACEvoConfigWriter {
     fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
         info!("Writing AC EVO bridge contract (stub — no telemetry protocol published)");
-        let contract_path = game_path.join(AC_EVO_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, AC_EVO_BRIDGE_RELATIVE_PATH);
         let existed_before = contract_path.exists();
         let existing_content = if existed_before {
             Some(fs::read_to_string(&contract_path)?)
@@ -6098,7 +6142,7 @@ impl ConfigWriter for ACEvoConfigWriter {
     }
 
     fn validate_config(&self, game_path: &Path) -> Result<bool> {
-        let contract_path = game_path.join(AC_EVO_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, AC_EVO_BRIDGE_RELATIVE_PATH);
         if !contract_path.exists() {
             return Ok(false);
         }
@@ -6141,7 +6185,7 @@ impl Default for DirtShowdownConfigWriter {
 impl ConfigWriter for DirtShowdownConfigWriter {
     fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
         info!("Writing DiRT Showdown bridge contract configuration");
-        let contract_path = game_path.join(DIRT_SHOWDOWN_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, DIRT_SHOWDOWN_BRIDGE_RELATIVE_PATH);
         let existed_before = contract_path.exists();
         let existing_content = if existed_before {
             Some(fs::read_to_string(&contract_path)?)
@@ -6179,7 +6223,7 @@ impl ConfigWriter for DirtShowdownConfigWriter {
     }
 
     fn validate_config(&self, game_path: &Path) -> Result<bool> {
-        let contract_path = game_path.join(DIRT_SHOWDOWN_BRIDGE_RELATIVE_PATH);
+        let contract_path = resolve_game_path(game_path, DIRT_SHOWDOWN_BRIDGE_RELATIVE_PATH);
         if !contract_path.exists() {
             return Ok(false);
         }
@@ -6292,7 +6336,7 @@ mod tests {
         let first = writer.write_config(temp_dir.path(), &config)?;
         assert_eq!(first.len(), 1);
 
-        let app_ini_path = temp_dir.path().join("Documents/iRacing/app.ini");
+        let app_ini_path = resolve_game_path(temp_dir.path(), "Documents/iRacing/app.ini");
         let first_content = std::fs::read_to_string(&app_ini_path)?;
         assert!(first_content.contains("telemetryDiskFile=1"));
         assert!(

@@ -128,11 +128,11 @@ const OFF_LOCAL_ACCEL_Z: usize = 108; // f32: sLocalAcceleration[2] (longitudina
 const OFF_TYRE_TEMP: usize = 176; // u8[4]: sTyreTemp (°C, FL/FR/RL/RR)
 const OFF_AIR_PRESSURE: usize = 352; // u16[4]: sAirPressure (kPa)
 
-/// Minimum packet size to read acceleration data (through sLocalAcceleration[2]).
+/// Minimum packet size to read acceleration data (through `sLocalAcceleration[2]`).
 const PCARS2_ACCEL_MIN_SIZE: usize = 112;
-/// Minimum packet size to read tyre temperatures (through sTyreTemp[3]).
+/// Minimum packet size to read tyre temperatures (through `sTyreTemp[3]`).
 const PCARS2_TYRE_TEMP_MIN_SIZE: usize = 180;
-/// Minimum packet size to read tyre air pressures (through sAirPressure[3]).
+/// Minimum packet size to read tyre air pressures (through `sAirPressure[3]`).
 const PCARS2_AIR_PRESSURE_MIN_SIZE: usize = 360;
 
 // ──────────────────────────────────────────────────────────────────────────────

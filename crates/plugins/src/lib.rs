@@ -102,10 +102,15 @@ pub enum PluginClass {
 /// Plugin execution context
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PluginContext {
+    /// Unique plugin identifier
     pub plugin_id: Uuid,
+    /// Execution class (Safe WASM or Fast native)
     pub class: PluginClass,
+    /// Target update rate in Hz
     pub update_rate_hz: u32,
+    /// Maximum per-tick CPU budget in microseconds
     pub budget_us: u32,
+    /// Granted capability tokens (e.g. `"telemetry_read"`, `"led_write"`)
     pub capabilities: Vec<String>,
 }
 
@@ -142,12 +147,19 @@ pub enum PluginOutput {
 /// Plugin execution statistics
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PluginStats {
+    /// Total number of successful executions
     pub executions: u64,
+    /// Cumulative execution time in microseconds
     pub total_time_us: u64,
+    /// Moving average of per-execution time in microseconds
     pub avg_time_us: f64,
+    /// Worst-case single-execution time in microseconds
     pub max_time_us: u32,
+    /// Number of times the CPU budget was exceeded
     pub budget_violations: u32,
+    /// Number of times the plugin process crashed
     pub crashes: u32,
+    /// Timestamp of the most recent execution, if any
     pub last_execution: Option<chrono::DateTime<chrono::Utc>>,
 }
 

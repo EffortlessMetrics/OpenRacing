@@ -16,12 +16,20 @@ use tokio::sync::mpsc;
 use windows::Win32::Foundation::{
     CloseHandle, ERROR_IO_INCOMPLETE, GetLastError, HANDLE, HWND, LPARAM, LRESULT, WPARAM,
 };
+use windows::Win32::Storage::FileSystem::{
+    CreateFileW, FILE_FLAG_OVERLAPPED, FILE_SHARE_READ, FILE_SHARE_WRITE, OPEN_EXISTING, ReadFile,
+    WriteFile,
+};
 use windows::Win32::System::IO::{GetOverlappedResult, OVERLAPPED};
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows::Win32::System::Threading::{
-    AvSetMmThreadCharacteristicsW, GetCurrentProcess, HIGH_PRIORITY_CLASS, NORMAL_PRIORITY_CLASS,
-    SetPriorityClass,
+    AvSetMmThreadCharacteristicsW, CreateEventW, GetCurrentProcess, HIGH_PRIORITY_CLASS,
+    NORMAL_PRIORITY_CLASS, ResetEvent, SetPriorityClass,
 };
+
+/// Generic access rights (not exported by windows 0.62 from `Storage::FileSystem`).
+const GENERIC_READ_ACCESS: u32 = 0x8000_0000;
+const GENERIC_WRITE_ACCESS: u32 = 0x4000_0000;
 use windows::Win32::UI::WindowsAndMessaging::{
     CreateWindowExW, DBT_DEVICEARRIVAL, DBT_DEVICEREMOVECOMPLETE, DBT_DEVTYP_DEVICEINTERFACE,
     DEV_BROADCAST_DEVICEINTERFACE_W, DEVICE_NOTIFY_WINDOW_HANDLE, DefWindowProcW, DestroyWindow,
@@ -86,7 +94,7 @@ unsafe impl Sync for SendableHandle {}
 /// Safety: HDEVNOTIFY is a handle that can be safely sent between threads
 /// as long as we ensure proper synchronization (which we do via Mutex)
 #[derive(Debug)]
-struct SendableHdevnotify(HDEVNOTIFY);
+struct SendableHdevnotify(#[allow(dead_code)] HDEVNOTIFY);
 
 // Safety: HDEVNOTIFY is just a pointer/handle that can be safely sent between threads
 unsafe impl Send for SendableHdevnotify {}
@@ -95,7 +103,7 @@ unsafe impl Sync for SendableHdevnotify {}
 /// Wrapper for HWND to make it Send + Sync
 /// Safety: HWND is a handle that can be safely sent between threads
 #[derive(Debug, Clone, Copy)]
-struct SendableHwnd(HWND);
+struct SendableHwnd(#[allow(dead_code)] HWND);
 
 unsafe impl Send for SendableHwnd {}
 unsafe impl Sync for SendableHwnd {}
@@ -107,22 +115,20 @@ struct SendableOverlapped(OVERLAPPED);
 unsafe impl Send for SendableOverlapped {}
 unsafe impl Sync for SendableOverlapped {}
 
-/// State for overlapped write operations.
+/// State for overlapped I/O operations.
 ///
 /// Pre-allocated and managed to avoid allocations in RT path.
-struct OverlappedWriteState {
+struct OverlappedIoState {
     /// Windows OVERLAPPED structure
     overlapped: SendableOverlapped,
     /// Pre-allocated buffer for HID reports
-    #[allow(dead_code)]
-    write_buffer: [u8; MAX_HID_REPORT_SIZE],
-    /// Whether a write is currently pending
-    write_pending: AtomicBool,
+    buffer: [u8; MAX_HID_REPORT_SIZE],
+    /// Whether an operation is currently pending
+    pending: AtomicBool,
 }
 
-impl OverlappedWriteState {
+impl OverlappedIoState {
     fn new() -> std::result::Result<Self, Box<dyn std::error::Error>> {
-        use windows::Win32::System::Threading::CreateEventW;
         let event = unsafe { CreateEventW(None, true, false, None)? };
 
         Ok(Self {
@@ -130,14 +136,12 @@ impl OverlappedWriteState {
                 hEvent: event,
                 ..Default::default()
             }),
-            write_buffer: [0u8; MAX_HID_REPORT_SIZE],
-            write_pending: AtomicBool::new(false),
+            buffer: [0u8; MAX_HID_REPORT_SIZE],
+            pending: AtomicBool::new(false),
         })
     }
 
-    #[allow(dead_code)]
     fn reset_overlapped(&mut self) {
-        use windows::Win32::System::Threading::ResetEvent;
         let event = self.overlapped.0.hEvent;
         self.overlapped.0 = OVERLAPPED {
             hEvent: event,
@@ -148,7 +152,6 @@ impl OverlappedWriteState {
         }
     }
 
-    #[allow(dead_code)]
     fn check_completion(&self, device_handle: HANDLE) -> RTResult<bool> {
         let mut bytes_transferred = 0;
         let result = unsafe {
@@ -161,21 +164,21 @@ impl OverlappedWriteState {
         };
 
         if result.is_ok() {
-            self.write_pending.store(false, Ordering::Release);
+            self.pending.store(false, Ordering::Release);
             Ok(true)
         } else {
             let error = unsafe { GetLastError() };
             if error == ERROR_IO_INCOMPLETE {
                 Ok(false)
             } else {
-                self.write_pending.store(false, Ordering::Release);
+                self.pending.store(false, Ordering::Release);
                 Err(RTError::PipelineFault)
             }
         }
     }
 }
 
-impl Drop for OverlappedWriteState {
+impl Drop for OverlappedIoState {
     fn drop(&mut self) {
         if !self.overlapped.0.hEvent.is_invalid() {
             unsafe {
@@ -454,15 +457,15 @@ fn handle_device_change(wparam: WPARAM, _lparam: LPARAM) {
 fn handle_device_arrival() {
     let context_lock = get_device_notify_context();
     let context_guard = context_lock.lock();
-    if let Some(ref ctx) = *context_guard {
-        if let Some(new_devices) = enumerate_hid_devices(&ctx.hid_api) {
-            let mut known = ctx.known_devices.write();
-            for (id, info) in new_devices {
-                if !known.contains_key(&id) {
-                    let device_info = info.to_device_info();
-                    known.insert(id, info);
-                    let _ = ctx.event_sender.send(DeviceEvent::Connected(device_info));
-                }
+    if let Some(ref ctx) = *context_guard
+        && let Some(new_devices) = enumerate_hid_devices(&ctx.hid_api)
+    {
+        let mut known = ctx.known_devices.write();
+        for (id, info) in new_devices {
+            if let std::collections::hash_map::Entry::Vacant(e) = known.entry(id) {
+                let device_info = info.to_device_info();
+                e.insert(info);
+                let _ = ctx.event_sender.send(DeviceEvent::Connected(device_info));
             }
         }
     }
@@ -471,20 +474,20 @@ fn handle_device_arrival() {
 fn handle_device_removal() {
     let context_lock = get_device_notify_context();
     let context_guard = context_lock.lock();
-    if let Some(ref ctx) = *context_guard {
-        if let Some(current_devices) = enumerate_hid_devices(&ctx.hid_api) {
-            let mut known = ctx.known_devices.write();
-            let removed_ids: Vec<DeviceId> = known
-                .keys()
-                .filter(|id| !current_devices.contains_key(*id))
-                .cloned()
-                .collect();
-            for id in removed_ids {
-                if let Some(info) = known.remove(&id) {
-                    let _ = ctx
-                        .event_sender
-                        .send(DeviceEvent::Disconnected(info.to_device_info()));
-                }
+    if let Some(ref ctx) = *context_guard
+        && let Some(current_devices) = enumerate_hid_devices(&ctx.hid_api)
+    {
+        let mut known = ctx.known_devices.write();
+        let removed_ids: Vec<DeviceId> = known
+            .keys()
+            .filter(|id| !current_devices.contains_key(*id))
+            .cloned()
+            .collect();
+        for id in removed_ids {
+            if let Some(info) = known.remove(&id) {
+                let _ = ctx
+                    .event_sender
+                    .send(DeviceEvent::Disconnected(info.to_device_info()));
             }
         }
     }
@@ -777,9 +780,9 @@ pub struct WindowsHidDevice {
     device_info: HidDeviceInfo,
     pub(crate) connected: Arc<AtomicBool>,
     health_status: Arc<RwLock<DeviceHealthStatus>>,
-    hidapi_device: Option<Arc<Mutex<hidapi::HidDevice>>>,
-    #[allow(dead_code)]
-    overlapped_state: Arc<Mutex<OverlappedWriteState>>,
+    device_handle: SendableHandle,
+    write_state: Arc<Mutex<OverlappedIoState>>,
+    read_state: Arc<Mutex<OverlappedIoState>>,
 }
 
 impl WindowsHidDevice {
@@ -787,12 +790,22 @@ impl WindowsHidDevice {
         let is_mock =
             info.path == "mock_path" || info.path.contains("test") || info.path.is_empty();
 
-        let hidapi_device = if is_mock {
-            None
+        let device_handle = if is_mock {
+            SendableHandle(HANDLE::default())
         } else {
-            let api = HidApi::new()?;
-            let device = api.open_path(&std::ffi::CString::new(info.path.as_str())?)?;
-            Some(Arc::new(Mutex::new(device)))
+            let path_w: Vec<u16> = info.path.encode_utf16().chain(std::iter::once(0)).collect();
+            let handle = unsafe {
+                CreateFileW(
+                    windows::core::PCWSTR(path_w.as_ptr()),
+                    GENERIC_READ_ACCESS | GENERIC_WRITE_ACCESS,
+                    FILE_SHARE_READ | FILE_SHARE_WRITE,
+                    None,
+                    OPEN_EXISTING,
+                    FILE_FLAG_OVERLAPPED,
+                    None,
+                )?
+            };
+            SendableHandle(handle)
         };
 
         Ok(Self {
@@ -805,8 +818,9 @@ impl WindowsHidDevice {
                 last_communication: std::time::Instant::now(),
                 communication_errors: 0,
             })),
-            hidapi_device,
-            overlapped_state: Arc::new(Mutex::new(OverlappedWriteState::new()?)),
+            device_handle,
+            write_state: Arc::new(Mutex::new(OverlappedIoState::new()?)),
+            read_state: Arc::new(Mutex::new(OverlappedIoState::new()?)),
         })
     }
 
@@ -816,31 +830,42 @@ impl WindowsHidDevice {
             return Err(RTError::DeviceDisconnected);
         }
 
-        let mut state = self.overlapped_state.lock();
+        if self.device_handle.0.is_invalid() {
+            return Ok(());
+        }
+
+        let mut state = self
+            .write_state
+            .try_lock()
+            .ok_or(RTError::TimingViolation)?;
 
         // Check if previous write completed
-        if state.write_pending.load(Ordering::Acquire) {
-            match state.check_completion(HANDLE::default()) {
-                // HANDLE is not really used in check_completion if we use GetOverlappedResult on device handle
-                Ok(true) => {}                                     // Completed
-                Ok(false) => return Err(RTError::TimingViolation), // Still pending
-                Err(e) => return Err(e),
-            }
+        if state.pending.load(Ordering::Acquire) && !state.check_completion(self.device_handle.0)? {
+            return Err(RTError::TimingViolation); // Still pending
         }
 
         // Prepare buffer and OVERLAPPED structure
         let len = data.len().min(MAX_HID_REPORT_SIZE);
-        state.write_buffer[..len].copy_from_slice(&data[..len]);
+        state.buffer[..len].copy_from_slice(&data[..len]);
         state.reset_overlapped();
 
-        // We need the raw OS handle from hidapi_device
-        if let Some(ref d) = self.hidapi_device {
-            // NOTE: Using a blocking Mutex in the RT path violates the "no-blocking" rule.
-            // This is acceptable for the current HID skeleton but should be refactored
-            // to a lock-free structure (e.g., Triple Buffer or SPSC queue) in production.
-            // REF: AGENTS.md, ADR-0007.
-            let device = d.lock();
-            let _ = device.write(&state.write_buffer[..len]);
+        // Split borrows: obtain a pointer to the overlapped struct before borrowing
+        // the buffer, so the borrow checker sees disjoint fields.
+        let overlapped_ptr: *mut OVERLAPPED = &mut state.overlapped.0;
+        unsafe {
+            let mut bytes_written = 0;
+            let result = WriteFile(
+                self.device_handle.0,
+                Some(&state.buffer[..len]),
+                Some(&mut bytes_written),
+                Some(&mut *overlapped_ptr),
+            );
+
+            if result.is_ok() || GetLastError() == windows::Win32::Foundation::ERROR_IO_PENDING {
+                state.pending.store(true, Ordering::Release);
+            } else {
+                return Err(RTError::PipelineFault);
+            }
         }
 
         Ok(())
@@ -859,34 +884,57 @@ impl HidDevice for WindowsHidDevice {
             &mut report,
         );
 
-        if let Some(ref d) = self.hidapi_device {
-            let device = d.lock();
-            let _ = device.write(&report[..len]);
-        }
-        Ok(())
+        self.write_overlapped(&report[..len])
     }
 
     fn read_telemetry(&mut self) -> Option<TelemetryData> {
-        let mut buf = [0u8; MAX_HID_REPORT_SIZE];
-        if let Some(ref d) = self.hidapi_device {
-            // NOTE: Blocking lock in RT path (see note in write_ffb_report)
-            let device = d.lock();
-            if let Ok(len) = device.read_timeout(&mut buf, 1) {
-                if len >= 13 && buf[0] == 0x21 {
-                    // Manual extraction from packet
-                    let wheel_angle_mdeg = i32::from_le_bytes([buf[1], buf[2], buf[3], buf[4]]);
-                    let wheel_speed_mrad_s = i16::from_le_bytes([buf[5], buf[6]]);
-                    return Some(TelemetryData {
-                        wheel_angle_deg: wheel_angle_mdeg as f32 / 1000.0,
-                        wheel_speed_rad_s: wheel_speed_mrad_s as f32 / 1000.0,
-                        temperature_c: buf[7],
-                        fault_flags: buf[8],
-                        hands_on: buf[9] != 0,
-                        timestamp: std::time::Instant::now(),
-                    });
+        if self.device_handle.0.is_invalid() {
+            return None;
+        }
+
+        let mut state = self.read_state.try_lock()?;
+
+        // If no read is pending, start one
+        if !state.pending.load(Ordering::Acquire) {
+            state.reset_overlapped();
+            // Split borrows via raw pointer so the borrow checker sees disjoint fields.
+            let overlapped_ptr: *mut OVERLAPPED = &mut state.overlapped.0;
+            unsafe {
+                let mut bytes_read = 0;
+                let result = ReadFile(
+                    self.device_handle.0,
+                    Some(&mut state.buffer),
+                    Some(&mut bytes_read),
+                    Some(&mut *overlapped_ptr),
+                );
+
+                if result.is_ok() || GetLastError() == windows::Win32::Foundation::ERROR_IO_PENDING
+                {
+                    state.pending.store(true, Ordering::Release);
+                } else {
+                    return None;
                 }
             }
         }
+
+        // Check completion (non-blocking)
+        if matches!(state.check_completion(self.device_handle.0), Ok(true)) {
+            let buf = &state.buffer;
+            if buf[0] == 0x21 {
+                // Manual extraction from packet
+                let wheel_angle_mdeg = i32::from_le_bytes([buf[1], buf[2], buf[3], buf[4]]);
+                let wheel_speed_mrad_s = i16::from_le_bytes([buf[5], buf[6]]);
+                return Some(TelemetryData {
+                    wheel_angle_deg: wheel_angle_mdeg as f32 / 1000.0,
+                    wheel_speed_rad_s: wheel_speed_mrad_s as f32 / 1000.0,
+                    temperature_c: buf[7],
+                    fault_flags: buf[8],
+                    hands_on: buf[9] != 0,
+                    timestamp: std::time::Instant::now(),
+                });
+            }
+        }
+
         None
     }
 

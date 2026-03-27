@@ -1,10 +1,10 @@
 //! Documentation index generator - Generates an index of all ADRs.
 //!
 //! Usage:
-//!     cargo run -p wheelctl --bin generate-docs-index -- [options]
+//!     cargo run -p wheelctl --bin generate-docs-index -- \[options\]
 //!
 //! Options:
-//!     --adr-dir <path>  Path to ADR directory (default: docs/adr)
+//!     --adr-dir \<path\>  Path to ADR directory (default: docs/adr)
 
 #![deny(static_mut_refs)]
 #![deny(unused_must_use)]

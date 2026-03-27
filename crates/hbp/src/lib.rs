@@ -8,7 +8,6 @@
 
 /// [ADR-0007]: Multi-Vendor HID Protocol Architecture
 /// This crate follows the "SRP Microcrate" pattern for vendor-specific HID protocols.
-
 /// Handbrake axis with report-id prefix.
 pub const WITH_REPORT_ID_AXIS_START: usize = 1;
 /// Optional button-style byte with report-id prefix.

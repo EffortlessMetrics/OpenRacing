@@ -77,10 +77,15 @@ pub const SLOT_CMD_SIZE: usize = 7;
 
 /// Slot IDs for the Fanatec 5-slot system.
 pub mod slot {
+    /// Slot for Constant Force.
     pub const CONSTANT: u8 = 0;
+    /// Slot for Spring force.
     pub const SPRING: u8 = 1;
+    /// Slot for Damper.
     pub const DAMPER: u8 = 2;
+    /// Slot for Inertia.
     pub const INERTIA: u8 = 3;
+    /// Slot for Friction.
     pub const FRICTION: u8 = 4;
 }
 

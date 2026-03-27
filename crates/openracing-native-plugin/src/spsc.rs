@@ -165,11 +165,10 @@ impl SpscWriter {
     /// Returns `Ok(())` on success, or an error if the buffer is full.
     pub fn write(&self, frame: &[u8]) -> Result<(), NativePluginError> {
         if frame.len() != self.frame_size {
-            return Err(NativePluginError::SharedMemoryError(format!(
-                "Frame size mismatch: expected {}, got {}",
-                self.frame_size,
-                frame.len()
-            )));
+            return Err(NativePluginError::FrameSizeMismatch {
+                expected: self.frame_size,
+                actual: frame.len(),
+            });
         }
 
         unsafe {
@@ -180,9 +179,7 @@ impl SpscWriter {
             let consumer_seq = (*self.header).consumer_seq.load(Ordering::Acquire);
 
             if producer_seq.wrapping_sub(consumer_seq) >= self.max_frames {
-                return Err(NativePluginError::SharedMemoryError(
-                    "Ring buffer full".to_string(),
-                ));
+                return Err(NativePluginError::RingBufferFull);
             }
 
             let index = (producer_seq % self.max_frames) as usize;
@@ -203,7 +200,7 @@ impl SpscWriter {
     pub fn try_write(&self, frame: &[u8]) -> Result<bool, NativePluginError> {
         match self.write(frame) {
             Ok(()) => Ok(true),
-            Err(NativePluginError::SharedMemoryError(msg)) if msg.contains("full") => Ok(false),
+            Err(NativePluginError::RingBufferFull) => Ok(false),
             Err(e) => Err(e),
         }
     }
@@ -225,11 +222,10 @@ impl SpscReader {
     /// Returns `Ok(frame)` on success, or an error if no data is available.
     pub fn read(&self, buffer: &mut [u8]) -> Result<(), NativePluginError> {
         if buffer.len() != self.frame_size {
-            return Err(NativePluginError::SharedMemoryError(format!(
-                "Buffer size mismatch: expected {}, got {}",
-                self.frame_size,
-                buffer.len()
-            )));
+            return Err(NativePluginError::BufferSizeMismatch {
+                expected: self.frame_size,
+                actual: buffer.len(),
+            });
         }
 
         unsafe {
@@ -240,9 +236,7 @@ impl SpscReader {
             let consumer_seq = (*self.header).consumer_seq.load(Ordering::Acquire);
 
             if consumer_seq >= producer_seq {
-                return Err(NativePluginError::SharedMemoryError(
-                    "No data available".to_string(),
-                ));
+                return Err(NativePluginError::NoDataAvailable);
             }
 
             let index = (consumer_seq % self.max_frames) as usize;
@@ -267,7 +261,7 @@ impl SpscReader {
     pub fn try_read(&self, buffer: &mut [u8]) -> Result<bool, NativePluginError> {
         match self.read(buffer) {
             Ok(()) => Ok(true),
-            Err(NativePluginError::SharedMemoryError(msg)) if msg.contains("No data") => Ok(false),
+            Err(NativePluginError::NoDataAvailable) => Ok(false),
             Err(e) => Err(e),
         }
     }

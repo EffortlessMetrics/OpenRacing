@@ -37,6 +37,7 @@ openracing-atomic = { workspace = true }
 openracing-tracing = { workspace = true }
 openracing-curves = { workspace = true }
 openracing-errors = { workspace = true }
+openracing-hid-common = { workspace = true }
 openracing-filters = { workspace = true }
 openracing-fmea = { workspace = true }
 openracing-watchdog = { workspace = true }

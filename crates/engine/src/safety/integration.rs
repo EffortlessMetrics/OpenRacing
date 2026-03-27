@@ -254,8 +254,7 @@ impl IntegratedFaultManager {
 
         // Safety Hardening: Explicitly detect components that should be heartbeating
         // but have never sent a single heartbeat.
-        let component_health = self.watchdog_system.get_health_summary();
-        if component_health.is_empty() {
+        if !self.watchdog_system.has_registered_components() {
             // If we have no components registered but expect some, this is a startup failure.
             result.new_faults.push(FaultType::SafetyInterlockViolation);
         }
@@ -410,14 +409,16 @@ impl IntegratedFaultManager {
         }
 
         // Check for plugin quarantine releases
-        let quarantined_plugins = self.watchdog_system.get_quarantined_plugins();
-        for (plugin_id, remaining_time) in quarantined_plugins {
-            if remaining_time.is_zero()
-                && let Ok(()) = self.watchdog_system.release_plugin_quarantine(&plugin_id)
-            {
-                result
-                    .recovery_actions
-                    .push(format!("Released plugin quarantine: {}", plugin_id));
+        if self.watchdog_system.has_any_quarantined_plugins() {
+            let quarantined_plugins = self.watchdog_system.get_quarantined_plugins();
+            for (plugin_id, remaining_time) in quarantined_plugins {
+                if remaining_time.is_zero()
+                    && let Ok(()) = self.watchdog_system.release_plugin_quarantine(&plugin_id)
+                {
+                    result
+                        .recovery_actions
+                        .push(format!("Released plugin quarantine: {}", plugin_id));
+                }
             }
         }
     }

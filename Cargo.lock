@@ -912,6 +912,7 @@ name = "compat"
 version = "0.1.0"
 dependencies = [
  "insta",
+ "openracing-hid-common",
  "proptest",
  "racing-wheel-engine",
  "racing-wheel-schemas",
@@ -4528,7 +4529,6 @@ dependencies = [
  "insta",
  "proptest",
  "quickcheck",
- "racing-wheel-schemas",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
@@ -5713,6 +5713,7 @@ dependencies = [
  "openracing-filters",
  "openracing-fmea",
  "openracing-hardware-watchdog",
+ "openracing-hid-common",
  "openracing-test-helpers",
  "openracing-tracing",
  "openracing-watchdog",
@@ -5801,6 +5802,7 @@ name = "racing-wheel-hid-fanatec-protocol"
 version = "0.1.0"
 dependencies = [
  "insta",
+ "openracing-hid-common",
  "proptest",
  "tracing",
  "workspace-hack",
@@ -5831,6 +5833,7 @@ name = "racing-wheel-hid-logitech-protocol"
 version = "0.1.0"
 dependencies = [
  "insta",
+ "openracing-hid-common",
  "proptest",
  "tracing",
  "workspace-hack",
@@ -5841,6 +5844,7 @@ name = "racing-wheel-hid-moza-protocol"
 version = "0.1.0"
 dependencies = [
  "insta",
+ "openracing-hid-common",
  "proptest",
  "racing-wheel-hbp",
  "racing-wheel-ks",
@@ -5875,6 +5879,7 @@ name = "racing-wheel-hid-simagic-protocol"
 version = "0.1.0"
 dependencies = [
  "insta",
+ "openracing-hid-common",
  "proptest",
  "tracing",
  "workspace-hack",
@@ -5885,6 +5890,7 @@ name = "racing-wheel-hid-thrustmaster-protocol"
 version = "0.1.0"
 dependencies = [
  "insta",
+ "openracing-hid-common",
  "proptest",
  "tracing",
  "workspace-hack",
@@ -5895,6 +5901,7 @@ name = "racing-wheel-hid-vrs-protocol"
 version = "0.1.0"
 dependencies = [
  "insta",
+ "openracing-hid-common",
  "openracing-pidff-common",
  "proptest",
  "tracing",
@@ -6073,6 +6080,7 @@ dependencies = [
  "insta",
  "jsonschema",
  "openracing-errors",
+ "openracing-hid-common",
  "proptest",
  "prost",
  "prost-build",
@@ -6113,6 +6121,7 @@ dependencies = [
  "metrics",
  "num_cpus",
  "openracing-errors",
+ "openracing-hid-common",
  "openracing-ipc",
  "openracing-profile-repository",
  "os_info",

@@ -1,18 +1,18 @@
 //! ADR validation binary - Validates that ADR files follow the required format.
 //!
 //! Usage:
-//!     cargo run -p wheelctl --bin validate-adr -- [options]
+//!     cargo run -p wheelctl --bin validate-adr -- \[options\]
 //!
 //! Options:
-//!     --adr-dir <path>      Path to ADR directory (default: docs/adr)
-//!     --requirements <path> Path to requirements file
-//!     -v, --verbose         Verbose output
+//!     --adr-dir \<path\>      Path to ADR directory (default: docs/adr)
+//!     --requirements \<path\> Path to requirements file
+//!     -v, --verbose           Verbose output
 
 #![deny(static_mut_refs)]
 #![deny(unused_must_use)]
 #![deny(clippy::unwrap_used)]
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use clap::Parser;
 use regex::Regex;
 use std::collections::HashSet;
@@ -279,6 +279,7 @@ fn main() -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use anyhow::Context;
     use std::io::Write;
     use tempfile::NamedTempFile;
 

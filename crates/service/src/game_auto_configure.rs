@@ -120,7 +120,7 @@ impl GameAutoConfigurer {
     /// Find a usable install path for `game_id`.
     ///
     /// Resolution order:
-    /// 1. Explicit override (set via [`with_install_path_override`]).
+    /// 1. Explicit override (set via [`Self::with_install_path_override`]).
     /// 2. Windows registry keys listed in `auto_detect.install_registry_keys`.
     /// 3. `auto_detect.install_paths` checked against common filesystem roots.
     fn find_install_path(&self, game_id: &str) -> Option<PathBuf> {
@@ -197,8 +197,12 @@ fn install_path_roots() -> Vec<PathBuf> {
 
     #[cfg(target_os = "windows")]
     {
-        for drive in ["C:\\", "D:\\"] {
-            roots.push(PathBuf::from(drive));
+        for letter in b'C'..=b'Z' {
+            let drive = format!("{}:\\", letter as char);
+            let path = PathBuf::from(&drive);
+            if path.exists() {
+                roots.push(path);
+            }
         }
     }
 

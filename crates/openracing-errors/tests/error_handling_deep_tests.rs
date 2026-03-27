@@ -32,7 +32,7 @@ fn display_all_rt_error_variants() {
         RTError::BufferOverflow,
         RTError::DeadlineMissed,
         RTError::ResourceUnavailable,
-        RTError::AccessDenied,
+        RTError::AccessViolation,
     ];
     for variant in variants {
         let msg = variant.to_string();

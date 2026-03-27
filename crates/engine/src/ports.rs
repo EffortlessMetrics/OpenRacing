@@ -74,6 +74,7 @@ pub trait HidInputDevice: Send + Sync {
 }
 
 impl DeviceInputs {
+    #[allow(dead_code)]
     pub(crate) fn from_moza_input_state(state: &MozaInputState) -> Self {
         let mut inputs = DeviceInputs {
             tick: state.tick,
@@ -115,10 +116,15 @@ impl DeviceInputs {
 /// Device health status information
 #[derive(Debug, Clone)]
 pub struct DeviceHealthStatus {
+    /// Device temperature in degrees Celsius
     pub temperature_c: u8,
+    /// Bitmask of active fault flags
     pub fault_flags: u8,
+    /// Whether hands-on-wheel is currently detected
     pub hands_on: bool,
+    /// Timestamp of the last successful communication with the device
     pub last_communication: std::time::Instant,
+    /// Running count of communication errors since connection
     pub communication_errors: u32,
 }
 
@@ -190,13 +196,21 @@ pub struct NormalizedTelemetry {
 /// Racing flags and status information
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 pub struct TelemetryFlags {
+    /// Yellow caution flag is active
     pub yellow_flag: bool,
+    /// Red flag / session stopped
     pub red_flag: bool,
+    /// Blue flag — faster car approaching
     pub blue_flag: bool,
+    /// Checkered flag — session complete
     pub checkered_flag: bool,
+    /// Pit-lane speed limiter is engaged
     pub pit_limiter: bool,
+    /// Drag Reduction System is enabled
     pub drs_enabled: bool,
+    /// Energy Recovery System energy is available
     pub ers_available: bool,
+    /// Vehicle is currently in the pit lane
     pub in_pit: bool,
 }
 
@@ -245,30 +259,45 @@ pub trait TelemetryPort: Send + Sync {
 /// Telemetry statistics for monitoring health
 #[derive(Debug, Clone, Default)]
 pub struct TelemetryStatistics {
+    /// Total number of telemetry packets received
     pub packets_received: u64,
+    /// Number of packets dropped due to back-pressure or errors
     pub packets_dropped: u64,
+    /// Timestamp of the most recent packet, if any
     pub last_packet_time: Option<std::time::Instant>,
+    /// Smoothed average packet arrival rate in Hz
     pub average_rate_hz: f32,
+    /// Running count of connection-level errors
     pub connection_errors: u32,
 }
 
 /// Configuration validation status
 #[derive(Debug, Clone)]
 pub struct ConfigurationStatus {
+    /// Whether the current configuration is valid
     pub is_valid: bool,
+    /// Detected game version string, if available
     pub game_version: Option<String>,
+    /// Whether telemetry output is currently enabled in game config
     pub telemetry_enabled: bool,
+    /// List of config changes that would be applied to enable telemetry
     pub expected_config_changes: Vec<ConfigChange>,
+    /// Human-readable descriptions of any configuration issues found
     pub issues: Vec<String>,
 }
 
 /// Configuration change description
 #[derive(Debug, Clone)]
 pub struct ConfigChange {
+    /// Path to the configuration file that would be modified
     pub file_path: std::path::PathBuf,
+    /// Section within the file (e.g. INI section name)
     pub section: Option<String>,
+    /// Key name of the setting
     pub key: String,
+    /// Value required for telemetry to work correctly
     pub expected_value: String,
+    /// Current value in the file, if any
     pub current_value: Option<String>,
 }
 
@@ -353,22 +382,34 @@ pub enum ProfileRepoError {
 /// Repository health and status information
 #[derive(Debug, Clone)]
 pub struct RepositoryStatus {
+    /// Overall repository health flag
     pub is_healthy: bool,
+    /// Total number of profiles stored
     pub total_profiles: usize,
+    /// IDs of profiles whose data failed integrity checks
     pub corrupted_profiles: Vec<ProfileId>,
+    /// Expected profile files that could not be found on disk
     pub missing_files: Vec<std::path::PathBuf>,
+    /// Paths where the current user lacks required permissions
     pub permission_issues: Vec<std::path::PathBuf>,
+    /// Timestamp of the most recent backup, if any
     pub last_backup: Option<std::time::SystemTime>,
+    /// Total disk space consumed by the profile repository
     pub disk_usage_bytes: u64,
 }
 
 /// Context information for profile resolution
 #[derive(Debug, Clone)]
 pub struct ProfileContext {
+    /// Active game identifier (e.g. `"iracing"`)
     pub game: Option<String>,
+    /// Active car identifier
     pub car: Option<String>,
+    /// Active track identifier
     pub track: Option<String>,
+    /// Connected device ID
     pub device_id: DeviceId,
+    /// Session type (e.g. `"race"`, `"practice"`)
     pub session_type: Option<String>,
 }
 
@@ -413,28 +454,21 @@ impl ProfileContext {
 mod tests {
     use super::*;
 
-    #[track_caller]
-    fn must<T, E: std::fmt::Debug>(r: Result<T, E>) -> T {
-        match r {
-            Ok(v) => v,
-            Err(e) => panic!("unexpected Err: {e:?}"),
-        }
-    }
-
     #[test]
-    fn test_profile_context_creation() {
-        let device_id = must("test-device".parse::<DeviceId>());
+    fn test_profile_context_creation() -> Result<(), Box<dyn std::error::Error>> {
+        let device_id = "test-device".parse::<DeviceId>()?;
         let context = ProfileContext::new(device_id.clone());
 
         assert_eq!(context.device_id, device_id);
         assert!(context.game.is_none());
         assert!(context.car.is_none());
         assert!(context.track.is_none());
+        Ok(())
     }
 
     #[test]
-    fn test_profile_context_builder() {
-        let device_id = must("test-device".parse::<DeviceId>());
+    fn test_profile_context_builder() -> Result<(), Box<dyn std::error::Error>> {
+        let device_id = "test-device".parse::<DeviceId>()?;
         let context = ProfileContext::new(device_id.clone())
             .with_game("iracing".to_string())
             .with_car("gt3".to_string())
@@ -446,6 +480,7 @@ mod tests {
         assert_eq!(context.car, Some("gt3".to_string()));
         assert_eq!(context.track, Some("spa".to_string()));
         assert_eq!(context.session_type, Some("race".to_string()));
+        Ok(())
     }
 
     #[test]

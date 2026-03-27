@@ -61,12 +61,19 @@ pub fn create_hid_port() -> Result<Box<dyn HidPort>, Box<dyn std::error::Error>>
 /// Common HID device implementation details
 #[derive(Debug, Clone)]
 pub struct HidDeviceInfo {
+    /// Internal unique identifier for the device
     pub device_id: DeviceId,
+    /// USB/Bluetooth Vendor ID
     pub vendor_id: u16,
+    /// USB/Bluetooth Product ID
     pub product_id: u16,
+    /// Hardware serial number string, if available
     pub serial_number: Option<String>,
+    /// Manufacturer name string, if available
     pub manufacturer: Option<String>,
+    /// Product name string, if available
     pub product_name: Option<String>,
+    /// OS-specific device path/URI for opening the device
     pub path: String,
     /// HID interface number from the OS (used for multi-interface devices).
     pub interface_number: Option<i32>,
@@ -106,10 +113,14 @@ impl HidDeviceInfo {
 #[repr(C, packed)]
 #[derive(Debug, Clone, Copy)]
 pub struct TorqueCommand {
-    pub report_id: u8,       // 0x20
-    pub torque_nm_q8_8: i16, // Q8.8 fixed point, Newton-meters
-    pub flags: u8,           // bit0: hands_on_hint, bit1: sat_warn
-    pub seq: u16,            // sequence number, wraps
+    /// HID Report ID (0x20)
+    pub report_id: u8,
+    /// Torque command in Q8.8 fixed-point format (Newton-meters)
+    pub torque_nm_q8_8: i16,
+    /// Command flags (bit0: hands_on_hint, bit1: sat_warn)
+    pub flags: u8,
+    /// Sequence number, wrapping at 65535
+    pub seq: u16,
 }
 
 impl TorqueCommand {
@@ -182,13 +193,20 @@ pub fn encode_torque_report_for_device(
 #[repr(C, packed)]
 #[derive(Debug, Clone, Copy)]
 pub struct DeviceTelemetryReport {
-    pub report_id: u8,           // 0x21
-    pub wheel_angle_mdeg: i32,   // millidegrees
-    pub wheel_speed_mrad_s: i16, // milliradians per second
-    pub temp_c: u8,              // temperature in Celsius
-    pub faults: u8,              // fault bitfield
-    pub hands_on: u8,            // 0/1 if device can detect
-    pub reserved: [u8; 2],       // padding for alignment
+    /// HID Report ID (0x21)
+    pub report_id: u8,
+    /// Wheel angle in millidegrees
+    pub wheel_angle_mdeg: i32,
+    /// Wheel speed in milliradians per second
+    pub wheel_speed_mrad_s: i16,
+    /// Hardware temperature in degrees Celsius
+    pub temp_c: u8,
+    /// Active fault bitmask
+    pub faults: u8,
+    /// Hands-on detection status (0/1 if supported)
+    pub hands_on: u8,
+    /// Padding bytes for 32-bit alignment
+    pub reserved: [u8; 2],
 }
 
 impl DeviceTelemetryReport {
@@ -217,15 +235,24 @@ impl DeviceTelemetryReport {
 #[repr(C, packed)]
 #[derive(Debug, Clone, Copy)]
 pub struct DeviceCapabilitiesReport {
-    pub report_id: u8,                // 0x01
-    pub supports_pid: u8,             // bit0: PID support
-    pub supports_raw_torque_1khz: u8, // bit0: raw torque @ 1kHz
-    pub supports_health_stream: u8,   // bit0: health telemetry
-    pub supports_led_bus: u8,         // bit0: LED control
-    pub max_torque_cnm: u16,          // centinewton-meters
-    pub encoder_cpr: u16,             // counts per revolution
-    pub min_report_period_us: u8,     // minimum report period in microseconds
-    pub reserved: [u8; 6],            // padding
+    /// HID Report ID (0x01)
+    pub report_id: u8,
+    /// Returns 1 if native PID (Physical Interface Device) FFB is supported
+    pub supports_pid: u8,
+    /// Returns 1 if 1kHz raw torque streaming is supported
+    pub supports_raw_torque_1khz: u8,
+    /// Returns 1 if hardware health telemetry is available
+    pub supports_health_stream: u8,
+    /// Returns 1 if addressable device LEDs are present
+    pub supports_led_bus: u8,
+    /// Peak torque output in centiNewton-meters
+    pub max_torque_cnm: u16,
+    /// Hardware encoder counts per revolution (CPR)
+    pub encoder_cpr: u16,
+    /// Minimum allowed report period in microseconds
+    pub min_report_period_us: u8,
+    /// Padding bytes
+    pub reserved: [u8; 6],
 }
 
 impl DeviceCapabilitiesReport {

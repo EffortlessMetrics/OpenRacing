@@ -107,7 +107,8 @@ impl MozaDirectTorqueEncoder {
         if self.max_torque_nm <= f32::EPSILON {
             return 0;
         }
-        let normalized = (torque_nm / self.max_torque_nm).clamp(-1.0, 1.0);
+        let normalized =
+            openracing_hid_common::math::safe_clamp(torque_nm / self.max_torque_nm, -1.0, 1.0);
         if normalized >= 0.0 {
             (normalized * i16::MAX as f32).round() as i16
         } else {
@@ -116,8 +117,7 @@ impl MozaDirectTorqueEncoder {
     }
 
     fn max_torque_q8(&self) -> TorqueQ8_8 {
-        (self.max_torque_nm * 256.0)
-            .clamp(0.0, i16::MAX as f32)
+        openracing_hid_common::math::safe_clamp(self.max_torque_nm * 256.0, 0.0, i16::MAX as f32)
             .round() as TorqueQ8_8
     }
 }
