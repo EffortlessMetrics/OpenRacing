@@ -5,9 +5,9 @@
 
 use proptest::prelude::*;
 use racing_wheel_hid_ffbeast_protocol::{
+    build_enable_ffb, build_set_gain, is_ffbeast_product, FFBeastTorqueEncoder,
     CONSTANT_FORCE_REPORT_ID, CONSTANT_FORCE_REPORT_LEN, FFBEAST_PRODUCT_ID_JOYSTICK,
-    FFBEAST_PRODUCT_ID_RUDDER, FFBEAST_PRODUCT_ID_WHEEL, FFBeastTorqueEncoder, GAIN_REPORT_ID,
-    build_enable_ffb, build_set_gain, is_ffbeast_product,
+    FFBEAST_PRODUCT_ID_RUDDER, FFBEAST_PRODUCT_ID_WHEEL, GAIN_REPORT_ID,
 };
 
 proptest! {

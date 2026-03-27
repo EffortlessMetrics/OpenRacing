@@ -18,8 +18,8 @@
 //! which limits periodic effects to sine waveform only.
 
 use racing_wheel_hid_pxn_protocol::{
-    PRODUCT_GT987, PRODUCT_V10, PRODUCT_V12, PRODUCT_V12_LITE, PRODUCT_V12_LITE_2, VENDOR_ID,
-    is_pxn, product_name,
+    is_pxn, product_name, PRODUCT_GT987, PRODUCT_V10, PRODUCT_V12, PRODUCT_V12_LITE,
+    PRODUCT_V12_LITE_2, VENDOR_ID,
 };
 
 // ─── VID cross-verification against Linux kernel ────────────────────────────

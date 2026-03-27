@@ -5,8 +5,8 @@
 
 use insta::assert_snapshot;
 use racing_wheel_hid_ffbeast_protocol::{
-    FFBEAST_PRODUCT_ID_JOYSTICK, FFBEAST_PRODUCT_ID_RUDDER, FFBEAST_PRODUCT_ID_WHEEL,
-    FFBEAST_VENDOR_ID, FFBeastTorqueEncoder, build_set_gain,
+    build_set_gain, FFBeastTorqueEncoder, FFBEAST_PRODUCT_ID_JOYSTICK, FFBEAST_PRODUCT_ID_RUDDER,
+    FFBEAST_PRODUCT_ID_WHEEL, FFBEAST_VENDOR_ID,
 };
 
 // -- Individual ID constants --------------------------------------------------

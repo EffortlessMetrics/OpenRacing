@@ -37,23 +37,23 @@ pub mod output;
 pub mod settings;
 
 pub use effects::{
-    EffectOp as PidEffectOp, EffectType as PidEffectType, encode_block_free,
-    encode_device_control as encode_pid_device_control,
+    encode_block_free, encode_device_control as encode_pid_device_control,
     encode_device_gain as encode_pid_device_gain, encode_effect_operation, encode_set_condition,
-    encode_set_envelope, encode_set_periodic, encode_set_ramp_force,
+    encode_set_envelope, encode_set_periodic, encode_set_ramp_force, EffectOp as PidEffectOp,
+    EffectType as PidEffectType,
 };
 pub use ids::{
-    FFBEAST_PRODUCT_ID_JOYSTICK, FFBEAST_PRODUCT_ID_RUDDER, FFBEAST_PRODUCT_ID_WHEEL,
-    FFBEAST_VENDOR_ID, is_ffbeast_product,
+    is_ffbeast_product, FFBEAST_PRODUCT_ID_JOYSTICK, FFBEAST_PRODUCT_ID_RUDDER,
+    FFBEAST_PRODUCT_ID_WHEEL, FFBEAST_VENDOR_ID,
 };
 pub use input::{FFBeastStateReport, FirmwareVersion, STATE_REPORT_ID};
 pub use output::{
-    CONSTANT_FORCE_REPORT_ID, CONSTANT_FORCE_REPORT_LEN, FFBeastTorqueEncoder, GAIN_REPORT_ID,
-    build_enable_ffb, build_set_gain,
+    build_enable_ffb, build_set_gain, FFBeastTorqueEncoder, CONSTANT_FORCE_REPORT_ID,
+    CONSTANT_FORCE_REPORT_LEN, GAIN_REPORT_ID,
 };
 pub use settings::{
-    DirectControl, EffectSettings, FirmwareLicense, GENERIC_IO_REPORT_ID, HardwareSettings,
-    REPORT_SIZE, ReportCmd, SettingField, build_dfu_mode, build_direct_control,
-    build_reboot_command, build_reset_center, build_save_and_reboot, build_settings_write,
-    parse_effect_settings, parse_firmware_license, parse_hardware_settings,
+    build_dfu_mode, build_direct_control, build_reboot_command, build_reset_center,
+    build_save_and_reboot, build_settings_write, parse_effect_settings, parse_firmware_license,
+    parse_hardware_settings, DirectControl, EffectSettings, FirmwareLicense, HardwareSettings,
+    ReportCmd, SettingField, GENERIC_IO_REPORT_ID, REPORT_SIZE,
 };

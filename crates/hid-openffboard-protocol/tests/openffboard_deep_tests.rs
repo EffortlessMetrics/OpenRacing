@@ -4,9 +4,9 @@
 
 use racing_wheel_hid_openffboard_protocol::output::{ENABLE_FFB_REPORT_ID, MAX_TORQUE_SCALE};
 use racing_wheel_hid_openffboard_protocol::{
-    CONSTANT_FORCE_REPORT_ID, CONSTANT_FORCE_REPORT_LEN, GAIN_REPORT_ID, OPENFFBOARD_PRODUCT_ID,
-    OPENFFBOARD_PRODUCT_ID_ALT, OPENFFBOARD_VENDOR_ID, OpenFFBoardTorqueEncoder,
-    OpenFFBoardVariant, build_enable_ffb, build_set_gain, is_openffboard_product,
+    build_enable_ffb, build_set_gain, is_openffboard_product, OpenFFBoardTorqueEncoder,
+    OpenFFBoardVariant, CONSTANT_FORCE_REPORT_ID, CONSTANT_FORCE_REPORT_LEN, GAIN_REPORT_ID,
+    OPENFFBOARD_PRODUCT_ID, OPENFFBOARD_PRODUCT_ID_ALT, OPENFFBOARD_VENDOR_ID,
 };
 
 // ── Command encoding/decoding ────────────────────────────────────────────────
@@ -334,11 +334,11 @@ mod proptests {
 
 // ── Vendor command device identification ─────────────────────────────────────
 
-use racing_wheel_hid_openffboard_protocol::commands::{INSTANCE_BROADCAST, class_ids, system_cmds};
+use racing_wheel_hid_openffboard_protocol::commands::{class_ids, system_cmds, INSTANCE_BROADCAST};
 use racing_wheel_hid_openffboard_protocol::{
-    CmdType, VENDOR_CMD_REPORT_ID, VENDOR_CMD_REPORT_LEN, VendorCommand, build_request,
-    build_request_device_id, build_request_fw_version, build_request_hw_type, build_reset_device,
-    build_save_config, build_write,
+    build_request, build_request_device_id, build_request_fw_version, build_request_hw_type,
+    build_reset_device, build_save_config, build_write, CmdType, VendorCommand,
+    VENDOR_CMD_REPORT_ID, VENDOR_CMD_REPORT_LEN,
 };
 
 #[test]
@@ -533,8 +533,8 @@ fn vendor_cmd_full_payload_roundtrip() -> Result<(), String> {
 // ── Input report: axis reports ───────────────────────────────────────────────
 
 use racing_wheel_hid_openffboard_protocol::input::{
-    AXIS_MAX, BUTTON_BYTES, INPUT_REPORT_ID, INPUT_REPORT_LEN, MAX_BUTTONS, NUM_AXES,
-    OpenFFBoardInputReport,
+    OpenFFBoardInputReport, AXIS_MAX, BUTTON_BYTES, INPUT_REPORT_ID, INPUT_REPORT_LEN, MAX_BUTTONS,
+    NUM_AXES,
 };
 
 fn make_input_report() -> [u8; INPUT_REPORT_LEN] {
@@ -787,10 +787,10 @@ fn button_matrix_alternating_pattern() -> Result<(), String> {
 
 use racing_wheel_hid_openffboard_protocol::effects::report_ids;
 use racing_wheel_hid_openffboard_protocol::effects::{
-    BlockLoadStatus, DURATION_INFINITE, EffectOp, EffectType, MAX_EFFECTS, encode_block_free,
-    encode_device_control, encode_device_gain, encode_effect_operation, encode_set_condition,
-    encode_set_constant_force, encode_set_effect, encode_set_envelope, encode_set_periodic,
-    encode_set_ramp_force, parse_block_load,
+    encode_block_free, encode_device_control, encode_device_gain, encode_effect_operation,
+    encode_set_condition, encode_set_constant_force, encode_set_effect, encode_set_envelope,
+    encode_set_periodic, encode_set_ramp_force, parse_block_load, BlockLoadStatus, EffectOp,
+    EffectType, DURATION_INFINITE, MAX_EFFECTS,
 };
 
 #[test]
