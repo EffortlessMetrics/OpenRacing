@@ -7,6 +7,29 @@
 //! - Process power throttling disabled
 //! - Guidance for USB selective suspend
 //! - Overlapped I/O for non-blocking HID writes in RT path
+//!
+//! # SAFETY
+//!
+//! This module uses Windows overlapped I/O for non-blocking HID communication in the
+//! real-time (RT) path. Overlapped I/O involves passing raw pointers to buffers and
+//! `OVERLAPPED` structures into Windows kernel APIs (`WriteFile`, `GetOverlappedResult`),
+//! which imposes the following safety requirements:
+//!
+//! - **Buffer and OVERLAPPED validity**: All I/O buffers and `OVERLAPPED` structures are
+//!   pre-allocated at device open time and owned by [`OverlappedWriteState`]. They are
+//!   heap-allocated via `Box` once during initialization and never moved afterward,
+//!   guaranteeing stable addresses for the duration of any in-flight I/O operation.
+//!
+//! - **Lifetime management**: The [`OverlappedWriteState`] struct is stored inside
+//!   `WindowsHidDevice` behind an `Arc<Mutex<_>>`, ensuring that the backing storage
+//!   outlives all overlapped operations. The `write_pending` `AtomicBool` tracks whether
+//!   an I/O request is in flight, preventing reuse of the `OVERLAPPED` structure before
+//!   the kernel signals completion.
+//!
+//! - **Thread safety**: Raw Windows types (`OVERLAPPED`, `HANDLE`) are not `Send`/`Sync`
+//!   by default. We provide manual implementations with the invariant that all accesses
+//!   are synchronized through `parking_lot::Mutex` locks, and atomic flags provide
+//!   acquire/release ordering for the pending state.
 
 use super::{
     DeviceTelemetryReport, HidDeviceInfo, MAX_TORQUE_REPORT_SIZE, MozaInputState, Seqlock,
@@ -99,19 +122,55 @@ impl SendableHandle {
 /// The OVERLAPPED structure must remain at a stable memory address
 /// for the duration of the I/O operation. We use Box to heap-allocate
 /// once at initialization, then never move the structure.
+///
+/// ## Invariants
+///
+/// 1. **Buffer validity**: `write_buffer` and `overlapped` must remain valid and at
+///    stable addresses until any in-flight overlapped I/O operation completes. Because
+///    this struct is heap-allocated (via `Arc<Mutex<OverlappedWriteState>>` in
+///    `WindowsHidDevice`) and never moved after construction, pointer stability is
+///    guaranteed for the lifetime of the owning device.
+///
+/// 2. **OVERLAPPED reuse prevention**: The `overlapped` field must not be passed to a
+///    new `WriteFile` call while a previous operation using it is still pending. The
+///    `write_pending` `AtomicBool` enforces this: it is set to `true` (Release) when
+///    `WriteFile` returns `ERROR_IO_PENDING`, and cleared to `false` (Release) only
+///    after `GetOverlappedResult` confirms completion or failure. Callers check this
+///    flag (Acquire) before initiating a new write.
+///
+/// 3. **Pending I/O tracking**: The `pending` state is tracked via `write_pending`
+///    (`AtomicBool`) with Acquire/Release ordering. `pending_retries` (`AtomicU32`)
+///    counts consecutive polling attempts so that a stuck operation is escalated to
+///    `RTError::TimingViolation` after `MAX_PENDING_RETRIES` checks.
+///
+/// 4. **Shutdown/drop**: On drop, any pending I/O must be cancelled and drained before
+///    the buffer and OVERLAPPED memory is freed. See the `Drop` impl for details.
 #[repr(C)]
 struct OverlappedWriteState {
-    /// Pre-allocated OVERLAPPED structure for async writes
-    /// Must be zeroed before each new operation
+    /// Pre-allocated OVERLAPPED structure for async writes.
+    /// Must be zeroed (via `reset_overlapped`) before each new operation.
+    ///
+    // SAFETY: This field is passed by raw pointer to `WriteFile` and
+    // `GetOverlappedResult`. It must not be moved or deallocated while an
+    // I/O operation referencing it is in flight.
     overlapped: OVERLAPPED,
-    /// Pre-allocated write buffer (pinned, no RT allocation)
+    /// Pre-allocated write buffer (pinned, no RT allocation).
+    ///
+    // SAFETY: A raw pointer to this buffer is passed to `WriteFile`. The buffer
+    // must remain valid and unmodified at this address until the overlapped
+    // operation completes (signaled via the event or `GetOverlappedResult`).
     write_buffer: [u8; MAX_HID_REPORT_SIZE],
-    /// Event handle for overlapped completion signaling
-    /// Wrapped in SendableHandle for thread-safety
+    /// Event handle for overlapped completion signaling.
+    /// Wrapped in SendableHandle for thread-safety.
     event_handle: SendableHandle,
-    /// Flag indicating if a write operation is currently pending
+    /// Flag indicating if a write operation is currently pending.
+    ///
+    // SAFETY: This flag is the single source of truth for whether the kernel
+    // still holds references to `overlapped` and `write_buffer`. It must be
+    // checked (Acquire) before reusing either field, and set (Release) only
+    // after `WriteFile` returns `ERROR_IO_PENDING`.
     write_pending: AtomicBool,
-    /// Counter for consecutive pending write retries
+    /// Counter for consecutive pending write retries.
     pending_retries: AtomicU32,
 }
 
@@ -130,8 +189,10 @@ impl OverlappedWriteState {
     ///
     /// Returns `Ok(Self)` on success, or an error if event creation fails.
     fn new() -> std::result::Result<Self, Box<dyn std::error::Error>> {
-        // Create a manual-reset event for overlapped I/O signaling
-        // Manual reset ensures we control when the event is cleared
+        // SAFETY: `CreateEventW` with default (None) security attributes and no
+        // name creates a new anonymous manual-reset event. No preconditions beyond
+        // valid parameter types. The returned handle is checked for validity below
+        // and stored in `event_handle` for the lifetime of this struct.
         let raw_event_handle = unsafe {
             CreateEventW(
                 None,  // Default security attributes
@@ -172,7 +233,10 @@ impl OverlappedWriteState {
     ///
     /// Must only be called when no I/O operation is pending.
     fn reset_overlapped(&mut self) {
-        // Reset the event to non-signaled state
+        // SAFETY: `ResetEvent` requires a valid event handle. `self.event_handle`
+        // was created in `new()` and is only closed in `Drop`. The caller must
+        // ensure no I/O operation is pending (i.e., `write_pending` is false),
+        // which is a precondition of this method.
         unsafe {
             let _ = ResetEvent(self.event_handle.get());
         }
@@ -205,7 +269,14 @@ impl OverlappedWriteState {
 
         let mut bytes_transferred: u32 = 0;
 
-        // Non-blocking check with bWait = FALSE
+        // SAFETY: `GetOverlappedResult` is called with:
+        // - `handle`: the device HANDLE that was used for the original `WriteFile`.
+        //   The caller is responsible for ensuring it is still valid.
+        // - `&self.overlapped`: the same OVERLAPPED structure passed to `WriteFile`.
+        //   It has not been moved or reused since the pending operation began
+        //   (guaranteed by the `write_pending` flag checked above).
+        // - `bWait = FALSE`: non-blocking poll, so this will not block the RT path.
+        //   Returns `ERROR_IO_INCOMPLETE` if the operation is still pending.
         let result = unsafe {
             GetOverlappedResult(
                 handle,
@@ -258,7 +329,28 @@ impl OverlappedWriteState {
 
 impl Drop for OverlappedWriteState {
     fn drop(&mut self) {
+        // SAFETY: If an overlapped I/O operation is still in flight when this
+        // struct is dropped, the kernel still holds pointers to `self.overlapped`
+        // and `self.write_buffer`. Freeing them without cancelling the pending
+        // request would cause a use-after-free in kernel space.
+        //
+        // TODO: cancel pending I/O before dropping -- the correct sequence is:
+        //   1. Call `CancelIoEx(device_handle, &self.overlapped)` to request
+        //      cancellation of the specific pending operation.
+        //   2. Call `GetOverlappedResult(device_handle, &self.overlapped, ..., TRUE)`
+        //      (blocking) to drain the completion and ensure the kernel no longer
+        //      references this memory.
+        //   3. Only then close the event handle and allow deallocation.
+        //
+        // Currently, pending I/O is drained at a higher level (the device handle
+        // is closed first in `WindowsHidDevice::drop`, which implicitly cancels
+        // all outstanding I/O on that handle), but an explicit cancel-and-drain
+        // here would be more robust against drop-ordering changes.
+
         // Close the event handle
+        // SAFETY: `CloseHandle` is safe to call on a valid, non-null handle that
+        // has not already been closed. We check `is_invalid()` first, and this
+        // is the only place the event handle is closed.
         if !self.event_handle.is_invalid() {
             unsafe {
                 let _ = CloseHandle(self.event_handle.get());
@@ -2683,8 +2775,33 @@ impl WindowsHidDevice {
         let overlapped_ptr = &mut overlapped_state.overlapped as *mut OVERLAPPED;
 
         // Perform overlapped write
-        // Safety: We're using raw pointers to avoid borrow checker issues,
-        // but the data is valid for the duration of the call
+        //
+        // SAFETY: The following invariants are upheld for this `WriteFile` call:
+        //
+        // 1. **Buffer lifetime**: `buffer_ptr` points into
+        //    `overlapped_state.write_buffer`, which is owned by the
+        //    `OverlappedWriteState` behind an `Arc<Mutex<_>>`. The mutex is held
+        //    for the duration of this function, and the `Arc` ensures the backing
+        //    allocation outlives any in-flight I/O. If `WriteFile` returns
+        //    `ERROR_IO_PENDING`, the buffer remains valid because the owning
+        //    `OverlappedWriteState` is not dropped or moved until the pending flag
+        //    is cleared.
+        //
+        // 2. **OVERLAPPED management**: `overlapped_ptr` points to
+        //    `overlapped_state.overlapped`, which was reset via
+        //    `reset_overlapped()` above. The caller verified that no previous
+        //    operation is pending (via `check_completion`), so reuse is safe.
+        //    The embedded `hEvent` is a valid manual-reset event created in
+        //    `OverlappedWriteState::new()`.
+        //
+        // 3. **Handle validity**: `device_handle` was obtained from
+        //    `self.device_handle` and checked for `is_invalid()` at the top of
+        //    this function. The handle was opened with `FILE_FLAG_OVERLAPPED`.
+        //
+        // 4. **Error / cancellation**: On error, `write_pending` remains `false`
+        //    (it is only set on `ERROR_IO_PENDING`). If the operation pends, the
+        //    next call to `write_overlapped` or `write_overlapped_raw` will poll
+        //    `check_completion` before reusing the OVERLAPPED structure.
         let result = unsafe {
             WriteFile(
                 device_handle,
@@ -2794,6 +2911,28 @@ impl WindowsHidDevice {
 
 impl Drop for WindowsHidDevice {
     fn drop(&mut self) {
+        // SAFETY: Dropping a `WindowsHidDevice` must ensure that no overlapped I/O
+        // operation is still referencing memory owned by `self.overlapped_state`.
+        //
+        // The current shutdown sequence is:
+        //   1. `shutdown_vendor_protocol` sends a vendor-specific "stop" command
+        //      via hidapi (blocking, safe).
+        //   2. `self.hidapi_device` is dropped, which closes the hidapi handle.
+        //   3. `self.device_handle` is dropped, which closes the raw Windows
+        //      HANDLE. Closing the handle implicitly cancels all pending
+        //      overlapped I/O on that handle and the kernel will no longer
+        //      access the OVERLAPPED or buffer memory after the handle is closed.
+        //   4. `self.overlapped_state` is dropped, freeing the OVERLAPPED struct,
+        //      write buffer, and event handle.
+        //
+        // This ordering is safe because step 3 (handle close) happens before
+        // step 4 (state deallocation) due to Rust's field drop order (fields are
+        // dropped in declaration order). The device handle is declared before
+        // `overlapped_state` in the struct, so it is dropped first.
+        //
+        // TODO: For defense-in-depth, consider adding an explicit
+        // `CancelIoEx` + `GetOverlappedResult` drain in the `OverlappedWriteState`
+        // drop impl so safety does not depend on struct field declaration order.
         Self::shutdown_vendor_protocol(&self.device_info, &self.hidapi_device);
     }
 }
