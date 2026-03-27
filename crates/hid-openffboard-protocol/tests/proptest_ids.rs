@@ -7,7 +7,7 @@
 
 use proptest::prelude::*;
 use racing_wheel_hid_openffboard_protocol::{
-    OPENFFBOARD_PRODUCT_ID, OPENFFBOARD_VENDOR_ID, is_openffboard_product,
+    is_openffboard_product, OPENFFBOARD_PRODUCT_ID, OPENFFBOARD_VENDOR_ID,
 };
 
 /// All known OpenFFBoard product IDs that are recognised by `is_openffboard_product`.
