@@ -60,7 +60,7 @@ R12 V1=0x0006 → V2=0x0016
 
 ## 3. Device Quirks
 
-Code reference: [quirks.rs](../crates/engine/src/hid/quirks.rs)
+Code reference: [quirks.rs](file:///h:/Code/Rust/OpenRacing/crates/engine/src/hid/quirks.rs)
 
 | Quirk | R5 (wheelbase) | SR-P (pedals) | HBP (handbrake) |
 |-------|---------------|---------------|-----------------|
@@ -117,7 +117,7 @@ Total: 5 bytes minimum
 
 ## 5. Direct Torque Encoder — Safety Review
 
-Code reference: [direct.rs](../crates/hid-moza-protocol/src/direct.rs)
+Code reference: [direct.rs](file:///h:/Code/Rust/OpenRacing/crates/hid-moza-protocol/src/direct.rs)
 
 ### Wire Format (report `0x20`, 8 bytes)
 
@@ -224,13 +224,13 @@ Some Moza devices support firmware update via Moza Pit House. During testing:
 ---
 
 *Source files reviewed:*
-- [ids.rs](../crates/hid-moza-protocol/src/ids.rs) — VID/PID constants
-- [types.rs](../crates/hid-moza-protocol/src/types.rs) — device identity, models, ES compatibility
-- [direct.rs](../crates/hid-moza-protocol/src/direct.rs) — torque encoder
-- [quirks.rs](../crates/engine/src/hid/quirks.rs) — device quirks
-- [moza.rs](../crates/engine/src/hid/vendor/moza.rs) — vendor dispatch
-- [hardware_watchdog.rs](../crates/engine/src/safety/hardware_watchdog.rs) — watchdog + interlock
-- [lib.rs (moza-wheelbase-report)](../crates/moza-wheelbase-report/src/lib.rs) — report layout
-- [lib.rs (srp)](../crates/srp/src/lib.rs) — SR-P standalone report
-- [lib.rs (hbp)](../crates/hbp/src/lib.rs) — HBP standalone report
+- [ids.rs](file:///h:/Code/Rust/OpenRacing/crates/hid-moza-protocol/src/ids.rs) — VID/PID constants
+- [types.rs](file:///h:/Code/Rust/OpenRacing/crates/hid-moza-protocol/src/types.rs) — device identity, models, ES compatibility
+- [direct.rs](file:///h:/Code/Rust/OpenRacing/crates/hid-moza-protocol/src/direct.rs) — torque encoder
+- [quirks.rs](file:///h:/Code/Rust/OpenRacing/crates/engine/src/hid/quirks.rs) — device quirks
+- [moza.rs](file:///h:/Code/Rust/OpenRacing/crates/engine/src/hid/vendor/moza.rs) — vendor dispatch
+- [hardware_watchdog.rs](file:///h:/Code/Rust/OpenRacing/crates/engine/src/safety/hardware_watchdog.rs) — watchdog + interlock
+- [lib.rs (moza-wheelbase-report)](file:///h:/Code/Rust/OpenRacing/crates/moza-wheelbase-report/src/lib.rs) — report layout
+- [lib.rs (srp)](file:///h:/Code/Rust/OpenRacing/crates/srp/src/lib.rs) — SR-P standalone report
+- [lib.rs (hbp)](file:///h:/Code/Rust/OpenRacing/crates/hbp/src/lib.rs) — HBP standalone report
 - Linux kernel [hid-universal-pidff.c](https://github.com/torvalds/linux/blob/master/drivers/hid/hid-universal-pidff.c)

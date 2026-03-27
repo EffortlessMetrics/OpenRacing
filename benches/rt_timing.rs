@@ -92,11 +92,18 @@ fn benchmark_rt_timing(c: &mut Criterion) {
     let mut jitter_collector = TimingCollector::new(1000);
     let mut processing_collector = TimingCollector::new(1000);
 
+    // Track total tick attempts separately from the scheduler's tick_count.
+    // The scheduler's tick_count is a running counter that does not account for
+    // failed ticks, so using it as the denominator for missed_tick_rate would
+    // produce an incorrect (and potentially >1.0) ratio.
+    let mut total_tick_attempts: u64 = 0;
+
     group.bench_function("1khz_tick_precision", |b| {
         b.iter(|| {
             // Simulate 10ms of 1kHz operation (10 ticks)
             for _ in 0..10 {
                 let tick_start = Instant::now();
+                total_tick_attempts += 1;
 
                 // Wait for next tick
                 if let Ok(tick) = scheduler.wait_for_tick() {
@@ -146,12 +153,18 @@ fn benchmark_rt_timing(c: &mut Criterion) {
 
     // Generate JSON output if requested via environment variable
     if env::var("BENCHMARK_JSON_OUTPUT").is_ok() {
-        generate_json_output(&metrics, &mut jitter_collector, &mut processing_collector);
+        generate_json_output(
+            &metrics,
+            total_tick_attempts,
+            &mut jitter_collector,
+            &mut processing_collector,
+        );
     }
 }
 
 fn generate_json_output(
     metrics: &PerformanceMetrics,
+    total_tick_attempts: u64,
     jitter_collector: &mut TimingCollector,
     processing_collector: &mut TimingCollector,
 ) {
@@ -159,8 +172,13 @@ fn generate_json_output(
     jitter_collector.finalize();
     processing_collector.finalize();
 
-    let missed_tick_rate = if metrics.total_ticks > 0 {
-        metrics.missed_ticks as f64 / metrics.total_ticks as f64
+    // Compute missed tick rate as a ratio of missed ticks to total attempts.
+    // Previously this used metrics.total_ticks (the scheduler's running counter)
+    // as the denominator, which only counted successful ticks and could produce
+    // rates exceeding 1.0. Using total_tick_attempts (successful + missed) gives
+    // the correct ratio in the range [0.0, 1.0].
+    let missed_tick_rate = if total_tick_attempts > 0 {
+        metrics.missed_ticks as f64 / total_tick_attempts as f64
     } else {
         0.0
     };
