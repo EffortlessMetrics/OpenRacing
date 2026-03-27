@@ -2,7 +2,7 @@
 
 One-screen execution plan for OpenRacing. Updated each sprint.
 
-**Project snapshot:** 86 crates · 29,900+ tests · 509 proptests · 117 fuzz targets · 28 vendors · 61 games
+**Project snapshot:** 85 crates · 30,461+ tests · 509 proptests · 117 fuzz targets · 28 vendors · 61 games
 
 **First hardware target:** Moza R5 + KS + ES + SR-P + HBP (Phases 6–11)
 
