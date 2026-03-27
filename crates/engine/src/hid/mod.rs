@@ -15,7 +15,7 @@ use racing_wheel_schemas::prelude::*;
 
 pub use racing_wheel_hid_moza_protocol::MozaInputState;
 
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", windows))]
 use crate::input::SnapshotMailbox as Seqlock;
 
 pub mod quirks;
