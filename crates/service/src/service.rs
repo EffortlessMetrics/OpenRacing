@@ -70,8 +70,7 @@ impl WheelService {
             let device_id: DeviceId = "virtual-wheel-0"
                 .parse()
                 .map_err(|e| anyhow::anyhow!("Failed to parse device ID: {}", e))?;
-            let virtual_device =
-                VirtualDevice::new(device_id, "Virtual Racing Wheel".to_string());
+            let virtual_device = VirtualDevice::new(device_id, "Virtual Racing Wheel".to_string());
             virtual_port
                 .add_device(virtual_device)
                 .map_err(|e| anyhow::anyhow!("Failed to add virtual device: {}", e))?;
