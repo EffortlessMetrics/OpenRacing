@@ -13,18 +13,14 @@ use serde::{Deserialize, Serialize};
 
 /// Resolves a game-relative path, specially handling the "Documents/" prefix for Windows.
 fn resolve_game_path(game_path: &Path, relative_path: &str) -> PathBuf {
+    #[cfg(windows)]
     if let Some(stripped) = relative_path.strip_prefix("Documents/") {
-        #[cfg(windows)]
-        {
-            // Try to use USERPROFILE/Documents as the base
-            if let Some(user_profile) = std::env::var_os("USERPROFILE") {
-                let mut path = PathBuf::from(user_profile);
-                path.push("Documents");
-                return path.join(stripped.replace('/', "\\"));
-            }
+        // Try to use USERPROFILE/Documents as the base on Windows
+        if let Some(user_profile) = std::env::var_os("USERPROFILE") {
+            let mut path = PathBuf::from(user_profile);
+            path.push("Documents");
+            return path.join(stripped.replace('/', "\\"));
         }
-        // Fallback for non-Windows or if USERPROFILE is missing:
-        // Assume it might be relative to the game path or current dir
     }
     game_path.join(relative_path)
 }
