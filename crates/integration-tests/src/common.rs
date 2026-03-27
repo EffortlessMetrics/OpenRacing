@@ -256,13 +256,17 @@ impl MetricsCollector {
             metrics.hid_latency_p99_us = percentile(&sorted_latency, 0.99);
         }
 
-        // Collect system metrics
-        let system = sysinfo::System::new_all();
-        if let Ok(pid) = sysinfo::get_current_pid()
-            && let Some(process) = system.process(pid)
-        {
-            metrics.cpu_usage_percent = process.cpu_usage() as f64;
-            metrics.memory_usage_mb = process.memory() as f64 / 1024.0 / 1024.0;
+        // Collect system metrics for the current process only.
+        // Using refresh_processes(Some(&[pid])) instead of System::new_all()
+        // avoids scanning every process on the host, which is very slow on CI
+        // runners and was the primary cause of acceptance-test timeouts.
+        let mut system = sysinfo::System::new();
+        if let Ok(pid) = sysinfo::get_current_pid() {
+            system.refresh_processes(sysinfo::ProcessesToUpdate::Some(&[pid]), true);
+            if let Some(process) = system.process(pid) {
+                metrics.cpu_usage_percent = process.cpu_usage() as f64;
+                metrics.memory_usage_mb = process.memory() as f64 / 1024.0 / 1024.0;
+            }
         }
 
         metrics

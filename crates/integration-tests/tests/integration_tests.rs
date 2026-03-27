@@ -34,7 +34,10 @@ fn zero_missed_ticks_test_timeout() -> Duration {
 
 fn acceptance_subset_timeout() -> Duration {
     if gates::ci_gates_enabled() {
-        Duration::from_secs(60)
+        // 90s gives headroom for slow CI runners while still detecting
+        // genuine hangs. The previous 60s limit caused spurious timeouts
+        // when sysinfo::System::new_all() scanned every host process.
+        Duration::from_secs(90)
     } else {
         Duration::from_secs(180)
     }
