@@ -375,10 +375,7 @@ fn rt_error_severity_mapping() {
         RTError::ResourceUnavailable.severity(),
         ErrorSeverity::Error
     );
-    assert_eq!(
-        RTError::AccessViolation.severity(),
-        ErrorSeverity::Critical
-    );
+    assert_eq!(RTError::AccessViolation.severity(), ErrorSeverity::Critical);
 }
 
 /// FaultType::is_recoverable must return the correct value for every variant.

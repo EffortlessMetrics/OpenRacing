@@ -228,9 +228,9 @@ fn parse_version_header(header: &str) -> Result<(Version, NaiveDate), ChangelogE
         ));
     }
 
-    let version_str = header
-        .get(start + 1..end)
-        .ok_or_else(|| ChangelogError::InvalidFormat("Invalid version string bounds".to_string()))?;
+    let version_str = header.get(start + 1..end).ok_or_else(|| {
+        ChangelogError::InvalidFormat("Invalid version string bounds".to_string())
+    })?;
     let version = Version::parse(version_str)
         .map_err(|e| ChangelogError::VersionParse(format!("{}: {}", version_str, e)))?;
 
