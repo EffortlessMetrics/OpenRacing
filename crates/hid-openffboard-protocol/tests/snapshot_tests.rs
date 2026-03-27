@@ -103,7 +103,7 @@ fn test_snapshot_protocol_constants() {
 #[test]
 fn test_snapshot_is_openffboard_product() {
     use racing_wheel_hid_openffboard_protocol::{
-        is_openffboard_product, OPENFFBOARD_PRODUCT_ID, OPENFFBOARD_PRODUCT_ID_ALT,
+        OPENFFBOARD_PRODUCT_ID, OPENFFBOARD_PRODUCT_ID_ALT, is_openffboard_product,
     };
     let results = [
         ("main", is_openffboard_product(OPENFFBOARD_PRODUCT_ID)),

@@ -5,8 +5,8 @@
 
 use insta::assert_snapshot;
 use racing_wheel_hid_openffboard_protocol::{
-    OpenFFBoardVariant, CONSTANT_FORCE_REPORT_ID, CONSTANT_FORCE_REPORT_LEN, GAIN_REPORT_ID,
-    OPENFFBOARD_PRODUCT_ID, OPENFFBOARD_PRODUCT_ID_ALT, OPENFFBOARD_VENDOR_ID,
+    CONSTANT_FORCE_REPORT_ID, CONSTANT_FORCE_REPORT_LEN, GAIN_REPORT_ID, OPENFFBOARD_PRODUCT_ID,
+    OPENFFBOARD_PRODUCT_ID_ALT, OPENFFBOARD_VENDOR_ID, OpenFFBoardVariant,
 };
 
 // -- Individual variant snapshots ---------------------------------------------
