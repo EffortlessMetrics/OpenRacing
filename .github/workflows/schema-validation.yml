@@ -73,6 +73,9 @@ jobs:
         chmod +x scripts/check-compatibility.sh
         ./scripts/check-compatibility.sh
     
+    - name: Install system dependencies
+      run: sudo apt-get update && sudo apt-get install -y libudev-dev pkg-config
+
     - name: Build schemas crate
       run: cargo build -p racing-wheel-schemas --locked
     

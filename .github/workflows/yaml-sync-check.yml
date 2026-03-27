@@ -26,6 +26,9 @@ jobs:
       - name: Install PyYAML
         run: pip install pyyaml
 
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install -y libudev-dev pkg-config
+
       - name: Check game support matrix files are identical
         run: |
           python scripts/check_yaml_sync.py \
