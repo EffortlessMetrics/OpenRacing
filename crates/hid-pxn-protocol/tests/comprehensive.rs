@@ -7,8 +7,8 @@
 //! parsing), so tests focus on identification and constant correctness.
 
 use racing_wheel_hid_pxn_protocol::{
-    is_pxn, product_name, PRODUCT_GT987, PRODUCT_V10, PRODUCT_V12, PRODUCT_V12_LITE,
-    PRODUCT_V12_LITE_2, VENDOR_ID,
+    PRODUCT_GT987, PRODUCT_V10, PRODUCT_V12, PRODUCT_V12_LITE, PRODUCT_V12_LITE_2, VENDOR_ID,
+    is_pxn, product_name,
 };
 
 // ---------------------------------------------------------------------------

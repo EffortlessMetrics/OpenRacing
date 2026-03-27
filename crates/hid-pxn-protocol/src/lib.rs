@@ -31,11 +31,11 @@ pub mod effects;
 pub mod ids;
 
 pub use effects::{
-    encode_block_free, encode_device_control, encode_device_gain, encode_effect_operation,
-    encode_set_condition, encode_set_constant_force, encode_set_effect, encode_set_envelope,
-    encode_set_periodic, encode_set_ramp_force, EffectOp, EffectType, DURATION_INFINITE,
+    DURATION_INFINITE, EffectOp, EffectType, encode_block_free, encode_device_control,
+    encode_device_gain, encode_effect_operation, encode_set_condition, encode_set_constant_force,
+    encode_set_effect, encode_set_envelope, encode_set_periodic, encode_set_ramp_force,
 };
 pub use ids::{
-    is_pxn, product_name, PRODUCT_GT987, PRODUCT_V10, PRODUCT_V12, PRODUCT_V12_LITE,
-    PRODUCT_V12_LITE_2, VENDOR_ID,
+    PRODUCT_GT987, PRODUCT_V10, PRODUCT_V12, PRODUCT_V12_LITE, PRODUCT_V12_LITE_2, VENDOR_ID,
+    is_pxn, product_name,
 };

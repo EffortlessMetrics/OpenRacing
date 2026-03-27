@@ -16,9 +16,9 @@
 //! | 6 | shubham0x13/ffbeast-wheel-webhid-api | VID `0x045B`, wheel PID `0x59D7`, torque range ±10000 |
 
 use racing_wheel_hid_ffbeast_protocol::{
-    build_enable_ffb, build_set_gain, is_ffbeast_product, FFBeastTorqueEncoder,
     CONSTANT_FORCE_REPORT_ID, CONSTANT_FORCE_REPORT_LEN, FFBEAST_PRODUCT_ID_JOYSTICK,
-    FFBEAST_PRODUCT_ID_RUDDER, FFBEAST_PRODUCT_ID_WHEEL, FFBEAST_VENDOR_ID, GAIN_REPORT_ID,
+    FFBEAST_PRODUCT_ID_RUDDER, FFBEAST_PRODUCT_ID_WHEEL, FFBEAST_VENDOR_ID, FFBeastTorqueEncoder,
+    GAIN_REPORT_ID, build_enable_ffb, build_set_gain, is_ffbeast_product,
 };
 
 // ════════════════════════════════════════════════════════════════════════════
