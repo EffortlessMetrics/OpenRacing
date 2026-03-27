@@ -973,6 +973,8 @@ mod tests {
             .map(|e| e.to_string().to_lowercase())
             .unwrap_or_default();
         assert!(!err_msg.is_empty(), "Should have an error message");
+        // Log the error for debugging
+        tracing::debug!("Tamper detection error (expected): {}", err_msg);
 
         Ok(())
     }
@@ -1052,6 +1054,8 @@ mod tests {
             "Error should indicate verification failure: {}",
             err_msg
         );
+        // Log the error for debugging
+        tracing::debug!("Wrong key error (expected): {}", err_msg);
 
         Ok(())
     }
