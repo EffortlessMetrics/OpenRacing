@@ -13,8 +13,12 @@ fn test_plugin_frame_layout_rt_safe() {
 
 #[test]
 fn test_shared_memory_header_layout_rt_safe() {
-    // Verify SharedMemoryHeader is suitable for RT SPSC
-    assert!(size_of::<SharedMemoryHeader>() >= 32);
+    // Verify SharedMemoryHeader is suitable for RT SPSC.
+    // Header contains: version(u32) + producer_seq(AtomicU32) + consumer_seq(AtomicU32)
+    //   + frame_size(u32) + max_frames(u32) + shutdown_flag(AtomicBool) = 21 bytes + padding
+    assert!(size_of::<SharedMemoryHeader>() >= 21);
+    // Must be small enough to fit in a cache line
+    assert!(size_of::<SharedMemoryHeader>() <= 64);
 }
 
 #[test]
