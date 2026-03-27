@@ -5,10 +5,11 @@ use crate::{
     profile_repository::ProfileRepositoryConfig,
 };
 use anyhow::Result;
-use racing_wheel_engine::{SafetyPolicy, TracingManager, VirtualDevice, VirtualHidPort};
+use racing_wheel_engine::hid::create_hid_port;
+use racing_wheel_engine::{HidPort, SafetyPolicy, TracingManager, VirtualDevice, VirtualHidPort};
 use racing_wheel_schemas::prelude::DeviceId;
 use std::sync::Arc;
-use tracing::{error, info};
+use tracing::{error, info, warn};
 
 /// Main wheel service that orchestrates all application services
 #[derive(Clone)]
@@ -50,20 +51,57 @@ impl WheelService {
             }
         };
 
-        // Initialize HID port (using virtual port for now)
-        let mut virtual_port = VirtualHidPort::new();
+        // Initialize HID port.
+        //
+        // Port selection logic:
+        // 1. If OPENRACING_USE_VIRTUAL_DEVICES=1, use VirtualHidPort with a
+        //    seeded test device (useful for development and CI).
+        // 2. Otherwise, try create_hid_port() for platform-specific real HID
+        //    enumeration (Windows/Linux/macOS).
+        // 3. If real port creation fails, fall back to VirtualHidPort so the
+        //    daemon can still start in a degraded mode.
+        let use_virtual = std::env::var("OPENRACING_USE_VIRTUAL_DEVICES")
+            .map(|v| v == "1")
+            .unwrap_or(false);
 
-        // Seed with a default virtual device for testing/development
-        let device_id: DeviceId = "virtual-wheel-0"
-            .parse()
-            .map_err(|e| anyhow::anyhow!("Failed to parse device ID: {}", e))?;
-        let virtual_device = VirtualDevice::new(device_id, "Virtual Racing Wheel".to_string());
-        virtual_port
-            .add_device(virtual_device)
-            .map_err(|e| anyhow::anyhow!("Failed to add virtual device: {}", e))?;
-
-        let hid_port = Arc::new(virtual_port);
-        info!("HID port initialized with virtual device");
+        let hid_port: Arc<dyn HidPort> = if use_virtual {
+            info!("OPENRACING_USE_VIRTUAL_DEVICES=1: using virtual HID port");
+            let mut virtual_port = VirtualHidPort::new();
+            let device_id: DeviceId = "virtual-wheel-0"
+                .parse()
+                .map_err(|e| anyhow::anyhow!("Failed to parse device ID: {}", e))?;
+            let virtual_device =
+                VirtualDevice::new(device_id, "Virtual Racing Wheel".to_string());
+            virtual_port
+                .add_device(virtual_device)
+                .map_err(|e| anyhow::anyhow!("Failed to add virtual device: {}", e))?;
+            info!("HID port initialized with virtual device");
+            Arc::new(virtual_port)
+        } else {
+            match create_hid_port() {
+                Ok(real_port) => {
+                    info!("HID port initialized with platform-specific backend");
+                    Arc::from(real_port)
+                }
+                Err(e) => {
+                    warn!(
+                        error = %e,
+                        "Failed to create platform HID port, falling back to virtual devices"
+                    );
+                    let mut virtual_port = VirtualHidPort::new();
+                    let device_id: DeviceId = "virtual-wheel-0"
+                        .parse()
+                        .map_err(|e| anyhow::anyhow!("Failed to parse device ID: {}", e))?;
+                    let virtual_device =
+                        VirtualDevice::new(device_id, "Virtual Racing Wheel".to_string());
+                    virtual_port
+                        .add_device(virtual_device)
+                        .map_err(|e| anyhow::anyhow!("Failed to add virtual device: {}", e))?;
+                    info!("HID port initialized with virtual device (fallback)");
+                    Arc::new(virtual_port)
+                }
+            }
+        };
 
         // Initialize profile repository (using simple in-memory storage for now)
         // In a real implementation, this would be a file-based or database repository
