@@ -7,8 +7,8 @@
 
 use proptest::prelude::*;
 use racing_wheel_hid_ffbeast_protocol::{
-    FFBEAST_PRODUCT_ID_JOYSTICK, FFBEAST_PRODUCT_ID_RUDDER, FFBEAST_PRODUCT_ID_WHEEL,
-    FFBEAST_VENDOR_ID, is_ffbeast_product,
+    is_ffbeast_product, FFBEAST_PRODUCT_ID_JOYSTICK, FFBEAST_PRODUCT_ID_RUDDER,
+    FFBEAST_PRODUCT_ID_WHEEL, FFBEAST_VENDOR_ID,
 };
 
 /// All known FFBeast product IDs.
