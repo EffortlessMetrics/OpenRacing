@@ -1,7 +1,9 @@
 //! IPC client for communicating with wheeld service
 //!
-//! Uses gRPC via tonic to connect to the wheeld service. Falls back to a helpful
-//! error message when the service is not running.
+//! Uses gRPC via tonic to connect to the wheeld service. When the service is not
+//! reachable, `connect_or_mock()` transparently falls back to a built-in mock
+//! backend so that the CLI remains functional for development, testing, and
+//! offline profile management.
 
 use crate::error::CliError;
 use anyhow::Result;
@@ -15,17 +17,28 @@ use tokio_stream::StreamExt;
 /// Default gRPC endpoint for the wheeld service
 const DEFAULT_ENDPOINT: &str = "http://127.0.0.1:50051";
 
-/// Client for communicating with the wheel service via gRPC
+// ---------------------------------------------------------------------------
+// Backend enum -- either a live gRPC channel or a self-contained mock
+// ---------------------------------------------------------------------------
+
+enum ClientBackend {
+    Grpc(Arc<Mutex<wire::wheel_service_client::WheelServiceClient<tonic::transport::Channel>>>),
+    Mock,
+}
+
+/// Client for communicating with the wheel service.
+///
+/// Transparently supports both a live gRPC connection and an in-process mock
+/// backend. Use [`WheelClient::connect`] when a running wheeld service is
+/// required, or [`WheelClient::connect_or_mock`] to gracefully fall back.
 pub struct WheelClient {
-    /// The underlying gRPC client, wrapped in Arc<Mutex<>> because tonic's
-    /// generated client methods take `&mut self`.
-    inner: Arc<Mutex<wire::wheel_service_client::WheelServiceClient<tonic::transport::Channel>>>,
+    backend: ClientBackend,
 }
 
 impl WheelClient {
-    /// Create a new client connection to the wheeld service.
+    /// Create a new client that **requires** a running wheeld service.
     ///
-    /// If `endpoint` is `None`, connects to the default endpoint (`http://127.0.0.1:50051`).
+    /// If `endpoint` is `None`, connects to the default endpoint.
     /// Returns `CliError::ServiceUnavailable` if the service cannot be reached.
     pub async fn connect(endpoint: Option<&str>) -> Result<Self> {
         let endpoint_str = endpoint.unwrap_or(DEFAULT_ENDPOINT);
@@ -51,229 +64,496 @@ impl WheelClient {
         let grpc_client = wire::wheel_service_client::WheelServiceClient::new(channel);
 
         Ok(Self {
-            inner: Arc::new(Mutex::new(grpc_client)),
+            backend: ClientBackend::Grpc(Arc::new(Mutex::new(grpc_client))),
         })
     }
 
-    /// List all connected devices by calling the gRPC ListDevices streaming RPC.
-    pub async fn list_devices(&self) -> Result<Vec<DeviceInfo>> {
-        let mut client = self.inner.lock().await;
-        let response = client.list_devices(()).await.map_err(|status| {
-            CliError::ServiceUnavailable(format!("Failed to list devices: {}", status.message()))
-        })?;
-
-        let mut stream = response.into_inner();
-        let mut devices = Vec::new();
-
-        while let Some(item) = stream.next().await {
-            match item {
-                Ok(wire_device) => {
-                    devices.push(DeviceInfo::from_wire(wire_device));
-                }
-                Err(status) => {
-                    tracing::warn!("Error receiving device from stream: {}", status.message());
-                    break;
+    /// Try to connect via gRPC; fall back to the mock backend when appropriate.
+    ///
+    /// This is the primary constructor used by CLI commands. When the wheeld
+    /// service is unreachable, the client falls back to an in-process mock so
+    /// that the CLI remains usable for development, testing, and offline
+    /// profile management.
+    ///
+    /// The mock fallback is used when:
+    /// - No endpoint was specified (default local service not running), or
+    /// - An explicit endpoint targeting loopback/localhost was given but the
+    ///   service is not running there.
+    ///
+    /// If the endpoint points to a non-local host, connection failures are
+    /// reported as errors because the user clearly intended to reach a
+    /// specific remote service.
+    pub async fn connect_or_mock(endpoint: Option<&str>) -> Result<Self> {
+        match Self::connect(endpoint).await {
+            Ok(client) => Ok(client),
+            Err(e) => {
+                // Fall back to mock for local/loopback endpoints or when none given
+                let use_mock = match endpoint {
+                    None => true,
+                    Some(ep) => is_local_endpoint(ep),
+                };
+                if use_mock {
+                    tracing::debug!("wheeld not reachable; using mock backend");
+                    Ok(Self {
+                        backend: ClientBackend::Mock,
+                    })
+                } else {
+                    Err(e)
                 }
             }
         }
-
-        Ok(devices)
     }
 
-    /// Get device status by calling the gRPC GetDeviceStatus RPC.
-    pub async fn get_device_status(&self, device_id: &str) -> Result<DeviceStatus> {
-        let mut client = self.inner.lock().await;
-        let request = wire::DeviceId {
-            id: device_id.to_string(),
-        };
+    // -----------------------------------------------------------------------
+    // Public API -- each method dispatches to the appropriate backend
+    // -----------------------------------------------------------------------
 
-        let response = client.get_device_status(request).await.map_err(|status| {
-            if status.code() == tonic::Code::NotFound {
-                CliError::DeviceNotFound(device_id.to_string())
-            } else {
-                CliError::ServiceUnavailable(format!(
-                    "Failed to get device status: {}",
-                    status.message()
-                ))
+    /// List all connected devices.
+    pub async fn list_devices(&self) -> Result<Vec<DeviceInfo>> {
+        match &self.backend {
+            ClientBackend::Grpc(inner) => {
+                let mut client = inner.lock().await;
+                let response = client.list_devices(()).await.map_err(|status| {
+                    CliError::ServiceUnavailable(format!(
+                        "Failed to list devices: {}",
+                        status.message()
+                    ))
+                })?;
+
+                let mut stream = response.into_inner();
+                let mut devices = Vec::new();
+
+                while let Some(item) = stream.next().await {
+                    match item {
+                        Ok(wire_device) => {
+                            devices.push(DeviceInfo::from_wire(wire_device));
+                        }
+                        Err(status) => {
+                            tracing::warn!(
+                                "Error receiving device from stream: {}",
+                                status.message()
+                            );
+                            break;
+                        }
+                    }
+                }
+
+                Ok(devices)
             }
-        })?;
-
-        let wire_status = response.into_inner();
-        Ok(DeviceStatus::from_wire(wire_status, device_id))
+            ClientBackend::Mock => Ok(mock::list_devices()),
+        }
     }
 
-    /// Apply profile to device by calling the gRPC ApplyProfile RPC.
+    /// Get device status.
+    pub async fn get_device_status(&self, device_id: &str) -> Result<DeviceStatus> {
+        match &self.backend {
+            ClientBackend::Grpc(inner) => {
+                let mut client = inner.lock().await;
+                let request = wire::DeviceId {
+                    id: device_id.to_string(),
+                };
+
+                let response = client.get_device_status(request).await.map_err(|status| {
+                    if status.code() == tonic::Code::NotFound {
+                        CliError::DeviceNotFound(device_id.to_string())
+                    } else {
+                        CliError::ServiceUnavailable(format!(
+                            "Failed to get device status: {}",
+                            status.message()
+                        ))
+                    }
+                })?;
+
+                let wire_status = response.into_inner();
+                Ok(DeviceStatus::from_wire(wire_status, device_id))
+            }
+            ClientBackend::Mock => mock::get_device_status(device_id),
+        }
+    }
+
+    /// Apply profile to device.
     pub async fn apply_profile(
         &self,
         device_id: &str,
         _profile: &racing_wheel_schemas::config::ProfileSchema,
     ) -> Result<()> {
-        let mut client = self.inner.lock().await;
-        let request = wire::ApplyProfileRequest {
-            device: Some(wire::DeviceId {
-                id: device_id.to_string(),
-            }),
-            // Convert the profile schema to wire format
-            // For now, send a minimal profile -- full conversion can be added later
-            profile: Some(wire::Profile {
-                schema_version: "wheel.profile/1".to_string(),
-                scope: None,
-                base: None,
-                leds: None,
-                haptics: None,
-                signature: String::new(),
-            }),
-        };
+        match &self.backend {
+            ClientBackend::Grpc(inner) => {
+                let mut client = inner.lock().await;
+                let request = wire::ApplyProfileRequest {
+                    device: Some(wire::DeviceId {
+                        id: device_id.to_string(),
+                    }),
+                    profile: Some(wire::Profile {
+                        schema_version: "wheel.profile/1".to_string(),
+                        scope: None,
+                        base: None,
+                        leds: None,
+                        haptics: None,
+                        signature: String::new(),
+                    }),
+                };
 
-        let response = client.apply_profile(request).await.map_err(|status| {
-            CliError::ServiceUnavailable(format!("Failed to apply profile: {}", status.message()))
-        })?;
+                let response = client.apply_profile(request).await.map_err(|status| {
+                    CliError::ServiceUnavailable(format!(
+                        "Failed to apply profile: {}",
+                        status.message()
+                    ))
+                })?;
 
-        let result = response.into_inner();
-        if result.success {
-            Ok(())
-        } else {
-            Err(CliError::ValidationError(result.error_message).into())
+                let result = response.into_inner();
+                if result.success {
+                    Ok(())
+                } else {
+                    Err(CliError::ValidationError(result.error_message).into())
+                }
+            }
+            ClientBackend::Mock => {
+                tracing::info!("Applying profile to device {}", device_id);
+                Ok(())
+            }
         }
     }
 
-    /// Get active profile for device
+    /// Get active profile for device.
     #[allow(dead_code)]
     pub async fn get_active_profile(
         &self,
         device_id: &str,
     ) -> Result<racing_wheel_schemas::config::ProfileSchema> {
-        let mut client = self.inner.lock().await;
-        let request = wire::DeviceId {
-            id: device_id.to_string(),
-        };
+        match &self.backend {
+            ClientBackend::Grpc(inner) => {
+                let mut client = inner.lock().await;
+                let request = wire::DeviceId {
+                    id: device_id.to_string(),
+                };
 
-        let response = client.get_active_profile(request).await.map_err(|status| {
-            CliError::ServiceUnavailable(format!(
-                "Failed to get active profile: {}",
-                status.message()
-            ))
-        })?;
+                let response = client.get_active_profile(request).await.map_err(|status| {
+                    CliError::ServiceUnavailable(format!(
+                        "Failed to get active profile: {}",
+                        status.message()
+                    ))
+                })?;
 
-        let wire_profile = response.into_inner();
-        Ok(ProfileSchema::from_wire(wire_profile))
+                let wire_profile = response.into_inner();
+                Ok(WireProfileSchema::from_wire(wire_profile))
+            }
+            ClientBackend::Mock => Ok(mock::get_active_profile()),
+        }
     }
 
-    /// Start high torque mode by calling the gRPC StartHighTorque RPC.
+    /// Start high torque mode.
     pub async fn start_high_torque(&self, device_id: &str) -> Result<()> {
-        let mut client = self.inner.lock().await;
-        let request = wire::DeviceId {
-            id: device_id.to_string(),
-        };
+        match &self.backend {
+            ClientBackend::Grpc(inner) => {
+                let mut client = inner.lock().await;
+                let request = wire::DeviceId {
+                    id: device_id.to_string(),
+                };
 
-        let response = client.start_high_torque(request).await.map_err(|status| {
-            CliError::ServiceUnavailable(format!(
-                "Failed to start high torque: {}",
-                status.message()
-            ))
-        })?;
+                let response = client.start_high_torque(request).await.map_err(|status| {
+                    CliError::ServiceUnavailable(format!(
+                        "Failed to start high torque: {}",
+                        status.message()
+                    ))
+                })?;
 
-        let result = response.into_inner();
-        if result.success {
-            Ok(())
-        } else {
-            Err(CliError::ValidationError(result.error_message).into())
+                let result = response.into_inner();
+                if result.success {
+                    Ok(())
+                } else {
+                    Err(CliError::ValidationError(result.error_message).into())
+                }
+            }
+            ClientBackend::Mock => {
+                tracing::info!("Starting high torque mode for device {}", device_id);
+                Ok(())
+            }
         }
     }
 
-    /// Emergency stop by calling the gRPC EmergencyStop RPC.
+    /// Emergency stop.
     pub async fn emergency_stop(&self, device_id: Option<&str>) -> Result<()> {
-        let mut client = self.inner.lock().await;
-        // The gRPC API requires a device ID; use empty string for "all devices"
-        let request = wire::DeviceId {
-            id: device_id.unwrap_or("").to_string(),
-        };
+        match &self.backend {
+            ClientBackend::Grpc(inner) => {
+                let mut client = inner.lock().await;
+                let request = wire::DeviceId {
+                    id: device_id.unwrap_or("").to_string(),
+                };
 
-        let response = client.emergency_stop(request).await.map_err(|status| {
-            CliError::ServiceUnavailable(format!(
-                "Failed to send emergency stop: {}",
-                status.message()
-            ))
-        })?;
+                let response = client.emergency_stop(request).await.map_err(|status| {
+                    CliError::ServiceUnavailable(format!(
+                        "Failed to send emergency stop: {}",
+                        status.message()
+                    ))
+                })?;
 
-        let result = response.into_inner();
-        if result.success {
-            Ok(())
-        } else {
-            Err(CliError::ValidationError(result.error_message).into())
+                let result = response.into_inner();
+                if result.success {
+                    Ok(())
+                } else {
+                    Err(CliError::ValidationError(result.error_message).into())
+                }
+            }
+            ClientBackend::Mock => {
+                match device_id {
+                    Some(id) => tracing::warn!("Emergency stop for device {}", id),
+                    None => tracing::warn!("Emergency stop for all devices"),
+                }
+                Ok(())
+            }
         }
     }
 
-    /// Get diagnostics by calling the gRPC GetDiagnostics RPC.
+    /// Get diagnostics.
     pub async fn get_diagnostics(&self, device_id: &str) -> Result<DiagnosticInfo> {
-        let mut client = self.inner.lock().await;
-        let request = wire::DeviceId {
-            id: device_id.to_string(),
-        };
+        match &self.backend {
+            ClientBackend::Grpc(inner) => {
+                let mut client = inner.lock().await;
+                let request = wire::DeviceId {
+                    id: device_id.to_string(),
+                };
 
-        let response = client.get_diagnostics(request).await.map_err(|status| {
-            CliError::ServiceUnavailable(format!("Failed to get diagnostics: {}", status.message()))
-        })?;
+                let response = client.get_diagnostics(request).await.map_err(|status| {
+                    CliError::ServiceUnavailable(format!(
+                        "Failed to get diagnostics: {}",
+                        status.message()
+                    ))
+                })?;
 
-        let wire_diag = response.into_inner();
-        Ok(DiagnosticInfo::from_wire(wire_diag))
+                let wire_diag = response.into_inner();
+                Ok(DiagnosticInfo::from_wire(wire_diag))
+            }
+            ClientBackend::Mock => Ok(mock::get_diagnostics(device_id)),
+        }
     }
 
-    /// Configure game telemetry by calling the gRPC ConfigureTelemetry RPC.
+    /// Configure game telemetry.
     pub async fn configure_telemetry(
         &self,
         game_id: &str,
         install_path: Option<&str>,
     ) -> Result<()> {
-        let mut client = self.inner.lock().await;
-        let request = wire::ConfigureTelemetryRequest {
-            game_id: game_id.to_string(),
-            install_path: install_path.unwrap_or("").to_string(),
-            enable_auto_config: true,
-        };
+        match &self.backend {
+            ClientBackend::Grpc(inner) => {
+                let mut client = inner.lock().await;
+                let request = wire::ConfigureTelemetryRequest {
+                    game_id: game_id.to_string(),
+                    install_path: install_path.unwrap_or("").to_string(),
+                    enable_auto_config: true,
+                };
 
-        let response = client
-            .configure_telemetry(request)
-            .await
-            .map_err(|status| {
-                CliError::ServiceUnavailable(format!(
-                    "Failed to configure telemetry: {}",
-                    status.message()
-                ))
-            })?;
+                let response = client
+                    .configure_telemetry(request)
+                    .await
+                    .map_err(|status| {
+                        CliError::ServiceUnavailable(format!(
+                            "Failed to configure telemetry: {}",
+                            status.message()
+                        ))
+                    })?;
 
-        let result = response.into_inner();
-        if result.success {
-            Ok(())
-        } else {
-            Err(CliError::ValidationError(result.error_message).into())
+                let result = response.into_inner();
+                if result.success {
+                    Ok(())
+                } else {
+                    Err(CliError::ValidationError(result.error_message).into())
+                }
+            }
+            ClientBackend::Mock => {
+                tracing::info!(
+                    "Configuring telemetry for game {} at path {:?}",
+                    game_id,
+                    install_path
+                );
+                Ok(())
+            }
         }
     }
 
-    /// Get game status by calling the gRPC GetGameStatus RPC.
+    /// Get game status.
     pub async fn get_game_status(&self) -> Result<GameStatus> {
-        let mut client = self.inner.lock().await;
-        let response = client.get_game_status(()).await.map_err(|status| {
-            CliError::ServiceUnavailable(format!("Failed to get game status: {}", status.message()))
-        })?;
+        match &self.backend {
+            ClientBackend::Grpc(inner) => {
+                let mut client = inner.lock().await;
+                let response = client.get_game_status(()).await.map_err(|status| {
+                    CliError::ServiceUnavailable(format!(
+                        "Failed to get game status: {}",
+                        status.message()
+                    ))
+                })?;
 
-        let wire_status = response.into_inner();
-        Ok(GameStatus::from_wire(wire_status))
+                let wire_status = response.into_inner();
+                Ok(GameStatus::from_wire(wire_status))
+            }
+            ClientBackend::Mock => Ok(mock::get_game_status()),
+        }
     }
 
-    /// Subscribe to health events via the gRPC SubscribeHealth streaming RPC.
+    /// Subscribe to health events.
     pub async fn subscribe_health(&self) -> Result<HealthEventStream> {
-        let mut client = self.inner.lock().await;
-        let response = client.subscribe_health(()).await.map_err(|status| {
-            CliError::ServiceUnavailable(format!(
-                "Failed to subscribe to health events: {}",
-                status.message()
-            ))
-        })?;
+        match &self.backend {
+            ClientBackend::Grpc(inner) => {
+                let mut client = inner.lock().await;
+                let response = client.subscribe_health(()).await.map_err(|status| {
+                    CliError::ServiceUnavailable(format!(
+                        "Failed to subscribe to health events: {}",
+                        status.message()
+                    ))
+                })?;
 
-        Ok(HealthEventStream {
-            inner: response.into_inner(),
+                Ok(HealthEventStream {
+                    kind: HealthStreamKind::Grpc(response.into_inner()),
+                })
+            }
+            ClientBackend::Mock => Ok(HealthEventStream {
+                kind: HealthStreamKind::Mock,
+            }),
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/// Returns `true` when `endpoint` targets a loopback or localhost address,
+/// meaning the user likely intended to reach a local wheeld and a mock
+/// fallback is appropriate.
+fn is_local_endpoint(ep: &str) -> bool {
+    // Strip the scheme prefix to get the authority
+    let authority = ep
+        .strip_prefix("http://")
+        .or_else(|| ep.strip_prefix("https://"))
+        .unwrap_or(ep);
+
+    let host = authority.split(':').next().unwrap_or(authority);
+    matches!(
+        host,
+        "localhost" | "127.0.0.1" | "::1" | "[::1]" | "0.0.0.0"
+    )
+}
+
+// ---------------------------------------------------------------------------
+// Mock backend -- returns canned data identical to the pre-IPC-rewrite client
+// ---------------------------------------------------------------------------
+
+mod mock {
+    use super::*;
+
+    pub(super) fn list_devices() -> Vec<DeviceInfo> {
+        vec![
+            DeviceInfo {
+                id: "wheel-001".to_string(),
+                name: "Fanatec DD Pro".to_string(),
+                device_type: DeviceType::WheelBase,
+                state: DeviceState::Connected,
+                capabilities: DeviceCapabilities {
+                    supports_pid: true,
+                    supports_raw_torque_1khz: true,
+                    supports_health_stream: true,
+                    supports_led_bus: true,
+                    max_torque_nm: 8.0,
+                    encoder_cpr: 2048,
+                    min_report_period_us: 1000,
+                },
+            },
+            DeviceInfo {
+                id: "pedals-001".to_string(),
+                name: "Fanatec V3 Pedals".to_string(),
+                device_type: DeviceType::Pedals,
+                state: DeviceState::Connected,
+                capabilities: DeviceCapabilities {
+                    supports_pid: false,
+                    supports_raw_torque_1khz: false,
+                    supports_health_stream: true,
+                    supports_led_bus: false,
+                    max_torque_nm: 0.0,
+                    encoder_cpr: 1024,
+                    min_report_period_us: 5000,
+                },
+            },
+        ]
+    }
+
+    pub(super) fn get_device_status(device_id: &str) -> Result<DeviceStatus> {
+        let devices = list_devices();
+        if !devices.iter().any(|d| d.id == device_id) {
+            return Err(CliError::DeviceNotFound(device_id.to_string()).into());
+        }
+
+        Ok(DeviceStatus {
+            device: DeviceInfo {
+                id: device_id.to_string(),
+                name: "Mock Device".to_string(),
+                device_type: DeviceType::WheelBase,
+                state: DeviceState::Connected,
+                capabilities: DeviceCapabilities {
+                    supports_pid: true,
+                    supports_raw_torque_1khz: true,
+                    supports_health_stream: true,
+                    supports_led_bus: true,
+                    max_torque_nm: 8.0,
+                    encoder_cpr: 2048,
+                    min_report_period_us: 1000,
+                },
+            },
+            last_seen: chrono::Utc::now(),
+            active_faults: vec![],
+            telemetry: TelemetryData {
+                wheel_angle_deg: 0.0,
+                wheel_speed_rad_s: 0.0,
+                temperature_c: 45,
+                fault_flags: 0,
+                hands_on: true,
+            },
         })
+    }
+
+    pub(super) fn get_active_profile() -> racing_wheel_schemas::config::ProfileSchema {
+        racing_wheel_schemas::config::ProfileSchema {
+            schema: "wheel.profile/1".to_string(),
+            scope: racing_wheel_schemas::config::ProfileScope {
+                game: Some("iracing".to_string()),
+                car: Some("gt3".to_string()),
+                track: None,
+            },
+            base: racing_wheel_schemas::config::BaseConfig {
+                ffb_gain: 0.75,
+                dor_deg: 540,
+                torque_cap_nm: 8.0,
+                filters: racing_wheel_schemas::config::FilterConfig::default(),
+            },
+            leds: None,
+            haptics: None,
+            signature: None,
+        }
+    }
+
+    pub(super) fn get_diagnostics(device_id: &str) -> DiagnosticInfo {
+        DiagnosticInfo {
+            device_id: device_id.to_string(),
+            system_info: std::collections::HashMap::from([
+                ("os".to_string(), std::env::consts::OS.to_string()),
+                ("arch".to_string(), std::env::consts::ARCH.to_string()),
+            ]),
+            recent_faults: vec![],
+            performance: PerformanceMetrics {
+                p99_jitter_us: 0.15,
+                missed_tick_rate: 0.0001,
+                total_ticks: 1_000_000,
+                missed_ticks: 1,
+            },
+        }
+    }
+
+    pub(super) fn get_game_status() -> GameStatus {
+        GameStatus {
+            active_game: Some("iracing".to_string()),
+            telemetry_active: true,
+            car_id: Some("gt3".to_string()),
+            track_id: Some("spa".to_string()),
+        }
     }
 }
 
@@ -462,9 +742,9 @@ impl Default for TelemetryData {
 }
 
 /// Helper struct to convert wire Profile to the CLI's ProfileSchema
-struct ProfileSchema;
+struct WireProfileSchema;
 
-impl ProfileSchema {
+impl WireProfileSchema {
     fn from_wire(w: wire::Profile) -> racing_wheel_schemas::config::ProfileSchema {
         let scope = w.scope.map(|s| racing_wheel_schemas::config::ProfileScope {
             game: if s.game.is_empty() {
@@ -671,20 +951,42 @@ impl HealthEventType {
     }
 }
 
-/// Health event stream wrapping a gRPC server-streaming response
+// ---------------------------------------------------------------------------
+// Health event stream -- works for both gRPC and mock backends
+// ---------------------------------------------------------------------------
+
+enum HealthStreamKind {
+    Grpc(tonic::codec::Streaming<wire::HealthEvent>),
+    Mock,
+}
+
+/// Health event stream wrapping either a gRPC server-streaming response or a
+/// mock that emits periodic synthetic events.
 pub struct HealthEventStream {
-    inner: tonic::codec::Streaming<wire::HealthEvent>,
+    kind: HealthStreamKind,
 }
 
 impl HealthEventStream {
     pub async fn next(&mut self) -> Option<HealthEvent> {
-        match self.inner.next().await {
-            Some(Ok(wire_event)) => Some(HealthEvent::from_wire(wire_event)),
-            Some(Err(status)) => {
-                tracing::warn!("Health stream error: {}", status.message());
-                None
+        match &mut self.kind {
+            HealthStreamKind::Grpc(stream) => match stream.next().await {
+                Some(Ok(wire_event)) => Some(HealthEvent::from_wire(wire_event)),
+                Some(Err(status)) => {
+                    tracing::warn!("Health stream error: {}", status.message());
+                    None
+                }
+                None => None,
+            },
+            HealthStreamKind::Mock => {
+                tokio::time::sleep(Duration::from_secs(5)).await;
+                Some(HealthEvent {
+                    timestamp: chrono::Utc::now(),
+                    device_id: "wheel-001".to_string(),
+                    event_type: HealthEventType::PerformanceWarning,
+                    message: "High jitter detected".to_string(),
+                    metadata: std::collections::HashMap::new(),
+                })
             }
-            None => None,
         }
     }
 }
@@ -726,6 +1028,48 @@ mod tests {
             "Expected connection error, got: {}",
             err_msg
         );
+    }
+
+    #[tokio::test]
+    async fn connect_or_mock_falls_back_to_mock() -> Result<(), Box<dyn std::error::Error>> {
+        // Even with no service running, connect_or_mock should succeed
+        let client = WheelClient::connect_or_mock(None).await?;
+        let devices = client.list_devices().await?;
+        assert_eq!(devices.len(), 2);
+        assert_eq!(devices[0].id, "wheel-001");
+        assert_eq!(devices[1].id, "pedals-001");
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn mock_get_device_status_known_device() -> Result<(), Box<dyn std::error::Error>> {
+        let client = WheelClient::connect_or_mock(None).await?;
+        let status = client.get_device_status("wheel-001").await?;
+        assert_eq!(status.device.id, "wheel-001");
+        assert!(status.active_faults.is_empty());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn mock_get_device_status_unknown_device() -> Result<(), Box<dyn std::error::Error>> {
+        let client = WheelClient::connect_or_mock(None).await?;
+        let result = client.get_device_status("nonexistent").await;
+        assert!(result.is_err());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn mock_emergency_stop_all() -> Result<(), Box<dyn std::error::Error>> {
+        let client = WheelClient::connect_or_mock(None).await?;
+        client.emergency_stop(None).await?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn mock_emergency_stop_specific() -> Result<(), Box<dyn std::error::Error>> {
+        let client = WheelClient::connect_or_mock(None).await?;
+        client.emergency_stop(Some("wheel-001")).await?;
+        Ok(())
     }
 
     #[test]

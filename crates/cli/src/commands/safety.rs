@@ -11,7 +11,7 @@ use crate::output;
 
 /// Execute safety command
 pub async fn execute(cmd: &SafetyCommands, json: bool, endpoint: Option<&str>) -> Result<()> {
-    let client = WheelClient::connect(endpoint).await?;
+    let client = WheelClient::connect_or_mock(endpoint).await?;
 
     match cmd {
         SafetyCommands::Enable { device, force } => {

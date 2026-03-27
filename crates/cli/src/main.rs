@@ -117,7 +117,11 @@ async fn main() -> Result<()> {
             tracing_subscriber::EnvFilter::try_from_default_env()
                 .unwrap_or_else(|_| format!("wheelctl={}", log_level).into()),
         )
-        .with(tracing_subscriber::fmt::layer().with_target(false))
+        .with(
+            tracing_subscriber::fmt::layer()
+                .with_target(false)
+                .with_writer(std::io::stderr),
+        )
         .init();
 
     // Execute command
