@@ -1493,8 +1493,14 @@ mod parameter_validation {
             )
             .map_err(|e| e.to_string())
         };
-        let r1 = compiler.compile_pipeline(mk_config()?).await.map_err(|e| e.to_string())?; // setup
-        let r2 = compiler.compile_pipeline(mk_config()?).await.map_err(|e| e.to_string())?; // setup
+        let r1 = compiler
+            .compile_pipeline(mk_config()?)
+            .await
+            .map_err(|e| e.to_string())?; // setup
+        let r2 = compiler
+            .compile_pipeline(mk_config()?)
+            .await
+            .map_err(|e| e.to_string())?; // setup
         if r1.config_hash != r2.config_hash {
             return Err(format!(
                 "same config → different hash: {:x} vs {:x}",
@@ -1524,8 +1530,14 @@ mod parameter_validation {
         )
         .map_err(|e| e.to_string())?; // setup
         let config_b = linear_config()?;
-        let r1 = compiler.compile_pipeline(config_a).await.map_err(|e| e.to_string())?; // setup
-        let r2 = compiler.compile_pipeline(config_b).await.map_err(|e| e.to_string())?; // setup
+        let r1 = compiler
+            .compile_pipeline(config_a)
+            .await
+            .map_err(|e| e.to_string())?; // setup
+        let r2 = compiler
+            .compile_pipeline(config_b)
+            .await
+            .map_err(|e| e.to_string())?; // setup
         if r1.config_hash == r2.config_hash {
             return Err("different configs should have different hashes".to_string());
         }
@@ -1558,7 +1570,10 @@ mod parameter_validation {
             },
         )
         .map_err(|e| e.to_string())?; // setup
-        let compiled = compiler.compile_pipeline(config).await.map_err(|e| e.to_string())?; // setup
+        let compiled = compiler
+            .compile_pipeline(config)
+            .await
+            .map_err(|e| e.to_string())?; // setup
         // With all gains at zero, linear curve, and disabled bumpstop/hands-off → no nodes
         if compiled.pipeline.node_count() != 0 {
             return Err(format!(

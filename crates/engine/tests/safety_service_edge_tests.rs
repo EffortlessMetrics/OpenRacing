@@ -27,7 +27,10 @@ fn create_test_service() -> SafetyService {
 }
 
 /// Drive a SafetyService through the full high-torque activation flow.
-fn activate_high_torque(service: &mut SafetyService, device: &str) -> Result<(), Box<dyn std::error::Error>> {
+fn activate_high_torque(
+    service: &mut SafetyService,
+    device: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
     let challenge = service.request_high_torque(device)?;
     service.provide_ui_consent(challenge.challenge_token)?;
     service.report_combo_start(challenge.challenge_token)?;
@@ -80,7 +83,8 @@ fn clamp_nan_in_high_torque_active_state_yields_zero() -> Result<(), Box<dyn std
 }
 
 #[test]
-fn clamp_positive_inf_in_high_torque_active_state_yields_zero() -> Result<(), Box<dyn std::error::Error>> {
+fn clamp_positive_inf_in_high_torque_active_state_yields_zero()
+-> Result<(), Box<dyn std::error::Error>> {
     let mut service = create_test_service();
     activate_high_torque(&mut service, "dev")?;
 
@@ -89,7 +93,8 @@ fn clamp_positive_inf_in_high_torque_active_state_yields_zero() -> Result<(), Bo
 }
 
 #[test]
-fn clamp_negative_inf_in_high_torque_active_state_yields_zero() -> Result<(), Box<dyn std::error::Error>> {
+fn clamp_negative_inf_in_high_torque_active_state_yields_zero()
+-> Result<(), Box<dyn std::error::Error>> {
     let mut service = create_test_service();
     activate_high_torque(&mut service, "dev")?;
 
@@ -133,7 +138,8 @@ fn get_max_torque_high_torque_flag_ignored_in_safe_torque_state() {
 }
 
 #[test]
-fn get_max_torque_high_torque_flag_respected_in_active_state() -> Result<(), Box<dyn std::error::Error>> {
+fn get_max_torque_high_torque_flag_respected_in_active_state()
+-> Result<(), Box<dyn std::error::Error>> {
     let mut service = create_test_service();
     activate_high_torque(&mut service, "dev")?;
 
@@ -157,7 +163,8 @@ fn get_max_torque_faulted_always_zero_regardless_of_flag() {
 // =========================================================================
 
 #[test]
-fn legacy_check_hands_off_timeout_triggers_fault_in_high_torque() -> Result<(), Box<dyn std::error::Error>> {
+fn legacy_check_hands_off_timeout_triggers_fault_in_high_torque()
+-> Result<(), Box<dyn std::error::Error>> {
     let mut service = create_test_service();
     activate_high_torque(&mut service, "dev")?;
     assert!(matches!(
@@ -184,7 +191,8 @@ fn legacy_check_hands_off_timeout_does_not_fault_in_safe_torque() {
 }
 
 #[test]
-fn legacy_check_hands_off_timeout_within_limit_does_not_fault() -> Result<(), Box<dyn std::error::Error>> {
+fn legacy_check_hands_off_timeout_within_limit_does_not_fault()
+-> Result<(), Box<dyn std::error::Error>> {
     let mut service = create_test_service();
     activate_high_torque(&mut service, "dev")?;
 
@@ -203,7 +211,8 @@ fn legacy_check_hands_off_timeout_within_limit_does_not_fault() -> Result<(), Bo
 // =========================================================================
 
 #[test]
-fn clamp_torque_during_high_torque_challenge_uses_safe_limit() -> Result<(), Box<dyn std::error::Error>> {
+fn clamp_torque_during_high_torque_challenge_uses_safe_limit()
+-> Result<(), Box<dyn std::error::Error>> {
     let mut service = create_test_service();
     let _challenge = service.request_high_torque("dev")?;
 
@@ -217,7 +226,8 @@ fn clamp_torque_during_high_torque_challenge_uses_safe_limit() -> Result<(), Box
 }
 
 #[test]
-fn clamp_torque_during_awaiting_physical_ack_uses_safe_limit() -> Result<(), Box<dyn std::error::Error>> {
+fn clamp_torque_during_awaiting_physical_ack_uses_safe_limit()
+-> Result<(), Box<dyn std::error::Error>> {
     let mut service = create_test_service();
     let challenge = service.request_high_torque("dev")?;
     service.provide_ui_consent(challenge.challenge_token)?;

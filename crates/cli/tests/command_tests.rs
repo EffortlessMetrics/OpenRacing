@@ -147,10 +147,7 @@ fn empty_args_shows_usage_error() -> TestResult {
 
 #[test]
 fn unknown_top_level_command_error_message() -> TestResult {
-    let output = wheelctl()?
-        .args(["frobnicate"])
-        .output()
-        ?;
+    let output = wheelctl()?.args(["frobnicate"]).output()?;
     assert!(!output.status.success());
     let stderr = String::from_utf8_lossy(&output.stderr);
     // clap should mention the invalid value
@@ -164,10 +161,7 @@ fn unknown_top_level_command_error_message() -> TestResult {
 
 #[test]
 fn unknown_device_subcommand_stderr() -> TestResult {
-    let output = wheelctl()?
-        .args(["device", "fly"])
-        .output()
-        ?;
+    let output = wheelctl()?.args(["device", "fly"]).output()?;
     assert!(!output.status.success());
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(
