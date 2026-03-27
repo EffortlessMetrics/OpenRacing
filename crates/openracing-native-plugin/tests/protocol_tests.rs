@@ -369,11 +369,15 @@ fn error_spsc_write_wrong_frame_size() -> Result<(), Box<dyn std::error::Error>>
     // Too small
     let result = writer.write(&[0u8; 32]);
     assert!(result.is_err());
-    let err_msg = result.as_ref().err().map_or("".to_string(), |e| match e {
-        NativePluginError::SharedMemoryError(msg) => msg.clone(),
-        _ => String::new(),
-    });
-    assert!(err_msg.contains("mismatch") || err_msg.contains("size"));
+    let err_msg = result
+        .as_ref()
+        .err()
+        .map(|e| e.to_string())
+        .unwrap_or_default();
+    assert!(
+        err_msg.contains("mismatch") || err_msg.contains("size"),
+        "Expected error about frame size mismatch, got: {err_msg}"
+    );
 
     // Too large
     let result = writer.write(&[0u8; 128]);
