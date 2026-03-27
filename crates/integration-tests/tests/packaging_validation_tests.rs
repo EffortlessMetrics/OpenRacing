@@ -969,7 +969,9 @@ fn msi_build_script_exists() -> Result<(), Box<dyn std::error::Error>> {
 
 /// Parse VID/PID pairs from the hwdb file.
 /// Returns uppercase hex pairs like ("046D", "C299").
-fn parse_hwdb_vid_pids(content: &str) -> Result<HashSet<(String, String)>, Box<dyn std::error::Error>> {
+fn parse_hwdb_vid_pids(
+    content: &str,
+) -> Result<HashSet<(String, String)>, Box<dyn std::error::Error>> {
     let re =
         regex::Regex::new(r"(?i)id-input:modalias:input:\*v([0-9A-Fa-f]{4})p([0-9A-Fa-f]{4})\*")?;
     let mut pairs = HashSet::new();
