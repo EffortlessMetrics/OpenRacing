@@ -54,7 +54,9 @@ fn collect_md_files(dir: &Path) -> Vec<PathBuf> {
 /// Extract relative markdown links from content (e.g. `[text](path.md)`).
 /// Ignores URLs (http/https), anchors-only links, and badge images.
 fn extract_md_links(content: &str) -> Vec<String> {
-    let link_re = regex::Regex::new(r"\[([^\]]*)\]\(([^)]+)\)").expect("regex");
+    let Ok(link_re) = regex::Regex::new(r"\[([^\]]*)\]\(([^)]+)\)") else {
+        return vec![];
+    };
     link_re
         .captures_iter(content)
         .filter_map(|cap| {
@@ -139,7 +141,7 @@ fn doc_readme_cli_commands_are_valid() -> Result<(), Box<dyn std::error::Error>>
     .collect();
 
     // Extract `wheelctl <subcmd>` occurrences from fenced code blocks.
-    let cmd_re = regex::Regex::new(r"wheelctl\s+(\w+)").expect("regex");
+    let cmd_re = regex::Regex::new(r"wheelctl\s+(\w+)")?;
     let mut unknown = Vec::new();
     for cap in cmd_re.captures_iter(&readme) {
         if let Some(m) = cap.get(1) {
@@ -180,12 +182,11 @@ const ADR_REQUIRED_HEADERS: &[&str] = &["**Status:**", "**Date:**", "**Authors:*
 #[test]
 fn doc_adr_files_match_template_format() -> Result<(), Box<dyn std::error::Error>> {
     let adr_dir = repo_root().join("docs").join("adr");
-    let adr_re = regex::Regex::new(r"^\d{4}-.+\.md$").expect("regex");
-    let title_re = regex::Regex::new(r"^# ADR-\d{4}:").expect("regex");
+    let adr_re = regex::Regex::new(r"^\d{4}-.+\.md$")?;
+    let title_re = regex::Regex::new(r"^# ADR-\d{4}:")?;
     let status_re =
-        regex::Regex::new(r"\*\*Status:\*\*\s*(Proposed|Accepted|Deprecated|Superseded)")
-            .expect("regex");
-    let date_re = regex::Regex::new(r"\*\*Date:\*\*\s*\d{4}-\d{2}-\d{2}").expect("regex");
+        regex::Regex::new(r"\*\*Status:\*\*\s*(Proposed|Accepted|Deprecated|Superseded)")?;
+    let date_re = regex::Regex::new(r"\*\*Date:\*\*\s*\d{4}-\d{2}-\d{2}")?;
 
     let mut issues: Vec<String> = Vec::new();
 
@@ -246,7 +247,7 @@ fn doc_adr_files_match_template_format() -> Result<(), Box<dyn std::error::Error
 #[test]
 fn doc_adr_numbering_is_sequential() -> Result<(), Box<dyn std::error::Error>> {
     let adr_dir = repo_root().join("docs").join("adr");
-    let num_re = regex::Regex::new(r"^(\d{4})-.+\.md$").expect("regex");
+    let num_re = regex::Regex::new(r"^(\d{4})-.+\.md$")?;
 
     let mut numbers: Vec<u32> = Vec::new();
     for entry in fs::read_dir(&adr_dir)?.flatten() {
@@ -418,7 +419,7 @@ fn doc_all_workspace_crates_have_lib_docs() -> Result<(), Box<dyn std::error::Er
     let root_cargo = read_repo_file("Cargo.toml")?;
 
     // Parse workspace members from the root Cargo.toml
-    let member_re = regex::Regex::new(r#""(crates/[^"]+)""#).expect("regex");
+    let member_re = regex::Regex::new(r#""(crates/[^"]+)""#)?;
     let mut missing_docs: Vec<String> = Vec::new();
 
     for cap in member_re.captures_iter(&root_cargo) {
@@ -459,10 +460,10 @@ fn doc_all_workspace_crates_have_lib_docs() -> Result<(), Box<dyn std::error::Er
 #[test]
 fn doc_attribute_style_consistency() -> Result<(), Box<dyn std::error::Error>> {
     let root_cargo = read_repo_file("Cargo.toml")?;
-    let member_re = regex::Regex::new(r#""(crates/[^"]+)""#).expect("regex");
+    let member_re = regex::Regex::new(r#""(crates/[^"]+)""#)?;
 
-    let doc_attr_re = regex::Regex::new(r#"^\s*#\[doc\s*="#).expect("regex");
-    let triple_slash_re = regex::Regex::new(r"^\s*///").expect("regex");
+    let doc_attr_re = regex::Regex::new(r#"^\s*#\[doc\s*="#)?;
+    let triple_slash_re = regex::Regex::new(r"^\s*///")?;
 
     let mut inconsistent: Vec<String> = Vec::new();
 
@@ -499,9 +500,9 @@ fn doc_attribute_style_consistency() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn doc_crate_level_uses_inner_doc_comments() -> Result<(), Box<dyn std::error::Error>> {
     let root_cargo = read_repo_file("Cargo.toml")?;
-    let member_re = regex::Regex::new(r#""(crates/[^"]+)""#).expect("regex");
+    let member_re = regex::Regex::new(r#""(crates/[^"]+)""#)?;
 
-    let crate_doc_attr_re = regex::Regex::new(r#"^\s*#!\[doc\s*="#).expect("regex");
+    let crate_doc_attr_re = regex::Regex::new(r#"^\s*#!\[doc\s*="#)?;
 
     let mut using_attr: Vec<String> = Vec::new();
 
@@ -540,7 +541,7 @@ fn doc_adr_index_lists_all_adr_files() -> Result<(), Box<dyn std::error::Error>>
     let adr_dir = repo_root().join("docs").join("adr");
     let index_content = read_repo_file("docs/adr/INDEX.md")?;
 
-    let adr_re = regex::Regex::new(r"^\d{4}-.+\.md$").expect("regex");
+    let adr_re = regex::Regex::new(r"^\d{4}-.+\.md$")?;
     let mut missing_from_index: Vec<String> = Vec::new();
 
     for entry in fs::read_dir(&adr_dir)?.flatten() {
@@ -568,7 +569,7 @@ fn doc_docs_readme_references_all_adrs() -> Result<(), Box<dyn std::error::Error
     let adr_dir = repo_root().join("docs").join("adr");
     let docs_readme = read_repo_file("docs/README.md")?;
 
-    let adr_re = regex::Regex::new(r"^\d{4}-.+\.md$").expect("regex");
+    let adr_re = regex::Regex::new(r"^\d{4}-.+\.md$")?;
     let mut unreferenced: Vec<String> = Vec::new();
 
     for entry in fs::read_dir(&adr_dir)?.flatten() {

@@ -4,34 +4,36 @@ One-screen execution plan for OpenRacing. Updated each sprint.
 
 **Project snapshot:** 86 crates · 29,900+ tests · 509 proptests · 117 fuzz targets · 28 vendors · 61 games
 
+**First hardware target:** Moza R5 + KS + ES + SR-P + HBP (Phases 6–11)
+
 ---
 
 ## NOW (Active — this sprint)
 
-- Documentation accuracy pass — verify all commands, counts, and feature claims across docs for RC readiness
-- CI green on all platforms — fix concurrency-group cancellation cascade (workflow_dispatch in progress)
-- Merge wave 121 PRs — CI hardening, macOS IOKit, integration test re-enablement, engine deep tests
-- Re-enable disabled integration tests — address remaining technical debt item in ROADMAP
-- Engine blackbox/safety/pipeline deep tests — close remaining coverage gaps in safety-critical paths
+- **Phase 6: Device Enumeration** — plug in R5, KS, SR-P, HBP; run `wheelctl device list`; capture HID report descriptors as golden fixtures
+- **Phase 7: Input Report Capture** — validate `parse_wheelbase_input_report` with live R5 data; verify steering, pedal, handbrake axes track physical movement
+- **Service API completion** — implement `WheelService::game_service()` and `plugin_service()` accessors; re-enable blocked integration tests
 
 ## NEXT (Queued — next 2–4 sprints)
 
-- macOS IOKit HID driver — start actual device I/O on macOS (currently compile-only)
-- macOS DMG packaging with notarization
-- Packaging automation — deb/rpm in CI with signing, Windows MSI signing
-- Adaptive RT scheduling — CPU governor integration for dynamic deadline adjustment
-- Performance tuning — benchmark suite expansion, profiling under load
-- Device capture tooling refinement — openracing-capture protocol sniffer/mapper
+- **Phase 8: Handshake & Feature Reports** — execute `initialize_device()` against R5; validate init state machine; test rotation range control
+- **Phase 9: Low-Torque FFB Output** — safety-gated torque output starting at ≤10% (0.55 Nm); ramp to 100% with manual observation; watchdog validation
+- **Phase 10: Game Telemetry Integration** — full loop from game telemetry through FFB to wheel; test with Assetto Corsa / iRacing
+- **Mutation testing expansion** — extend `cargo-mutants` to protocol encoding and telemetry paths
+- **macOS IOKit HID driver** — start actual device I/O on macOS
 
 ## LATER (Backlog — future work)
 
-- Hardware-in-the-loop testing — USB capture validation against physical devices
-- Plugin marketplace / repository — searchable catalog with community submissions
-- Telemetry dashboard — replay visualization and real-time telemetry display tools
-- Flatpak packaging
-- BeamNG.drive deep protocol integration (native shared-memory path)
-- Community device capture contribution workflow
-- Mobile companion app (iOS/Android)
+- **Phase 11: Extended Validation & Soak** — 1hr continuous FFB, disconnect/reconnect stress, V1 vs V2 firmware, Standard vs Direct FFB comparison
+- **Phase 12: Multi-Vendor Verification** — Fanatec, Logitech, Thrustmaster HIL; protocol research; 48hr soak; community capture program
+- **Cloud integration** — profile sharing and cross-machine sync
+- **Telemetry dashboard** — browser-based replay visualization and session comparison
+- **AI/ML integration** — adaptive FFB tuning from driving style analysis
+- **Plugin marketplace** — searchable catalog with community submissions
+- **VR / motion rig integration** — haptic feedback via OpenXR
+- **Mobile companion app** (iOS/Android)
+- **Accessibility** — screen reader support, high-contrast mode
+- **Localization** — multi-language UI and docs
 
 ---
 

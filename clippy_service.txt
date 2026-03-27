@@ -1,0 +1,8 @@
+    Checking racing-wheel-ks v0.1.0 (H:\Code\Rust\OpenRacing\crates\ks)
+    Checking openracing-atomic v0.1.0 (H:\Code\Rust\OpenRacing\crates\openracing-atomic)
+    Checking openracing-tracing v0.1.0 (H:\Code\Rust\OpenRacing\crates\openracing-tracing)
+    Checking openracing-ipc v0.1.0 (H:\Code\Rust\OpenRacing\crates\openracing-ipc)
+error: failed to write to `H:\Code\Rust\OpenRacing\target\debug\deps\rmeta8JisUj\full.rmeta`: There is not enough space on the disk. (os error 112)
+
+error: failed to write to `H:\Code\Rust\OpenRacing\target\debug\deps\rmeta0aF6Hx\full.rmeta`: There is not enough space on the disk. (os error 112)
+

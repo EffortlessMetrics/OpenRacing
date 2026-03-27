@@ -23,6 +23,12 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Tuple, Optional
 
+# Enable UTF-8 mode on Windows to handle emoji output
+if sys.platform == "win32":
+    import codecs
+    sys.stdout = codecs.getwriter('utf-8')(sys.stdout.buffer, 'strict')
+    sys.stderr = codecs.getwriter('utf-8')(sys.stderr.buffer, 'strict')
+
 
 class CompatUsageTracker:
     """Tracks usage of deprecated APIs and compatibility shims."""

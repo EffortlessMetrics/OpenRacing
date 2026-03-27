@@ -10,6 +10,12 @@ import sys
 from pathlib import Path
 from datetime import datetime
 
+# Enable UTF-8 mode on Windows to handle emoji output
+if sys.platform == "win32":
+    import codecs
+    sys.stdout = codecs.getwriter('utf-8')(sys.stdout.buffer, 'strict')
+    sys.stderr = codecs.getwriter('utf-8')(sys.stderr.buffer, 'strict')
+
 def run_cargo_check(crate_name=None, capture_json=True):
     """Run cargo check and capture output."""
     cmd = ["cargo", "check"]

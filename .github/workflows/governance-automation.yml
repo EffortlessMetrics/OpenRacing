@@ -34,8 +34,9 @@ jobs:
     - name: Check current compatibility usage
       id: usage
       run: |
-        python scripts/track_compat_usage.py --current
-        USAGE_COUNT=$(python scripts/track_compat_usage.py --current | grep 'deprecated API usages:' | awk '{print $NF}')
+        chmod +x scripts/track_compat_usage.py
+        python3 scripts/track_compat_usage.py --current
+        USAGE_COUNT=$(python3 scripts/track_compat_usage.py --current | grep 'deprecated API usages:' | awk '{print $NF}')
         echo "usage_count=$USAGE_COUNT" >> $GITHUB_OUTPUT
         echo "Current compatibility usage: $USAGE_COUNT"
     
@@ -94,7 +95,8 @@ jobs:
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        python scripts/create_removal_issue.py \
+        chmod +x scripts/create_removal_issue.py
+        python3 scripts/create_removal_issue.py \
           --version "${{ steps.version.outputs.next_version }}" \
           --deprecated-in "${{ steps.version.outputs.current_version }}"
     

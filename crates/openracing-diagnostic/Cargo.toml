@@ -18,15 +18,15 @@ bincode = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
-flate2 = "1.1.8"
+flate2 = "1.1.9"
 zip = "7.2.0"
 sysinfo = { workspace = true }
 workspace-hack = { version = "0.1", path = "../../workspace-hack" }
 
 [dev-dependencies]
-tempfile = "3.24.0"
+tempfile = "3.25.0"
 criterion = { workspace = true }
-insta = "1.42.2"
+insta = "1.46.3"
 
 [features]
 default = ["std"]

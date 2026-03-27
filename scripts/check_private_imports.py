@@ -9,6 +9,12 @@ import re
 import sys
 from pathlib import Path
 
+# Enable UTF-8 mode on Windows to handle emoji output
+if sys.platform == "win32":
+    import codecs
+    sys.stdout = codecs.getwriter('utf-8')(sys.stdout.buffer, 'strict')
+    sys.stderr = codecs.getwriter('utf-8')(sys.stderr.buffer, 'strict')
+
 def check_private_imports():
     """Check for private module imports in integration tests."""
     integration_tests_dir = Path("crates/integration-tests")

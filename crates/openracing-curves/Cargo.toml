@@ -27,7 +27,7 @@ serde_json = { workspace = true }
 quickcheck = { workspace = true }
 quickcheck_macros = { workspace = true }
 proptest = { workspace = true }
-insta = { version = "1.42.2", features = ["json"] }
+insta = { version = "1.46.3", features = ["json"] }
 criterion = { workspace = true }
 approx = "0.5.1"
 fastrand = "2.3.0"

@@ -11,6 +11,12 @@ import re
 import sys
 from pathlib import Path
 
+# Enable UTF-8 mode on Windows to handle emoji output
+if sys.platform == "win32":
+    import codecs
+    sys.stdout = codecs.getwriter('utf-8')(sys.stdout.buffer, 'strict')
+    sys.stderr = codecs.getwriter('utf-8')(sys.stderr.buffer, 'strict')
+
 def check_glob_reexports(root_dir):
     """Check for glob re-exports in Rust files."""
     glob_pattern = re.compile(r'pub\s+use\s+.*::\*\s*;')

@@ -19,7 +19,7 @@ workspace-hack = { version = "0.1", path = "../../workspace-hack" }
 
 [dev-dependencies]
 proptest = { workspace = true }
-insta = "1.42.2"
+insta = "1.46.3"
 
 [features]
 default = ["std"]

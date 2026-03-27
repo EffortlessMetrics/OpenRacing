@@ -198,9 +198,6 @@ jobs:
       with:
         node-version: '18'
     
-    - name: Install ajv-cli for JSON Schema validation
-      run: npm install -g ajv-cli
-    
     - name: Cache cargo registry
       uses: actions/cache@v4
       with:
@@ -211,7 +208,7 @@ jobs:
       run: |
         echo "Validating JSON Schema syntax..."
         if [ -f "crates/schemas/schemas/profile.schema.json" ]; then
-          ajv compile -s crates/schemas/schemas/profile.schema.json
+          npx ajv-cli compile -s crates/schemas/schemas/profile.schema.json
           echo "✅ JSON Schema syntax is valid"
         else
           echo "⚠️ Profile schema not found, skipping validation"
@@ -291,10 +288,10 @@ jobs:
         # Validate against schema if it exists
         if [ -f "crates/schemas/schemas/profile.schema.json" ]; then
           echo "Testing valid profile..."
-          ajv validate -s crates/schemas/schemas/profile.schema.json -d test-data/valid-profile.json
+          npx ajv-cli validate -s crates/schemas/schemas/profile.schema.json -d test-data/valid-profile.json
           
           echo "Testing invalid profile (should fail)..."
-          if ajv validate -s crates/schemas/schemas/profile.schema.json -d test-data/invalid-profile.json; then
+          if npx ajv-cli validate -s crates/schemas/schemas/profile.schema.json -d test-data/invalid-profile.json; then
             echo "❌ Invalid profile should have failed validation"
             exit 1
           else
