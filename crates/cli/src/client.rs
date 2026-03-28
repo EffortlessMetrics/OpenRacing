@@ -8,6 +8,7 @@
 use crate::error::CliError;
 use anyhow::Result;
 use racing_wheel_schemas::generated::wheel::v1 as wire;
+use racing_wheel_schemas::telemetry::TelemetryData as SchemasTelemetryData;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::time::Duration;
@@ -403,7 +404,7 @@ impl WheelClient {
                 })?;
 
                 Ok(HealthEventStream {
-                    kind: HealthStreamKind::Grpc(response.into_inner()),
+                    kind: HealthStreamKind::Grpc(Box::new(response.into_inner())),
                 })
             }
             ClientBackend::Mock => Ok(HealthEventStream {
@@ -717,14 +718,18 @@ pub struct TelemetryData {
 
 impl TelemetryData {
     fn from_wire(w: wire::TelemetryData) -> Self {
-        Self {
-            // Wire uses milli-degrees; convert to degrees
-            wheel_angle_deg: w.wheel_angle_mdeg as f32 / 1000.0,
-            // Wire uses milli-rad/s; convert to rad/s
-            wheel_speed_rad_s: w.wheel_speed_mrad_s as f32 / 1000.0,
-            temperature_c: w.temp_c as u8,
-            fault_flags: w.faults as u8,
-            hands_on: w.hands_on,
+        // Delegate to the canonical wire-to-domain conversion in schemas crate,
+        // which handles unit conversion (milli-degrees -> degrees, etc.) and
+        // validation.  On conversion error, fall back to defaults.
+        match SchemasTelemetryData::try_from(w) {
+            Ok(s) => Self {
+                wheel_angle_deg: s.wheel_angle_deg,
+                wheel_speed_rad_s: s.wheel_speed_rad_s,
+                temperature_c: s.temperature_c,
+                fault_flags: s.fault_flags,
+                hands_on: s.hands_on,
+            },
+            Err(_) => Self::default(),
         }
     }
 }
@@ -956,7 +961,7 @@ impl HealthEventType {
 // ---------------------------------------------------------------------------
 
 enum HealthStreamKind {
-    Grpc(tonic::codec::Streaming<wire::HealthEvent>),
+    Grpc(Box<tonic::codec::Streaming<wire::HealthEvent>>),
     Mock,
 }
 
