@@ -38,7 +38,7 @@ async fn temp_service() -> Result<(WheelService, TempDir), BoxErr> {
         auto_migrate: true,
         backup_on_migrate: false,
     };
-    let svc = WheelService::new_with_profile_config(config).await?;
+    let svc = WheelService::new_with_flags(FeatureFlags::default(), config).await?;
     Ok((svc, tmp))
 }
 
@@ -134,7 +134,7 @@ async fn lifecycle_profile_crud_across_start_stop() -> Result<(), BoxErr> {
         auto_migrate: true,
         backup_on_migrate: false,
     };
-    let svc = WheelService::new_with_profile_config(config.clone()).await?;
+    let svc = WheelService::new_with_flags(FeatureFlags::default(), config.clone()).await?;
     let profile = make_profile("persist-1")?;
     svc.profile_service().create_profile(profile).await?;
 
@@ -143,7 +143,7 @@ async fn lifecycle_profile_crud_across_start_stop() -> Result<(), BoxErr> {
 
     // "Restart" – create a new service over the same directory
     drop(svc);
-    let svc2 = WheelService::new_with_profile_config(config).await?;
+    let svc2 = WheelService::new_with_flags(FeatureFlags::default(), config).await?;
     let profiles2 = svc2.profile_service().list_profiles().await?;
     assert_eq!(profiles2.len(), 1, "profile should persist across restarts");
     Ok(())
@@ -400,13 +400,13 @@ async fn graceful_shutdown_preserves_profile_data() -> Result<(), BoxErr> {
         backup_on_migrate: false,
     };
 
-    let svc = WheelService::new_with_profile_config(config.clone()).await?;
+    let svc = WheelService::new_with_flags(FeatureFlags::default(), config.clone()).await?;
     let profile = make_profile("shutdown-persist")?;
     svc.profile_service().create_profile(profile).await?;
     drop(svc);
 
     // After "shutdown", data should persist
-    let svc2 = WheelService::new_with_profile_config(config).await?;
+    let svc2 = WheelService::new_with_flags(FeatureFlags::default(), config).await?;
     let loaded = svc2
         .profile_service()
         .get_profile(&ProfileId::new("shutdown-persist".to_string())?)
@@ -1096,7 +1096,7 @@ async fn cleanup_temp_dir_profiles_persisted() -> Result<(), BoxErr> {
     };
 
     // Create service, add profile, drop
-    let svc = WheelService::new_with_profile_config(config.clone()).await?;
+    let svc = WheelService::new_with_flags(FeatureFlags::default(), config.clone()).await?;
     let profile = make_profile("cleanup-test")?;
     svc.profile_service().create_profile(profile).await?;
     drop(svc);

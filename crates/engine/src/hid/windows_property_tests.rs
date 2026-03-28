@@ -347,7 +347,7 @@ proptest! {
             "Failed to create test device: {:?}",
             device_result.err()
         );
-        let device = match device_result {
+        let mut device = match device_result {
             Ok(d) => d,
             Err(_) => return Ok(()), // Already asserted above, this is unreachable
         };
@@ -410,7 +410,7 @@ proptest! {
             "Failed to create test device: {:?}",
             device_result.err()
         );
-        let device = match device_result {
+        let mut device = match device_result {
             Ok(d) => d,
             Err(_) => return Ok(()), // Already asserted above, this is unreachable
         };
@@ -468,7 +468,7 @@ proptest! {
             "Failed to create test device: {:?}",
             device_result.err()
         );
-        let device = match device_result {
+        let mut device = match device_result {
             Ok(d) => d,
             Err(_) => return Ok(()), // Already asserted above, this is unreachable
         };
@@ -505,7 +505,7 @@ proptest! {
             "Failed to create test device: {:?}",
             device_result.err()
         );
-        let device = match device_result {
+        let mut device = match device_result {
             Ok(d) => d,
             Err(_) => return Ok(()), // Already asserted above, this is unreachable
         };
@@ -603,7 +603,7 @@ mod unit_tests {
                 continue;
             }
 
-            let vendor_devices: Vec<_> = devices.iter().filter(|(v, _, _)| *v == vid).collect();
+            let vendor_devices: Vec<_> = devices.iter().filter(|(v, _, _)| *v == *vid).collect();
 
             assert!(
                 !vendor_devices.is_empty(),
@@ -672,7 +672,7 @@ mod unit_tests {
     /// Test that write with zero torque completes within timing requirements.
     #[test]
     fn test_write_zero_torque_timing() -> TestResult {
-        let device = create_test_device()?;
+        let mut device = create_test_device()?;
         let command = TorqueCommand::new(0.0, 0, false, false);
         let data = command.as_bytes();
 
@@ -693,7 +693,7 @@ mod unit_tests {
     /// Test that write with maximum positive torque completes within timing requirements.
     #[test]
     fn test_write_max_positive_torque_timing() -> TestResult {
-        let device = create_test_device()?;
+        let mut device = create_test_device()?;
         let command = TorqueCommand::new(25.0, 1000, true, false);
         let data = command.as_bytes();
 
@@ -714,7 +714,7 @@ mod unit_tests {
     /// Test that write with maximum negative torque completes within timing requirements.
     #[test]
     fn test_write_max_negative_torque_timing() -> TestResult {
-        let device = create_test_device()?;
+        let mut device = create_test_device()?;
         let command = TorqueCommand::new(-25.0, 2000, true, true);
         let data = command.as_bytes();
 
@@ -735,7 +735,7 @@ mod unit_tests {
     /// Test that write with frame counter at boundary (0) completes within timing requirements.
     #[test]
     fn test_write_sequence_zero_timing() -> TestResult {
-        let device = create_test_device()?;
+        let mut device = create_test_device()?;
         let command = TorqueCommand::new(5.0, 0, true, false);
         let data = command.as_bytes();
 
@@ -756,7 +756,7 @@ mod unit_tests {
     /// Test that write with frame counter at boundary (u16::MAX) completes within timing requirements.
     #[test]
     fn test_write_sequence_max_timing() -> TestResult {
-        let device = create_test_device()?;
+        let mut device = create_test_device()?;
         let command = TorqueCommand::new(5.0, u16::MAX, true, false);
         let data = command.as_bytes();
 
@@ -778,7 +778,7 @@ mod unit_tests {
     /// This simulates the 1kHz RT loop scenario.
     #[test]
     fn test_write_rapid_succession_timing() -> TestResult {
-        let device = create_test_device()?;
+        let mut device = create_test_device()?;
         let max_latency = Duration::from_micros(MAX_WRITE_LATENCY_US * 500); // 100ms for heavy CI load
         for seq in 0..100u16 {
             let torque = (seq as f32 / 100.0) * 10.0 - 5.0; // Vary torque from -5 to +5
@@ -805,7 +805,7 @@ mod unit_tests {
     /// **Validates: Requirement 4.7**
     #[test]
     fn test_write_disconnected_device_timing() -> TestResult {
-        let device = create_test_device()?;
+        let mut device = create_test_device()?;
 
         // Simulate device disconnection
         device
@@ -839,7 +839,7 @@ mod unit_tests {
     /// Test that write with various flag combinations completes within timing requirements.
     #[test]
     fn test_write_flag_combinations_timing() -> TestResult {
-        let device = create_test_device()?;
+        let mut device = create_test_device()?;
         let max_latency = Duration::from_micros(MAX_WRITE_LATENCY_US * 250);
 
         let flag_combinations = [(false, false), (true, false), (false, true), (true, true)];

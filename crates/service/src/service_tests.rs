@@ -100,7 +100,12 @@ mod tests {
             backup_on_migrate: false,
         };
 
-        let service = WheelService::new_with_profile_config(config).await?;
+        // For tests, we use default feature flags which have virtual devices enabled by default
+        // if real hardware is not found, or we can explicitly enable them.
+        let mut flags = crate::FeatureFlags::default();
+        flags.enable_virtual_devices = true;
+
+        let service = WheelService::new_with_flags(flags, config).await?;
         Ok((service, temp_dir))
     }
 

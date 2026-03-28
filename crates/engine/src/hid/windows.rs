@@ -325,6 +325,39 @@ impl OverlappedWriteState {
             }
         }
     }
+
+    /// Cancel and drain any pending I/O operation
+    ///
+    /// This method ensures that the kernel is no longer referencing the memory
+    /// owned by this struct. It should be called before dropping the struct
+    /// if an operation is pending.
+    pub(crate) fn cancel_and_drain(&mut self, handle: HANDLE) {
+        if !self.write_pending.load(Ordering::Acquire) {
+            return;
+        }
+
+        if handle.is_invalid() {
+            // If handle is already invalid, the O/S has likely already cleaned up
+            self.write_pending.store(false, Ordering::Release);
+            return;
+        }
+
+        debug!("Cancelling pending overlapped write for device handle {:?}", handle);
+
+        unsafe {
+            // 1. Request cancellation of the specific pending operation
+            // We ignore errors here as the operation might have completed between
+            // the check and this call.
+            let _ = CancelIoEx(handle, Some(&mut self.overlapped));
+
+            // 2. Drain the completion (blocking) to ensure memory is no longer
+            // referenced by the kernel.
+            let mut bytes_transferred = 0;
+            let _ = GetOverlappedResult(handle, &self.overlapped, &mut bytes_transferred, true);
+        }
+
+        self.write_pending.store(false, Ordering::Release);
+    }
 }
 
 impl Drop for OverlappedWriteState {
@@ -334,18 +367,17 @@ impl Drop for OverlappedWriteState {
         // and `self.write_buffer`. Freeing them without cancelling the pending
         // request would cause a use-after-free in kernel space.
         //
-        // TODO: cancel pending I/O before dropping -- the correct sequence is:
-        //   1. Call `CancelIoEx(device_handle, &self.overlapped)` to request
-        //      cancellation of the specific pending operation.
-        //   2. Call `GetOverlappedResult(device_handle, &self.overlapped, ..., TRUE)`
-        //      (blocking) to drain the completion and ensure the kernel no longer
-        //      references this memory.
-        //   3. Only then close the event handle and allow deallocation.
-        //
-        // Currently, pending I/O is drained at a higher level (the device handle
-        // is closed first in `WindowsHidDevice::drop`, which implicitly cancels
-        // all outstanding I/O on that handle), but an explicit cancel-and-drain
-        // here would be more robust against drop-ordering changes.
+        // Cancellation is typically handled at the `WindowsHidDevice` level
+        // where the device handle is available. If we reach here with an in-flight
+        // I/O, it's a bug in the shutdown sequence, but we protect against it
+        // by verifying `write_pending` is false.
+        if self.write_pending.load(Ordering::Acquire) {
+            error!("OverlappedWriteState dropped while I/O is still pending! Potential use-after-free hazard.");
+            // We cannot safely block here without a handle. In debug builds,
+            // we panic to catch this. In release, we log a critical error.
+            #[cfg(debug_assertions)]
+            panic!("OverlappedWriteState dropped with pending I/O");
+        }
 
         // Close the event handle
         // SAFETY: `CloseHandle` is safe to call on a valid, non-null handle that
@@ -2911,29 +2943,19 @@ impl WindowsHidDevice {
 
 impl Drop for WindowsHidDevice {
     fn drop(&mut self) {
-        // SAFETY: Dropping a `WindowsHidDevice` must ensure that no overlapped I/O
-        // operation is still referencing memory owned by `self.overlapped_state`.
-        //
-        // The current shutdown sequence is:
-        //   1. `shutdown_vendor_protocol` sends a vendor-specific "stop" command
-        //      via hidapi (blocking, safe).
-        //   2. `self.hidapi_device` is dropped, which closes the hidapi handle.
-        //   3. `self.device_handle` is dropped, which closes the raw Windows
-        //      HANDLE. Closing the handle implicitly cancels all pending
-        //      overlapped I/O on that handle and the kernel will no longer
-        //      access the OVERLAPPED or buffer memory after the handle is closed.
-        //   4. `self.overlapped_state` is dropped, freeing the OVERLAPPED struct,
-        //      write buffer, and event handle.
-        //
-        // This ordering is safe because step 3 (handle close) happens before
-        // step 4 (state deallocation) due to Rust's field drop order (fields are
-        // dropped in declaration order). The device handle is declared before
-        // `overlapped_state` in the struct, so it is dropped first.
-        //
-        // TODO: For defense-in-depth, consider adding an explicit
-        // `CancelIoEx` + `GetOverlappedResult` drain in the `OverlappedWriteState`
-        // drop impl so safety does not depend on struct field declaration order.
+        // 1. Shutdown vendor protocol (blocking, safe)
         Self::shutdown_vendor_protocol(&self.device_info, &self.hidapi_device);
+
+        // 2. Cancel and drain any pending overlapped I/O
+        // This is critical because `OverlappedWriteState` holds pointers
+        // that the kernel may be using for async I/O.
+        let device_handle = self.device_handle.lock().get();
+        if !device_handle.is_invalid() {
+            let mut overlapped_state = self.overlapped_state.lock();
+            overlapped_state.cancel_and_drain(device_handle);
+        }
+
+        debug!("WindowsHidDevice dropped, I/O drained and resources cleaned up");
     }
 }
 
