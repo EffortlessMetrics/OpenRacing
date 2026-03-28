@@ -12,7 +12,9 @@ use uuid::Uuid;
 
 // use racing_wheel_engine::{Engine, EngineConfig};
 use racing_wheel_schemas::prelude::*;
-use racing_wheel_service::{WheelService, profile_repository::ProfileRepositoryConfig};
+use racing_wheel_service::{
+    FeatureFlags, WheelService, profile_repository::ProfileRepositoryConfig,
+};
 
 use crate::{PerformanceMetrics, TestConfig};
 
@@ -139,7 +141,11 @@ impl TestHarness {
             auto_migrate: true,
             backup_on_migrate: false,
         };
-        let service = WheelService::new_with_profile_config(profile_config).await?;
+        let flags = FeatureFlags {
+            enable_virtual_devices: true,
+            ..FeatureFlags::default()
+        };
+        let service = WheelService::new_with_flags(flags, profile_config).await?;
         self.service = Some(Arc::new(service));
         self._profile_temp_dir = Some(temp_dir);
 

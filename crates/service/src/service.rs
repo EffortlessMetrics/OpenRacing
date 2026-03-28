@@ -22,6 +22,7 @@ pub struct WheelService {
     /// Tracing manager for observability
     tracer: Option<Arc<TracingManager>>,
     /// Feature flags for runtime behavior
+    #[allow(dead_code)]
     flags: FeatureFlags,
 }
 

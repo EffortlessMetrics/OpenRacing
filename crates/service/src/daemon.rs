@@ -140,10 +140,7 @@ impl ServiceDaemon {
     }
 
     /// Create new service daemon with feature flags
-    pub async fn new_with_flags(
-        config: ServiceConfig,
-        flags: crate::FeatureFlags,
-    ) -> Result<Self> {
+    pub async fn new_with_flags(config: ServiceConfig, flags: crate::FeatureFlags) -> Result<Self> {
         let mut daemon = Self::new(config).await?;
         daemon.flags = flags;
         Ok(daemon)

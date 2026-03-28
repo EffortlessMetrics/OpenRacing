@@ -599,7 +599,7 @@ mod unit_tests {
         let descriptor_first_vendors = [vendor_ids::SIMAGIC_EVO];
 
         for vid in vendor_ids_list {
-            if descriptor_first_vendors.contains(&vid) {
+            if descriptor_first_vendors.contains(vid) {
                 continue;
             }
 

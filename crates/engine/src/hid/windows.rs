@@ -342,13 +342,16 @@ impl OverlappedWriteState {
             return;
         }
 
-        debug!("Cancelling pending overlapped write for device handle {:?}", handle);
+        debug!(
+            "Cancelling pending overlapped write for device handle {:?}",
+            handle
+        );
 
         unsafe {
             // 1. Request cancellation of the specific pending operation
             // We ignore errors here as the operation might have completed between
             // the check and this call.
-            let _ = CancelIoEx(handle, Some(&mut self.overlapped));
+            let _ = CancelIoEx(handle, Some(&self.overlapped));
 
             // 2. Drain the completion (blocking) to ensure memory is no longer
             // referenced by the kernel.
@@ -372,7 +375,9 @@ impl Drop for OverlappedWriteState {
         // I/O, it's a bug in the shutdown sequence, but we protect against it
         // by verifying `write_pending` is false.
         if self.write_pending.load(Ordering::Acquire) {
-            error!("OverlappedWriteState dropped while I/O is still pending! Potential use-after-free hazard.");
+            error!(
+                "OverlappedWriteState dropped while I/O is still pending! Potential use-after-free hazard."
+            );
             // We cannot safely block here without a handle. In debug builds,
             // we panic to catch this. In release, we log a critical error.
             #[cfg(debug_assertions)]
