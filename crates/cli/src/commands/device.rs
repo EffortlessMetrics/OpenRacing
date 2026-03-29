@@ -13,7 +13,7 @@ use crate::output;
 
 /// Execute device command
 pub async fn execute(cmd: &DeviceCommands, json: bool, endpoint: Option<&str>) -> Result<()> {
-    let client = WheelClient::connect(endpoint).await?;
+    let client = WheelClient::connect_or_mock(endpoint).await?;
 
     match cmd {
         DeviceCommands::List { detailed } => list_devices(&client, json, *detailed).await,

@@ -13,7 +13,7 @@ use racing_wheel_telemetry_config::support::{GameSupport, load_default_matrix, n
 
 /// Execute game command
 pub async fn execute(cmd: &GameCommands, json: bool, endpoint: Option<&str>) -> Result<()> {
-    let client = WheelClient::connect(endpoint).await?;
+    let client = WheelClient::connect_or_mock(endpoint).await?;
 
     match cmd {
         GameCommands::List { detailed } => list_supported_games(json, *detailed).await,

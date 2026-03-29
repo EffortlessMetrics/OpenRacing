@@ -13,7 +13,7 @@ use crate::output;
 
 /// Execute profile command
 pub async fn execute(cmd: &ProfileCommands, json: bool, endpoint: Option<&str>) -> Result<()> {
-    let client = WheelClient::connect(endpoint).await?;
+    let client = WheelClient::connect_or_mock(endpoint).await?;
 
     match cmd {
         ProfileCommands::List { game, car } => {

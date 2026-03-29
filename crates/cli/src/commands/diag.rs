@@ -41,7 +41,7 @@ enum ParsedBlackbox {
 
 /// Execute diagnostic command
 pub async fn execute(cmd: &DiagCommands, json: bool, endpoint: Option<&str>) -> Result<()> {
-    let client = WheelClient::connect(endpoint).await?;
+    let client = WheelClient::connect_or_mock(endpoint).await?;
 
     match cmd {
         DiagCommands::Test { device, test_type } => {

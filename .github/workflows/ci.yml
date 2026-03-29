@@ -559,7 +559,6 @@ jobs:
           # Check for print statements in non-test code (should use tracing instead)
           # Excludes: test dirs, integration tests, examples, benches, CLI, binaries,
           # build scripts, entrypoints, test helpers, plugin examples, and test modules.
-          # unwrap() check removed — enforced by #![deny(clippy::unwrap_used)] + clippy gate.
           PRINT_HITS=$(find crates/ -name "*.rs" \
             -not -path "*/tests/*" \
             -not -path "*/integration-tests/*" \

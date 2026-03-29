@@ -10,7 +10,7 @@ use crate::output;
 
 /// Execute health monitoring
 pub async fn execute(watch: bool, json: bool, endpoint: Option<&str>) -> Result<()> {
-    let client = WheelClient::connect(endpoint).await?;
+    let client = WheelClient::connect_or_mock(endpoint).await?;
 
     if watch {
         watch_health_events(&client, json).await
