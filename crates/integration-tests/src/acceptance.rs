@@ -17,6 +17,7 @@ const DEFAULT_DM02_DISCONNECT_LIMIT: Duration = Duration::from_millis(100);
 const CI_FAULT_RESPONSE_LIMIT: Duration = Duration::from_millis(100);
 const DEFAULT_FAULT_RESPONSE_LIMIT: Duration = Duration::from_millis(50);
 const CI_ACCEPTANCE_TEST_IDS: &[&str] = &["AT-DM-01", "AT-GI-01", "AT-SAFE-03"];
+const PER_CASE_TIMEOUT: Duration = Duration::from_secs(45);
 
 fn disconnect_detection_limit() -> Duration {
     if crate::gates::ci_gates_enabled() {
@@ -77,9 +78,9 @@ async fn run_acceptance_tests(tests: Vec<AcceptanceTest>) -> Result<HashMap<Stri
             test.id, test.requirement_id
         );
 
-        let result = (test.test_fn)().await;
+        let result = tokio::time::timeout(PER_CASE_TIMEOUT, (test.test_fn)()).await;
         match result {
-            Ok(mut test_result) => {
+            Ok(Ok(mut test_result)) => {
                 // Ensure requirement coverage is set
                 if !test_result
                     .requirement_coverage
@@ -109,7 +110,7 @@ async fn run_acceptance_tests(tests: Vec<AcceptanceTest>) -> Result<HashMap<Stri
 
                 results.insert(test.id.clone(), test_result);
             }
-            Err(e) => {
+            Ok(Err(e)) => {
                 error!("Test {} failed with error: {}", test.id, e);
                 results.insert(
                     test.id.clone(),
@@ -118,6 +119,25 @@ async fn run_acceptance_tests(tests: Vec<AcceptanceTest>) -> Result<HashMap<Stri
                         duration: Duration::ZERO,
                         metrics: PerformanceMetrics::default(),
                         errors: vec![format!("Test execution failed: {}", e)],
+                        requirement_coverage: vec![test.requirement_id.clone()],
+                    },
+                );
+            }
+            Err(_elapsed) => {
+                error!(
+                    "Test {} TIMED OUT after {:?} — possible hang or deadlock",
+                    test.id, PER_CASE_TIMEOUT
+                );
+                results.insert(
+                    test.id.clone(),
+                    TestResult {
+                        passed: false,
+                        duration: PER_CASE_TIMEOUT,
+                        metrics: PerformanceMetrics::default(),
+                        errors: vec![format!(
+                            "Test timed out after {:?} (possible hang or deadlock)",
+                            PER_CASE_TIMEOUT
+                        )],
                         requirement_coverage: vec![test.requirement_id.clone()],
                     },
                 );
