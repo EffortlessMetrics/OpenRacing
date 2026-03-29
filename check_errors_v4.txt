@@ -1,9 +1,0 @@
-    Checking racing-wheel-engine v0.1.0 (H:\Code\Rust\OpenRacing\crates\engine)
-   Compiling racing-wheel-ui v0.1.0 (H:\Code\Rust\OpenRacing\crates\ui)
-error: expected item after doc comment
-   --> crates\engine\src\hid\windows.rs:178:3
-    |
-178 |   /// Supported racing wheel vendor IDs ...unication > initial_time);          Ok(())     } }
-    |   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^...^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ this doc comment doesn't document anything
-
-error: could not compile `racing-wheel-engine` (lib) due to 1 previous error

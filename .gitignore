@@ -70,3 +70,30 @@ compat_usage_report.json
 
 # Machine-specific cargo config
 .cargo/
+
+# Python bytecode
+__pycache__/
+*.pyc
+
+# Temporary debugging/analysis files at repo root
+check_errors*.txt
+check_output*.txt
+check_output*.json
+error_check.txt
+fatal*.txt
+final_test_results.txt
+test_output.log
+all_diff.txt
+my_diff.txt
+diff_*.txt
+prs.json
+status.txt
+*_err.log
+err.log
+log.txt
+int_err.log
+svc_err.log
+doc_err.log
+
+# Bench results (generated, not source)
+crates/engine/bench_results.json

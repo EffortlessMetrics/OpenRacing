@@ -56,22 +56,24 @@ HID output report → USB → R5 wheelbase motor
 
 | ID | Invariant | Verified | Citation |
 |----|-----------|----------|----------|
-| S-1 | NaN/infinity torque → 0.0 | ✅ | [safety.rs:177-181](file:///h:/Code/Rust/OpenRacing/crates/engine/src/safety.rs#L177-L181) |
-| S-2 | Faulted state → max torque = 0.0 | ✅ | [safety.rs:153](file:///h:/Code/Rust/OpenRacing/crates/engine/src/safety.rs#L153) |
-| S-3 | Watchdog timeout → torque = 0.0 | ✅ | [hardware_watchdog.rs:739](file:///h:/Code/Rust/OpenRacing/crates/engine/src/safety/hardware_watchdog.rs#L739) |
-| S-4 | Communication loss → torque = 0.0 | ✅ | [hardware_watchdog.rs:769](file:///h:/Code/Rust/OpenRacing/crates/engine/src/safety/hardware_watchdog.rs#L769) |
-| S-5 | Emergency stop → torque = 0.0 | ✅ | [hardware_watchdog.rs:835](file:///h:/Code/Rust/OpenRacing/crates/engine/src/safety/hardware_watchdog.rs#L835) + [L919](file:///h:/Code/Rust/OpenRacing/crates/engine/src/safety/hardware_watchdog.rs#L919) |
-| S-6 | `encode_zero()` = `[0x20, 0×7]` | ✅ | [direct.rs:67-68](file:///h:/Code/Rust/OpenRacing/crates/hid-moza-protocol/src/direct.rs#L67-L68) → [L77-78](file:///h:/Code/Rust/OpenRacing/crates/hid-moza-protocol/src/direct.rs#L77-L78) |
-| S-7 | Motor enable ONLY when torque ≠ 0 | ✅ | [direct.rs:85-87](file:///h:/Code/Rust/OpenRacing/crates/hid-moza-protocol/src/direct.rs#L85-L87) |
-| S-8 | Torque clamp never exceeds max | ✅ | [direct.rs:103](file:///h:/Code/Rust/OpenRacing/crates/hid-moza-protocol/src/direct.rs#L103): `.clamp(-1.0, 1.0)` |
-| S-9 | Watchdog default timeout = 100ms | ✅ | [hardware_watchdog.rs:112-113](file:///h:/Code/Rust/OpenRacing/crates/engine/src| S-11 | Fault-to-zero < 10ms | ✅ | [watchdog_safety_deep_tests.rs:334-350](file:///h:/Code/Rust/OpenRacing/crates/engine/src/safety/watchdog_safety_deep_tests.rs#L334-L350) |
-| S-12 | Emergency stop < 1ms | ✅ | [watchdog_safety_deep_tests.rs:371-386](file:///h:/Code/Rust/OpenRacing/crates/engine/src/safety/watchdog_safety_deep_tests.rs#L371-L386) |
-| S-13 | WASM Memory Limit = 16MB | ✅ | [wasm.rs:60](file:///h:/Code/Rust/OpenRacing/crates/plugins/src/wasm.rs#L60) |
-| S-14 | WASM Fuel Limit = 10M | ✅ | [wasm.rs:61](file:///h:/Code/Rust/OpenRacing/crates/plugins/src/wasm.rs#L61) |
-| S-15 | Native Signing (Ed25519) | ✅ | [pe_sig.rs:30](file:///h:/Code/Rust/OpenRacing/crates/plugins/src/pe_sig.rs#L30) |
-| S-16 | PE Integrity (SHA256) | ✅ | [pe_sig.rs:380](file:///h:/Code/Rust/OpenRacing/crates/plugins/src/pe_sig.rs#L380) |
-| S-17 | Quarantine Escalation (2^level) | ✅ | [quarantine.rs:246](file:///h:/Code/Rust/OpenRacing/crates/plugins/src/quarantine.rs#L246) |
-| S-18 | FMEA 10Hz Health Polling | ✅ | [safety_service.rs:127](file:///h:/Code/Rust/OpenRacing/crates/service/src/safety_service.rs#L127) |
+| S-1 | NaN/infinity torque → 0.0 | ✅ | [safety.rs:177-181](../crates/engine/src/safety.rs#L177-L181) |
+| S-2 | Faulted state → max torque = 0.0 | ✅ | [safety.rs:153](../crates/engine/src/safety.rs#L153) |
+| S-3 | Watchdog timeout → torque = 0.0 | ✅ | [hardware_watchdog.rs:739](../crates/engine/src/safety/hardware_watchdog.rs#L739) |
+| S-4 | Communication loss → torque = 0.0 | ✅ | [hardware_watchdog.rs:769](../crates/engine/src/safety/hardware_watchdog.rs#L769) |
+| S-5 | Emergency stop → torque = 0.0 | ✅ | [hardware_watchdog.rs:835](../crates/engine/src/safety/hardware_watchdog.rs#L835) + [L919](../crates/engine/src/safety/hardware_watchdog.rs#L919) |
+| S-6 | `encode_zero()` = `[0x20, 0×7]` | ✅ | [direct.rs:67-68](../crates/hid-moza-protocol/src/direct.rs#L67-L68) → [L77-78](../crates/hid-moza-protocol/src/direct.rs#L77-L78) |
+| S-7 | Motor enable ONLY when torque ≠ 0 | ✅ | [direct.rs:85-87](../crates/hid-moza-protocol/src/direct.rs#L85-L87) |
+| S-8 | Torque clamp never exceeds max | ✅ | [direct.rs:103](../crates/hid-moza-protocol/src/direct.rs#L103): `.clamp(-1.0, 1.0)` |
+| S-9 | Watchdog default timeout = 100ms | ✅ | [hardware_watchdog.rs:112-113](../crates/engine/src/safety/hardware_watchdog.rs#L112-L113) |
+| S-10 | Heartbeat interval = 50ms | ✅ | [hardware_watchdog.rs:114](../crates/engine/src/safety/hardware_watchdog.rs#L114) |
+| S-11 | Fault-to-zero < 10ms | ✅ | [watchdog_safety_deep_tests.rs:334-350](../crates/engine/src/safety/watchdog_safety_deep_tests.rs#L334-L350) |
+| S-12 | Emergency stop < 1ms | ✅ | [watchdog_safety_deep_tests.rs:371-386](../crates/engine/src/safety/watchdog_safety_deep_tests.rs#L371-L386) |
+| S-13 | WASM Memory Limit = 16MB | ✅ | [wasm.rs:60](../crates/plugins/src/wasm.rs#L60) |
+| S-14 | WASM Fuel Limit = 10M | ✅ | [wasm.rs:61](../crates/plugins/src/wasm.rs#L61) |
+| S-15 | Native Signing (Ed25519) | ✅ | [pe_sig.rs:30](../crates/plugins/src/pe_sig.rs#L30) |
+| S-16 | PE Integrity (SHA256) | ✅ | [pe_sig.rs:380](../crates/plugins/src/pe_sig.rs#L380) |
+| S-17 | Quarantine Escalation (2^level) | ✅ | [quarantine.rs:246](../crates/plugins/src/quarantine.rs#L246) |
+| S-18 | FMEA 10Hz Health Polling | ✅ | [safety_service.rs:127](../crates/service/src/safety_service.rs#L127) |
 
 ---
 
@@ -105,11 +107,11 @@ MozaProtocol::initialize_device(writer)             [protocol.rs:602-688]
 
 | Layer | Gate | Default | Citation |
 |-------|------|---------|----------|
-| 1 - Protocol | `OPENRACING_MOZA_HIGH_TORQUE=1` env var | OFF | [protocol.rs:164-169](file:///h:/Code/Rust/OpenRacing/crates/hid-moza-protocol/src/protocol.rs#L164-L169) |
-| 2 - Protocol | Descriptor CRC32 in allowlist | EMPTY | [protocol.rs:232-234](file:///h:/Code/Rust/OpenRacing/crates/hid-moza-protocol/src/protocol.rs#L232-L234) |
-| 3 - Safety Service | `SafetyState::SafeTorque` → max 5.0 Nm | 5.0 Nm | [safety.rs:149](file:///h:/Code/Rust/OpenRacing/crates/engine/src/safety.rs#L149) |
-| 4 - Safety Service | Physical button combo (both clutches, 2s hold) | Required | [safety.rs:352](file:///h:/Code/Rust/OpenRacing/crates/engine/src/safety.rs#L352) |
-| 5 - Safety Service | UI consent popup | Required | [safety.rs:253](file:///h:/Code/Rust/OpenRacing/crates/engine/src/safety.rs#L253) |
+| 1 - Protocol | `OPENRACING_MOZA_HIGH_TORQUE=1` env var | OFF | [protocol.rs:164-169](../crates/hid-moza-protocol/src/protocol.rs#L164-L169) |
+| 2 - Protocol | Descriptor CRC32 in allowlist | EMPTY | [protocol.rs:232-234](../crates/hid-moza-protocol/src/protocol.rs#L232-L234) |
+| 3 - Safety Service | `SafetyState::SafeTorque` → max 5.0 Nm | 5.0 Nm | [safety.rs:149](../crates/engine/src/safety.rs#L149) |
+| 4 - Safety Service | Physical button combo (both clutches, 2s hold) | Required | [safety.rs:352](../crates/engine/src/safety.rs#L352) |
+| 5 - Safety Service | UI consent popup | Required | [safety.rs:253](../crates/engine/src/safety.rs#L253) |
 
 **Result:** High torque requires 5 independent gates. Default state provides max 5.0 Nm.
 
@@ -118,17 +120,17 @@ MozaProtocol::initialize_device(writer)             [protocol.rs:602-688]
 ## 3. Plugin Safety & Isolation
 
 ### 3.1 WASM Sandboxing (Wasmtime)
-- **Memory Isolation:** Plugins are restricted to **16MB** of linear memory. [wasm.rs:60](file:///h:/Code/Rust/OpenRacing/crates/plugins/src/wasm.rs#L60)
-- **CPU Budget:** "Fuel" consumption is enabled with a default limit of **10,000,000 instructions** per processing call. [wasm.rs:61](file:///h:/Code/Rust/OpenRacing/crates/plugins/src/wasm.rs#L61)
-- **Capability-Based Access:** Host functions (telemetry, logging) verify specific capability bits before execution. [wasm.rs:418-455](file:///h:/Code/Rust/OpenRacing/crates/plugins/src/wasm.rs#L418-L455)
+- **Memory Isolation:** Plugins are restricted to **16MB** of linear memory. [wasm.rs:60](../crates/plugins/src/wasm.rs#L60)
+- **CPU Budget:** "Fuel" consumption is enabled with a default limit of **10,000,000 instructions** per processing call. [wasm.rs:61](../crates/plugins/src/wasm.rs#L61)
+- **Capability-Based Access:** Host functions (telemetry, logging) verify specific capability bits before execution. [wasm.rs:418-455](../crates/plugins/src/wasm.rs#L418-L455)
 
 ### 3.2 Native Plugin Verification (Windows PE)
-- **Signature Check:** Native DLLs MUST contain an Ed25519 signature in a custom `.orsig` section. [pe_sig.rs:30](file:///h:/Code/Rust/OpenRacing/crates/plugins/src/pe_sig.rs#L30)
-- **Integrity Check:** The loader recomputes the SHA256 of the binary (excluding `.orsig`) to detect tampering. [pe_sig.rs:380](file:///h:/Code/Rust/OpenRacing/crates/plugins/src/pe_sig.rs#L380)
+- **Signature Check:** Native DLLs MUST contain an Ed25519 signature in a custom `.orsig` section. [pe_sig.rs:30](../crates/plugins/src/pe_sig.rs#L30)
+- **Integrity Check:** The loader recomputes the SHA256 of the binary (excluding `.orsig`) to detect tampering. [pe_sig.rs:380](../crates/plugins/src/pe_sig.rs#L380)
 
 ### 3.3 Quarantine System
-- **Escalation:** Repeated violations (crashes or overruns) trigger escalating quarantine durations using an exponential backoff formula: `quarantine_duration = base * 2^escalation_level`. [quarantine.rs:246](file:///h:/Code/Rust/OpenRacing/crates/plugins/src/quarantine.rs#L246)
-- **Auto-Disable:** Plugins that overrun their RT budget are immediately disabled to protect loop timing. [wasm.rs:176](file:///h:/Code/Rust/OpenRacing/crates/plugins/src/wasm.rs#L176)
+- **Escalation:** Repeated violations (crashes or overruns) trigger escalating quarantine durations using an exponential backoff formula: `quarantine_duration = base * 2^escalation_level`. [quarantine.rs:246](../crates/plugins/src/quarantine.rs#L246)
+- **Auto-Disable:** Plugins that overrun their RT budget are immediately disabled to protect loop timing. [wasm.rs:176](../crates/plugins/src/wasm.rs#L176)
 
 ---
 
@@ -144,9 +146,9 @@ MozaProtocol::initialize_device(writer)             [protocol.rs:602-688]
 | `HandsOff` | Hands off wheel during high torque | SafeMode (5.0 Nm) |
 
 ### 4.2 Monitoring Loops
-- **Device Health Poll:** Every **5 seconds** for detailed diagnostics (temp, fault flags). [device_service.rs:71](file:///h:/Code/Rust/OpenRacing/crates/service/src/device_service.rs#L71)
-- **Safety Interlock Poll:** Every **100 milliseconds (10Hz)** for interlock state changes and hands-on detection. [safety_service.rs:127](file:///h:/Code/Rust/OpenRacing/crates/service/src/safety_service.rs#L127)
-- **RT Loop:** Every **1 millisecond (1kHz)** with PLL stabilized timing. [scheduler.rs:16](file:///h:/Code/Rust/OpenRacing/crates/engine/src/scheduler.rs#L16)
+- **Device Health Poll:** Every **5 seconds** for detailed diagnostics (temp, fault flags). [device_service.rs:71](../crates/service/src/device_service.rs#L71)
+- **Safety Interlock Poll:** Every **100 milliseconds (10Hz)** for interlock state changes and hands-on detection. [safety_service.rs:127](../crates/service/src/safety_service.rs#L127)
+- **RT Loop:** Every **1 millisecond (1kHz)** with PLL stabilized timing. [scheduler.rs:16](../crates/engine/src/scheduler.rs#L16)
 
 ---
 
@@ -179,14 +181,14 @@ Phase 1 & Phase 2 are **COMPLETED** with 100% verification of all safety-critica
 ---
 
 *Source files audited:*
-- [safety.rs](file:///h:/Code/Rust/OpenRacing/crates/engine/src/safety.rs) — SafetyService, state machine, interlock
-- [hardware_watchdog.rs](file:///h:/Code/Rust/OpenRacing/crates/engine/src/safety/hardware_watchdog.rs) — watchdog, interlock system, torque limits
-- [wasm.rs](file:///h:/Code/Rust/OpenRacing/crates/plugins/src/wasm.rs) — WASM sandboxing
-- [pe_sig.rs](file:///h:/Code/Rust/OpenRacing/crates/plugins/src/pe_sig.rs) — Native signature verification
-- [quarantine.rs](file:///h:/Code/Rust/OpenRacing/crates/plugins/src/quarantine.rs) — Plugin fault isolation
-- [device_service.rs](file:///h:/Code/Rust/OpenRacing/crates/service/src/device_service.rs) — Health monitoring loop
-- [fmea.rs](file:///h:/Code/Rust/OpenRacing/crates/openracing-fmea/src/fmea.rs) — Fault detection & action matrix
-- [scheduler.rs](file:///h:/Code/Rust/OpenRacing/crates/engine/src/scheduler.rs) — PLL-stabilized 1kHz RT loop
-- [protocol.rs](file:///h:/Code/Rust/OpenRacing/crates/hid-moza-protocol/src/protocol.rs) (892 lines) — handshake, init, high-torque gate
-- [writer.rs](file:///h:/Code/Rust/OpenRacing/crates/hid-moza-protocol/src/writer.rs) (85 lines) — DeviceWriter, VendorProtocol trait
-- [quirks.rs](file:///h:/Code/Rust/OpenRacing/crates/engine/src/hid/quirks.rs) (188 lines) — device quirks
+- [safety.rs](../crates/engine/src/safety.rs) — SafetyService, state machine, interlock
+- [hardware_watchdog.rs](../crates/engine/src/safety/hardware_watchdog.rs) — watchdog, interlock system, torque limits
+- [wasm.rs](../crates/plugins/src/wasm.rs) — WASM sandboxing
+- [pe_sig.rs](../crates/plugins/src/pe_sig.rs) — Native signature verification
+- [quarantine.rs](../crates/plugins/src/quarantine.rs) — Plugin fault isolation
+- [device_service.rs](../crates/service/src/device_service.rs) — Health monitoring loop
+- [fmea.rs](../crates/openracing-fmea/src/fmea.rs) — Fault detection & action matrix
+- [scheduler.rs](../crates/engine/src/scheduler.rs) — PLL-stabilized 1kHz RT loop
+- [protocol.rs](../crates/hid-moza-protocol/src/protocol.rs) (892 lines) — handshake, init, high-torque gate
+- [writer.rs](../crates/hid-moza-protocol/src/writer.rs) (85 lines) — DeviceWriter, VendorProtocol trait
+- [quirks.rs](../crates/engine/src/hid/quirks.rs) (188 lines) — device quirks
