@@ -288,7 +288,7 @@ fn torque_to_raw(torque_nm: f32, max_torque_nm: f32) -> i16 {
     if max_torque_nm <= f32::EPSILON {
         return 0;
     }
-    let normalized = (torque_nm / max_torque_nm).clamp(-1.0, 1.0);
+    let normalized = openracing_hid_common::math::safe_clamp(torque_nm / max_torque_nm, -1.0, 1.0);
     if normalized >= 0.0 {
         (normalized * i16::MAX as f32).round() as i16
     } else {

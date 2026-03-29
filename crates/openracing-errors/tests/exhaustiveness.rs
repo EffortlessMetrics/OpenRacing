@@ -29,6 +29,7 @@ fn all_rt_variants() -> Vec<RTError> {
         RTError::BufferOverflow,
         RTError::DeadlineMissed,
         RTError::ResourceUnavailable,
+        RTError::AccessViolation,
     ]
 }
 

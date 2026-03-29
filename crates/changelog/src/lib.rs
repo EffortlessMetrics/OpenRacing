@@ -228,12 +228,17 @@ fn parse_version_header(header: &str) -> Result<(Version, NaiveDate), ChangelogE
         ));
     }
 
-    let version_str = &header[start + 1..end];
+    let version_str = header.get(start + 1..end).ok_or_else(|| {
+        ChangelogError::InvalidFormat("Invalid version string bounds".to_string())
+    })?;
     let version = Version::parse(version_str)
         .map_err(|e| ChangelogError::VersionParse(format!("{}: {}", version_str, e)))?;
 
     // Find date after the dash
-    let date_part = header[end + 1..].trim().trim_start_matches('-').trim();
+    let date_part_raw = header
+        .get(end + 1..)
+        .ok_or_else(|| ChangelogError::InvalidFormat("Invalid date string bounds".to_string()))?;
+    let date_part = date_part_raw.trim().trim_start_matches('-').trim();
 
     let date = NaiveDate::parse_from_str(date_part, "%Y-%m-%d")
         .map_err(|e| ChangelogError::DateParse(format!("{}: {}", date_part, e)))?;

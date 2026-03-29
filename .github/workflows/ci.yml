@@ -585,6 +585,41 @@ jobs:
             exit 1
           fi
 
+          # Check for unwrap() usage in non-test code
+          UNWRAP_VIOLATIONS=$(find crates/ -name "*.rs" \
+            -not -path "*/test*" \
+            -not -path "*/integration-tests/*" \
+            -not -name "build.rs" \
+            -not -path "*/examples/*" \
+            -not -path "*/benches/*" \
+            -not -name "*_tests.rs" \
+            -not -name "*_test.rs" \
+            -not -path "*/cli/src/bin/*" \
+            -not -name "main.rs" \
+            -not -path "*/openracing-test-helpers/*" \
+            -not -path "*/openracing-capture-ids/*" \
+            -not -path "*/hid-capture/*" \
+            -exec grep -l -P '^\s*(?!.*///).*\.unwrap\(\)' {} \; 2>/dev/null || true)
+          # Filter out files where unwrap() only appears in #[cfg(test)] blocks
+          REAL_VIOLATIONS=""
+          for file in $UNWRAP_VIOLATIONS; do
+            TEST_LINE=$(grep -n '#\[cfg(test)\]' "$file" 2>/dev/null | head -1 | cut -d: -f1)
+            if [ -n "$TEST_LINE" ]; then
+              PRE_TEST_UNWRAPS=$(head -n "$((TEST_LINE - 1))" "$file" | grep -c '\.unwrap()' 2>/dev/null || true)
+              if [ "$PRE_TEST_UNWRAPS" -gt 0 ]; then
+                REAL_VIOLATIONS="$REAL_VIOLATIONS $file"
+              fi
+            else
+              REAL_VIOLATIONS="$REAL_VIOLATIONS $file"
+            fi
+          done
+          if [ -n "$REAL_VIOLATIONS" ]; then
+            echo "❌ unwrap() usage found in non-test production code. Use proper error handling."
+            echo "Found in files:"
+            echo "$REAL_VIOLATIONS" | tr ' ' '\n' | grep -v '^$'
+            exit 1
+          fi
+
           echo "✅ Additional governance checks passed"
         shell: bash
 

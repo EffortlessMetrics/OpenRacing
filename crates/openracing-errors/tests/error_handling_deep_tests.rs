@@ -32,6 +32,7 @@ fn display_all_rt_error_variants() {
         RTError::BufferOverflow,
         RTError::DeadlineMissed,
         RTError::ResourceUnavailable,
+        RTError::AccessViolation,
     ];
     for variant in variants {
         let msg = variant.to_string();
@@ -361,7 +362,7 @@ fn device_timeout_is_retryable_and_recoverable() {
 
 #[test]
 fn rt_error_round_trips_via_code() {
-    for code in 1..=10u8 {
+    for code in 1..=11u8 {
         let err = RTError::from_code(code);
         assert!(err.is_some(), "code {code} should map to an RTError");
         if let Some(e) = err {
@@ -373,7 +374,7 @@ fn rt_error_round_trips_via_code() {
 #[test]
 fn rt_error_from_invalid_code_returns_none() {
     assert!(RTError::from_code(0).is_none());
-    assert!(RTError::from_code(11).is_none());
+    assert!(RTError::from_code(12).is_none());
     assert!(RTError::from_code(255).is_none());
 }
 

@@ -194,7 +194,7 @@ unsafe impl Send for SharedMemoryHandle {}
 unsafe impl Sync for SharedMemoryHandle {}
 
 /// IRSDK rotating buffer descriptor (16 bytes).
-/// Layout: tick_count@0, buf_offset@4, pad[2]@8.
+/// Layout: tick_count@0, buf_offset@4, pad\[2\]@8.
 /// Verified against pyirsdk `VarBuffer`, Go SDK `varBuffer`, and C header `irsdk_varBuf`.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, Default)]
@@ -207,7 +207,7 @@ struct IRSDKVarBuf {
 /// IRSDK memory-map header (112 bytes).
 /// Layout: ver@0, status@4, tick_rate@8, session_info_update@12,
 /// session_info_len@16, session_info_offset@20, num_vars@24,
-/// var_header_offset@28, num_buf@32, buf_len@36, pad[2]@40, var_buf[4]@48.
+/// var_header_offset@28, num_buf@32, buf_len@36, pad\[2\]@40, var_buf\[4\]@48.
 /// Verified against pyirsdk `Header`, Go SDK `readHeader`, and C header `irsdk_header`.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, Default)]
@@ -228,7 +228,7 @@ struct IRSDKHeader {
 
 /// IRSDK variable header (144 bytes).
 /// Layout: type@0, offset@4, count@8, count_as_time@12 (bool),
-/// pad[3]@13, name@16 (32B), desc@48 (64B), unit@112 (32B).
+/// pad\[3\]@13, name@16 (32B), desc@48 (64B), unit@112 (32B).
 /// Verified against pyirsdk `VarHeader`, Go SDK `readVariableHeaders`,
 /// and C header `irsdk_varHeader`.
 #[repr(C)]

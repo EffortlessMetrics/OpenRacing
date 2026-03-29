@@ -74,16 +74,27 @@ pub const DURATION_INFINITE: u16 = 0xFFFF;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum EffectType {
+    /// Constant force effect.
     Constant = 1,
+    /// Ramp force effect.
     Ramp = 2,
+    /// Square wave periodic effect.
     Square = 3,
+    /// Sine wave periodic effect.
     Sine = 4,
+    /// Triangle wave periodic effect.
     Triangle = 5,
+    /// Upward sawtooth wave periodic effect.
     SawtoothUp = 6,
+    /// Downward sawtooth wave periodic effect.
     SawtoothDown = 7,
+    /// Spring condition effect.
     Spring = 8,
+    /// Damper condition effect.
     Damper = 9,
+    /// Inertia condition effect.
     Inertia = 10,
+    /// Friction condition effect.
     Friction = 11,
 }
 
@@ -91,8 +102,11 @@ pub enum EffectType {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum EffectOp {
+    /// Start the effect.
     Start = 1,
+    /// Start the effect and stop all other effects.
     StartSolo = 2,
+    /// Stop the effect.
     Stop = 3,
 }
 

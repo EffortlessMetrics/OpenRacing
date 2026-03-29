@@ -34,9 +34,13 @@ pub struct GameService {
 /// Game status information
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GameStatusInfo {
+    /// Currently active game ID, if any
     pub active_game: Option<String>,
+    /// Whether telemetry is currently active and being received
     pub telemetry_active: bool,
+    /// Currently active car ID from telemetry, if available
     pub car_id: Option<String>,
+    /// Currently active track ID from telemetry, if available
     pub track_id: Option<String>,
 }
 
@@ -204,7 +208,11 @@ impl GameService {
             },
             output_method: game_support.telemetry.method.clone(),
             output_target,
-            fields: game_support.versions[0].supported_fields.clone(),
+            fields: game_support
+                .versions
+                .first()
+                .map(|v| v.supported_fields.clone())
+                .unwrap_or_default(),
             enable_high_rate_iracing_360hz,
         };
 

@@ -26,9 +26,13 @@ pub trait RtWriter {
 /// Lock-free command mailbox shared between non-RT producer and RT writer.
 #[derive(Debug)]
 pub struct TorqueMailbox {
+    /// True if the stream is actively streaming torque; false to emit zeros.
     pub armed: AtomicBool,
+    /// Requested torque command in Q8.8 format.
     pub torque: AtomicI16,
+    /// Incrementing sequence number used for watchdog detection.
     pub seq: AtomicU16,
+    /// Additional flags (e.g. hands-on hint, saturation warning).
     pub flags: AtomicU8,
 }
 

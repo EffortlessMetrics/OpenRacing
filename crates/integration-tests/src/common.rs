@@ -3,6 +3,7 @@
 #![allow(clippy::panic, clippy::expect_used)]
 use anyhow::Result;
 use openracing_test_helpers::prelude::*;
+use std::collections::VecDeque;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::RwLock;
@@ -11,7 +12,9 @@ use uuid::Uuid;
 
 // use racing_wheel_engine::{Engine, EngineConfig};
 use racing_wheel_schemas::prelude::*;
-use racing_wheel_service::{WheelService, profile_repository::ProfileRepositoryConfig};
+use racing_wheel_service::{
+    FeatureFlags, WheelService, profile_repository::ProfileRepositoryConfig,
+};
 
 use crate::{PerformanceMetrics, TestConfig};
 
@@ -23,6 +26,7 @@ pub struct VirtualDevice {
     pub capabilities: DeviceCapabilities,
     pub connected: bool,
     pub last_torque_command: f32,
+    pub torque_history: VecDeque<(Instant, f32)>,
     pub telemetry_data: VirtualTelemetry,
 }
 
@@ -51,8 +55,32 @@ impl VirtualDevice {
             },
             connected: true,
             last_torque_command: 0.0,
+            torque_history: VecDeque::with_capacity(1000),
             telemetry_data: VirtualTelemetry::default(),
         })
+    }
+
+    pub fn set_torque(&mut self, torque: f32) {
+        self.last_torque_command = torque;
+        self.torque_history.push_back((Instant::now(), torque));
+        if self.torque_history.len() > 10000 {
+            self.torque_history.pop_front();
+        }
+    }
+
+    pub fn verify_torque_ramp_to_zero(&self, start_time: Instant, duration: Duration) -> bool {
+        let relevant_history: Vec<_> = self
+            .torque_history
+            .iter()
+            .filter(|(t, _)| *t >= start_time)
+            .collect();
+
+        relevant_history
+            .last()
+            .map(|(end_time, last_torque)| {
+                last_torque.abs() < 1e-6 && (*end_time - start_time) <= duration
+            })
+            .unwrap_or(false)
     }
 
     pub fn disconnect(&mut self) {
@@ -113,7 +141,11 @@ impl TestHarness {
             auto_migrate: true,
             backup_on_migrate: false,
         };
-        let service = WheelService::new_with_profile_config(profile_config).await?;
+        let flags = FeatureFlags {
+            enable_virtual_devices: true,
+            ..FeatureFlags::default()
+        };
+        let service = WheelService::new_with_flags(flags, profile_config).await?;
         self.service = Some(Arc::new(service));
         self._profile_temp_dir = Some(temp_dir);
 
@@ -230,11 +262,17 @@ impl MetricsCollector {
             metrics.hid_latency_p99_us = percentile(&sorted_latency, 0.99);
         }
 
-        // Collect system metrics
-        let system = sysinfo::System::new_all();
-        if let Some(process) = system.processes().values().next() {
-            metrics.cpu_usage_percent = process.cpu_usage() as f64;
-            metrics.memory_usage_mb = process.memory() as f64 / 1024.0 / 1024.0;
+        // Collect system metrics for the current process only.
+        // Using refresh_processes(Some(&[pid])) instead of System::new_all()
+        // avoids scanning every process on the host, which is very slow on CI
+        // runners and was the primary cause of acceptance-test timeouts.
+        let mut system = sysinfo::System::new();
+        if let Ok(pid) = sysinfo::get_current_pid() {
+            system.refresh_processes(sysinfo::ProcessesToUpdate::Some(&[pid]), true);
+            if let Some(process) = system.process(pid) {
+                metrics.cpu_usage_percent = process.cpu_usage() as f64;
+                metrics.memory_usage_mb = process.memory() as f64 / 1024.0 / 1024.0;
+            }
         }
 
         metrics

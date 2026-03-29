@@ -1,4 +1,6 @@
 //! Plugin host system that manages both WASM and native plugins
+//!
+//! Ref: [ADR-0005: Plugin Architecture](file:///h:/Code/Rust/OpenRacing/docs/adr/0005-plugin-architecture.md)
 
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -358,7 +360,7 @@ impl PluginHost {
                 entry.stats.max_time_us = entry
                     .stats
                     .max_time_us
-                    .max(execution_time.as_micros() as u32);
+                    .max(u32::try_from(execution_time.as_micros()).unwrap_or(u32::MAX));
                 entry.stats.last_execution = Some(chrono::Utc::now());
 
                 if !success {
@@ -406,8 +408,10 @@ impl PluginHost {
         plugin_id: Uuid,
         duration_minutes: i64,
     ) -> PluginResult<()> {
-        let mut quarantine = self.quarantine_manager.write().await;
-        quarantine.manual_quarantine(plugin_id, duration_minutes)?;
+        {
+            let mut quarantine = self.quarantine_manager.write().await;
+            quarantine.manual_quarantine(plugin_id, duration_minutes)?;
+        } // Drop quarantine lock before calling unload_plugin
 
         // Unload the plugin
         self.unload_plugin(plugin_id).await?;

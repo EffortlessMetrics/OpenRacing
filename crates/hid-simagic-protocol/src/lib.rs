@@ -49,6 +49,7 @@
 
 #![deny(static_mut_refs)]
 #![deny(clippy::unwrap_used)]
+#![allow(missing_docs)]
 
 pub mod ids;
 pub mod input;

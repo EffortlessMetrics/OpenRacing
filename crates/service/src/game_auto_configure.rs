@@ -1,5 +1,7 @@
 //! Game Auto Configuration Module
 //!
+//! Ref: [ADR-0008: Game Auto-Configure](file:///h:/Code/Rust/OpenRacing/docs/adr/0008-game-auto-configure-telemetry-bridge.md)
+//!
 //! Automatically configures game telemetry the first time a game is detected.
 //! Stores a marker file at `~/.openracing/configured_games.json` so each game
 //! is only configured once.
@@ -118,7 +120,7 @@ impl GameAutoConfigurer {
     /// Find a usable install path for `game_id`.
     ///
     /// Resolution order:
-    /// 1. Explicit override (set via [`with_install_path_override`]).
+    /// 1. Explicit override (set via [`Self::with_install_path_override`]).
     /// 2. Windows registry keys listed in `auto_detect.install_registry_keys`.
     /// 3. `auto_detect.install_paths` checked against common filesystem roots.
     fn find_install_path(&self, game_id: &str) -> Option<PathBuf> {
@@ -195,8 +197,12 @@ fn install_path_roots() -> Vec<PathBuf> {
 
     #[cfg(target_os = "windows")]
     {
-        for drive in ["C:\\", "D:\\"] {
-            roots.push(PathBuf::from(drive));
+        for letter in b'C'..=b'Z' {
+            let drive = format!("{}:\\", letter as char);
+            let path = PathBuf::from(&drive);
+            if path.exists() {
+                roots.push(path);
+            }
         }
     }
 
@@ -555,5 +561,35 @@ mod tests {
     fn test_configured_games_store_default_is_empty() {
         let store = ConfiguredGamesStore::default();
         assert!(store.configured.is_empty(), "default store must be empty");
+    }
+
+    #[test]
+    fn test_install_path_roots() {
+        let roots = install_path_roots();
+        assert!(
+            !roots.is_empty(),
+            "install_path_roots should return at least one root"
+        );
+
+        #[cfg(target_os = "windows")]
+        {
+            // Windows should have at least one drive root that exists, normally C:\
+            let c_drive = std::path::PathBuf::from("C:\\");
+            if c_drive.exists() {
+                assert!(
+                    roots.contains(&c_drive),
+                    "roots should contain C:\\ if it exists"
+                );
+            }
+        }
+
+        #[cfg(not(target_os = "windows"))]
+        {
+            // Unix should have the root path /
+            assert!(
+                roots.contains(&std::path::PathBuf::from("/")),
+                "roots should contain /"
+            );
+        }
     }
 }

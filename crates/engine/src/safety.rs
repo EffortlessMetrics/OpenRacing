@@ -1,4 +1,9 @@
 //! Safety systems and fault handling
+//!
+//! Implements logic for safety interlocks, fault detection, and torque-shutdown
+//! as specified in [ADR-0006: Safety Interlocks and Fault Management].
+//!
+//! [ADR-0006]: file:///h:/Code/Rust/OpenRacing/docs/adr/0006-safety-interlocks.md
 
 use crate::hid::MozaInputState;
 use racing_wheel_schemas::prelude::TorqueNm;
@@ -51,11 +56,16 @@ pub enum ButtonCombo {
 /// Safety interlock challenge state
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct InterlockChallenge {
+    /// Unique token for this challenge session (matched against acknowledgment)
     pub challenge_token: u32,
+    /// Button combination the user must perform on the physical device
     pub combo_required: ButtonCombo,
+    /// Wall-clock deadline after which this challenge is automatically cancelled
     #[serde(with = "instant_serde")]
     pub expires: Instant,
+    /// Whether the user has accepted the UI consent dialog
     pub ui_consent_given: bool,
+    /// Timestamp when the required button combo was first detected as held
     #[serde(with = "option_instant_serde")]
     pub combo_start: Option<Instant>,
 }
@@ -63,18 +73,26 @@ pub struct InterlockChallenge {
 /// Safety interlock acknowledgment from device
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct InterlockAck {
+    /// Challenge token being acknowledged (must match the active challenge)
     pub challenge_token: u32,
+    /// Device-specific identity token (persists until power cycle)
     pub device_token: u32,
+    /// Button combination that the user successfully completed
     pub combo_completed: ButtonCombo,
+    /// Timestamp when the acknowledgment was generated
     pub timestamp: Instant,
 }
 
 /// UI consent requirements for high torque mode
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ConsentRequirements {
+    /// Maximum torque that will be enabled (Nm)
     pub max_torque_nm: f32,
+    /// Warning messages to display to the user before consent
     pub warnings: Vec<String>,
+    /// Legal disclaimers the user must acknowledge
     pub disclaimers: Vec<String>,
+    /// Whether an explicit "I agree" action is required (always `true`)
     pub requires_explicit_consent: bool,
 }
 

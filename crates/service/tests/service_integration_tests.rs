@@ -31,7 +31,8 @@ async fn temp_service() -> Result<(WheelService, TempDir), BoxErr> {
         auto_migrate: true,
         backup_on_migrate: false,
     };
-    let svc = WheelService::new_with_profile_config(config).await?;
+    let svc =
+        WheelService::new_with_flags(racing_wheel_service::FeatureFlags::default(), config).await?;
     Ok((svc, tmp))
 }
 

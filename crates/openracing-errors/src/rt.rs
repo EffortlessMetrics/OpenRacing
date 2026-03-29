@@ -59,6 +59,8 @@ pub enum RTError {
     DeadlineMissed = 9,
     /// Resource unavailable in RT path
     ResourceUnavailable = 10,
+    /// Access denied by OS or another application (e.g. sharing violation)
+    AccessViolation = 11,
 }
 
 impl RTError {
@@ -89,6 +91,7 @@ impl RTError {
             RTError::BufferOverflow => ErrorSeverity::Warning,
             RTError::DeadlineMissed => ErrorSeverity::Critical,
             RTError::ResourceUnavailable => ErrorSeverity::Error,
+            RTError::AccessViolation => ErrorSeverity::Critical,
         }
     }
 
@@ -100,6 +103,7 @@ impl RTError {
                 | RTError::TorqueLimit
                 | RTError::SafetyInterlock
                 | RTError::DeadlineMissed
+                | RTError::AccessViolation
         )
     }
 
@@ -135,6 +139,7 @@ impl RTError {
             8 => Some(RTError::BufferOverflow),
             9 => Some(RTError::DeadlineMissed),
             10 => Some(RTError::ResourceUnavailable),
+            11 => Some(RTError::AccessViolation),
             _ => None,
         }
     }
@@ -153,6 +158,7 @@ impl fmt::Display for RTError {
             RTError::BufferOverflow => write!(f, "RT buffer overflow"),
             RTError::DeadlineMissed => write!(f, "RT deadline missed"),
             RTError::ResourceUnavailable => write!(f, "RT resource unavailable"),
+            RTError::AccessViolation => write!(f, "Access denied (possible sharing violation)"),
         }
     }
 }
@@ -168,11 +174,13 @@ mod tests {
         assert_eq!(RTError::DeviceDisconnected.code(), 1);
         assert_eq!(RTError::TorqueLimit.code(), 2);
         assert_eq!(RTError::PipelineFault.code(), 3);
+        assert_eq!(RTError::AccessViolation.code(), 11);
     }
 
     #[test]
     fn test_rt_error_from_code() {
         assert_eq!(RTError::from_code(1), Some(RTError::DeviceDisconnected));
+        assert_eq!(RTError::from_code(11), Some(RTError::AccessViolation));
         assert_eq!(RTError::from_code(255), None);
     }
 

@@ -56,10 +56,18 @@ mod tests {
             self.fault_flags
         }
         fn wheel_angle_mdeg(&self) -> i32 {
-            (self.wheel_angle_deg * 1000.0) as i32
+            openracing_hid_common::math::safe_clamp(
+                self.wheel_angle_deg * 1000.0,
+                i32::MIN as f32,
+                i32::MAX as f32,
+            ) as i32
         }
         fn wheel_speed_mrad_s(&self) -> i32 {
-            (self.wheel_speed_rad_s * 1000.0) as i32
+            openracing_hid_common::math::safe_clamp(
+                self.wheel_speed_rad_s * 1000.0,
+                i32::MIN as f32,
+                i32::MAX as f32,
+            ) as i32
         }
         fn sequence(&self) -> u32 {
             0

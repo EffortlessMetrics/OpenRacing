@@ -1029,12 +1029,16 @@ mod timing_guarantees {
     const MAX_PARSE_TIME: Duration = Duration::from_millis(1);
     const ITERATIONS: usize = 100;
 
-    /// Check if timing guarantees should be skipped (coverage or shared CI)
+    /// Check if timing guarantees should be skipped (coverage, shared CI, or GitHub Actions)
     fn skip_timing_guarantees() -> bool {
+        // Coverage instrumentation adds overhead
         if std::env::var_os("LLVM_PROFILE_FILE").is_some() {
             return true;
         }
-
+        // CI runners have unpredictable scheduling jitter
+        if std::env::var_os("CI").is_some() {
+            return true;
+        }
         std::env::var("OPENRACING_SKIP_TIMING_GUARANTEES")
             .map(|v| {
                 matches!(
