@@ -101,7 +101,11 @@ impl GameIntegrationService {
             update_rate_hz: game_support.telemetry.update_rate_hz,
             output_method: game_support.telemetry.method.clone(),
             output_target: "127.0.0.1:12345".to_string(),
-            fields: game_support.versions[0].supported_fields.clone(),
+            fields: game_support
+                .versions
+                .first()
+                .map(|v| v.supported_fields.clone())
+                .unwrap_or_default(),
         };
 
         // Write configuration and get diffs

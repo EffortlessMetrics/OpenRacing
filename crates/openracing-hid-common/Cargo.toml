@@ -13,7 +13,6 @@ development = ["proptest", "quickcheck"]
 
 [dependencies]
 hidapi = { workspace = true }
-racing-wheel-schemas = { path = "../schemas" }
 serde = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }

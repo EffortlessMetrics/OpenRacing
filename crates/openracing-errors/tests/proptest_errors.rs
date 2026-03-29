@@ -33,6 +33,7 @@ fn arb_rt_error() -> impl Strategy<Value = RTError> {
         Just(RTError::BufferOverflow),
         Just(RTError::DeadlineMissed),
         Just(RTError::ResourceUnavailable),
+        Just(RTError::AccessViolation),
     ]
 }
 
@@ -190,12 +191,12 @@ proptest! {
     #[test]
     fn rt_error_code_in_range(err in arb_rt_error()) {
         let code = err.code();
-        prop_assert!((1..=10).contains(&code), "Code out of range: {}", code);
+        prop_assert!((1..=11).contains(&code), "Code out of range: {}", code);
     }
 
-    /// from_code returns None for any code outside [1, 10].
+    /// from_code returns None for any code outside [1, 11].
     #[test]
-    fn rt_error_from_invalid_code(code in 11u8..=255) {
+    fn rt_error_from_invalid_code(code in 12u8..=255) {
         prop_assert_eq!(RTError::from_code(code), None);
     }
 }

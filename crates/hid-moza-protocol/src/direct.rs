@@ -3,6 +3,13 @@
 //! Provides a pure, testable encoder for Moza report `0x20`.
 //! Intentionally performs no I/O and no heap allocation.
 //!
+//! # Safety and Torque Encoding
+//! This implementation follows [ADR-0006] regarding torque command
+//! limits and motor-enable flag semantics.
+//!
+//! [ADR-0006]: file:///h:/Code/Rust/OpenRacing/docs/adr/0006-safety-interlocks.md
+
+//!
 //! # Torque command wire format (report ID 0x20, 8 bytes)
 //!
 //! | Byte | Field                    | Description                            |
@@ -100,7 +107,8 @@ impl MozaDirectTorqueEncoder {
         if self.max_torque_nm <= f32::EPSILON {
             return 0;
         }
-        let normalized = (torque_nm / self.max_torque_nm).clamp(-1.0, 1.0);
+        let normalized =
+            openracing_hid_common::math::safe_clamp(torque_nm / self.max_torque_nm, -1.0, 1.0);
         if normalized >= 0.0 {
             (normalized * i16::MAX as f32).round() as i16
         } else {
@@ -109,8 +117,7 @@ impl MozaDirectTorqueEncoder {
     }
 
     fn max_torque_q8(&self) -> TorqueQ8_8 {
-        (self.max_torque_nm * 256.0)
-            .clamp(0.0, i16::MAX as f32)
+        openracing_hid_common::math::safe_clamp(self.max_torque_nm * 256.0, 0.0, i16::MAX as f32)
             .round() as TorqueQ8_8
     }
 }

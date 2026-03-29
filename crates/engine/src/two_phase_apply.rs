@@ -372,7 +372,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_two_phase_apply_basic() {
+    async fn test_two_phase_apply_basic() -> Result<(), Box<dyn std::error::Error>> {
         let initial_pipeline = Pipeline::new();
         let coordinator = TwoPhaseApplyCoordinator::new(initial_pipeline);
 
@@ -381,23 +381,23 @@ mod tests {
         // Start apply operation
         let result_rx = coordinator
             .apply_profile_async(&global_profile, None, None, None)
-            .await;
-        assert!(result_rx.is_ok());
+            .await?;
 
         // Process pending applies
         coordinator.process_pending_applies_at_tick_boundary().await;
 
         // Check result
-        let result = result_rx.unwrap().await;
-        assert!(result.is_ok());
+        let result = result_rx.await?;
+        assert!(result.success);
 
-        let apply_result = result.unwrap();
+        let apply_result = result;
         assert!(apply_result.success);
         assert!(apply_result.config_hash != 0);
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_two_phase_apply_with_hierarchy() {
+    async fn test_two_phase_apply_with_hierarchy() -> Result<(), Box<dyn std::error::Error>> {
         let initial_pipeline = Pipeline::new();
         let coordinator = TwoPhaseApplyCoordinator::new(initial_pipeline);
 
@@ -411,23 +411,24 @@ mod tests {
         // Start apply operation
         let result_rx = coordinator
             .apply_profile_async(&global_profile, Some(&game_profile), None, None)
-            .await;
-        assert!(result_rx.is_ok());
+            .await?;
 
         // Process pending applies
         coordinator.process_pending_applies_at_tick_boundary().await;
 
         // Check result
-        let result = result_rx.unwrap().await;
-        assert!(result.is_ok());
+        let result = result_rx.await?;
+        assert!(result.success);
 
-        let apply_result = result.unwrap();
+        let apply_result = result;
         assert!(apply_result.success);
         assert!(apply_result.merge_hash != 0);
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_two_phase_apply_with_session_overrides() {
+    async fn test_two_phase_apply_with_session_overrides() -> Result<(), Box<dyn std::error::Error>>
+    {
         let initial_pipeline = Pipeline::new();
         let coordinator = TwoPhaseApplyCoordinator::new(initial_pipeline);
 
@@ -442,22 +443,22 @@ mod tests {
         // Start apply operation
         let result_rx = coordinator
             .apply_profile_async(&global_profile, None, None, Some(&session_overrides))
-            .await;
-        assert!(result_rx.is_ok());
+            .await?;
 
         // Process pending applies
         coordinator.process_pending_applies_at_tick_boundary().await;
 
         // Check result
-        let result = result_rx.unwrap().await;
-        assert!(result.is_ok());
+        let result = result_rx.await?;
+        assert!(result.success);
 
-        let apply_result = result.unwrap();
+        let apply_result = result;
         assert!(apply_result.success);
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_two_phase_apply_statistics() {
+    async fn test_two_phase_apply_statistics() -> Result<(), Box<dyn std::error::Error>> {
         let initial_pipeline = Pipeline::new();
         let coordinator = TwoPhaseApplyCoordinator::new(initial_pipeline);
 
@@ -471,8 +472,7 @@ mod tests {
         // Perform apply
         let result_rx = coordinator
             .apply_profile_async(&global_profile, None, None, None)
-            .await
-            .unwrap();
+            .await?;
 
         // Check pending stats
         let pending_stats = coordinator.get_stats().await;
@@ -488,10 +488,11 @@ mod tests {
         assert_eq!(final_stats.total_applies, 1);
         assert_eq!(final_stats.successful_applies, 1);
         assert_eq!(final_stats.pending_applies, 0);
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_two_phase_apply_multiple_pending() {
+    async fn test_two_phase_apply_multiple_pending() -> Result<(), Box<dyn std::error::Error>> {
         let initial_pipeline = Pipeline::new();
         let coordinator = TwoPhaseApplyCoordinator::new(initial_pipeline);
 
@@ -500,12 +501,10 @@ mod tests {
         // Start multiple apply operations
         let result_rx1 = coordinator
             .apply_profile_async(&global_profile, None, None, None)
-            .await
-            .unwrap();
+            .await?;
         let result_rx2 = coordinator
             .apply_profile_async(&global_profile, None, None, None)
-            .await
-            .unwrap();
+            .await?;
 
         // Check pending count
         assert_eq!(coordinator.pending_apply_count().await, 2);
@@ -522,10 +521,11 @@ mod tests {
 
         // Check no more pending
         assert_eq!(coordinator.pending_apply_count().await, 0);
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_two_phase_apply_deterministic() {
+    async fn test_two_phase_apply_deterministic() -> Result<(), Box<dyn std::error::Error>> {
         let initial_pipeline = Pipeline::new();
         let coordinator = TwoPhaseApplyCoordinator::new(initial_pipeline);
 
@@ -534,25 +534,24 @@ mod tests {
         // Perform same apply twice
         let result_rx1 = coordinator
             .apply_profile_async(&global_profile, None, None, None)
-            .await
-            .unwrap();
+            .await?;
         coordinator.process_pending_applies_at_tick_boundary().await;
-        let result1 = result_rx1.await.unwrap();
+        let result1 = result_rx1.await?;
 
         let result_rx2 = coordinator
             .apply_profile_async(&global_profile, None, None, None)
-            .await
-            .unwrap();
+            .await?;
         coordinator.process_pending_applies_at_tick_boundary().await;
-        let result2 = result_rx2.await.unwrap();
+        let result2 = result_rx2.await?;
 
         // Results should have same hashes (deterministic)
         assert_eq!(result1.config_hash, result2.config_hash);
         assert_eq!(result1.merge_hash, result2.merge_hash);
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_two_phase_apply_atomicity() {
+    async fn test_two_phase_apply_atomicity() -> Result<(), Box<dyn std::error::Error>> {
         let initial_pipeline = Pipeline::new();
         let coordinator = TwoPhaseApplyCoordinator::new(initial_pipeline);
         let active_pipeline = coordinator.get_active_pipeline();
@@ -562,8 +561,7 @@ mod tests {
         // Start apply operation but don't process it yet
         let result_rx = coordinator
             .apply_profile_async(&global_profile, None, None, None)
-            .await
-            .unwrap();
+            .await?;
 
         // Pipeline should still be in initial state
         {
@@ -582,10 +580,11 @@ mod tests {
             let pipeline = active_pipeline.read().await;
             assert_eq!(pipeline.config_hash(), result.config_hash);
         }
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_two_phase_apply_concurrent_access() {
+    async fn test_two_phase_apply_concurrent_access() -> Result<(), Box<dyn std::error::Error>> {
         use std::sync::Arc;
         use tokio::sync::Barrier;
 
@@ -608,9 +607,10 @@ mod tests {
 
                 let result_rx = coordinator_clone
                     .apply_profile_async(&profile, None, None, None)
-                    .await
-                    .unwrap();
-                (i, result_rx)
+                    .await?;
+                Ok::<(i32, oneshot::Receiver<ApplyResult>), Box<dyn std::error::Error + Send + Sync>>(
+                    (i, result_rx),
+                )
             });
 
             handles.push(handle);
@@ -622,7 +622,10 @@ mod tests {
         // Collect all result receivers
         let mut result_rxs = Vec::new();
         for handle in handles {
-            let (i, rx) = handle.await.unwrap();
+            let (i, rx) = handle
+                .await
+                .map_err(|e| e.to_string())?
+                .map_err(|e| e.to_string())?;
             result_rxs.push((i, rx));
         }
 
@@ -631,9 +634,10 @@ mod tests {
 
         // All results should be successful
         for (i, rx) in result_rxs {
-            let result = rx.await.unwrap();
+            let result = rx.await?;
             assert!(result.success, "Apply {} should succeed", i);
         }
+        Ok(())
     }
 
     #[tokio::test]
@@ -654,7 +658,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_two_phase_apply_performance_tracking() {
+    async fn test_two_phase_apply_performance_tracking() -> Result<(), Box<dyn std::error::Error>> {
         let initial_pipeline = Pipeline::new();
         let coordinator = TwoPhaseApplyCoordinator::new(initial_pipeline);
 
@@ -664,10 +668,9 @@ mod tests {
         for _ in 0..5 {
             let result_rx = coordinator
                 .apply_profile_async(&global_profile, None, None, None)
-                .await
-                .unwrap();
+                .await?;
             coordinator.process_pending_applies_at_tick_boundary().await;
-            let result = result_rx.await.unwrap();
+            let result = result_rx.await?;
             assert!(result.success);
         }
 
@@ -676,10 +679,11 @@ mod tests {
         assert_eq!(stats.successful_applies, 5);
         assert_eq!(stats.failed_applies, 0);
         assert_eq!(stats.pending_applies, 0);
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_two_phase_apply_timing_metrics() {
+    async fn test_two_phase_apply_timing_metrics() -> Result<(), Box<dyn std::error::Error>> {
         let initial_pipeline = Pipeline::new();
         let coordinator = TwoPhaseApplyCoordinator::new(initial_pipeline);
 
@@ -687,18 +691,16 @@ mod tests {
 
         let result_rx = coordinator
             .apply_profile_async(&global_profile, None, None, None)
-            .await
-            .unwrap();
+            .await?;
         coordinator.process_pending_applies_at_tick_boundary().await;
-        let result = result_rx.await.unwrap();
+        let result = result_rx.await?;
 
         assert!(result.success);
-        // Duration and times are unsigned, so they're always >= 0
-        // These assertions are always true, so remove them
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_two_phase_apply_no_partial_state() {
+    async fn test_two_phase_apply_no_partial_state() -> Result<(), Box<dyn std::error::Error>> {
         let initial_pipeline = Pipeline::new();
         let coordinator = TwoPhaseApplyCoordinator::new(initial_pipeline);
         let active_pipeline = coordinator.get_active_pipeline();
@@ -708,12 +710,10 @@ mod tests {
         // Start multiple applies
         let result_rx1 = coordinator
             .apply_profile_async(&global_profile, None, None, None)
-            .await
-            .unwrap();
+            .await?;
         let result_rx2 = coordinator
             .apply_profile_async(&global_profile, None, None, None)
-            .await
-            .unwrap();
+            .await?;
 
         // Pipeline should still be in initial state (no partial application)
         {
@@ -735,10 +735,11 @@ mod tests {
             let pipeline = active_pipeline.read().await;
             assert_ne!(pipeline.config_hash(), 0);
         }
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_two_phase_apply_stats_reset() {
+    async fn test_two_phase_apply_stats_reset() -> Result<(), Box<dyn std::error::Error>> {
         let initial_pipeline = Pipeline::new();
         let coordinator = TwoPhaseApplyCoordinator::new(initial_pipeline);
 
@@ -747,10 +748,9 @@ mod tests {
         // Perform some applies
         let result_rx = coordinator
             .apply_profile_async(&global_profile, None, None, None)
-            .await
-            .unwrap();
+            .await?;
         coordinator.process_pending_applies_at_tick_boundary().await;
-        let _ = result_rx.await.unwrap();
+        let _ = result_rx.await?;
 
         // Check stats exist
         let stats_before = coordinator.get_stats().await;
@@ -764,10 +764,11 @@ mod tests {
         assert_eq!(stats_after.total_applies, 0);
         assert_eq!(stats_after.successful_applies, 0);
         assert_eq!(stats_after.failed_applies, 0);
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_two_phase_apply_pending_count() {
+    async fn test_two_phase_apply_pending_count() -> Result<(), Box<dyn std::error::Error>> {
         let initial_pipeline = Pipeline::new();
         let coordinator = TwoPhaseApplyCoordinator::new(initial_pipeline);
 
@@ -780,12 +781,10 @@ mod tests {
         // Start some applies but don't process them
         let _result_rx1 = coordinator
             .apply_profile_async(&global_profile, None, None, None)
-            .await
-            .unwrap();
+            .await?;
         let _result_rx2 = coordinator
             .apply_profile_async(&global_profile, None, None, None)
-            .await
-            .unwrap();
+            .await?;
 
         // Should have pending applies
         assert!(coordinator.has_pending_applies().await);
@@ -797,5 +796,6 @@ mod tests {
         // Should have no pending applies
         assert!(!coordinator.has_pending_applies().await);
         assert_eq!(coordinator.pending_apply_count().await, 0);
+        Ok(())
     }
 }

@@ -1,0 +1,356 @@
+    Checking racing-wheel-engine v0.1.0 (H:\Code\Rust\OpenRacing\crates\engine)
+    Checking webview2-com v0.38.2
+    Checking openracing-wasm-runtime v0.1.0 (H:\Code\Rust\OpenRacing\crates\openracing-wasm-runtime)
+   Compiling racing-wheel-ui v0.1.0 (H:\Code\Rust\OpenRacing\crates\ui)
+    Checking racing-wheel-telemetry-mudrunner v0.1.0 (H:\Code\Rust\OpenRacing\crates\telemetry-mudrunner)
+    Checking racing-wheel-telemetry-kartkraft v0.1.0 (H:\Code\Rust\OpenRacing\crates\telemetry-kartkraft)
+    Checking racing-wheel-telemetry-simhub v0.1.0 (H:\Code\Rust\OpenRacing\crates\telemetry-simhub)
+    Checking racing-wheel-telemetry-orchestrator v0.1.0 (H:\Code\Rust\OpenRacing\crates\telemetry-orchestrator)
+    Checking racing-wheel-telemetry-raceroom v0.1.0 (H:\Code\Rust\OpenRacing\crates\telemetry-raceroom)
+    Checking racing-wheel-telemetry-ams2 v0.1.0 (H:\Code\Rust\OpenRacing\crates\telemetry-ams2)
+    Checking racing-wheel-telemetry-rennsport v0.1.0 (H:\Code\Rust\OpenRacing\crates\telemetry-rennsport)
+    Checking racing-wheel-telemetry-lfs v0.1.0 (H:\Code\Rust\OpenRacing\crates\telemetry-lfs)
+    Checking racing-wheel-telemetry-forza v0.1.0 (H:\Code\Rust\OpenRacing\crates\telemetry-forza)
+    Checking racing-wheel-telemetry-f1 v0.1.0 (H:\Code\Rust\OpenRacing\crates\telemetry-f1)
+    Checking racing-wheel-telemetry-wrc-generations v0.1.0 (H:\Code\Rust\OpenRacing\crates\telemetry-wrc-generations)
+error[E0432]: unresolved imports `windows::Win32::System::WindowsProgramming::AvRevertMmThreadCharacteristics`, `windows::Win32::System::WindowsProgramming::AvSetMmThreadCharacteristicsW`
+  --> crates\engine\src\hid\windows.rs:32:5
+   |
+32 |     AvRevertMmThreadCharacteristics, AvSetMmThreadCharacteristicsW,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ no `AvSetMmThreadCharacteristicsW` in `Win32::System::WindowsProgramming`
+   |     |
+   |     no `AvRevertMmThreadCharacteristics` in `Win32::System::WindowsProgramming`
+
+error[E0432]: unresolved import `windows::Win32::UI::Pnp`
+  --> crates\engine\src\hid\windows.rs:40:25
+   |
+40 | use windows::Win32::UI::Pnp::{
+   |                         ^^^ could not find `Pnp` in `UI`
+
+error[E0432]: unresolved import `crate::DeviceId`
+  --> crates\engine\src\hid\windows.rs:49:5
+   |
+49 |     DeviceId, DeviceInfo, DeviceEvent, TelemetryData, HidDevice, DeviceHealthStatus,
+   |     ^^^^^^^^ no `DeviceId` in the root
+   |
+   = help: consider importing one of these structs instead:
+           crate::hid::DeviceId
+           racing_wheel_schemas::device::DeviceId
+           racing_wheel_schemas::generated::wheel::v1::DeviceId
+
+error[E0432]: unresolved import `crate::units`
+  --> crates\engine\src\hid\windows.rs:52:12
+   |
+52 | use crate::units::TorqueNm;
+   |            ^^^^^ could not find `units` in the crate root
+
+error[E0432]: unresolved import `super::Seqlock`
+  --> crates\engine\src\hid\windows.rs:54:5
+   |
+54 | use super::Seqlock;
+   |     ^^^^^^^^^^^^^^ no `Seqlock` in `hid`
+
+error[E0425]: cannot find value `MAX_HID_REPORT_SIZE` in module `crate::hid`
+   --> crates\engine\src\hid\windows.rs:117:36
+    |
+117 |     write_buffer: [u8; crate::hid::MAX_HID_REPORT_SIZE],
+    |                                    ^^^^^^^^^^^^^^^^^^^
+    |
+   ::: crates\engine\src\hid\mod.rs:144:1
+    |
+144 | pub const MAX_TORQUE_REPORT_SIZE: usize = 8;
+    | -------------------------------------------- similarly named constant `MAX_TORQUE_REPORT_SIZE` defined here
+    |
+help: a constant with a similar name exists
+    |
+117 -     write_buffer: [u8; crate::hid::MAX_HID_REPORT_SIZE],
+117 +     write_buffer: [u8; crate::hid::MAX_TORQUE_REPORT_SIZE],
+    |
+help: consider importing this constant
+    |
+  7 + use crate::hid::macos::device::MAX_HID_REPORT_SIZE;
+    |
+help: if you import `MAX_HID_REPORT_SIZE`, refer to it directly
+    |
+117 -     write_buffer: [u8; crate::hid::MAX_HID_REPORT_SIZE],
+117 +     write_buffer: [u8; MAX_HID_REPORT_SIZE],
+    |
+
+error[E0425]: cannot find value `MAX_HID_REPORT_SIZE` in module `crate::hid`
+   --> crates\engine\src\hid\windows.rs:132:45
+    |
+132 |             write_buffer: [0u8; crate::hid::MAX_HID_REPORT_SIZE],
+    |                                             ^^^^^^^^^^^^^^^^^^^
+    |
+   ::: crates\engine\src\hid\mod.rs:144:1
+    |
+144 | pub const MAX_TORQUE_REPORT_SIZE: usize = 8;
+    | -------------------------------------------- similarly named constant `MAX_TORQUE_REPORT_SIZE` defined here
+    |
+help: a constant with a similar name exists
+    |
+132 -             write_buffer: [0u8; crate::hid::MAX_HID_REPORT_SIZE],
+132 +             write_buffer: [0u8; crate::hid::MAX_TORQUE_REPORT_SIZE],
+    |
+help: consider importing this constant
+    |
+  7 + use crate::hid::macos::device::MAX_HID_REPORT_SIZE;
+    |
+help: if you import `MAX_HID_REPORT_SIZE`, refer to it directly
+    |
+132 -             write_buffer: [0u8; crate::hid::MAX_HID_REPORT_SIZE],
+132 +             write_buffer: [0u8; MAX_HID_REPORT_SIZE],
+    |
+
+error[E0425]: cannot find value `MAX_HID_REPORT_SIZE` in module `crate::hid`
+   --> crates\engine\src\hid\windows.rs:653:41
+    |
+653 |         let mut buf = [0u8; crate::hid::MAX_HID_REPORT_SIZE];
+    |                                         ^^^^^^^^^^^^^^^^^^^
+    |
+   ::: crates\engine\src\hid\mod.rs:144:1
+    |
+144 | pub const MAX_TORQUE_REPORT_SIZE: usize = 8;
+    | -------------------------------------------- similarly named constant `MAX_TORQUE_REPORT_SIZE` defined here
+    |
+help: a constant with a similar name exists
+    |
+653 -         let mut buf = [0u8; crate::hid::MAX_HID_REPORT_SIZE];
+653 +         let mut buf = [0u8; crate::hid::MAX_TORQUE_REPORT_SIZE];
+    |
+help: consider importing this constant
+    |
+  7 + use crate::hid::macos::device::MAX_HID_REPORT_SIZE;
+    |
+help: if you import `MAX_HID_REPORT_SIZE`, refer to it directly
+    |
+653 -         let mut buf = [0u8; crate::hid::MAX_HID_REPORT_SIZE];
+653 +         let mut buf = [0u8; MAX_HID_REPORT_SIZE];
+    |
+
+warning: unused import: `AtomicU32`
+ --> crates\engine\src\hid\windows.rs:9:37
+  |
+9 | use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+  |                                     ^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `Instant`
+  --> crates\engine\src\hid\windows.rs:10:27
+   |
+10 | use std::time::{Duration, Instant};
+   |                           ^^^^^^^
+
+warning: unused imports: `debug`, `error`, `info`, `trace`, and `warn`
+  --> crates\engine\src\hid\windows.rs:16:15
+   |
+16 | use tracing::{debug, error, info, trace, warn};
+   |               ^^^^^  ^^^^^  ^^^^  ^^^^^  ^^^^
+
+warning: unused imports: `ERROR_CLASS_ALREADY_EXISTS`, `ERROR_DEVICE_NOT_CONNECTED`, `ERROR_DEV_NOT_EXIST`, `ERROR_IO_PENDING`, and `HINSTANCE`
+  --> crates\engine\src\hid\windows.rs:18:40
+   |
+18 |     CloseHandle, GetLastError, HANDLE, HINSTANCE, HWND, LPARAM, LRESULT, WPARAM,
+   |                                        ^^^^^^^^^
+19 |     ERROR_CLASS_ALREADY_EXISTS, ERROR_DEVICE_NOT_CONNECTED, ERROR_DEV_NOT_EXIST,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^
+20 |     ERROR_IO_INCOMPLETE, ERROR_IO_PENDING,
+   |                          ^^^^^^^^^^^^^^^^
+
+warning: unused imports: `PROCESS_POWER_THROTTLING_CURRENT_VERSION`, `PROCESS_POWER_THROTTLING_EXECUTION_SPEED`, `PROCESS_POWER_THROTTLING_STATE`, `ProcessPowerThrottling`, and `SetProcessInformation`
+  --> crates\engine\src\hid\windows.rs:24:42
+   |
+24 |     GetCurrentProcess, SetPriorityClass, SetProcessInformation,
+   |                                          ^^^^^^^^^^^^^^^^^^^^^
+25 |     HIGH_PRIORITY_CLASS, NORMAL_PRIORITY_CLASS, PROCESS_POWER_THROTTLING_CURRENT_VERSION,
+   |                                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+26 |     PROCESS_POWER_THROTTLING_EXECUTION_SPEED, PROCESS_POWER_THROTTLING_STATE,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+27 |     ProcessPowerThrottling,
+   |     ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `windows::Win32::Storage::FileSystem::WriteFile`
+  --> crates\engine\src\hid\windows.rs:29:5
+   |
+29 | use windows::Win32::Storage::FileSystem::WriteFile;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `PostMessageW`
+  --> crates\engine\src\hid\windows.rs:36:5
+   |
+36 |     PostMessageW, PostQuitMessage, RegisterClassExW, TranslateMessage,
+   |     ^^^^^^^^^^^^
+
+warning: unused imports: `DeviceCapabilitiesReport` and `TorqueCommand`
+  --> crates\engine\src\hid\windows.rs:50:24
+   |
+50 |     RTError, RTResult, DeviceCapabilitiesReport, DeviceTelemetryReport, TorqueCommand,
+   |                        ^^^^^^^^^^^^^^^^^^^^^^^^                         ^^^^^^^^^^^^^
+
+error[E0277]: `*mut c_void` cannot be sent between threads safely
+   --> crates\engine\src\hid\windows.rs:633:20
+    |
+633 | impl HidDevice for WindowsHidDevice {
+    |                    ^^^^^^^^^^^^^^^^ `*mut c_void` cannot be sent between threads safely
+    |
+    = help: within `OverlappedWriteState`, the trait `Send` is not implemented for `*mut c_void`
+note: required because it appears within the type `OVERLAPPED_0`
+   --> C:\Users\Steven\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\windows-0.62.2\src\Windows\Win32\System\IO\mod.rs:95:11
+    |
+ 95 | pub union OVERLAPPED_0 {
+    |           ^^^^^^^^^^^^
+note: required because it appears within the type `OVERLAPPED`
+   --> C:\Users\Steven\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\windows-0.62.2\src\Windows\Win32\System\IO\mod.rs:82:12
+    |
+ 82 | pub struct OVERLAPPED {
+    |            ^^^^^^^^^^
+note: required because it appears within the type `OverlappedWriteState`
+   --> crates\engine\src\hid\windows.rs:113:8
+    |
+113 | struct OverlappedWriteState {
+    |        ^^^^^^^^^^^^^^^^^^^^
+    = note: required for `parking_lot::lock_api::Mutex<parking_lot::RawMutex, OverlappedWriteState>` to implement `std::marker::Sync`
+    = note: 1 redundant requirement hidden
+    = note: required for `Arc<parking_lot::lock_api::Mutex<parking_lot::RawMutex, OverlappedWriteState>>` to implement `std::marker::Sync`
+note: required because it appears within the type `WindowsHidDevice`
+   --> crates\engine\src\hid\windows.rs:610:12
+    |
+610 | pub struct WindowsHidDevice {
+    |            ^^^^^^^^^^^^^^^^
+note: required by a bound in `ports::HidDevice`
+   --> crates\engine\src\ports.rs:17:29
+    |
+ 17 | pub trait HidDevice: Send + Sync {
+    |                             ^^^^ required by this bound in `HidDevice`
+
+    Checking tauri-runtime v2.10.0
+    Checking wry v0.53.5
+    Checking tauri-runtime-wry v2.9.3
+error[E0308]: mismatched types
+  --> crates\engine\src\hid\windows.rs:60:60
+   |
+60 | const DEVICE_NOTIFY_WINDOW_CLASS: &windows::core::PCWSTR = w!("OpenRacingDeviceNotify");
+   |                                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `&PCWSTR`, found `PCWSTR`
+   |
+   = note: this error originates in the macro `w` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0271]: type mismatch resolving `<&PCWSTR as TypeKind>::TypeKind == CopyType`
+   --> crates\engine\src\hid\windows.rs:487:17
+    |
+485 |             let hwnd = CreateWindowExW(
+    |                        --------------- required by a bound introduced by this call
+486 |                 WINDOW_EX_STYLE::default(),
+487 |                 DEVICE_NOTIFY_WINDOW_CLASS,
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `CopyType`, found `InterfaceType`
+    |
+    = note: required for `&PCWSTR` to implement `Param<PCWSTR, windows::windows_core::r#type::CopyType>`
+note: required by a bound in `CreateWindowExW`
+   --> C:\Users\Steven\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\windows-0.62.2\src\Windows\Win32\UI\WindowsAndMessaging\mod.rs:432:9
+    |
+430 | pub unsafe fn CreateWindowExW<P1, P2>(dwexstyle: WINDOW_EX_STYLE, lpclassname: P1, lpwindowname: P2, dwstyle: WINDOW_STYLE, x: i32,...
+    |               --------------- required by a bound in this function
+431 | where
+432 |     P1: windows_core::Param<windows_core::PCWSTR>,
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `CreateWindowExW`
+
+error[E0277]: the trait bound `&PCWSTR: Param<PCWSTR, windows::windows_core::r#type::CopyType>` is not satisfied
+   --> crates\engine\src\hid\windows.rs:487:17
+    |
+485 |             let hwnd = CreateWindowExW(
+    |                        --------------- required by a bound introduced by this call
+486 |                 WINDOW_EX_STYLE::default(),
+487 |                 DEVICE_NOTIFY_WINDOW_CLASS,
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `windows::windows_core::imp::can_into::CanInto<PCWSTR>` is not implemented for `&PCWSTR`
+    |
+    = note: required for `&PCWSTR` to implement `Param<PCWSTR, windows::windows_core::r#type::CopyType>`
+note: required by a bound in `CreateWindowExW`
+   --> C:\Users\Steven\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\windows-0.62.2\src\Windows\Win32\UI\WindowsAndMessaging\mod.rs:432:9
+    |
+430 | pub unsafe fn CreateWindowExW<P1, P2>(dwexstyle: WINDOW_EX_STYLE, lpclassname: P1, lpwindowname: P2, dwstyle: WINDOW_STYLE, x: i32,...
+    |               --------------- required by a bound in this function
+431 | where
+432 |     P1: windows_core::Param<windows_core::PCWSTR>,
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `CreateWindowExW`
+help: consider dereferencing here
+    |
+487 |                 *DEVICE_NOTIFY_WINDOW_CLASS,
+    |                 +
+
+error[E0277]: the trait bound `&PCWSTR: Param<PCWSTR, windows::windows_core::r#type::CopyType>` is not satisfied
+   --> crates\engine\src\hid\windows.rs:487:17
+    |
+485 |             let hwnd = CreateWindowExW(
+    |                        --------------- required by a bound introduced by this call
+486 |                 WINDOW_EX_STYLE::default(),
+487 |                 DEVICE_NOTIFY_WINDOW_CLASS,
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `Interface` is not implemented for `&PCWSTR`
+    |
+    = note: required for `&PCWSTR` to implement `windows::windows_core::r#type::TypeKind`
+    = note: required for `&PCWSTR` to implement `Param<PCWSTR, windows::windows_core::r#type::CopyType>`
+note: required by a bound in `CreateWindowExW`
+   --> C:\Users\Steven\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\windows-0.62.2\src\Windows\Win32\UI\WindowsAndMessaging\mod.rs:432:9
+    |
+430 | pub unsafe fn CreateWindowExW<P1, P2>(dwexstyle: WINDOW_EX_STYLE, lpclassname: P1, lpwindowname: P2, dwstyle: WINDOW_STYLE, x: i32,...
+    |               --------------- required by a bound in this function
+431 | where
+432 |     P1: windows_core::Param<windows_core::PCWSTR>,
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `CreateWindowExW`
+help: consider dereferencing here
+    |
+487 |                 *DEVICE_NOTIFY_WINDOW_CLASS,
+    |                 +
+
+    Checking tauri v2.9.0
+error[E0599]: no function or associated item named `default` found for struct `DeviceHealthStatus` in the current scope
+   --> crates\engine\src\hid\windows.rs:626:69
+    |
+626 |             health_status: Arc::new(RwLock::new(DeviceHealthStatus::default())),
+    |                                                                     ^^^^^^^ function or associated item not found in `DeviceHealthStatus`
+    |
+   ::: crates\engine\src\ports.rs:117:1
+    |
+117 | pub struct DeviceHealthStatus {
+    | ----------------------------- function or associated item `default` not found for this struct
+    |
+    = help: items from traits can only be used if the trait is implemented and in scope
+    = note: the following trait defines an item `default`, perhaps you need to implement it:
+            candidate #1: `Default`
+
+error[E0599]: no method named `to_telemetry_data` found for struct `protocol::DeviceTelemetryReport` in the current scope
+   --> crates\engine\src\hid\windows.rs:658:85
+    |
+658 |                     return DeviceTelemetryReport::from_bytes(&buf[..len]).map(|r| r.to_telemetry_data());
+    |                                                                                     ^^^^^^^^^^^^^^^^^ method not found in `protocol::DeviceTelemetryReport`
+    |
+   ::: crates\engine\src\protocol.rs:178:1
+    |
+178 | pub struct DeviceTelemetryReport {
+    | -------------------------------- method `to_telemetry_data` not found for this struct
+
+warning: variable does not need to be mutable
+   --> crates\engine\src\hid\windows.rs:646:17
+    |
+646 |             let mut device = d.lock();
+    |                 ----^^^^^^
+    |                 |
+    |                 help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+error[E0308]: mismatched types
+   --> crates\engine\src\hid\windows.rs:481:32
+    |
+481 |                 lpszClassName: DEVICE_NOTIFY_WINDOW_CLASS,
+    |                                ^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `PCWSTR`, found `&PCWSTR`
+    |
+help: consider dereferencing the borrow
+    |
+481 |                 lpszClassName: *DEVICE_NOTIFY_WINDOW_CLASS,
+    |                                +
+
+Some errors have detailed explanations: E0271, E0277, E0308, E0425, E0432, E0599.
+For more information about an error, try `rustc --explain E0271`.
+warning: `racing-wheel-engine` (lib) generated 9 warnings
+error: could not compile `racing-wheel-engine` (lib) due to 16 previous errors; 9 warnings emitted
+warning: build failed, waiting for other jobs to finish...

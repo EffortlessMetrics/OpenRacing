@@ -18,6 +18,7 @@ unwrap_used = "deny"
 normal = ["workspace-hack"]
 
 [dependencies]
+openracing-hid-common = { workspace = true }
 racing-wheel-hbp = { workspace = true }
 racing-wheel-ks = { workspace = true }
 racing-wheel-moza-wheelbase-report = { workspace = true }

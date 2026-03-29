@@ -286,11 +286,17 @@ impl ProfileService {
 /// Profile service statistics
 #[derive(Debug, Clone)]
 pub struct ProfileStatistics {
+    /// Total number of profiles in the repository
     pub total_profiles: usize,
+    /// Number of profiles currently active on connected devices
     pub active_profiles: usize,
+    /// Number of profiles currently loaded in memory
     pub cached_profiles: usize,
+    /// Number of profiles with a cryptographic signature
     pub signed_profiles: usize,
+    /// Number of profiles with a signature from a trusted key
     pub trusted_profiles: usize,
+    /// Number of temporary session overrides currently active
     pub session_overrides: usize,
 }
 

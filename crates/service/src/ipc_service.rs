@@ -1,5 +1,7 @@
 //! IPC service implementation with domain/wire type conversion
 //!
+//! Ref: [ADR-0002: IPC Transport](file:///h:/Code/Rust/OpenRacing/docs/adr/0002-ipc-transport.md)
+//!
 //! This module provides the gRPC service implementation that uses the conversion
 //! layer to separate domain logic from wire protocol concerns.
 
@@ -30,10 +32,15 @@ use crate::safety_service::ApplicationSafetyService;
 /// Health event for internal broadcasting
 #[derive(Debug, Clone)]
 pub struct HealthEventInternal {
+    /// Timestamp when the health event occurred
     pub timestamp: SystemTime,
+    /// Device identifier associated with this event
     pub device_id: String,
-    pub event_type: i32, // Maps to HealthEventType enum
+    /// Event type discriminant (maps to `HealthEventType` proto enum)
+    pub event_type: i32,
+    /// Human-readable description of the event
     pub message: String,
+    /// Arbitrary key-value metadata attached to the event
     pub metadata: HashMap<String, String>,
 }
 
@@ -59,6 +66,15 @@ struct ClientInfo {
 }
 
 impl WheelServiceImpl {
+    /// Create a new IPC service implementation.
+    ///
+    /// # Arguments
+    /// * `device_service` — manages connected device enumeration and status.
+    /// * `profile_service` — manages FFB profile CRUD and activation.
+    /// * `safety_service` — manages safety interlocks and emergency stop.
+    /// * `game_service` — manages game detection and telemetry configuration.
+    /// * `health_broadcaster` — broadcast channel for pushing health events to
+    ///   all subscribed clients.
     pub fn new(
         device_service: Arc<ApplicationDeviceService>,
         profile_service: Arc<ApplicationProfileService>,
@@ -187,8 +203,12 @@ impl WheelService for WheelServiceImpl {
                     racing_wheel_schemas::generated::wheel::v1::TelemetryData,
                 > = telemetry.map(|t| {
                     racing_wheel_schemas::generated::wheel::v1::TelemetryData {
-                        wheel_angle_mdeg: (t.wheel_angle_deg * 1000.0) as i32,
-                        wheel_speed_mrad_s: (t.wheel_speed_rad_s * 1000.0) as i32,
+                        wheel_angle_mdeg: (t.wheel_angle_deg * 1000.0)
+                            .clamp(i32::MIN as f32, i32::MAX as f32)
+                            as i32,
+                        wheel_speed_mrad_s: (t.wheel_speed_rad_s * 1000.0)
+                            .clamp(i32::MIN as f32, i32::MAX as f32)
+                            as i32,
                         temp_c: t.temperature_c as u32,
                         faults: t.fault_flags as u32,
                         hands_on: t.hands_on,

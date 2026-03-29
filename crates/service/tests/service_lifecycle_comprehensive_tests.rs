@@ -46,7 +46,7 @@ async fn temp_service() -> Result<(WheelService, TempDir), BoxErr> {
         auto_migrate: true,
         backup_on_migrate: false,
     };
-    let svc = WheelService::new_with_profile_config(config).await?;
+    let svc = WheelService::new_with_flags(FeatureFlags::default(), config).await?;
     Ok((svc, tmp))
 }
 
@@ -291,13 +291,13 @@ async fn shutdown_does_not_corrupt_profiles() -> Result<(), BoxErr> {
     let tmp = TempDir::new()?;
     let config = profile_repo_config(&tmp);
 
-    let svc = WheelService::new_with_profile_config(config.clone()).await?;
+    let svc = WheelService::new_with_flags(FeatureFlags::default(), config.clone()).await?;
     let profile = make_profile("shutdown-safe")?;
     svc.profile_service().create_profile(profile).await?;
     drop(svc);
 
     // Profiles should be intact after drop
-    let svc2 = WheelService::new_with_profile_config(config).await?;
+    let svc2 = WheelService::new_with_flags(FeatureFlags::default(), config).await?;
     let loaded = svc2
         .profile_service()
         .get_profile(&ProfileId::new("shutdown-safe".to_string())?)
@@ -316,7 +316,7 @@ async fn persist_profile_survives_service_restart() -> Result<(), BoxErr> {
     let config = profile_repo_config(&tmp);
 
     // First lifecycle: create profiles
-    let svc1 = WheelService::new_with_profile_config(config.clone()).await?;
+    let svc1 = WheelService::new_with_flags(FeatureFlags::default(), config.clone()).await?;
     for i in 0..3 {
         let p = make_profile(&format!("persist-{i}"))?;
         svc1.profile_service().create_profile(p).await?;
@@ -326,7 +326,7 @@ async fn persist_profile_survives_service_restart() -> Result<(), BoxErr> {
     drop(svc1);
 
     // Second lifecycle: verify profiles loaded from disk
-    let svc2 = WheelService::new_with_profile_config(config).await?;
+    let svc2 = WheelService::new_with_flags(FeatureFlags::default(), config).await?;
     let count2 = svc2.profile_service().list_profiles().await?.len();
     assert_eq!(count2, 3, "all profiles should persist across restart");
     Ok(())
@@ -338,13 +338,13 @@ async fn persist_profile_crud_across_restarts() -> Result<(), BoxErr> {
     let config = profile_repo_config(&tmp);
 
     // Create
-    let svc = WheelService::new_with_profile_config(config.clone()).await?;
+    let svc = WheelService::new_with_flags(FeatureFlags::default(), config.clone()).await?;
     let p = make_profile("crud-test")?;
     svc.profile_service().create_profile(p).await?;
     drop(svc);
 
     // Update after restart
-    let svc = WheelService::new_with_profile_config(config.clone()).await?;
+    let svc = WheelService::new_with_flags(FeatureFlags::default(), config.clone()).await?;
     let loaded = svc
         .profile_service()
         .get_profile(&ProfileId::new("crud-test".to_string())?)
@@ -353,7 +353,7 @@ async fn persist_profile_crud_across_restarts() -> Result<(), BoxErr> {
     drop(svc);
 
     // Delete after another restart
-    let svc = WheelService::new_with_profile_config(config.clone()).await?;
+    let svc = WheelService::new_with_flags(FeatureFlags::default(), config.clone()).await?;
     svc.profile_service()
         .delete_profile(&ProfileId::new("crud-test".to_string())?)
         .await?;
@@ -362,7 +362,7 @@ async fn persist_profile_crud_across_restarts() -> Result<(), BoxErr> {
     drop(svc);
 
     // Confirm deletion persisted
-    let svc = WheelService::new_with_profile_config(config).await?;
+    let svc = WheelService::new_with_flags(FeatureFlags::default(), config).await?;
     let profiles = svc.profile_service().list_profiles().await?;
     assert!(
         profiles.is_empty(),
@@ -413,7 +413,7 @@ async fn persist_safety_state_is_ephemeral() -> Result<(), BoxErr> {
     let config = profile_repo_config(&tmp);
 
     // Register device, then drop
-    let svc = WheelService::new_with_profile_config(config.clone()).await?;
+    let svc = WheelService::new_with_flags(FeatureFlags::default(), config.clone()).await?;
     let did = parse_device_id("ephemeral-dev")?;
     svc.safety_service()
         .register_device(did.clone(), torque(10.0)?)
@@ -423,7 +423,7 @@ async fn persist_safety_state_is_ephemeral() -> Result<(), BoxErr> {
     drop(svc);
 
     // After restart, safety state should be gone (it's in-memory only)
-    let svc2 = WheelService::new_with_profile_config(config).await?;
+    let svc2 = WheelService::new_with_flags(FeatureFlags::default(), config).await?;
     let stats2 = svc2.safety_service().get_statistics().await;
     assert_eq!(
         stats2.total_devices, 0,
@@ -946,7 +946,7 @@ async fn cleanup_profile_files_persist_on_disk_after_drop() -> Result<(), BoxErr
         backup_on_migrate: false,
     };
 
-    let svc = WheelService::new_with_profile_config(config).await?;
+    let svc = WheelService::new_with_flags(FeatureFlags::default(), config).await?;
     let p = make_profile("cleanup-disk")?;
     svc.profile_service().create_profile(p).await?;
     drop(svc);

@@ -1,5 +1,7 @@
 //! Bridge between game process detection and telemetry adapter activation.
 //!
+//! Ref: [ADR-0008: Game Auto-Configure](file:///h:/Code/Rust/OpenRacing/docs/adr/0008-game-auto-configure-telemetry-bridge.md)
+//!
 //! When a [`crate::process_detection::ProcessEvent::GameStarted`] event arrives, this bridge starts the
 //! appropriate telemetry adapter.  When a [`crate::process_detection::ProcessEvent::GameStopped`] event
 //! arrives, the adapter is stopped.

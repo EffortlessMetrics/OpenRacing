@@ -1,7 +1,9 @@
 //! Force Feedback Mode Matrix and Capability Negotiation
 //!
 //! This module implements the three FFB modes and device capability negotiation
-//! as specified in the design document.
+//! as specified in [ADR-0001: Force Feedback Mode Matrix].
+//!
+//! [ADR-0001]: file:///h:/Code/Rust/OpenRacing/docs/adr/0001-ffb-mode-matrix.md
 
 use racing_wheel_schemas::prelude::*;
 use std::fmt;
@@ -247,58 +249,54 @@ impl NegotiationResult {
 }
 
 #[cfg(test)]
-#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
 
-    #[track_caller]
-    fn must<T, E: std::fmt::Debug>(r: Result<T, E>) -> T {
-        match r {
-            Ok(v) => v,
-            Err(e) => panic!("unexpected Err: {e:?}"),
-        }
-    }
+    type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
     fn create_test_capabilities(
         supports_pid: bool,
         supports_raw_torque: bool,
         max_torque_nm: f32,
-    ) -> DeviceCapabilities {
-        DeviceCapabilities::new(
+    ) -> Result<DeviceCapabilities> {
+        Ok(DeviceCapabilities::new(
             supports_pid,
             supports_raw_torque,
             true, // supports_health_stream
             true, // supports_led_bus
-            must(TorqueNm::new(max_torque_nm)),
+            TorqueNm::new(max_torque_nm)?,
             10000, // encoder_cpr
             1000,  // min_report_period_us (1kHz)
-        )
+        ))
     }
 
     #[test]
-    fn test_mode_selection_raw_torque_preferred() {
-        let caps = create_test_capabilities(true, true, 25.0);
+    fn test_mode_selection_raw_torque_preferred() -> Result<()> {
+        let caps = create_test_capabilities(true, true, 25.0)?;
         let mode = ModeSelectionPolicy::select_mode(&caps, None);
         assert_eq!(mode, crate::rt::FFBMode::RawTorque);
+        Ok(())
     }
 
     #[test]
-    fn test_mode_selection_pid_fallback() {
-        let caps = create_test_capabilities(true, false, 15.0);
+    fn test_mode_selection_pid_fallback() -> Result<()> {
+        let caps = create_test_capabilities(true, false, 15.0)?;
         let mode = ModeSelectionPolicy::select_mode(&caps, None);
         assert_eq!(mode, crate::rt::FFBMode::PidPassthrough);
+        Ok(())
     }
 
     #[test]
-    fn test_mode_selection_telemetry_fallback() {
-        let caps = create_test_capabilities(false, false, 10.0);
+    fn test_mode_selection_telemetry_fallback() -> Result<()> {
+        let caps = create_test_capabilities(false, false, 10.0)?;
         let mode = ModeSelectionPolicy::select_mode(&caps, None);
         assert_eq!(mode, crate::rt::FFBMode::TelemetrySynth);
+        Ok(())
     }
 
     #[test]
-    fn test_mode_selection_with_game_compatibility() {
-        let caps = create_test_capabilities(true, true, 25.0);
+    fn test_mode_selection_with_game_compatibility() -> Result<()> {
+        let caps = create_test_capabilities(true, true, 25.0)?;
         let game_compat = GameCompatibility {
             game_id: "arcade-racer".to_string(),
             supports_robust_ffb: false,
@@ -308,11 +306,12 @@ mod tests {
 
         let mode = ModeSelectionPolicy::select_mode(&caps, Some(&game_compat));
         assert_eq!(mode, crate::rt::FFBMode::TelemetrySynth);
+        Ok(())
     }
 
     #[test]
-    fn test_mode_compatibility_check() {
-        let caps = create_test_capabilities(true, true, 25.0);
+    fn test_mode_compatibility_check() -> Result<()> {
+        let caps = create_test_capabilities(true, true, 25.0)?;
 
         assert!(ModeSelectionPolicy::is_mode_compatible(
             crate::rt::FFBMode::PidPassthrough,
@@ -327,7 +326,7 @@ mod tests {
             &caps
         ));
 
-        let limited_caps = create_test_capabilities(false, true, 25.0);
+        let limited_caps = create_test_capabilities(false, true, 25.0)?;
         assert!(!ModeSelectionPolicy::is_mode_compatible(
             crate::rt::FFBMode::PidPassthrough,
             &limited_caps
@@ -336,6 +335,7 @@ mod tests {
             crate::rt::FFBMode::RawTorque,
             &limited_caps
         ));
+        Ok(())
     }
 
     #[test]
@@ -355,7 +355,7 @@ mod tests {
     }
 
     #[test]
-    fn test_capabilities_report_parsing() {
+    fn test_capabilities_report_parsing() -> Result<()> {
         let report = vec![
             0x01, // Report ID
             0x0F, // All flags set
@@ -364,7 +364,7 @@ mod tests {
             0xE8, 0x03, // 1000 us (1kHz)
         ];
 
-        let caps = CapabilityNegotiator::parse_capabilities_report(&report).unwrap();
+        let caps = CapabilityNegotiator::parse_capabilities_report(&report)?;
 
         assert!(caps.supports_pid);
         assert!(caps.supports_raw_torque_1khz);
@@ -373,11 +373,12 @@ mod tests {
         assert_eq!(caps.max_torque.value(), 25.0);
         assert_eq!(caps.encoder_cpr, 10000);
         assert_eq!(caps.min_report_period_us, 1000);
+        Ok(())
     }
 
     #[test]
-    fn test_capabilities_report_creation() {
-        let caps = create_test_capabilities(true, true, 25.0);
+    fn test_capabilities_report_creation() -> Result<()> {
+        let caps = create_test_capabilities(true, true, 25.0)?;
         let report = CapabilityNegotiator::create_capabilities_report(&caps);
 
         assert_eq!(report[0], 0x01); // Report ID
@@ -385,26 +386,29 @@ mod tests {
 
         let max_torque_cnm = u16::from_le_bytes([report[2], report[3]]);
         assert_eq!(max_torque_cnm, 2500); // 25.0 Nm
+        Ok(())
     }
 
     #[test]
-    fn test_capability_negotiation() {
-        let caps = create_test_capabilities(true, true, 25.0);
+    fn test_capability_negotiation() -> Result<()> {
+        let caps = create_test_capabilities(true, true, 25.0)?;
         let result = CapabilityNegotiator::negotiate_capabilities(&caps, None);
 
         assert_eq!(result.mode, crate::rt::FFBMode::RawTorque);
         assert_eq!(result.update_rate_hz, 1000.0);
         assert!(result.is_optimal());
+        Ok(())
     }
 
     #[test]
-    fn test_capability_negotiation_with_warnings() {
-        let caps = create_test_capabilities(false, false, 10.0);
+    fn test_capability_negotiation_with_warnings() -> Result<()> {
+        let caps = create_test_capabilities(false, false, 10.0)?;
         let result = CapabilityNegotiator::negotiate_capabilities(&caps, None);
 
         assert_eq!(result.mode, crate::rt::FFBMode::TelemetrySynth);
         assert!(!result.is_optimal());
         assert!(!result.warnings.is_empty());
+        Ok(())
     }
 
     #[test]

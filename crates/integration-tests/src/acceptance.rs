@@ -547,7 +547,7 @@ async fn test_gi01_telemetry_config() -> Result<TestResult> {
 }
 
 async fn test_safe03_fault_response() -> Result<TestResult> {
-    let response_limit = fault_response_limit();
+    let _response_limit = fault_response_limit();
 
     let config = TestConfig {
         duration: Duration::from_secs(10),
@@ -568,17 +568,19 @@ async fn test_safe03_fault_response() -> Result<TestResult> {
         let fault_start = Instant::now();
         harness.inject_fault(0, fault_type).await?;
 
+        // Wait for system to react (limit is 50ms)
         tokio::time::sleep(Duration::from_millis(60)).await;
-        let response_time = fault_start.elapsed();
 
-        if response_time > response_limit {
+        let device = harness.virtual_devices[0].read().await;
+        if !device.verify_torque_ramp_to_zero(fault_start, Duration::from_millis(50)) {
             errors.push(format!(
-                "Fault {} response took {:?} (>{:?})",
-                fault_type, response_time, response_limit
+                "Fault {} response failed: torque did not ramp to zero within 50ms",
+                fault_type
             ));
         }
 
         // Clear fault for next test
+        harness.virtual_devices[0].write().await.clear_faults();
         tokio::time::sleep(Duration::from_millis(100)).await;
     }
 

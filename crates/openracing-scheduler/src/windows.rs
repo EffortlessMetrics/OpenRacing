@@ -28,6 +28,7 @@ impl PlatformSleep {
                     .map_err(|_| RTError::RTSetupFailed)?;
             }
         }
+        let _ = self.get_or_create_timer()?;
         Ok(())
     }
 

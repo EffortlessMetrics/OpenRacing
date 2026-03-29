@@ -227,7 +227,7 @@ impl NativePlugin {
 
         if execution_time.as_micros() > frame.budget_us as u128 {
             return Err(NativePluginError::BudgetViolation {
-                used_us: execution_time.as_micros() as u32,
+                used_us: u32::try_from(execution_time.as_micros()).unwrap_or(u32::MAX),
                 budget_us: frame.budget_us,
             });
         }

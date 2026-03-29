@@ -165,6 +165,12 @@ impl QuarantineManager {
         self.quarantined.len()
     }
 
+    /// Check if any plugins are quarantined.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.quarantined.is_empty()
+    }
+
     /// Clean up expired quarantines.
     ///
     /// Returns the number of quarantines that were cleaned up.

@@ -116,6 +116,7 @@ fn rt_error_codes_match_discriminants() {
         (RTError::BufferOverflow, 8),
         (RTError::DeadlineMissed, 9),
         (RTError::ResourceUnavailable, 10),
+        (RTError::AccessViolation, 11),
     ];
     for (err, code) in expected {
         assert_eq!(
@@ -374,6 +375,7 @@ fn rt_error_severity_mapping() {
         RTError::ResourceUnavailable.severity(),
         ErrorSeverity::Error
     );
+    assert_eq!(RTError::AccessViolation.severity(), ErrorSeverity::Critical);
 }
 
 /// FaultType::is_recoverable must return the correct value for every variant.
@@ -441,6 +443,7 @@ fn rt_error_is_recoverable_exact() {
         RTError::InvalidConfig,
         RTError::SafetyInterlock,
         RTError::DeadlineMissed,
+        RTError::AccessViolation,
     ];
     for err in &non_recoverable {
         assert!(!err.is_recoverable(), "{:?} should NOT be recoverable", err);
@@ -455,6 +458,7 @@ fn rt_error_requires_safety_action_exact() {
         RTError::TorqueLimit,
         RTError::SafetyInterlock,
         RTError::DeadlineMissed,
+        RTError::AccessViolation,
     ];
     for err in &safety_action {
         assert!(
@@ -773,7 +777,7 @@ fn critical_faults_require_immediate_response() {
 /// RTError::from_code must round-trip correctly for all valid codes.
 #[test]
 fn rt_error_from_code_round_trip() {
-    for code in 1..=10u8 {
+    for code in 1..=11u8 {
         let err = RTError::from_code(code);
         assert!(
             err.is_some(),
@@ -791,8 +795,8 @@ fn rt_error_from_code_round_trip() {
 fn rt_error_from_code_invalid_returns_none() {
     assert!(RTError::from_code(0).is_none(), "Code 0 should be invalid");
     assert!(
-        RTError::from_code(11).is_none(),
-        "Code 11 should be invalid"
+        RTError::from_code(12).is_none(),
+        "Code 12 should be invalid"
     );
     assert!(
         RTError::from_code(255).is_none(),

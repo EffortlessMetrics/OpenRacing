@@ -117,6 +117,7 @@ impl ServiceConfig {
 /// Service daemon that manages the wheel service lifecycle
 pub struct ServiceDaemon {
     config: ServiceConfig,
+    flags: crate::FeatureFlags,
     shutdown_tx: broadcast::Sender<()>,
     is_running: Arc<AtomicBool>,
     restart_count: Arc<std::sync::atomic::AtomicU32>,
@@ -130,6 +131,7 @@ impl ServiceDaemon {
 
         Ok(Self {
             config,
+            flags: crate::FeatureFlags::default(),
             shutdown_tx,
             is_running: Arc::new(AtomicBool::new(false)),
             restart_count: Arc::new(std::sync::atomic::AtomicU32::new(0)),
@@ -138,11 +140,10 @@ impl ServiceDaemon {
     }
 
     /// Create new service daemon with feature flags
-    pub async fn new_with_flags(
-        config: ServiceConfig,
-        _flags: crate::FeatureFlags,
-    ) -> Result<Self> {
-        Self::new(config).await
+    pub async fn new_with_flags(config: ServiceConfig, flags: crate::FeatureFlags) -> Result<Self> {
+        let mut daemon = Self::new(config).await?;
+        daemon.flags = flags;
+        Ok(daemon)
     }
 
     /// Create new service daemon with explicit profile repository config (tests/dev)
@@ -158,10 +159,12 @@ impl ServiceDaemon {
     /// Create new service daemon with feature flags and explicit profile repository config (tests/dev)
     pub async fn new_with_flags_and_profile_config(
         config: ServiceConfig,
-        _flags: crate::FeatureFlags,
+        flags: crate::FeatureFlags,
         profile_config: ProfileRepositoryConfig,
     ) -> Result<Self> {
-        Self::new_with_profile_config(config, profile_config).await
+        let mut daemon = Self::new_with_flags(config, flags).await?;
+        daemon.profile_config = profile_config;
+        Ok(daemon)
     }
 
     /// Run the service daemon
@@ -225,7 +228,7 @@ impl ServiceDaemon {
 
         // Create wheel service
         let wheel_service = Arc::new(
-            WheelService::new_with_profile_config(self.profile_config.clone())
+            WheelService::new_with_flags(self.flags.clone(), self.profile_config.clone())
                 .await
                 .context("Failed to create wheel service")?,
         );
@@ -441,5 +444,34 @@ impl ServiceDaemon {
         {
             Self::status_unix_service().await
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_daemon_new_with_flags() -> anyhow::Result<()> {
+        let config = ServiceConfig::default();
+        let flags = crate::FeatureFlags {
+            enable_virtual_devices: true,
+            ..Default::default()
+        };
+
+        let daemon = ServiceDaemon::new_with_flags(config, flags.clone()).await?;
+        assert!(daemon.flags.enable_virtual_devices);
+
+        // Also test new_with_flags_and_profile_config
+        let profile_config = ProfileRepositoryConfig::default();
+        let daemon2 = ServiceDaemon::new_with_flags_and_profile_config(
+            ServiceConfig::default(),
+            flags,
+            profile_config,
+        )
+        .await?;
+        assert!(daemon2.flags.enable_virtual_devices);
+
+        Ok(())
     }
 }

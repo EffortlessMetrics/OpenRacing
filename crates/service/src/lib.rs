@@ -1,4 +1,7 @@
 //! Racing Wheel Service - Complete system integration with graceful degradation
+//!
+//! Ref: [ADR-0002: IPC Transport](file:///h:/Code/Rust/OpenRacing/docs/adr/0002-ipc-transport.md)
+//! Ref: [ADR-0008: Game Auto-Configure](file:///h:/Code/Rust/OpenRacing/docs/adr/0008-game-auto-configure-telemetry-bridge.md)
 
 #![deny(static_mut_refs)]
 #![deny(unused_must_use)]

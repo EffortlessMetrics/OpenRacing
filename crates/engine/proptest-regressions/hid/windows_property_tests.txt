@@ -5,3 +5,5 @@
 # It is recommended to check this file in to source control so that
 # everyone who runs the test benefits from these saved cases.
 cc 4b8d1afda372c4d484199018a8fed402ac5361f810c78f2aebfe661970723de7 # shrinks to device = (4617, 12565, "SimGrade VX-Pro Pedals")
+cc d3a9fe8251bf037c790741ecc5f9c0a4f995b6c78d2fd66bd15e04373e3a75e3 # shrinks to device = (9267, 61696, "Asetek Forte Direct Drive")
+cc 2a09078549a3b1a574e506f32756b365ac7ac3bfcc20fe276eebd57eb4d79612 # shrinks to vid = 8137

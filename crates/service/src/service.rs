@@ -1,14 +1,15 @@
 //! Main service implementation
 
 use crate::{
-    ApplicationDeviceService, ApplicationProfileService, ApplicationSafetyService,
+    ApplicationDeviceService, ApplicationProfileService, ApplicationSafetyService, FeatureFlags,
     profile_repository::ProfileRepositoryConfig,
 };
 use anyhow::Result;
-use racing_wheel_engine::{SafetyPolicy, TracingManager, VirtualDevice, VirtualHidPort};
+use racing_wheel_engine::hid::create_hid_port;
+use racing_wheel_engine::{HidPort, SafetyPolicy, TracingManager, VirtualDevice, VirtualHidPort};
 use racing_wheel_schemas::prelude::DeviceId;
 use std::sync::Arc;
-use tracing::{error, info};
+use tracing::{error, info, warn};
 
 /// Main wheel service that orchestrates all application services
 #[derive(Clone)]
@@ -21,16 +22,22 @@ pub struct WheelService {
     safety_service: Arc<ApplicationSafetyService>,
     /// Tracing manager for observability
     tracer: Option<Arc<TracingManager>>,
+    /// Feature flags for runtime behavior
+    #[allow(dead_code)]
+    flags: FeatureFlags,
 }
 
 impl WheelService {
     /// Create new service instance
     pub async fn new() -> Result<Self> {
-        Self::new_with_profile_config(ProfileRepositoryConfig::default()).await
+        Self::new_with_flags(FeatureFlags::default(), ProfileRepositoryConfig::default()).await
     }
 
-    /// Create new service instance with custom profile repository configuration
-    pub async fn new_with_profile_config(profile_config: ProfileRepositoryConfig) -> Result<Self> {
+    /// Create new service instance with flags and custom profile repository configuration
+    pub async fn new_with_flags(
+        flags: FeatureFlags,
+        profile_config: ProfileRepositoryConfig,
+    ) -> Result<Self> {
         info!("Initializing Racing Wheel Service");
 
         // Initialize tracing
@@ -50,23 +57,33 @@ impl WheelService {
             }
         };
 
-        // Initialize HID port (using virtual port for now)
-        let mut virtual_port = VirtualHidPort::new();
+        // Initialize HID port
+        // We attempt to initialize the real platform HID backend first.
+        // If it fails or if virtual devices are explicitly requested, we fall back to VirtualHidPort.
+        let mut real_port_failed = false;
+        let hid_port: Arc<dyn HidPort> = if flags.enable_virtual_devices {
+            info!("Virtual devices explicitly requested via feature flags");
+            Self::create_virtual_port()?
+        } else {
+            match create_hid_port() {
+                Ok(port) => {
+                    info!("Platform HID backend initialized successfully");
+                    Arc::from(port)
+                }
+                Err(e) => {
+                    warn!(error = %e, "Failed to initialize platform HID backend; falling back to virtual devices");
+                    real_port_failed = true;
+                    Self::create_virtual_port()?
+                }
+            }
+        };
 
-        // Seed with a default virtual device for testing/development
-        let device_id: DeviceId = "virtual-wheel-0"
-            .parse()
-            .map_err(|e| anyhow::anyhow!("Failed to parse device ID: {}", e))?;
-        let virtual_device = VirtualDevice::new(device_id, "Virtual Racing Wheel".to_string());
-        virtual_port
-            .add_device(virtual_device)
-            .map_err(|e| anyhow::anyhow!("Failed to add virtual device: {}", e))?;
+        // Apply fallback warning if both failed or if explicitly falling back
+        if real_port_failed {
+            warn!("SERVICE DEGRADED: Running with virtual HID devices only");
+        }
 
-        let hid_port = Arc::new(virtual_port);
-        info!("HID port initialized with virtual device");
-
-        // Initialize profile repository (using simple in-memory storage for now)
-        // In a real implementation, this would be a file-based or database repository
+        // Initialize profile repository
         info!("Profile repository initialized");
 
         // Initialize safety policy
@@ -100,7 +117,23 @@ impl WheelService {
             device_service,
             safety_service,
             tracer,
+            flags,
         })
+    }
+
+    fn create_virtual_port() -> Result<Arc<dyn HidPort>> {
+        let mut virtual_port = VirtualHidPort::new();
+
+        // Seed with a default virtual device for testing/development
+        let device_id: DeviceId = "virtual-wheel-0"
+            .parse()
+            .map_err(|e| anyhow::anyhow!("Failed to parse device ID: {}", e))?;
+        let virtual_device = VirtualDevice::new(device_id, "Virtual Racing Wheel".to_string());
+        virtual_port
+            .add_device(virtual_device)
+            .map_err(|e| anyhow::anyhow!("Failed to add virtual device: {}", e))?;
+
+        Ok(Arc::new(virtual_port))
     }
 
     /// Run the service
@@ -209,6 +242,25 @@ impl WheelService {
         }
 
         info!("Service shutdown completed");
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_service_new_with_flags() -> anyhow::Result<()> {
+        let flags = FeatureFlags {
+            enable_virtual_devices: true,
+            ..Default::default()
+        };
+
+        let service =
+            WheelService::new_with_flags(flags, ProfileRepositoryConfig::default()).await?;
+
+        assert!(service.flags.enable_virtual_devices);
         Ok(())
     }
 }

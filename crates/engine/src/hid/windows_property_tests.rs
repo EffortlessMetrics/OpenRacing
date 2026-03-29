@@ -603,7 +603,7 @@ mod unit_tests {
                 continue;
             }
 
-            let vendor_devices: Vec<_> = devices.iter().filter(|(v, _, _)| v == vid).collect();
+            let vendor_devices: Vec<_> = devices.iter().filter(|(v, _, _)| *v == *vid).collect();
 
             assert!(
                 !vendor_devices.is_empty(),

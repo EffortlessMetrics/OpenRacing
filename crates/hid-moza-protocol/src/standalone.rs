@@ -90,13 +90,13 @@ mod tests {
     use super::*;
 
     #[test]
-    fn hbp_parse_with_report_id_prefix() {
+    fn hbp_parse_with_report_id_prefix() -> Result<(), Box<dyn std::error::Error>> {
         let report = [0x01u8, 0xFF, 0xFF, 0x01, 0x00];
         let result = parse_hbp_report(product_ids::HBP_HANDBRAKE, &report);
 
         let axes = match result {
             StandaloneParseResult::ParsedBestEffort(a) => a,
-            other => panic!("expected ParsedBestEffort, got {:?}", other),
+            other => return Err(format!("expected ParsedBestEffort, got {:?}", other).into()),
         };
 
         assert!(
@@ -105,34 +105,37 @@ mod tests {
         );
         assert_eq!(axes.button_byte, Some(0x01));
         assert_eq!(axes.secondary, None);
+        Ok(())
     }
 
     #[test]
-    fn hbp_parse_raw_two_byte() {
+    fn hbp_parse_raw_two_byte() -> Result<(), Box<dyn std::error::Error>> {
         let report = [0x00u8, 0x80]; // 0x8000 = 32768 → ~0.5
         let result = parse_hbp_report(product_ids::HBP_HANDBRAKE, &report);
 
         let axes = match result {
             StandaloneParseResult::ParsedBestEffort(a) => a,
-            other => panic!("expected ParsedBestEffort, got {:?}", other),
+            other => return Err(format!("expected ParsedBestEffort, got {:?}", other).into()),
         };
 
         assert!((axes.primary - (32768.0 / 65535.0)).abs() < 0.00002);
         assert_eq!(axes.button_byte, None);
+        Ok(())
     }
 
     #[test]
-    fn hbp_parse_raw_with_button() {
+    fn hbp_parse_raw_with_button() -> Result<(), Box<dyn std::error::Error>> {
         let report = [0xFF, 0xFF, 0x01u8]; // full scale + button=1
         let result = parse_hbp_report(product_ids::HBP_HANDBRAKE, &report);
 
         let axes = match result {
             StandaloneParseResult::ParsedBestEffort(a) => a,
-            other => panic!("expected ParsedBestEffort, got {:?}", other),
+            other => return Err(format!("expected ParsedBestEffort, got {:?}", other).into()),
         };
 
         assert!((axes.primary - 1.0).abs() < 0.00002);
         assert_eq!(axes.button_byte, Some(0x01));
+        Ok(())
     }
 
     #[test]
@@ -153,25 +156,26 @@ mod tests {
     }
 
     #[test]
-    fn srp_parse_best_effort_throttle_and_brake() {
+    fn srp_parse_best_effort_throttle_and_brake() -> Result<(), Box<dyn std::error::Error>> {
         // [report_id, t_lo, t_hi, b_lo, b_hi]
         let report = [0x01u8, 0xFF, 0xFF, 0x00, 0x80];
         let result = parse_srp_report(product_ids::SR_P_PEDALS, &report);
 
         let axes = match result {
             StandaloneParseResult::ParsedBestEffort(a) => a,
-            other => panic!("expected ParsedBestEffort, got {:?}", other),
+            other => return Err(format!("expected ParsedBestEffort, got {:?}", other).into()),
         };
 
         assert!(
             (axes.primary - 1.0).abs() < 0.00002,
             "throttle should be 1.0"
         );
-        let brake = axes.secondary.expect("brake should be present");
+        let brake = axes.secondary.ok_or("brake should be present")?;
         assert!(
             (brake - (32768.0 / 65535.0)).abs() < 0.00002,
             "brake should be ~0.5"
         );
+        Ok(())
     }
 
     #[test]

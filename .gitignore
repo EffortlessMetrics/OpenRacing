@@ -48,6 +48,21 @@ test_*.json
 tmp_*.txt
 *_out.txt
 *_output.txt
+scratch.rs
+
+# Debug/analysis output dumps
+allocation_debug*.txt
+clippy_*.txt
+doc_*.txt
+engine_test*.txt
+metadata_error*.txt
+missing_docs*.txt
+*_failure.txt
+unique_crates.txt
+workspace_tests*.txt
+
+# Support bundle archives from CLI testing
+crates/cli/support_bundle_*.zip
 
 # Temporary test/compat output
 compat_current.json

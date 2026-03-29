@@ -56,6 +56,7 @@ jobs:
     - name: Run unit tests
       env:
         OPENRACING_SKIP_TIMING_GUARANTEES: "1"
+        OPENRACING_USE_VIRTUAL_DEVICES: "1"
       run: |
         # Keep smoke bounded/deterministic: exclude long-running perf/atomicity tests here.
         # These behaviors are covered by dedicated performance and soak CI lanes.
@@ -266,6 +267,8 @@ jobs:
         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
     
     - name: Run acceptance tests
+      env:
+        OPENRACING_USE_VIRTUAL_DEVICES: "1"
       run: cargo test test_acceptance_tests_subset --package racing-wheel-integration-tests --features ci-gates --locked
     
     - name: Upload acceptance test report

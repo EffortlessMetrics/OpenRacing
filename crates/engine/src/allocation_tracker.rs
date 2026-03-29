@@ -152,9 +152,11 @@ macro_rules! ci_assert_zero_alloc {
         let allocs = $guard.allocations_since_start();
         let bytes = $guard.bytes_allocated_since_start();
         if allocs > 0 {
-            eprintln!("CI FAILURE: RT path allocation detected in {}", $context);
-            eprintln!("Allocations: {}, Bytes: {}", allocs, bytes);
-            eprintln!("This violates the zero-allocation requirement for real-time code paths.");
+            tracing::error!("CI FAILURE: RT path allocation detected in {}", $context);
+            tracing::error!("Allocations: {}, Bytes: {}", allocs, bytes);
+            tracing::error!(
+                "This violates the zero-allocation requirement for real-time code paths."
+            );
             std::process::exit(1);
         }
     };
@@ -204,12 +206,14 @@ impl AllocationReport {
 
     pub fn print_summary(&self) {
         if self.allocations > 0 {
-            println!(
-                "⚠️  {} allocated {} times ({} bytes)",
-                self.context, self.allocations, self.bytes
+            tracing::warn!(
+                "{} allocated {} times ({} bytes)",
+                self.context,
+                self.allocations,
+                self.bytes
             );
         } else {
-            println!("✅ {} - zero allocations", self.context);
+            tracing::info!("{} - zero allocations", self.context);
         }
     }
 }

@@ -103,7 +103,14 @@ yanked = "warn"
 # Example:
 #   # RUSTSEC-2024-XXXX — does not affect our usage (no TLS client code)
 #   "RUSTSEC-2024-XXXX",
-ignore = []
+ignore = [
+    # RUSTSEC-2026-0049 — rustls-webpki 0.102.8 is a transitive dependency
+    # from tauri -> reqwest 0.12.0 -> rustls 0.22.4. We cannot upgrade past
+    # 0.102.x without upgrading tauri's reqwest. The 0.103.x line has been
+    # updated to the fixed version (0.103.10). The 0.102.x usage is only in
+    # the UI crate and does not handle untrusted certificate chains directly.
+    "RUSTSEC-2026-0049",
+]
 
 # =============================================================================
 # Source provenance — restrict where crates may come from

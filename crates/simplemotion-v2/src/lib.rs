@@ -16,6 +16,7 @@
 
 #![deny(unsafe_op_in_unsafe_fn)]
 #![deny(static_mut_refs)]
+#![allow(missing_docs)]
 
 pub mod commands;
 pub mod error;

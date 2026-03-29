@@ -81,7 +81,8 @@ fn profile_repo_config(tmp: &TempDir) -> ProfileRepositoryConfig {
 async fn temp_service() -> Result<(WheelService, TempDir), BoxErr> {
     let tmp = TempDir::new()?;
     let config = profile_repo_config(&tmp);
-    let svc = WheelService::new_with_profile_config(config).await?;
+    let svc =
+        WheelService::new_with_flags(racing_wheel_service::FeatureFlags::default(), config).await?;
     Ok((svc, tmp))
 }
 
@@ -136,7 +137,11 @@ async fn shutdown_clean_sequence() -> Result<(), BoxErr> {
 
     // Create service, do some work, then drop (simulates shutdown)
     {
-        let svc = WheelService::new_with_profile_config(config.clone()).await?;
+        let svc = WheelService::new_with_flags(
+            racing_wheel_service::FeatureFlags::default(),
+            config.clone(),
+        )
+        .await?;
 
         // Register device and create profile
         let did = parse_device_id("shutdown-dev")?;
@@ -152,7 +157,8 @@ async fn shutdown_clean_sequence() -> Result<(), BoxErr> {
     }
 
     // Verify profile persists after restart (clean exit preserved state)
-    let svc2 = WheelService::new_with_profile_config(config).await?;
+    let svc2 =
+        WheelService::new_with_flags(racing_wheel_service::FeatureFlags::default(), config).await?;
     let profiles = svc2.profile_service().list_profiles().await?;
     assert_eq!(profiles.len(), 1, "profile should survive clean restart");
 
