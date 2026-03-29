@@ -2,7 +2,7 @@
 
 use crate::curves::{CurveLut, CurveType};
 use crate::rt::Frame;
-use crate::rt::RTResult;
+pub use openracing_errors::{RTError, RTResult};
 use racing_wheel_schemas::prelude::*;
 use std::sync::Arc;
 use tokio::sync::{Mutex, oneshot};
@@ -142,7 +142,7 @@ impl Pipeline {
 
             // Validate output is within bounds
             if !frame.torque_out.is_finite() || frame.torque_out.abs() > 1.0 {
-                return Err(crate::RTError::PipelineFault);
+                return Err(RTError::PipelineFault);
             }
         }
 

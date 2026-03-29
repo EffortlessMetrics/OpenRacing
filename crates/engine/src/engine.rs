@@ -9,7 +9,7 @@ use crate::{
     pipeline::{CompiledPipeline, Pipeline},
     ports::{HidDevice, NormalizedTelemetry},
     rt::FFBMode,
-    rt::{Frame, PerformanceMetrics, RTError, RTResult},
+    rt::{Frame, PerformanceMetrics, RTResult},
     safety::integration::{FaultManagerContext, IntegratedFaultManager},
     safety::watchdog::SystemComponent,
     safety::{FaultType, SafetyService, SafetyState},
@@ -17,6 +17,7 @@ use crate::{
     tracing::{RTTraceEvent, TracingManager},
 };
 use crossbeam::channel::{Receiver, Sender, TrySendError};
+use openracing_errors::RTError;
 use racing_wheel_schemas::prelude::*;
 use std::{
     sync::{
@@ -832,6 +833,12 @@ impl Engine {
                 });
             }
 
+            // Record heartbeats for critical components
+            if let Some(ref mut heartbeats) = ctx.component_heartbeats_scratch {
+                heartbeats.insert(SystemComponent::RtThread, true);
+                heartbeats.insert(SystemComponent::HidCommunication, true);
+            }
+
             // Update metrics
             ctx.frame_counter.store(tick_count, Ordering::Release);
             ctx.metrics.total_ticks = tick_count;
@@ -911,16 +918,10 @@ impl Engine {
             #[cfg(feature = "rt-hardening")]
             {
                 const HARDENING_WARMUP_TICKS: u64 = 8;
-                if tick_count > HARDENING_WARMUP_TICKS {
-                    let allocs = rt_tick_alloc_guard.allocations_since_start();
-                    if allocs > 0 {
-                        let bytes = rt_tick_alloc_guard.bytes_allocated_since_start();
-                        error!(
-                            "RT hardening allocation violation: {} allocations ({} bytes) at tick {}",
-                            allocs, bytes, tick_count
-                        );
-                        return Err(RTError::PipelineFault);
-                    }
+                if tick_count > HARDENING_WARMUP_TICKS
+                    && rt_tick_alloc_guard.allocations_since_start() > 0
+                {
+                    return Err(RTError::PipelineFault);
                 }
                 rt_tick_alloc_guard = crate::allocation_tracker::track();
             }
@@ -1091,7 +1092,6 @@ impl Drop for Engine {
 }
 
 #[cfg(test)]
-#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
     use crate::device::VirtualDevice;
@@ -1100,16 +1100,10 @@ mod tests {
     use std::time::Duration;
     use tokio::time::{Duration as TokioDuration, sleep};
 
-    #[track_caller]
-    fn must<T, E: std::fmt::Debug>(r: Result<T, E>) -> T {
-        match r {
-            Ok(v) => v,
-            Err(e) => panic!("unexpected Err: {e:?}"),
-        }
-    }
+    type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
     fn create_test_device() -> Box<dyn HidDevice> {
-        let device_id = must("test-device".parse::<DeviceId>());
+        let device_id = "test-device".parse::<DeviceId>().expect("valid device id");
         let virtual_device = VirtualDevice::new(device_id, "Test Device".to_string());
         Box::new(virtual_device)
     }
@@ -1128,7 +1122,7 @@ mod tests {
                 true,
                 true,
                 false,
-                must(TorqueNm::new(25.0)),
+                TorqueNm::new(25.0).expect("valid torque"),
                 10000,
                 1000,
             );
@@ -1206,7 +1200,7 @@ mod tests {
     }
 
     fn create_capturing_device(writes: Option<Arc<Mutex<Vec<f32>>>>) -> Box<dyn HidDevice> {
-        let device_id = must("test-device".parse::<DeviceId>());
+        let device_id = "test-device".parse::<DeviceId>().expect("valid device id");
         Box::new(CapturingDevice::new(device_id, writes))
     }
 
@@ -1220,7 +1214,7 @@ mod tests {
 
     fn create_test_config() -> EngineConfig {
         EngineConfig {
-            device_id: must("test-device".parse::<DeviceId>()),
+            device_id: "test-device".parse::<DeviceId>().expect("valid device id"),
             mode: FFBMode::RawTorque,
             max_safe_torque_nm: 5.0,
             max_high_torque_nm: 25.0,
@@ -1393,21 +1387,22 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_engine_creation() {
+    async fn test_engine_creation() -> Result<()> {
         let device = create_test_device();
         let config = create_test_config();
 
-        let engine = must(Engine::new(device, config));
+        let engine = Engine::new(device, config)?;
         assert!(!engine.is_running());
         assert_eq!(engine.frame_count(), 0);
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_engine_start_stop() {
+    async fn test_engine_start_stop() -> Result<()> {
         let device = create_test_device();
         let config = create_test_config();
 
-        let mut engine = must(Engine::new(device, config));
+        let mut engine = Engine::new(device, config)?;
 
         // Start engine
         let device = create_test_device();
@@ -1422,17 +1417,18 @@ mod tests {
         let result = engine.stop().await;
         assert!(result.is_ok());
         assert!(!engine.is_running());
+        Ok(())
     }
 
     #[cfg(not(feature = "rt-hardening"))]
     #[tokio::test]
-    async fn test_game_input_processing() {
+    async fn test_game_input_processing() -> Result<()> {
         let device = create_test_device();
         let config = create_test_config();
 
-        let mut engine = must(Engine::new(device, config));
+        let mut engine = Engine::new(device, config)?;
         let device = create_test_device();
-        engine.start(device).await.unwrap();
+        engine.start(device).await?;
 
         // Send some game input
         let input = GameInput {
@@ -1456,18 +1452,19 @@ mod tests {
             "engine did not process frames within 2000ms"
         );
 
-        engine.stop().await.unwrap();
+        engine.stop().await?;
+        Ok(())
     }
 
     #[cfg(not(feature = "rt-hardening"))]
     #[tokio::test]
-    async fn test_pipeline_application() {
+    async fn test_pipeline_application() -> Result<()> {
         let device = create_test_device();
         let config = create_test_config();
 
-        let mut engine = must(Engine::new(device, config));
+        let mut engine = Engine::new(device, config)?;
         let device = create_test_device();
-        engine.start(device).await.unwrap();
+        engine.start(device).await?;
 
         // Create a test pipeline (simplified without compiler dependency)
         let compiled = CompiledPipeline {
@@ -1479,17 +1476,18 @@ mod tests {
         let result = engine.apply_pipeline(compiled).await;
         assert!(result.is_ok());
 
-        engine.stop().await.unwrap();
+        engine.stop().await?;
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_safety_updates() {
+    async fn test_safety_updates() -> Result<()> {
         let device = create_test_device();
         let config = create_test_config();
 
-        let mut engine = must(Engine::new(device, config));
+        let mut engine = Engine::new(device, config)?;
         let device = create_test_device();
-        engine.start(device).await.unwrap();
+        engine.start(device).await?;
 
         // Update safety parameters
         let result = engine.update_safety(true, 60);
@@ -1499,18 +1497,19 @@ mod tests {
         let result = engine.update_safety(false, 85);
         assert!(result.is_ok());
 
-        engine.stop().await.unwrap();
+        engine.stop().await?;
+        Ok(())
     }
 
     #[cfg(not(feature = "rt-hardening"))]
     #[tokio::test]
-    async fn test_engine_stats() {
+    async fn test_engine_stats() -> Result<()> {
         let device = create_test_device();
         let config = create_test_config();
 
-        let mut engine = must(Engine::new(device, config));
+        let mut engine = Engine::new(device, config)?;
         let device = create_test_device();
-        engine.start(device).await.unwrap();
+        engine.start(device).await?;
 
         // Give engine time to process some frames (generous timeout for loaded CI)
         sleep(TokioDuration::from_millis(500)).await;
@@ -1519,21 +1518,22 @@ mod tests {
         let stats = engine.get_stats().await;
         assert!(stats.is_ok());
 
-        let stats = stats.unwrap();
+        let stats = stats?;
         assert!(stats.total_frames > 0);
 
-        engine.stop().await.unwrap();
+        engine.stop().await?;
+        Ok(())
     }
 
     #[cfg(not(feature = "rt-hardening"))]
     #[tokio::test]
-    async fn test_blackbox_recording() {
+    async fn test_blackbox_recording() -> Result<()> {
         let device = create_test_device();
         let config = create_test_config();
 
-        let mut engine = must(Engine::new(device, config));
+        let mut engine = Engine::new(device, config)?;
         let device = create_test_device();
-        engine.start(device).await.unwrap();
+        engine.start(device).await?;
 
         // Send some input to generate frames
         for i in 0..10 {
@@ -1552,28 +1552,29 @@ mod tests {
         let frames = engine.get_blackbox_frames();
         assert!(!frames.is_empty());
 
-        engine.stop().await.unwrap();
+        engine.stop().await?;
+        Ok(())
     }
 
     #[cfg(not(feature = "rt-hardening"))]
     #[tokio::test]
-    async fn test_emergency_stop_collapses_torque_within_two_writes() {
+    async fn test_emergency_stop_collapses_torque_within_two_writes() -> Result<()> {
         let captured_writes = Arc::new(Mutex::new(Vec::with_capacity(4096)));
         let bootstrap_device = create_test_device();
         let mut config = create_test_config();
         config.enable_blackbox = false;
 
-        let mut engine = must(Engine::new(bootstrap_device, config));
+        let mut engine = Engine::new(bootstrap_device, config)?;
         let runtime_device = create_capturing_device(Some(Arc::clone(&captured_writes)));
-        must(engine.start(runtime_device).await);
+        engine.start(runtime_device).await?;
 
         let filter_config = FilterConfig {
             reconstruction: 1,
             ..Default::default()
         };
         let compiler = crate::pipeline::PipelineCompiler::new();
-        let compiled = must(compiler.compile_pipeline(filter_config).await);
-        must(engine.apply_pipeline(compiled).await);
+        let compiled = compiler.compile_pipeline(filter_config).await?;
+        engine.apply_pipeline(compiled).await?;
 
         for _ in 0..16 {
             let _ = engine.send_game_input(GameInput {
@@ -1588,10 +1589,10 @@ mod tests {
         assert!(!writes_before_stop.is_empty());
 
         let write_count_before_stop = writes_before_stop.len();
-        must(engine.emergency_stop().await);
+        engine.emergency_stop().await?;
 
         sleep(TokioDuration::from_millis(10)).await;
-        must(engine.stop().await);
+        engine.stop().await?;
 
         let writes_after_stop = snapshot_torque_writes(&captured_writes);
         assert!(writes_after_stop.len() > write_count_before_stop);
@@ -1613,20 +1614,21 @@ mod tests {
                 post_stop_writes
             );
         }
+        Ok(())
     }
 
     #[cfg(feature = "rt-hardening")]
     #[tokio::test]
-    async fn test_rt_hardening_steady_state_has_no_rt_allocations() {
+    async fn test_rt_hardening_steady_state_has_no_rt_allocations() -> Result<()> {
         let bootstrap_device = create_test_device();
         let mut config = create_test_config();
         config.enable_blackbox = false;
         config.rt_setup.high_priority = false;
         config.rt_setup.lock_memory = false;
 
-        let mut engine = must(Engine::new(bootstrap_device, config));
+        let mut engine = Engine::new(bootstrap_device, config)?;
         let runtime_device = create_capturing_device(None);
-        must(engine.start(runtime_device).await);
+        engine.start(runtime_device).await?;
 
         for _ in 0..20 {
             let _ = engine.send_game_input(GameInput {
@@ -1638,12 +1640,13 @@ mod tests {
         }
 
         sleep(TokioDuration::from_millis(30)).await;
-        must(engine.stop().await);
+        engine.stop().await?;
+        Ok(())
     }
 
     #[cfg(not(feature = "rt-hardening"))]
     #[tokio::test]
-    async fn test_timing_violation_handling() {
+    async fn test_timing_violation_handling() -> Result<()> {
         let device = create_test_device();
         let mut config = create_test_config();
 
@@ -1651,19 +1654,20 @@ mod tests {
         config.rt_setup.high_priority = false;
         config.rt_setup.lock_memory = false;
 
-        let mut engine = must(Engine::new(device, config));
+        let mut engine = Engine::new(device, config)?;
         let device = create_test_device();
-        engine.start(device).await.unwrap();
+        engine.start(device).await?;
 
         // Run for a bit to potentially trigger timing violations in CI
         sleep(TokioDuration::from_millis(100)).await;
 
-        let _stats = engine.get_stats().await.unwrap();
+        let _stats = engine.get_stats().await?;
 
         // In CI environments, we might have timing violations
         // Just verify the engine continues running
         assert!(engine.is_running());
 
-        engine.stop().await.unwrap();
+        engine.stop().await?;
+        Ok(())
     }
 }

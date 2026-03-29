@@ -19,17 +19,23 @@ pub enum InterlockState {
     SafeTorque,
     /// Challenge issued, waiting for user response
     Challenge {
+        /// Token identifying the active challenge
         challenge_token: u32,
+        /// Wall-clock deadline for completing the challenge
         expires_at: Instant,
     },
     /// High torque unlocked and active
     HighTorqueActive {
+        /// Timestamp when high torque was activated
         unlocked_at: Instant,
+        /// Ephemeral device-specific token for this active session
         device_token: u32,
     },
     /// Faulted state - torque disabled
     Faulted {
+        /// Specific fault condition that triggered this state
         fault_type: FaultType,
+        /// Timestamp when the fault occurred
         occurred_at: Instant,
     },
 }
@@ -37,14 +43,23 @@ pub enum InterlockState {
 /// Per-device safety context
 #[derive(Debug, Clone)]
 pub struct DeviceSafetyContext {
+    /// Unique identifier of the device
     pub device_id: DeviceId,
+    /// Current high-torque interlock state
     pub interlock_state: InterlockState,
+    /// Configured maximum safe torque limit for the device and user
     pub max_safe_torque: TorqueNm,
+    /// Currently enforced dynamic torque limit
     pub current_torque_limit: TorqueNm,
+    /// Whether hands-on-wheel is currently detected
     pub hands_on_detected: bool,
+    /// Timestamp of the last verified hands-on-wheel detection
     pub last_hands_on_time: Option<Instant>,
+    /// Last reported motor/device temperature in Celsius
     pub temperature_c: Option<f32>,
+    /// Number of critical faults encountered during this session
     pub fault_count: u32,
+    /// Timestamp of the most recent fault
     pub last_fault_time: Option<Instant>,
 }
 
@@ -53,28 +68,43 @@ pub struct DeviceSafetyContext {
 pub enum SafetyEvent {
     /// High torque requested
     HighTorqueRequested {
+        /// Identifier of the device
         device_id: DeviceId,
+        /// Component or user that requested high torque
         requested_by: String,
     },
     /// Challenge response received
     ChallengeResponse {
+        /// Identifier of the device
         device_id: DeviceId,
+        /// Challenge token provided in the response
         token: u32,
+        /// Whether the challenge response was valid and successful
         success: bool,
     },
     /// Fault detected
     FaultDetected {
+        /// Identifier of the device
         device_id: DeviceId,
+        /// Specific fault type detected
         fault_type: FaultType,
+        /// Severity of the detected fault
         severity: FaultSeverity,
     },
     /// Fault cleared
     FaultCleared {
+        /// Identifier of the device
         device_id: DeviceId,
+        /// Specific fault type that was cleared
         fault_type: FaultType,
     },
     /// Emergency stop triggered
-    EmergencyStop { device_id: DeviceId, reason: String },
+    EmergencyStop {
+        /// Identifier of the device
+        device_id: DeviceId,
+        /// Human-readable reason for the emergency stop
+        reason: String,
+    },
 }
 
 /// Fault severity levels
@@ -737,10 +767,15 @@ impl ApplicationSafetyService {
 /// Safety service statistics
 #[derive(Debug, Clone)]
 pub struct SafetyServiceStatistics {
+    /// Total number of devices managed by the safety service
     pub total_devices: usize,
+    /// Number of devices currently restricted to safe torque
     pub safe_torque_devices: usize,
+    /// Number of devices currently running with high torque active
     pub high_torque_devices: usize,
+    /// Number of devices currently in a faulted state (torque disabled)
     pub faulted_devices: usize,
+    /// Number of devices currently awaiting challenge completion
     pub challenge_devices: usize,
 }
 

@@ -48,7 +48,12 @@ pub struct CammusInputReport {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ParseError {
     /// The byte slice was too short to contain all required fields.
-    TooShort { got: usize, need: usize },
+    TooShort {
+        /// The actual number of bytes received
+        got: usize,
+        /// The minimum number of bytes required
+        need: usize,
+    },
 }
 
 impl core::fmt::Display for ParseError {

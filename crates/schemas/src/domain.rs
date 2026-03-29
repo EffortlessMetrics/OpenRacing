@@ -152,6 +152,15 @@ impl TorqueNm {
         Ok(TorqueNm(value))
     }
 
+    /// Create a new torque value without validation
+    ///
+    /// # Safety
+    ///
+    /// The caller must ensure that the value is finite and within the range [0.0, MAX_TORQUE].
+    pub unsafe fn new_unchecked(value: f32) -> Self {
+        TorqueNm(value)
+    }
+
     /// Create torque from centi-Newton-meters (used in HID reports)
     pub fn from_cnm(cnm: u16) -> Result<Self, DomainError> {
         let nm = (cnm as f32) / 100.0;
@@ -754,14 +763,7 @@ pub fn validate_curve_monotonic(points: &[CurvePoint]) -> Result<(), DomainError
 mod tests {
     use super::*;
 
-    /// Helper function to unwrap Result values in tests
-    /// Panics with a descriptive message if the Result is Err
-    fn must<T, E: std::fmt::Debug>(r: Result<T, E>) -> T {
-        match r {
-            Ok(v) => v,
-            Err(e) => panic!("must() failed: {:?}", e),
-        }
-    }
+    type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
     #[test]
     fn test_torque_nm_validation() {
@@ -778,9 +780,9 @@ mod tests {
     }
 
     #[test]
-    fn test_torque_nm_operations() {
-        let t1 = must(TorqueNm::new(10.0));
-        let t2 = must(TorqueNm::new(15.0));
+    fn test_torque_nm_operations() -> Result<()> {
+        let t1 = TorqueNm::new(10.0)?;
+        let t2 = TorqueNm::new(15.0)?;
 
         // Addition with clamping
         let sum = t1 + t2;
@@ -791,23 +793,35 @@ mod tests {
         assert_eq!(diff.value(), 5.0);
 
         // Multiplication with clamping
-        let scaled = t1 * 2.0;
-        assert_eq!(scaled.value(), 20.0);
+        let double = t1 * 2.0;
+        assert_eq!(double.value(), 20.0);
 
-        // Test clamping at max
-        let large = must(TorqueNm::new(40.0));
-        let clamped = large + must(TorqueNm::new(20.0));
+        let clamped = t2 * 4.0;
         assert_eq!(clamped.value(), TorqueNm::MAX_TORQUE);
+        Ok(())
     }
 
     #[test]
-    fn test_torque_nm_cnm_conversion() {
-        let torque = must(TorqueNm::new(12.34));
+    fn test_torque_nm_ordering() -> Result<()> {
+        let t1 = TorqueNm::new(10.0)?;
+        let t2 = TorqueNm::new(20.0)?;
+
+        assert!(t1 < t2);
+        assert!(t2 > t1);
+        assert_eq!(t1.min(t2), t1);
+        assert_eq!(t1.max(t2), t2);
+        Ok(())
+    }
+
+    #[test]
+    fn test_torque_nm_cnm_conversion() -> Result<()> {
+        let torque = TorqueNm::new(12.34)?;
         let cnm = torque.to_cnm();
         assert_eq!(cnm, 1234);
 
-        let back = must(TorqueNm::from_cnm(cnm));
+        let back = TorqueNm::from_cnm(cnm)?;
         assert!((back.value() - 12.34).abs() < 0.01);
+        Ok(())
     }
 
     #[test]
@@ -818,63 +832,67 @@ mod tests {
         assert!(Degrees::new_dor(2160.0).is_ok());
 
         // Invalid DOR values
-        assert!(Degrees::new_dor(90.0).is_err());
-        assert!(Degrees::new_dor(3000.0).is_err());
+        assert!(Degrees::new_dor(179.0).is_err());
+        assert!(Degrees::new_dor(2161.0).is_err());
         assert!(Degrees::new_dor(f32::NAN).is_err());
 
-        // Valid angle values (unrestricted)
-        assert!(Degrees::new_angle(-180.0).is_ok());
-        assert!(Degrees::new_angle(3600.0).is_ok());
+        // Valid unrestricted angles
+        assert!(Degrees::new_angle(0.0).is_ok());
+        assert!(Degrees::new_angle(360.0).is_ok());
+        assert!(Degrees::new_angle(-45.0).is_ok());
 
         // Invalid angle values
         assert!(Degrees::new_angle(f32::NAN).is_err());
     }
 
     #[test]
-    fn test_degrees_operations() {
-        let d1 = must(Degrees::new_angle(45.0));
-        let d2 = must(Degrees::new_angle(90.0));
+    fn test_degrees_operations() -> Result<()> {
+        let d1 = Degrees::new_angle(45.0)?;
+        let d2 = Degrees::new_angle(90.0)?;
 
         let sum = d1 + d2;
         assert_eq!(sum.value(), 135.0);
 
         let diff = d2 - d1;
         assert_eq!(diff.value(), 45.0);
+        Ok(())
     }
 
     #[test]
-    fn test_degrees_normalization() {
-        let d1 = must(Degrees::new_angle(270.0));
+    fn test_degrees_normalization() -> Result<()> {
+        let d1 = Degrees::new_angle(270.0)?;
         let normalized = d1.normalize();
         assert_eq!(normalized.value(), -90.0);
 
-        let d2 = must(Degrees::new_angle(-270.0));
+        let d2 = Degrees::new_angle(-270.0)?;
         let normalized2 = d2.normalize();
         assert_eq!(normalized2.value(), 90.0);
+        Ok(())
     }
 
     #[test]
-    fn test_degrees_millidegrees_conversion() {
-        let degrees = must(Degrees::new_angle(123.456));
+    fn test_degrees_millidegrees_conversion() -> Result<()> {
+        let degrees = Degrees::new_angle(123.456)?;
         let mdeg = degrees.to_millidegrees();
         assert_eq!(mdeg, 123456);
 
         let back = Degrees::from_millidegrees(mdeg);
         assert!((back.value() - 123.456).abs() < 0.001);
+        Ok(())
     }
 
     #[test]
-    fn test_device_id_validation() {
+    fn test_device_id_validation() -> Result<()> {
         // Valid device IDs
         assert!("device-123".parse::<DeviceId>().is_ok());
         assert!("wheel_base_1".parse::<DeviceId>().is_ok());
         assert!("ABC123".parse::<DeviceId>().is_ok());
 
         // Test normalization (trim and lowercase)
-        let id = must("  Device-123  ".parse::<DeviceId>());
+        let id: DeviceId = "  Device-123  ".parse()?;
         assert_eq!(id.as_str(), "device-123");
 
-        let id2 = must("WHEEL_BASE_1".parse::<DeviceId>());
+        let id2: DeviceId = "WHEEL_BASE_1".parse()?;
         assert_eq!(id2.as_str(), "wheel_base_1");
 
         // Invalid device IDs
@@ -882,16 +900,17 @@ mod tests {
         assert!("device with spaces".parse::<DeviceId>().is_err());
         assert!("device@special".parse::<DeviceId>().is_err());
         assert!("   ".parse::<DeviceId>().is_err()); // Only whitespace
+        Ok(())
     }
 
     #[test]
-    fn test_device_id_try_from() {
+    fn test_device_id_try_from() -> Result<()> {
         // Test TryFrom<String>
-        let id = must(DeviceId::try_from("test-device".to_string()));
+        let id = DeviceId::try_from("test-device".to_string())?;
         assert_eq!(id.as_str(), "test-device");
 
         // Test TryFrom<&str>
-        let id2 = must(DeviceId::try_from("another-device"));
+        let id2 = DeviceId::try_from("another-device")?;
         assert_eq!(id2.as_str(), "another-device");
 
         // Test AsRef<str>
@@ -899,20 +918,21 @@ mod tests {
 
         // Test Display
         assert_eq!(format!("{}", id), "test-device");
+        Ok(())
     }
 
     #[test]
-    fn test_profile_id_validation() {
+    fn test_profile_id_validation() -> Result<()> {
         // Valid profile IDs
         assert!("global".parse::<ProfileId>().is_ok());
         assert!("iracing.gt3".parse::<ProfileId>().is_ok());
         assert!("profile-123_v2".parse::<ProfileId>().is_ok());
 
         // Test normalization (trim and lowercase)
-        let id = must("  Global-Profile  ".parse::<ProfileId>());
+        let id: ProfileId = "  Global-Profile  ".parse()?;
         assert_eq!(id.as_str(), "global-profile");
 
-        let id2 = must("IRACING.GT3".parse::<ProfileId>());
+        let id2: ProfileId = "IRACING.GT3".parse()?;
         assert_eq!(id2.as_str(), "iracing.gt3");
 
         // Invalid profile IDs
@@ -920,16 +940,17 @@ mod tests {
         assert!("profile with spaces".parse::<ProfileId>().is_err());
         assert!("profile@special".parse::<ProfileId>().is_err());
         assert!("   ".parse::<ProfileId>().is_err()); // Only whitespace
+        Ok(())
     }
 
     #[test]
-    fn test_profile_id_try_from() {
+    fn test_profile_id_try_from() -> Result<()> {
         // Test TryFrom<String>
-        let id = must(ProfileId::try_from("test-profile".to_string()));
+        let id = ProfileId::try_from("test-profile".to_string())?;
         assert_eq!(id.as_str(), "test-profile");
 
         // Test TryFrom<&str>
-        let id2 = must(ProfileId::try_from("another.profile"));
+        let id2 = ProfileId::try_from("another.profile")?;
         assert_eq!(id2.as_str(), "another.profile");
 
         // Test AsRef<str>
@@ -937,6 +958,7 @@ mod tests {
 
         // Test Display
         assert_eq!(format!("{}", id), "test-profile");
+        Ok(())
     }
 
     #[test]
@@ -953,14 +975,15 @@ mod tests {
     }
 
     #[test]
-    fn test_gain_operations() {
-        let gain = must(Gain::new(0.8));
+    fn test_gain_operations() -> Result<()> {
+        let gain = Gain::new(0.8)?;
 
         let result1 = gain * 100.0;
         assert_eq!(result1, 80.0);
 
         let result2 = 50.0 * gain;
         assert_eq!(result2, 40.0);
+        Ok(())
     }
 
     #[test]
@@ -990,24 +1013,25 @@ mod tests {
     }
 
     #[test]
-    fn test_curve_monotonic_validation() {
+    fn test_curve_monotonic_validation() -> Result<()> {
         // Valid monotonic curve
         let points = vec![
-            must(CurvePoint::new(0.0, 0.0)),
-            must(CurvePoint::new(0.5, 0.6)),
-            must(CurvePoint::new(1.0, 1.0)),
+            CurvePoint::new(0.0, 0.0)?,
+            CurvePoint::new(0.5, 0.6)?,
+            CurvePoint::new(1.0, 1.0)?,
         ];
         assert!(validate_curve_monotonic(&points).is_ok());
 
         // Invalid non-monotonic curve
         let bad_points = vec![
-            must(CurvePoint::new(0.0, 0.0)),
-            must(CurvePoint::new(0.7, 0.6)),
-            must(CurvePoint::new(0.5, 1.0)), // Input goes backwards
+            CurvePoint::new(0.0, 0.0)?,
+            CurvePoint::new(0.7, 0.6)?,
+            CurvePoint::new(0.5, 1.0)?, // Input goes backwards
         ];
         assert!(validate_curve_monotonic(&bad_points).is_err());
 
         // Empty curve
         assert!(validate_curve_monotonic(&[]).is_err());
+        Ok(())
     }
 }

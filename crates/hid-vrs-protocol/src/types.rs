@@ -9,20 +9,30 @@ use crate::ids::report_ids;
 /// High-level category for VRS USB products.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum VrsDeviceCategory {
+    /// A force feedback wheelbase.
     Wheelbase,
+    /// A set of sim racing pedals.
     Pedals,
+    /// A gear shifter.
     Shifter,
+    /// A handbrake.
     Handbrake,
+    /// An unknown or unrecognized VRS device.
     Unknown,
 }
 
 /// Identity metadata for a VRS product ID.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct VrsDeviceIdentity {
+    /// USB Product ID.
     pub product_id: u16,
+    /// Human-readable device name.
     pub name: &'static str,
+    /// The high-level category of the device.
     pub category: VrsDeviceCategory,
+    /// True if the device supports PIDFF force feedback.
     pub supports_ffb: bool,
+    /// Estimated maximum torque output in Nm, if applicable.
     pub max_torque_nm: Option<f32>,
 }
 
@@ -111,16 +121,22 @@ pub fn is_wheelbase_product(product_id: u16) -> bool {
 /// Raw pedal axis samples parsed from an input report.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct VrsPedalAxesRaw {
+    /// Raw throttle value (0-65535).
     pub throttle: u16,
+    /// Raw brake value (0-65535).
     pub brake: u16,
+    /// Raw clutch value (0-65535).
     pub clutch: u16,
 }
 
 /// Normalized pedal axis samples in the `[0.0, 1.0]` range.
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub struct VrsPedalAxes {
+    /// Normalized throttle (0.0 to 1.0).
     pub throttle: f32,
+    /// Normalized brake (0.0 to 1.0).
     pub brake: f32,
+    /// Normalized clutch (0.0 to 1.0).
     pub clutch: f32,
 }
 
@@ -139,16 +155,27 @@ impl VrsPedalAxesRaw {
 /// FFB effect types supported by VRS DirectForce Pro wheelbases (PIDFF).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum VrsFfbEffectType {
+    /// Constant force effect.
     Constant,
+    /// Ramp force effect.
     Ramp,
+    /// Square wave effect.
     Square,
+    /// Sine wave effect.
     Sine,
+    /// Triangle wave effect.
     Triangle,
+    /// Sawtooth up effect.
     SawtoothUp,
+    /// Sawtooth down effect.
     SawtoothDown,
+    /// Spring condition.
     Spring,
+    /// Damper condition.
     Damper,
+    /// Friction condition.
     Friction,
+    /// Custom vendor-specific effect type.
     Custom,
 }
 

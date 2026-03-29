@@ -1,6 +1,10 @@
 //! Absolute scheduler for 1kHz real-time operation with PLL and RT setup
+//!
+//! Implements the scheduling architecture specified in [ADR-0004: Real-Time Scheduling Architecture].
+//!
+//! [ADR-0004]: file:///h:/Code/Rust/OpenRacing/docs/adr/0004-rt-scheduling-architecture.md
 
-use crate::{RTError, RTResult};
+pub use openracing_errors::{RTError, RTResult};
 use std::time::{Duration, Instant};
 
 /// Phase-Locked Loop for drift correction

@@ -23,7 +23,7 @@ struct VendorSpec {
 
 // ── Fill functions ───────────────────────────────────────────────────────────
 
-/// Moza: steering i16 LE at [0..2], throttle u8 at [2], brake u8 at [3].
+/// Moza: steering i16 LE at \[0..2\], throttle u8 at \[2\], brake u8 at \[3\].
 fn fill_moza(frame: usize, buf: &mut [u8]) {
     let steering = ((frame as i16).wrapping_mul(100)) % 10000;
     let bytes = steering.to_le_bytes();

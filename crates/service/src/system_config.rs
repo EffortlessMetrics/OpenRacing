@@ -217,6 +217,20 @@ pub struct FeatureFlags {
     pub enable_plugin_dev_mode: bool,
 }
 
+impl Default for FeatureFlags {
+    fn default() -> Self {
+        Self {
+            disable_realtime: false,
+            force_ffb_mode: None,
+            enable_dev_features: false,
+            enable_debug_logging: false,
+            enable_virtual_devices: true, // Enable by default for safety/fallback
+            disable_safety_interlocks: false,
+            enable_plugin_dev_mode: false,
+        }
+    }
+}
+
 impl Default for SystemConfig {
     fn default() -> Self {
         Self {

@@ -65,6 +65,7 @@ pub struct KsAxisSource {
 }
 
 impl KsAxisSource {
+    /// Create a new axis source mapped from a report offset.
     pub const fn new(offset: usize, signed: bool) -> Self {
         Self { offset, signed }
     }
@@ -76,11 +77,13 @@ impl KsAxisSource {
         Some([report[offset], report[offset + 1]])
     }
 
+    /// Parse an unsigned 16-bit integer from its source in the report.
     pub fn parse_u16(&self, report: &[u8]) -> Option<u16> {
         let bytes = Self::parse_bytes(report, self.offset)?;
         Some(u16::from_le_bytes(bytes))
     }
 
+    /// Parse a signed 16-bit integer from its source in the report.
     pub fn parse_i16(&self, report: &[u8]) -> Option<i16> {
         let bytes = Self::parse_bytes(report, self.offset)?;
         Some(i16::from_le_bytes(bytes))
@@ -100,6 +103,7 @@ pub struct KsBitSource {
 }
 
 impl KsBitSource {
+    /// Create a new non-inverted bit source.
     pub const fn new(offset: usize, mask: u8) -> Self {
         Self {
             offset,
@@ -108,6 +112,7 @@ impl KsBitSource {
         }
     }
 
+    /// Create a new inverted bit source.
     pub const fn with_invert(offset: usize, mask: u8) -> Self {
         Self {
             offset,
@@ -116,10 +121,12 @@ impl KsBitSource {
         }
     }
 
+    /// Shortcut to `with_invert`.
     pub const fn inverted(offset: usize, mask: u8) -> Self {
         Self::with_invert(offset, mask)
     }
 
+    /// Extract and resolve the boolean state of this bit map.
     pub fn parse(&self, report: &[u8]) -> Option<bool> {
         if report.len() <= self.offset {
             return None;
@@ -138,10 +145,12 @@ pub struct KsByteSource {
 }
 
 impl KsByteSource {
+    /// Create a byte source mapping from a fixed offset.
     pub const fn new(offset: usize) -> Self {
         Self { offset }
     }
 
+    /// Parse a single byte from the report.
     pub fn parse(&self, report: &[u8]) -> Option<u8> {
         report.get(self.offset).copied()
     }
@@ -240,7 +249,9 @@ pub struct KsReportMap {
     pub encoders: [Option<KsAxisSource>; KS_ENCODER_COUNT],
     /// Clutch layout map.
     pub clutch_left_axis: Option<KsAxisSource>,
+    /// Source for independent right-hand clutch paddle.
     pub clutch_right_axis: Option<KsAxisSource>,
+    /// Source for hardware-combined clutch paddle axis.
     pub clutch_combined_axis: Option<KsAxisSource>,
     pub clutch_left_button: Option<KsBitSource>,
     pub clutch_right_button: Option<KsBitSource>,

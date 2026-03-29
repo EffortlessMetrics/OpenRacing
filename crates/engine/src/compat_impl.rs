@@ -23,14 +23,22 @@ impl TelemetryCompat for TelemetryData {
     /// Converts from degrees to millidegrees
     #[inline]
     fn wheel_angle_mdeg(&self) -> i32 {
-        (self.wheel_angle_deg * 1000.0) as i32
+        openracing_hid_common::math::safe_clamp(
+            self.wheel_angle_deg * 1000.0,
+            i32::MIN as f32,
+            i32::MAX as f32,
+        ) as i32
     }
 
     /// Get wheel speed in milliradians per second (old field name: wheel_speed_mrad_s)
     /// Converts from radians/s to milliradians/s
     #[inline]
     fn wheel_speed_mrad_s(&self) -> i32 {
-        (self.wheel_speed_rad_s * 1000.0) as i32
+        openracing_hid_common::math::safe_clamp(
+            self.wheel_speed_rad_s * 1000.0,
+            i32::MIN as f32,
+            i32::MAX as f32,
+        ) as i32
     }
 
     /// Get sequence number (removed field, always returns 0)

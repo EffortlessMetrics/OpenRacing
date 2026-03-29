@@ -697,8 +697,16 @@ impl WheelService for WheelServiceImpl {
                     }),
                     active_faults: status.active_faults,
                     telemetry: status.telemetry.map(|t| TelemetryData {
-                        wheel_angle_mdeg: (t.wheel_angle_deg * 1000.0) as i32,
-                        wheel_speed_mrad_s: (t.wheel_speed_rad_s * 1000.0) as i32,
+                        wheel_angle_mdeg: openracing_hid_common::math::safe_clamp(
+                            t.wheel_angle_deg * 1000.0,
+                            i32::MIN as f32,
+                            i32::MAX as f32,
+                        ) as i32,
+                        wheel_speed_mrad_s: openracing_hid_common::math::safe_clamp(
+                            t.wheel_speed_rad_s * 1000.0,
+                            i32::MIN as f32,
+                            i32::MAX as f32,
+                        ) as i32,
                         temp_c: t.temperature_c as u32,
                         faults: t.fault_flags as u32,
                         hands_on: t.hands_on,
@@ -1190,5 +1198,37 @@ impl WheelService for WheelServiceImpl {
             compatible: client_compatible,
             min_client_version: MIN_CLIENT_VERSION.to_string(),
         }))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_get_device_status_telemetry_conversion() {
+        let (tx, _) = broadcast::channel(10);
+        let service = WheelServiceImpl {
+            device_service: Arc::new(DeviceService),
+            profile_service: Arc::new(ProfileService),
+            game_service: Arc::new(GameService),
+            safety_service: Arc::new(SafetyService),
+            health_broadcaster: tx,
+            connected_clients: Arc::new(RwLock::new(HashMap::new())),
+        };
+
+        let request = Request::new(DeviceId {
+            id: "test-device-1".to_string(),
+        });
+
+        let response = service
+            .get_device_status(request)
+            .await
+            .expect("Failed to get device status");
+        
+        let status = response.into_inner();
+        
+        // Ensure the response contains telemetry and conversions didn't panic.
+        assert!(status.telemetry.is_some(), "Expected telemetry data in response");
     }
 }

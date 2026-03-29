@@ -9,6 +9,7 @@
 
 pub mod device_info;
 pub mod hid_traits;
+pub mod math;
 pub mod report_parser;
 
 pub use device_info::*;

@@ -565,7 +565,7 @@ mod tests {
             auto_migrate: true,
             backup_on_migrate: false,
         };
-        let service = WheelService::new_with_profile_config(profile_config)
+        let service = WheelService::new_with_flags(create_test_feature_flags(), profile_config)
             .await
             .context("create test service")?;
         Ok((service, temp_dir))

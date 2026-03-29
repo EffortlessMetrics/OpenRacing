@@ -181,9 +181,18 @@ impl SafetyPolicy {
 }
 
 impl Default for SafetyPolicy {
-    #[allow(clippy::expect_used)]
     fn default() -> Self {
-        Self::new().expect("SafetyPolicy::new() should not fail with default values")
+        const DEFAULT_SAFE: f32 = 5.0;
+        const DEFAULT_HIGH: f32 = 25.0;
+
+        Self {
+            max_safe_torque: unsafe { TorqueNm::new_unchecked(DEFAULT_SAFE) },
+            max_high_torque: unsafe { TorqueNm::new_unchecked(DEFAULT_HIGH) },
+            max_temperature_c: 80,
+            max_hands_off_duration: Duration::from_secs(5),
+            min_high_torque_interval: Duration::from_secs(2),
+            last_high_torque_request: None,
+        }
     }
 }
 
@@ -417,33 +426,10 @@ mod tests {
 
     use std::time::Duration;
 
-    #[track_caller]
-    fn must<T, E: std::fmt::Debug>(r: Result<T, E>) -> T {
-        match r {
-            Ok(v) => v,
-            Err(e) => panic!("unexpected Err: {e:?}"),
-        }
-    }
-
-    #[track_caller]
-    fn must_some<T>(o: Option<T>, msg: &str) -> T {
-        match o {
-            Some(v) => v,
-            None => panic!("expected Some: {}", msg),
-        }
-    }
-
-    fn create_test_device() -> Device {
-        let id = must("test-device".parse::<DeviceId>());
-        let capabilities = DeviceCapabilities::new(
-            false,
-            true,
-            true,
-            true,
-            must(TorqueNm::new(25.0)),
-            10000,
-            1000,
-        );
+    fn create_test_device() -> Result<Device, Box<dyn std::error::Error>> {
+        let id = "test-device".parse::<DeviceId>()?;
+        let capabilities =
+            DeviceCapabilities::new(false, true, true, true, TorqueNm::new(25.0)?, 10000, 1000);
 
         let mut device = Device::new(
             id,
@@ -452,13 +438,14 @@ mod tests {
             capabilities,
         );
         device.set_state(DeviceState::Active); // Make sure device is operational
-        device
+        Ok(device)
     }
 
     #[test]
-    fn test_safety_policy_can_enable_high_torque_success() {
-        let mut policy = must(SafetyPolicy::new());
-        let device = create_test_device();
+    fn test_safety_policy_can_enable_high_torque_success() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let mut policy = SafetyPolicy::new()?;
+        let device = create_test_device()?;
 
         let result = policy.can_enable_high_torque(
             &device,
@@ -467,12 +454,13 @@ mod tests {
         );
 
         assert!(result.is_ok());
+        Ok(())
     }
 
     #[test]
-    fn test_safety_policy_temperature_too_high() {
-        let mut policy = must(SafetyPolicy::new());
-        let device = create_test_device();
+    fn test_safety_policy_temperature_too_high() -> Result<(), Box<dyn std::error::Error>> {
+        let mut policy = SafetyPolicy::new()?;
+        let device = create_test_device()?;
 
         let result = policy.can_enable_high_torque(
             &device,
@@ -484,12 +472,13 @@ mod tests {
             result,
             Err(SafetyViolation::TemperatureTooHigh { .. })
         ));
+        Ok(())
     }
 
     #[test]
-    fn test_safety_policy_hands_off_too_long() {
-        let mut policy = must(SafetyPolicy::new());
-        let device = create_test_device();
+    fn test_safety_policy_hands_off_too_long() -> Result<(), Box<dyn std::error::Error>> {
+        let mut policy = SafetyPolicy::new()?;
+        let device = create_test_device()?;
 
         let result = policy.can_enable_high_torque(
             &device,
@@ -501,12 +490,13 @@ mod tests {
             result,
             Err(SafetyViolation::HandsOffTooLong { .. })
         ));
+        Ok(())
     }
 
     #[test]
-    fn test_safety_policy_device_faulted() {
-        let mut policy = must(SafetyPolicy::new());
-        let mut device = create_test_device();
+    fn test_safety_policy_device_faulted() -> Result<(), Box<dyn std::error::Error>> {
+        let mut policy = SafetyPolicy::new()?;
+        let mut device = create_test_device()?;
         device.set_fault_flags(0x04); // Thermal fault
 
         let result = policy.can_enable_high_torque(&device, Duration::from_secs(1), 50);
@@ -514,12 +504,13 @@ mod tests {
             result,
             Err(SafetyViolation::DeviceNotOperational(_))
         ));
+        Ok(())
     }
 
     #[test]
-    fn test_safety_policy_rate_limiting() {
-        let mut policy = must(SafetyPolicy::new());
-        let device = create_test_device();
+    fn test_safety_policy_rate_limiting() -> Result<(), Box<dyn std::error::Error>> {
+        let mut policy = SafetyPolicy::new()?;
+        let device = create_test_device()?;
 
         // First request should succeed
         let result1 = policy.can_enable_high_torque(&device, Duration::from_secs(1), 50);
@@ -528,33 +519,27 @@ mod tests {
         // Immediate second request should be rate limited
         let result2 = policy.can_enable_high_torque(&device, Duration::from_secs(1), 50);
         assert!(matches!(result2, Err(SafetyViolation::RateLimited { .. })));
+        Ok(())
     }
 
     #[test]
-    fn test_safety_policy_validate_torque_limits() {
-        let policy = must(SafetyPolicy::new());
-        let capabilities = DeviceCapabilities::new(
-            false,
-            true,
-            true,
-            true,
-            must(TorqueNm::new(25.0)),
-            10000,
-            1000,
-        );
+    fn test_safety_policy_validate_torque_limits() -> Result<(), Box<dyn std::error::Error>> {
+        let policy = SafetyPolicy::new()?;
+        let capabilities =
+            DeviceCapabilities::new(false, true, true, true, TorqueNm::new(25.0)?, 10000, 1000);
 
         // Test safe mode limits
         let result = policy.validate_torque_limits(
-            must(TorqueNm::new(3.0)),
+            TorqueNm::new(3.0)?,
             false, // Safe mode
             &capabilities,
         );
         assert!(result.is_ok());
-        assert_eq!(must(result).value(), 3.0);
+        assert_eq!(result?.value(), 3.0);
 
         // Test safe mode exceeds limit
         let result = policy.validate_torque_limits(
-            must(TorqueNm::new(10.0)),
+            TorqueNm::new(10.0)?,
             false, // Safe mode
             &capabilities,
         );
@@ -565,17 +550,18 @@ mod tests {
 
         // Test high torque mode
         let result = policy.validate_torque_limits(
-            must(TorqueNm::new(20.0)),
+            TorqueNm::new(20.0)?,
             true, // High torque mode
             &capabilities,
         );
         assert!(result.is_ok());
-        assert_eq!(must(result).value(), 20.0);
+        assert_eq!(result?.value(), 20.0);
+        Ok(())
     }
 
     #[test]
-    fn test_safety_policy_requires_immediate_shutdown() {
-        let policy = must(SafetyPolicy::new());
+    fn test_safety_policy_requires_immediate_shutdown() -> Result<(), Box<dyn std::error::Error>> {
+        let policy = SafetyPolicy::new()?;
 
         // No faults
         assert!(!policy.requires_immediate_shutdown(0x00));
@@ -588,27 +574,31 @@ mod tests {
 
         // Non-critical fault
         assert!(!policy.requires_immediate_shutdown(0x10)); // Plugin fault
+        Ok(())
     }
 
-    fn create_test_profile(id: &str, scope: ProfileScope) -> Profile {
-        let profile_id = must(id.parse::<ProfileId>());
-        Profile::new(
+    fn create_test_profile(
+        id: &str,
+        scope: ProfileScope,
+    ) -> Result<Profile, Box<dyn std::error::Error>> {
+        let profile_id = id.parse::<ProfileId>()?;
+        Ok(Profile::new(
             profile_id,
             scope,
             BaseSettings::default(),
             format!("Test Profile {}", id),
-        )
+        ))
     }
 
     #[test]
-    fn test_profile_hierarchy_resolution() {
-        let global_profile = create_test_profile("global", ProfileScope::global());
+    fn test_profile_hierarchy_resolution() -> Result<(), Box<dyn std::error::Error>> {
+        let global_profile = create_test_profile("global", ProfileScope::global())?;
         let game_profile =
-            create_test_profile("iracing", ProfileScope::for_game("iracing".to_string()));
+            create_test_profile("iracing", ProfileScope::for_game("iracing".to_string()))?;
         let car_profile = create_test_profile(
             "gt3",
             ProfileScope::for_car("iracing".to_string(), "gt3".to_string()),
-        );
+        )?;
 
         let resolved = ProfileHierarchyPolicy::resolve_profile_hierarchy(
             &global_profile,
@@ -623,17 +613,18 @@ mod tests {
             resolved.base_settings.ffb_gain,
             car_profile.base_settings.ffb_gain
         );
+        Ok(())
     }
 
     #[test]
-    fn test_profile_hierarchy_find_most_specific() {
+    fn test_profile_hierarchy_find_most_specific() -> Result<(), Box<dyn std::error::Error>> {
         let profiles = vec![
-            create_test_profile("global", ProfileScope::global()),
-            create_test_profile("iracing", ProfileScope::for_game("iracing".to_string())),
+            create_test_profile("global", ProfileScope::global())?,
+            create_test_profile("iracing", ProfileScope::for_game("iracing".to_string()))?,
             create_test_profile(
                 "gt3",
                 ProfileScope::for_car("iracing".to_string(), "gt3".to_string()),
-            ),
+            )?,
         ];
 
         // Should find the most specific matching profile
@@ -648,7 +639,7 @@ mod tests {
             result.is_some(),
             "Should find a matching profile for iracing/gt3"
         );
-        assert_eq!(must_some(result, "expected profile").id.as_str(), "gt3");
+        assert_eq!(result.ok_or("expected profile")?.id.as_str(), "gt3");
 
         // Should find game profile when car doesn't match
         let result = ProfileHierarchyPolicy::find_most_specific_profile(
@@ -662,7 +653,7 @@ mod tests {
             result.is_some(),
             "Should find a matching profile for iracing/f1"
         );
-        assert_eq!(must_some(result, "expected profile").id.as_str(), "iracing");
+        assert_eq!(result.ok_or("expected profile")?.id.as_str(), "iracing");
 
         // Should find global profile when nothing else matches
 
@@ -670,24 +661,18 @@ mod tests {
             ProfileHierarchyPolicy::find_most_specific_profile(&profiles, Some("acc"), None, None);
 
         assert!(result.is_some(), "Should find global profile for acc");
-        assert_eq!(must_some(result, "expected profile").id.as_str(), "global");
+        assert_eq!(result.ok_or("expected profile")?.id.as_str(), "global");
+        Ok(())
     }
 
     #[test]
-    fn test_profile_hierarchy_validation() {
-        let capabilities = DeviceCapabilities::new(
-            false,
-            true,
-            true,
-            true,
-            must(TorqueNm::new(25.0)),
-            10000,
-            1000,
-        );
+    fn test_profile_hierarchy_validation() -> Result<(), Box<dyn std::error::Error>> {
+        let capabilities =
+            DeviceCapabilities::new(false, true, true, true, TorqueNm::new(25.0)?, 10000, 1000);
 
         let profiles = vec![
-            create_test_profile("global", ProfileScope::global()),
-            create_test_profile("iracing", ProfileScope::for_game("iracing".to_string())),
+            create_test_profile("global", ProfileScope::global())?,
+            create_test_profile("iracing", ProfileScope::for_game("iracing".to_string()))?,
         ];
 
         let result = ProfileHierarchyPolicy::validate_profile_hierarchy(&profiles, &capabilities);
@@ -695,8 +680,8 @@ mod tests {
 
         // Test duplicate scopes
         let duplicate_profiles = vec![
-            create_test_profile("global1", ProfileScope::global()),
-            create_test_profile("global2", ProfileScope::global()), // Duplicate scope
+            create_test_profile("global1", ProfileScope::global())?,
+            create_test_profile("global2", ProfileScope::global())?, // Duplicate scope
         ];
 
         let result =
@@ -705,13 +690,14 @@ mod tests {
             result,
             Err(ProfileHierarchyError::DuplicateScope(_))
         ));
+        Ok(())
     }
 
     #[test]
-    fn test_profile_hierarchy_hash_deterministic() {
-        let global_profile = create_test_profile("global", ProfileScope::global());
+    fn test_profile_hierarchy_hash_deterministic() -> Result<(), Box<dyn std::error::Error>> {
+        let global_profile = create_test_profile("global", ProfileScope::global())?;
         let game_profile =
-            create_test_profile("iracing", ProfileScope::for_game("iracing".to_string()));
+            create_test_profile("iracing", ProfileScope::for_game("iracing".to_string()))?;
 
         let hash1 = ProfileHierarchyPolicy::calculate_hierarchy_hash(
             &global_profile,
@@ -732,8 +718,8 @@ mod tests {
 
         // Different inputs should produce different hash
         let mut different_game_profile =
-            create_test_profile("acc", ProfileScope::for_game("acc".to_string()));
-        different_game_profile.base_settings.ffb_gain = must(Gain::new(0.5)); // Different gain
+            create_test_profile("acc", ProfileScope::for_game("acc".to_string()))?;
+        different_game_profile.base_settings.ffb_gain = Gain::new(0.5)?; // Different gain
         let hash3 = ProfileHierarchyPolicy::calculate_hierarchy_hash(
             &global_profile,
             Some(&different_game_profile),
@@ -742,5 +728,6 @@ mod tests {
         );
 
         assert_ne!(hash1, hash3);
+        Ok(())
     }
 }

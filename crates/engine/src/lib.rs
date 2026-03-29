@@ -2,6 +2,14 @@
 //!
 //! This crate contains the real-time force feedback engine that operates at 1kHz
 //! with strict timing requirements and zero-allocation hot paths.
+//!
+//! Architectural decisions for this crate are documented in `docs/adr/`.
+//! Key ADRs: [ADR-0001], [ADR-0004], [ADR-0006], [ADR-0007].
+//!
+//! [ADR-0001]: file:///h:/Code/Rust/OpenRacing/docs/adr/0001-ffb-mode-matrix.md
+//! [ADR-0004]: file:///h:/Code/Rust/OpenRacing/docs/adr/0004-rt-scheduling-architecture.md
+//! [ADR-0006]: file:///h:/Code/Rust/OpenRacing/docs/adr/0006-safety-interlocks.md
+//! [ADR-0007]: file:///h:/Code/Rust/OpenRacing/docs/adr/0007-multi-vendor-hid-protocol-architecture.md
 
 #![deny(static_mut_refs)]
 #![deny(unused_must_use)]
@@ -66,7 +74,8 @@ pub mod tracing_test;
 pub mod two_phase_apply;
 
 // Explicit exports from rt module (canonical FFBMode and Frame)
-pub use rt::{FFBMode, Frame, PerformanceMetrics, RTError, RTResult};
+pub use openracing_errors::RTError;
+pub use rt::{FFBMode, Frame, PerformanceMetrics, RTResult};
 
 // Pipeline for FFB processing
 pub use pipeline::Pipeline;

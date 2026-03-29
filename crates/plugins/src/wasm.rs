@@ -1370,7 +1370,7 @@ impl WasmPlugin {
                     > self.manifest.constraints.max_execution_time_us as u128
                 {
                     return Err(PluginError::BudgetViolation {
-                        used_us: execution_time.as_micros() as u32,
+                        used_us: u32::try_from(execution_time.as_micros()).unwrap_or(u32::MAX),
                         budget_us: self.manifest.constraints.max_execution_time_us,
                     });
                 }
@@ -1477,10 +1477,17 @@ impl Plugin for WasmPlugin {
                 custom_data: serde_json::Value::Null,
             }))
         } else {
-            let modified_telemetry: NormalizedTelemetry = serde_json::from_slice(&output_bytes)
+            let mut modified_telemetry: NormalizedTelemetry = serde_json::from_slice(&output_bytes)
                 .map_err(|e| {
                     PluginError::LoadingFailed(format!("Output deserialization: {}", e))
                 })?;
+
+            // Sanitize ffb_scalar to ensure RT safety
+            if !modified_telemetry.ffb_scalar.is_finite() {
+                modified_telemetry.ffb_scalar = 0.0;
+            } else {
+                modified_telemetry.ffb_scalar = modified_telemetry.ffb_scalar.clamp(-1.0, 1.0);
+            }
 
             Ok(PluginOutput::Telemetry(crate::PluginTelemetryOutput {
                 modified_telemetry: Some(modified_telemetry),

@@ -32,7 +32,9 @@ impl AsetekOutputReport {
     }
 
     pub fn with_torque(mut self, torque_nm: f32) -> Self {
-        self.torque_cNm = (torque_nm.clamp(-MAX_TORQUE_NM, MAX_TORQUE_NM) * 100.0) as i16;
+        self.torque_cNm =
+            (openracing_hid_common::math::safe_clamp(torque_nm, -MAX_TORQUE_NM, MAX_TORQUE_NM)
+                * 100.0) as i16;
         self
     }
 

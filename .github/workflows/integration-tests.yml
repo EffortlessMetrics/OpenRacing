@@ -266,6 +266,8 @@ jobs:
         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
     
     - name: Run acceptance tests
+      env:
+        OPENRACING_USE_VIRTUAL_DEVICES: "1"
       run: cargo test test_acceptance_tests_subset --package racing-wheel-integration-tests --features ci-gates --locked
     
     - name: Upload acceptance test report

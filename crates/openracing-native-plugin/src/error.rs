@@ -52,6 +52,32 @@ pub enum NativePluginError {
     #[error("Shared memory error: {0}")]
     SharedMemoryError(String),
 
+    /// Ring buffer is full.
+    #[error("Ring buffer full")]
+    RingBufferFull,
+
+    /// No data available in ring buffer.
+    #[error("No data available")]
+    NoDataAvailable,
+
+    /// Frame size mismatch.
+    #[error("Frame size mismatch: expected {expected}, got {actual}")]
+    FrameSizeMismatch {
+        /// Expected size.
+        expected: usize,
+        /// Actual size.
+        actual: usize,
+    },
+
+    /// Buffer size mismatch.
+    #[error("Buffer size mismatch: expected {expected}, got {actual}")]
+    BufferSizeMismatch {
+        /// Expected size.
+        expected: usize,
+        /// Actual size.
+        actual: usize,
+    },
+
     /// IPC error.
     #[error("IPC error: {0}")]
     IpcError(String),

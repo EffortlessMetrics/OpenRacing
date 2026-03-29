@@ -1,3 +1,4 @@
+//! Build script for schema generation.
 use std::path::PathBuf;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {

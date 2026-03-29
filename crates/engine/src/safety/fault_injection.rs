@@ -602,7 +602,6 @@ impl Default for FaultInjectionSystem {
 }
 
 #[cfg(test)]
-#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
     use crate::prelude::MutexExt;
@@ -617,7 +616,7 @@ mod tests {
     }
 
     #[test]
-    fn test_add_remove_scenario() {
+    fn test_add_remove_scenario() -> Result<(), Box<dyn std::error::Error>> {
         let mut system = FaultInjectionSystem::new();
 
         let scenario = FaultInjectionScenario {
@@ -630,7 +629,7 @@ mod tests {
         };
 
         // Add scenario
-        system.add_scenario(scenario.clone()).unwrap();
+        system.add_scenario(scenario.clone())?;
         assert_eq!(system.get_all_scenarios().len(), 1);
         assert!(system.get_scenario("test_scenario").is_some());
 
@@ -639,16 +638,17 @@ mod tests {
         assert!(result.is_err());
 
         // Remove scenario
-        system.remove_scenario("test_scenario").unwrap();
+        system.remove_scenario("test_scenario")?;
         assert!(system.get_all_scenarios().is_empty());
 
         // Try to remove non-existent
         let result = system.remove_scenario("test_scenario");
         assert!(result.is_err());
+        Ok(())
     }
 
     #[test]
-    fn test_manual_trigger_recovery() {
+    fn test_manual_trigger_recovery() -> Result<(), Box<dyn std::error::Error>> {
         let mut system = FaultInjectionSystem::new();
         system.set_enabled(true);
 
@@ -661,10 +661,10 @@ mod tests {
             enabled: true,
         };
 
-        system.add_scenario(scenario).unwrap();
+        system.add_scenario(scenario)?;
 
         // Trigger manually
-        system.trigger_scenario("manual_test").unwrap();
+        system.trigger_scenario("manual_test")?;
         assert!(system.is_fault_active(FaultType::SafetyInterlockViolation));
 
         let active_faults = system.get_active_faults();
@@ -672,13 +672,14 @@ mod tests {
         assert_eq!(active_faults[0].0, FaultType::SafetyInterlockViolation);
 
         // Recover manually
-        system.recover_scenario("manual_test").unwrap();
+        system.recover_scenario("manual_test")?;
         assert!(!system.is_fault_active(FaultType::SafetyInterlockViolation));
         assert!(system.get_active_faults().is_empty());
+        Ok(())
     }
 
     #[test]
-    fn test_time_delay_trigger() {
+    fn test_time_delay_trigger() -> Result<(), Box<dyn std::error::Error>> {
         let mut system = FaultInjectionSystem::new();
         system.set_enabled(true);
 
@@ -691,7 +692,7 @@ mod tests {
             enabled: true,
         };
 
-        system.add_scenario(scenario).unwrap();
+        system.add_scenario(scenario)?;
 
         let context = InjectionContext::default();
 
@@ -712,10 +713,11 @@ mod tests {
         let faults = system.update(&context);
         assert!(faults.is_empty());
         assert!(!system.is_fault_active(FaultType::UsbStall));
+        Ok(())
     }
 
     #[test]
-    fn test_torque_threshold_trigger() {
+    fn test_torque_threshold_trigger() -> Result<(), Box<dyn std::error::Error>> {
         let mut system = FaultInjectionSystem::new();
         system.set_enabled(true);
 
@@ -728,7 +730,7 @@ mod tests {
             enabled: true,
         };
 
-        system.add_scenario(scenario).unwrap();
+        system.add_scenario(scenario)?;
 
         // Low torque - should not trigger
         let mut context = InjectionContext {
@@ -750,10 +752,11 @@ mod tests {
         let faults = system.update(&context);
         assert!(faults.is_empty());
         assert!(!system.is_fault_active(FaultType::ThermalLimit));
+        Ok(())
     }
 
     #[test]
-    fn test_tick_count_trigger() {
+    fn test_tick_count_trigger() -> Result<(), Box<dyn std::error::Error>> {
         let mut system = FaultInjectionSystem::new();
         system.set_enabled(true);
 
@@ -766,7 +769,7 @@ mod tests {
             enabled: true,
         };
 
-        system.add_scenario(scenario).unwrap();
+        system.add_scenario(scenario)?;
 
         let context = InjectionContext::default();
 
@@ -781,10 +784,11 @@ mod tests {
                 assert!(faults.is_empty());
             }
         }
+        Ok(())
     }
 
     #[test]
-    fn test_random_probability_trigger() {
+    fn test_random_probability_trigger() -> Result<(), Box<dyn std::error::Error>> {
         let mut system = FaultInjectionSystem::new();
         system.set_enabled(true);
 
@@ -797,7 +801,7 @@ mod tests {
             enabled: true,
         };
 
-        system.add_scenario(scenario).unwrap();
+        system.add_scenario(scenario)?;
 
         let context = InjectionContext::default();
 
@@ -805,10 +809,11 @@ mod tests {
         let faults = system.update(&context);
         assert_eq!(faults.len(), 1);
         assert_eq!(faults[0], FaultType::EncoderNaN);
+        Ok(())
     }
 
     #[test]
-    fn test_usb_operation_count_trigger() {
+    fn test_usb_operation_count_trigger() -> Result<(), Box<dyn std::error::Error>> {
         let mut system = FaultInjectionSystem::new();
         system.set_enabled(true);
 
@@ -821,7 +826,7 @@ mod tests {
             enabled: true,
         };
 
-        system.add_scenario(scenario).unwrap();
+        system.add_scenario(scenario)?;
 
         let context = InjectionContext::default();
 
@@ -838,10 +843,11 @@ mod tests {
                 assert!(faults.is_empty());
             }
         }
+        Ok(())
     }
 
     #[test]
-    fn test_scenario_statistics() {
+    fn test_scenario_statistics() -> Result<(), Box<dyn std::error::Error>> {
         let mut system = FaultInjectionSystem::new();
         system.set_enabled(true);
 
@@ -854,37 +860,42 @@ mod tests {
             enabled: true,
         };
 
-        system
-            .add_scenario(scenario)
-            .expect("Failed to add scenario");
+        system.add_scenario(scenario).map_err(|e| e.to_string())?;
 
         // Initial stats
-        let stats = system.get_scenario_stats("stats_test").unwrap();
+        let stats = system
+            .get_scenario_stats("stats_test")
+            .ok_or("Stats not found")?;
         assert!(!stats.triggered);
         assert!(!stats.recovered);
         assert!(stats.trigger_time.is_none());
         assert!(stats.recovery_time.is_none());
 
         // Trigger and check stats
-        system.trigger_scenario("stats_test").unwrap();
-        let stats = system.get_scenario_stats("stats_test").unwrap();
+        system.trigger_scenario("stats_test")?;
+        let stats = system
+            .get_scenario_stats("stats_test")
+            .ok_or("Stats not found")?;
         assert!(stats.triggered);
         assert!(!stats.recovered);
         assert!(stats.trigger_time.is_some());
         assert!(stats.is_active());
 
         // Recover and check stats
-        system.recover_scenario("stats_test").unwrap();
-        let stats = system.get_scenario_stats("stats_test").unwrap();
+        system.recover_scenario("stats_test")?;
+        let stats = system
+            .get_scenario_stats("stats_test")
+            .ok_or("Stats not found")?;
         assert!(stats.triggered);
         assert!(stats.recovered);
         assert!(stats.recovery_time.is_some());
         assert!(!stats.is_active());
         assert!(stats.fault_duration().is_some());
+        Ok(())
     }
 
     #[test]
-    fn test_enable_disable() {
+    fn test_enable_disable() -> Result<(), Box<dyn std::error::Error>> {
         let mut system = FaultInjectionSystem::new();
 
         let scenario = FaultInjectionScenario {
@@ -896,9 +907,7 @@ mod tests {
             enabled: true,
         };
 
-        system
-            .add_scenario(scenario)
-            .expect("Failed to add scenario");
+        system.add_scenario(scenario).map_err(|e| e.to_string())?;
 
         // Should not trigger when disabled
         let result = system.trigger_scenario("enable_test");
@@ -908,16 +917,17 @@ mod tests {
         system.set_enabled(true);
         system
             .trigger_scenario("enable_test")
-            .expect("Failed to trigger scenario");
+            .map_err(|e| e.to_string())?;
         assert!(system.is_fault_active(FaultType::UsbStall));
 
         // Disable should clear active faults
         system.set_enabled(false);
         assert!(!system.is_fault_active(FaultType::UsbStall));
+        Ok(())
     }
 
     #[test]
-    fn test_reset_scenarios() {
+    fn test_reset_scenarios() -> Result<(), Box<dyn std::error::Error>> {
         let mut system = FaultInjectionSystem::new();
         system.set_enabled(true);
 
@@ -930,31 +940,30 @@ mod tests {
             enabled: true,
         };
 
-        system
-            .add_scenario(scenario)
-            .expect("Failed to add scenario");
+        system.add_scenario(scenario).map_err(|e| e.to_string())?;
 
         // Trigger scenario
         system
             .trigger_scenario("reset_test")
-            .expect("Failed to trigger scenario");
+            .map_err(|e| e.to_string())?;
         assert!(system.is_fault_active(FaultType::UsbStall));
 
         // Reset specific scenario
-        system.reset_scenario("reset_test").unwrap();
+        system.reset_scenario("reset_test")?;
         assert!(!system.is_fault_active(FaultType::UsbStall));
 
-        let stats = system.get_scenario_stats("reset_test").unwrap();
+        let stats = system
+            .get_scenario_stats("reset_test")
+            .ok_or("Stats not found")?;
         assert!(!stats.triggered);
         assert!(!stats.recovered);
+        Ok(())
     }
 
     #[test]
-    fn test_create_test_scenarios() {
+    fn test_create_test_scenarios() -> Result<(), Box<dyn std::error::Error>> {
         let mut system = FaultInjectionSystem::new();
-        system
-            .create_test_scenarios()
-            .expect("Failed to create test scenarios");
+        system.create_test_scenarios().map_err(|e| e.to_string())?;
 
         let scenarios = system.get_all_scenarios();
         assert!(scenarios.len() >= 5);
@@ -969,10 +978,11 @@ mod tests {
                 .is_some()
         );
         assert!(system.get_scenario("manual_test_fault").is_some());
+        Ok(())
     }
 
     #[test]
-    fn test_callbacks() {
+    fn test_callbacks() -> Result<(), Box<dyn std::error::Error>> {
         let mut system = FaultInjectionSystem::new();
         system.set_enabled(true);
 
@@ -999,16 +1009,17 @@ mod tests {
             enabled: true,
         };
 
-        system.add_scenario(scenario).unwrap();
+        system.add_scenario(scenario)?;
 
         // Trigger should call fault callback
         system
             .trigger_scenario("callback_test")
-            .expect("Failed to trigger scenario");
+            .map_err(|e| e.to_string())?;
         assert!(*fault_triggered.lock_or_panic());
 
         // Recovery should call recovery callback
-        system.recover_scenario("callback_test").unwrap();
+        system.recover_scenario("callback_test")?;
         assert!(*recovery_triggered.lock_or_panic());
+        Ok(())
     }
 }

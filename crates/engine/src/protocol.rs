@@ -1,5 +1,9 @@
 //! OWP-1 (Open Wheel Protocol) v0 Specification
 //!
+//! Implements the racing wheel communication protocol as specified in [ADR-0003: OWP-1 Protocol Specification].
+//!
+//! [ADR-0003]: file:///h:/Code/Rust/OpenRacing/docs/adr/0003-owp1-protocol.md
+//!
 //! This module implements the OWP-1 protocol for communication with racing wheel hardware.
 //! The protocol uses HID reports for bidirectional communication with endian-safe structures,
 //! sequence numbers, and CRC validation.
@@ -211,7 +215,8 @@ impl DeviceTelemetryReport {
         hands_on: bool,
         last_torque_seq: u16,
     ) -> Self {
-        let wheel_angle_mdeg = (wheel_angle_deg * 1000.0) as i32;
+        let wheel_angle_mdeg =
+            (wheel_angle_deg * 1000.0).clamp(i32::MIN as f32, i32::MAX as f32) as i32;
         let wheel_speed_mrad_s = (wheel_speed_rad_s * 1000.0).clamp(-32768.0, 32767.0) as i16;
         let hands_on_val = if hands_on { 1 } else { 0 };
 

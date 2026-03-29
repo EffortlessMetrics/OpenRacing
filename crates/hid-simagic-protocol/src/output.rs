@@ -312,7 +312,7 @@ impl SimagicFrictionEncoder {
 
 /// Convert torque (Nm) to Simagic magnitude units (±10000).
 fn torque_to_magnitude(torque_nm: f32, max_torque_nm: f32) -> i16 {
-    let normalized = (torque_nm / max_torque_nm).clamp(-1.0, 1.0);
+    let normalized = openracing_hid_common::math::safe_clamp(torque_nm / max_torque_nm, -1.0, 1.0);
     (normalized * 10_000.0) as i16
 }
 
@@ -376,7 +376,8 @@ pub fn build_led_report(led_pattern: u8) -> [u8; 8] {
 /// - Bytes 6-9: phase offset (0-360 degrees)
 pub fn build_sine_effect(amplitude: u16, frequency: f32, phase: u16) -> [u8; 10] {
     let [amp_lsb, amp_msb] = amplitude.to_le_bytes();
-    let freq_encoded = (frequency.clamp(0.1, 20.0) * 100.0) as u16;
+    let freq_encoded =
+        (openracing_hid_common::math::safe_clamp(frequency, 0.1, 20.0) * 100.0) as u16;
     let [freq_lsb, freq_msb] = freq_encoded.to_le_bytes();
     let [phase_lsb, phase_msb] = phase.to_le_bytes();
 
@@ -404,7 +405,8 @@ pub fn build_sine_effect(amplitude: u16, frequency: f32, phase: u16) -> [u8; 10]
 /// - Bytes 6-9: duty cycle (0-100%)
 pub fn build_square_effect(amplitude: u16, frequency: f32, duty_cycle: u16) -> [u8; 10] {
     let [amp_lsb, amp_msb] = amplitude.to_le_bytes();
-    let freq_encoded = (frequency.clamp(0.1, 20.0) * 100.0) as u16;
+    let freq_encoded =
+        (openracing_hid_common::math::safe_clamp(frequency, 0.1, 20.0) * 100.0) as u16;
     let [freq_lsb, freq_msb] = freq_encoded.to_le_bytes();
     let [duty_lsb, duty_msb] = duty_cycle.min(100).to_le_bytes();
 
@@ -432,7 +434,8 @@ pub fn build_square_effect(amplitude: u16, frequency: f32, duty_cycle: u16) -> [
 /// - Bytes 6-9: reserved
 pub fn build_triangle_effect(amplitude: u16, frequency: f32) -> [u8; 10] {
     let [amp_lsb, amp_msb] = amplitude.to_le_bytes();
-    let freq_encoded = (frequency.clamp(0.1, 20.0) * 100.0) as u16;
+    let freq_encoded =
+        (openracing_hid_common::math::safe_clamp(frequency, 0.1, 20.0) * 100.0) as u16;
     let [freq_lsb, freq_msb] = freq_encoded.to_le_bytes();
 
     [

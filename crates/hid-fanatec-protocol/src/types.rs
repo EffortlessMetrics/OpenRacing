@@ -200,17 +200,25 @@ impl FanatecPedalModel {
 /// See `hid-ftec.h` for verified constants.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FanatecRimId {
+    /// BMW M3 GT2 rim.
     BmwGt2,
+    /// Formula V2 rim.
     FormulaV2,
+    /// Formula V2.5 / V2.5X rim.
     FormulaV25,
     /// McLaren GT3 V2 — funky switch + rotary encoders + dual clutch paddles.
     McLarenGt3V2,
     /// Podium Steering Wheel Porsche 911 GT3 R.
     Porsche911Gt3R,
+    /// Porsche 918 RSR rim.
     Porsche918Rsr,
+    /// ClubSport Steering Wheel RS.
     ClubSportRs,
+    /// WRC steering wheel.
     Wrc,
+    /// CSL Elite Steering Wheel P1.
     CslEliteP1,
+    /// Podium Hub accessory.
     PodiumHub,
     /// Rim is not attached or ID is unrecognised.
     Unknown,

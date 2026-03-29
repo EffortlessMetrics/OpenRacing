@@ -29,12 +29,19 @@ pub enum DeviceState {
 /// Device information with runtime state
 #[derive(Debug, Clone)]
 pub struct ManagedDevice {
+    /// Base device information and metadata
     pub info: DeviceInfo,
+    /// Current connection and initialization state
     pub state: DeviceState,
+    /// Parsed device capabilities (e.g., max torque), if successfully queried
     pub capabilities: Option<DeviceCapabilities>,
+    /// Active calibration data (e.g., center point, axis bounds)
     pub calibration: Option<CalibrationData>,
+    /// Most recent telemetry frame received from the device
     pub last_telemetry: Option<TelemetryData>,
+    /// Timestamp of the last successful communication with the device
     pub last_seen: Instant,
+    /// Current health status aggregated from device diagnostics
     pub health_status: DeviceHealthStatus,
 }
 
@@ -587,9 +594,13 @@ pub enum CalibrationType {
 /// Device service statistics
 #[derive(Debug, Clone)]
 pub struct DeviceServiceStatistics {
+    /// Total number of known devices, regardless of state
     pub total_devices: usize,
+    /// Number of devices currently connected
     pub connected_devices: usize,
+    /// Number of devices fully initialized and ready
     pub ready_devices: usize,
+    /// Number of devices currently in a faulted state
     pub faulted_devices: usize,
 }
 

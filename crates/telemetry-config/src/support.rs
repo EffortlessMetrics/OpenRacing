@@ -3,11 +3,13 @@
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 
+/// The embedded canonical YAML definition for the game support matrix.
 pub const TELEMETRY_SUPPORT_MATRIX_YAML: &str = include_str!("game_support_matrix.yaml");
 
 /// Supported game matrix loaded from a static configuration source.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GameSupportMatrix {
+    /// Support map keyed by game alias/ID.
     pub games: HashMap<String, GameSupport>,
 }
 
@@ -15,64 +17,94 @@ pub struct GameSupportMatrix {
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum GameSupportStatus {
+    /// Supported and stable.
     #[default]
     Stable,
+    /// Experimental or partial support.
     Experimental,
 }
 
 /// Support information for a specific game.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GameSupport {
+    /// The display name of the game.
     pub name: String,
+    /// Supported game versions.
     pub versions: Vec<GameVersion>,
+    /// Telemetry configuration and capabilities.
     pub telemetry: TelemetrySupport,
+    /// The status of this game's support.
     #[serde(default)]
     pub status: GameSupportStatus,
+    /// Identifier for the config writer to use.
     pub config_writer: String,
+    /// Rules for auto-detecting the game installation.
     pub auto_detect: AutoDetectConfig,
 }
 
 /// Version-specific game support details.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GameVersion {
+    /// Version string or identifier.
     pub version: String,
+    /// Paths to telemetry configuration files.
     pub config_paths: Vec<String>,
+    /// Patterns matching the game executable.
     pub executable_patterns: Vec<String>,
+    /// Primary telemetry method (e.g. "shared_memory", "udp").
     pub telemetry_method: String,
+    /// Fields supported by this version's telemetry output.
     pub supported_fields: Vec<String>,
 }
 
 /// Telemetry settings for the given game.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TelemetrySupport {
+    /// Telemetry method (e.g. shared_memory, udp).
     pub method: String,
+    /// Target update rate in Hz.
     pub update_rate_hz: u32,
+    /// Indicates if 360Hz telemetry is natively supported by the game.
     #[serde(default)]
     pub supports_360hz_option: bool,
+    /// The configured high-rate update rate in Hz.
     #[serde(default)]
     pub high_rate_update_rate_hz: Option<u32>,
+    /// Output target string (e.g., specific file path or port).
     pub output_target: Option<String>,
+    /// Validated field mapping indicating which semantic values the game emits.
     pub fields: TelemetryFieldMapping,
 }
 
 /// Mapping of normalized telemetry fields to game-specific fields.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TelemetryFieldMapping {
+    /// Field name for force feedback scalar.
     pub ffb_scalar: Option<String>,
+    /// Field name for engine RPM.
     pub rpm: Option<String>,
+    /// Field name for vehicle speed in m/s.
     pub speed_ms: Option<String>,
+    /// Field name for tire slip ratio.
     pub slip_ratio: Option<String>,
+    /// Field name for transmission gear.
     pub gear: Option<String>,
+    /// Field name for session/racing flags.
     pub flags: Option<String>,
+    /// Field name for the car identifier.
     pub car_id: Option<String>,
+    /// Field name for the track identifier.
     pub track_id: Option<String>,
 }
 
 /// Process/path auto-detection metadata.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AutoDetectConfig {
+    /// List of executable names indicating the game is running.
     pub process_names: Vec<String>,
+    /// Registry keys pointing to the game installation.
     pub install_registry_keys: Vec<String>,
+    /// Common installation paths to scan.
     pub install_paths: Vec<String>,
 }
 

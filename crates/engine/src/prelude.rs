@@ -51,7 +51,7 @@ impl<T> RwLockExt<T> for RwLock<T> {
 }
 
 // Core RT types (canonical exports)
-pub use crate::rt::{FFBMode, Frame, PerformanceMetrics, RTError, RTResult};
+pub use openracing_errors::RTResult;
 
 // Engine types
 pub use crate::engine::{BlackboxFrame, Engine, EngineConfig, GameInput};
