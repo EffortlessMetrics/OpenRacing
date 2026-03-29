@@ -5,6 +5,7 @@ use crate::{
     profile_repository::ProfileRepositoryConfig,
 };
 use anyhow::Result;
+use racing_wheel_engine::hid::create_hid_port;
 use racing_wheel_engine::{HidPort, SafetyPolicy, TracingManager, VirtualDevice, VirtualHidPort};
 use racing_wheel_schemas::prelude::DeviceId;
 use std::sync::Arc;
@@ -64,7 +65,7 @@ impl WheelService {
             info!("Virtual devices explicitly requested via feature flags");
             Self::create_virtual_port()?
         } else {
-            match racing_wheel_engine::hid::create_hid_port() {
+            match create_hid_port() {
                 Ok(port) => {
                     info!("Platform HID backend initialized successfully");
                     Arc::from(port)
