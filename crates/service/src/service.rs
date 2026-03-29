@@ -251,8 +251,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_service_new_with_flags() -> anyhow::Result<()> {
-        let mut flags = FeatureFlags::default();
-        flags.enable_virtual_devices = true;
+        let flags = FeatureFlags {
+            enable_virtual_devices: true,
+            ..Default::default()
+        };
 
         let service =
             WheelService::new_with_flags(flags, ProfileRepositoryConfig::default()).await?;

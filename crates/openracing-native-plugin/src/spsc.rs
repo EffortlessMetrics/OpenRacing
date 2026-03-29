@@ -345,13 +345,14 @@ mod tests {
         let writer = channel.writer();
 
         let oversized_frame = vec![0x42u8; frame_size + 1];
-        let err = writer.write(&oversized_frame).unwrap_err();
+        let err = writer.write(&oversized_frame);
+        assert!(err.is_err(), "Expected error for oversized frame");
         match err {
-            NativePluginError::FrameSizeMismatch { expected, actual } => {
+            Err(NativePluginError::FrameSizeMismatch { expected, actual }) => {
                 assert_eq!(expected, 64);
                 assert_eq!(actual, 65);
             }
-            _ => panic!("Expected FrameSizeMismatch"),
+            other => panic!("Expected FrameSizeMismatch, got {other:?}"),
         }
     }
 
@@ -367,13 +368,14 @@ mod tests {
 
         let reader = channel.reader();
         let mut undersized_buffer = vec![0u8; frame_size - 1];
-        let err = reader.read(&mut undersized_buffer).unwrap_err();
+        let err = reader.read(&mut undersized_buffer);
+        assert!(err.is_err(), "Expected error for undersized buffer");
         match err {
-            NativePluginError::BufferSizeMismatch { expected, actual } => {
+            Err(NativePluginError::BufferSizeMismatch { expected, actual }) => {
                 assert_eq!(expected, 64);
                 assert_eq!(actual, 63);
             }
-            _ => panic!("Expected BufferSizeMismatch"),
+            other => panic!("Expected BufferSizeMismatch, got {other:?}"),
         }
     }
 }
