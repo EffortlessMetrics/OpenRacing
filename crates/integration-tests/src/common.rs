@@ -165,10 +165,16 @@ impl TestHarness {
 
     pub async fn simulate_hotplug_cycle(&mut self, device_index: usize) -> Result<()> {
         if let Some(device) = self.virtual_devices.get(device_index) {
-            let mut dev = device.write().await;
-            dev.disconnect();
+            {
+                device.write().await.disconnect();
+            }
+
             tokio::time::sleep(Duration::from_millis(100)).await;
-            dev.reconnect();
+
+            {
+                device.write().await.reconnect();
+            }
+
             info!("Completed hotplug cycle for device {}", device_index);
         }
         Ok(())
