@@ -244,3 +244,20 @@ impl WheelService {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_service_new_with_flags() -> anyhow::Result<()> {
+        let mut flags = FeatureFlags::default();
+        flags.enable_virtual_devices = true;
+
+        let service =
+            WheelService::new_with_flags(flags, ProfileRepositoryConfig::default()).await?;
+
+        assert!(service.flags.enable_virtual_devices);
+        Ok(())
+    }
+}

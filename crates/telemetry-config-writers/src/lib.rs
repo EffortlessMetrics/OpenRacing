@@ -6673,3 +6673,29 @@ mod tests {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod path_resolution_tests {
+    use super::*;
+
+    #[test]
+    fn test_resolve_game_path() {
+        let base = Path::new("test_base");
+
+        // standard relative path
+        let res = resolve_game_path(base, "Config/app.ini");
+        assert_eq!(res, base.join("Config/app.ini"));
+
+        // Documents absolute path logic on Windows
+        #[cfg(windows)]
+        {
+            let res = resolve_game_path(base, "Documents/MyGame/app.ini");
+            // should not use base anymore if USERPROFILE exists
+            if let Some(user_profile) = std::env::var_os("USERPROFILE") {
+                let expected =
+                    PathBuf::from(user_profile).join("Documents/MyGame/app.ini".replace('/', "\\"));
+                assert_eq!(res, expected);
+            }
+        }
+    }
+}

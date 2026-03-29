@@ -446,3 +446,30 @@ impl ServiceDaemon {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_daemon_new_with_flags() -> anyhow::Result<()> {
+        let config = ServiceConfig::default();
+        let mut flags = crate::FeatureFlags::default();
+        flags.enable_virtual_devices = true; // just change a flag to ensure it's saved
+
+        let daemon = ServiceDaemon::new_with_flags(config, flags.clone()).await?;
+        assert_eq!(daemon.flags.enable_virtual_devices, true);
+
+        // Also test new_with_flags_and_profile_config
+        let profile_config = ProfileRepositoryConfig::default();
+        let daemon2 = ServiceDaemon::new_with_flags_and_profile_config(
+            ServiceConfig::default(),
+            flags,
+            profile_config,
+        )
+        .await?;
+        assert_eq!(daemon2.flags.enable_virtual_devices, true);
+
+        Ok(())
+    }
+}

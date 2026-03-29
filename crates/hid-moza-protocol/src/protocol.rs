@@ -895,4 +895,15 @@ mod tests {
         assert_eq!(parsed.ks_snapshot.encoders[1], 0x64);
         Ok(())
     }
+
+    #[test]
+    fn test_is_output_capable() {
+        // Wheelbases should be output capable
+        assert!(MozaProtocol::new(product_ids::R9_V2).is_output_capable());
+        assert!(MozaProtocol::new(product_ids::R5_V1).is_output_capable());
+
+        // Peripherals should NOT be output capable
+        assert!(!MozaProtocol::new(product_ids::SR_P_PEDALS).is_output_capable());
+        assert!(!MozaProtocol::new(product_ids::HBP_HANDBRAKE).is_output_capable());
+    }
 }

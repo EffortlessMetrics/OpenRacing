@@ -337,4 +337,43 @@ mod tests {
         channel.shutdown();
         assert!(channel.is_shutdown());
     }
+
+    #[test]
+    fn test_spsc_frame_size_mismatch() {
+        let frame_size = 64;
+        let channel = SpscChannel::new(frame_size).expect("Failed to create channel");
+        let writer = channel.writer();
+
+        let oversized_frame = vec![0x42u8; frame_size + 1];
+        let err = writer.write(&oversized_frame).unwrap_err();
+        match err {
+            NativePluginError::FrameSizeMismatch { expected, actual } => {
+                assert_eq!(expected, 64);
+                assert_eq!(actual, 65);
+            }
+            _ => panic!("Expected FrameSizeMismatch"),
+        }
+    }
+
+    #[test]
+    fn test_spsc_buffer_size_mismatch() {
+        let frame_size = 64;
+        let channel = SpscChannel::new(frame_size).expect("Failed to create channel");
+
+        let writer = channel.writer();
+        writer
+            .write(&vec![0x42u8; frame_size])
+            .expect("Failed to write");
+
+        let reader = channel.reader();
+        let mut undersized_buffer = vec![0u8; frame_size - 1];
+        let err = reader.read(&mut undersized_buffer).unwrap_err();
+        match err {
+            NativePluginError::BufferSizeMismatch { expected, actual } => {
+                assert_eq!(expected, 64);
+                assert_eq!(actual, 63);
+            }
+            _ => panic!("Expected BufferSizeMismatch"),
+        }
+    }
 }

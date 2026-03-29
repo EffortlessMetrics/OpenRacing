@@ -1200,3 +1200,37 @@ impl WheelService for WheelServiceImpl {
         }))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_get_device_status_telemetry_conversion() {
+        let (tx, _) = broadcast::channel(10);
+        let service = WheelServiceImpl {
+            device_service: Arc::new(DeviceService),
+            profile_service: Arc::new(ProfileService),
+            game_service: Arc::new(GameService),
+            safety_service: Arc::new(SafetyService),
+            health_broadcaster: tx,
+            connected_clients: Arc::new(RwLock::new(HashMap::new())),
+        };
+
+        let request = Request::new(DeviceId {
+            id: "test-device-1".to_string(),
+        });
+
+        let response = service
+            .get_device_status(request)
+            .await
+            .expect("Failed to get device status");
+        
+        let status = response.into_inner();
+        
+        let telemetry = status.telemetry.expect("Expected telemetry data");
+        // Ensure conversions happened safely and didn't panic.
+        assert_eq!(telemetry.wheel_angle_mdeg, 0);
+        assert_eq!(telemetry.wheel_speed_mrad_s, 0);
+    }
+}

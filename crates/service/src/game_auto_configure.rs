@@ -562,4 +562,34 @@ mod tests {
         let store = ConfiguredGamesStore::default();
         assert!(store.configured.is_empty(), "default store must be empty");
     }
+
+    #[test]
+    fn test_install_path_roots() {
+        let roots = install_path_roots();
+        assert!(
+            !roots.is_empty(),
+            "install_path_roots should return at least one root"
+        );
+
+        #[cfg(target_os = "windows")]
+        {
+            // Windows should have at least one drive root that exists, normally C:\
+            let c_drive = std::path::PathBuf::from("C:\\");
+            if c_drive.exists() {
+                assert!(
+                    roots.contains(&c_drive),
+                    "roots should contain C:\\ if it exists"
+                );
+            }
+        }
+
+        #[cfg(not(target_os = "windows"))]
+        {
+            // Unix should have the root path /
+            assert!(
+                roots.contains(&std::path::PathBuf::from("/")),
+                "roots should contain /"
+            );
+        }
+    }
 }

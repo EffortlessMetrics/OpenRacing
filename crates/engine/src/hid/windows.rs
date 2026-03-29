@@ -4036,3 +4036,23 @@ mod tests {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod overlap_tests {
+    use super::*;
+    use std::sync::atomic::Ordering;
+
+    #[test]
+    fn test_overlapped_write_state() {
+        let mut state =
+            OverlappedWriteState::new().expect("Failed to create overlapped write state");
+        assert!(
+            !state.write_pending.load(Ordering::SeqCst),
+            "Should not be pending initially"
+        );
+        state.reset_overlapped();
+
+        // Validates the struct can be safely dropped without panic when not pending
+        drop(state);
+    }
+}
