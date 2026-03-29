@@ -607,7 +607,10 @@ async fn test_safe03_fault_response() -> Result<TestResult> {
     }
     {
         let device = harness.virtual_devices[0].read().await;
-        let expected_flags: u8 = fault_types.iter().map(|(f, _)| f).fold(0u8, |acc, f| acc | f);
+        let expected_flags: u8 = fault_types
+            .iter()
+            .map(|(f, _)| f)
+            .fold(0u8, |acc, f| acc | f);
         if device.telemetry_data.fault_flags != expected_flags {
             errors.push(format!(
                 "Cumulative fault_flags 0x{:02x} != expected 0x{:02x}",
