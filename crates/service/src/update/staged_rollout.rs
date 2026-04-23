@@ -2,7 +2,7 @@
 //!
 //! Provides controlled deployment with automatic rollback on error thresholds
 
-use anyhow::Result;
+use anyhow::{Result, bail, ensure};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::Duration;
@@ -217,6 +217,7 @@ impl StagedRolloutManager {
         target_devices: Vec<String>,
         config: StagedRolloutConfig,
     ) -> Result<RolloutPlan> {
+        Self::validate_rollout_config(&config)?;
         let rollout_id = format!("rollout_{}", uuid::Uuid::new_v4());
 
         info!(
@@ -226,7 +227,7 @@ impl StagedRolloutManager {
         );
 
         // Create stages based on configuration
-        let stages = self.create_stages(&target_devices, &config)?;
+        let stages = Self::create_stages(&target_devices, &config)?;
 
         let plan = RolloutPlan {
             rollout_id: rollout_id.clone(),
@@ -256,8 +257,28 @@ impl StagedRolloutManager {
     }
 
     /// Create stages from device list and configuration
+    fn validate_rollout_config(config: &StagedRolloutConfig) -> Result<()> {
+        if !config.enabled {
+            return Ok(());
+        }
+
+        if config.stage1_max_devices == 0 {
+            bail!("stage1_max_devices must be greater than 0 when staged rollout is enabled");
+        }
+
+        ensure!(
+            (0.0..=1.0).contains(&config.min_success_rate),
+            "min_success_rate must be within [0.0, 1.0]"
+        );
+        ensure!(
+            (0.0..=1.0).contains(&config.max_error_rate),
+            "max_error_rate must be within [0.0, 1.0]"
+        );
+
+        Ok(())
+    }
+
     fn create_stages(
-        &self,
         devices: &[String],
         config: &StagedRolloutConfig,
     ) -> Result<Vec<RolloutStage>> {
@@ -299,7 +320,7 @@ impl StagedRolloutManager {
         }
 
         // Subsequent stages with exponential growth
-        let mut stage_size = config.stage1_max_devices * 2;
+        let mut stage_size = config.stage1_max_devices.saturating_mul(2);
 
         while !remaining_devices.is_empty() {
             let current_stage_size = stage_size.min(remaining_devices.len() as u32) as usize;
@@ -316,7 +337,7 @@ impl StagedRolloutManager {
             });
 
             stage_number += 1;
-            stage_size *= 2; // Exponential growth
+            stage_size = stage_size.saturating_mul(2); // Exponential growth
         }
 
         Ok(stages)
@@ -387,5 +408,67 @@ impl StagedRolloutManager {
     /// Subscribe to rollout progress updates
     pub fn subscribe_progress(&self) -> broadcast::Receiver<RolloutProgress> {
         self.progress_tx.subscribe()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::StagedRolloutManager;
+    use crate::update::firmware::StagedRolloutConfig;
+
+    fn mk_devices(count: usize) -> Vec<String> {
+        (0..count).map(|i| format!("dev-{i}")).collect()
+    }
+
+    #[test]
+    fn staged_rollout_rejects_zero_stage1_when_enabled() {
+        let config = StagedRolloutConfig {
+            enabled: true,
+            stage1_max_devices: 0,
+            ..StagedRolloutConfig::default()
+        };
+
+        let result = StagedRolloutManager::validate_rollout_config(&config);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn staged_rollout_accepts_zero_stage1_when_disabled() -> Result<(), anyhow::Error> {
+        let config = StagedRolloutConfig {
+            enabled: false,
+            stage1_max_devices: 0,
+            ..StagedRolloutConfig::default()
+        };
+
+        StagedRolloutManager::validate_rollout_config(&config)
+    }
+
+    #[test]
+    fn create_stages_assigns_each_device_once() -> Result<(), anyhow::Error> {
+        let devices = mk_devices(10);
+        let config = StagedRolloutConfig {
+            enabled: true,
+            stage1_max_devices: 3,
+            ..StagedRolloutConfig::default()
+        };
+
+        let stages = StagedRolloutManager::create_stages(&devices, &config)?;
+        let assigned: Vec<&str> = stages
+            .iter()
+            .flat_map(|stage| stage.device_ids.iter().map(String::as_str))
+            .collect();
+
+        assert_eq!(assigned.len(), devices.len());
+        for device in &devices {
+            assert_eq!(
+                assigned
+                    .iter()
+                    .filter(|assigned_id| **assigned_id == device)
+                    .count(),
+                1
+            );
+        }
+
+        Ok(())
     }
 }
