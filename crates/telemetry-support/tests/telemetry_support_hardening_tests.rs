@@ -57,10 +57,11 @@ fn normalize_game_id_empty_string_passthrough() {
 }
 
 #[test]
-fn normalize_game_id_whitespace_passthrough() {
-    // Whitespace strings are not aliases, so they pass through.
-    assert_eq!(normalize_game_id(" "), " ");
-    assert_eq!(normalize_game_id("\t"), "\t");
+fn normalize_game_id_whitespace_is_trimmed() {
+    // Input should be trimmed before alias checks and passthrough.
+    assert_eq!(normalize_game_id(" "), "");
+    assert_eq!(normalize_game_id("\t"), "");
+    assert_eq!(normalize_game_id(" iracing "), "iracing");
 }
 
 #[test]
