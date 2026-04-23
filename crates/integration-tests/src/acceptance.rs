@@ -1,6 +1,8 @@
 //! Acceptance tests mapping to specific requirement IDs with automated DoD verification
 
 use anyhow::Result;
+use racing_wheel_schemas::config::{ProfileValidator, SchemaError};
+use serde_json::json;
 use std::collections::HashMap;
 use std::path::Path;
 use std::time::{Duration, Instant};
@@ -674,7 +676,88 @@ async fn test_prf01_profile_hierarchy() -> Result<TestResult> {
     create_placeholder_test("PRF-01").await
 }
 async fn test_prf02_schema_validation() -> Result<TestResult> {
-    create_placeholder_test("PRF-02").await
+    let start_time = Instant::now();
+    let mut errors = Vec::new();
+
+    let validator = ProfileValidator::new()?;
+
+    let baseline_profile = valid_profile_json().to_string();
+    if let Err(e) = validator.validate_json(&baseline_profile) {
+        errors.push(format!("Baseline valid profile rejected: {e}"));
+    }
+
+    // DoD: line/column error reporting.
+    let malformed_json =
+        "{\n  \"schema\": \"wheel.profile/1\",\n  \"scope\": {\"game\": \"iracing\"},\n";
+    match validator.validate_json(malformed_json) {
+        Err(SchemaError::JsonError(parse_err)) => {
+            let parse_err_msg = parse_err.to_string().to_lowercase();
+            if !parse_err_msg.contains("line") || !parse_err_msg.contains("column") {
+                errors.push(format!(
+                    "JSON parse error did not include line/column details: {parse_err}"
+                ));
+            }
+        }
+        Err(other) => errors.push(format!(
+            "Malformed JSON should return JsonError with location details; got: {other}"
+        )),
+        Ok(_) => errors.push("Malformed JSON unexpectedly validated".to_string()),
+    }
+
+    // DoD: rule-violation detail reporting + invalid profiles never apply.
+    let invalid_rule_profile = json!({
+        "schema": "wheel.profile/1",
+        "scope": { "game": "iracing" },
+        "base": {
+            "ffbGain": 1.25,
+            "dorDeg": 900,
+            "torqueCapNm": 12.0,
+            "filters": {
+                "reconstruction": 2,
+                "friction": 0.0,
+                "damper": 0.0,
+                "inertia": 0.0,
+                "notchFilters": [],
+                "slewRate": 1.0,
+                "curvePoints": [
+                    { "input": 0.0, "output": 0.0 },
+                    { "input": 1.0, "output": 1.0 }
+                ]
+            }
+        }
+    })
+    .to_string();
+
+    let applied_profile = match validator.validate_json(&invalid_rule_profile) {
+        Err(SchemaError::ValidationError { message, .. }) => {
+            let lower = message.to_lowercase();
+            if !lower.contains("ffbgain") && !lower.contains("1.25") {
+                errors.push(format!(
+                    "Validation error lacked actionable rule detail for ffbGain: {message}"
+                ));
+            }
+            false
+        }
+        Err(other) => {
+            errors.push(format!(
+                "Invalid rule profile returned unexpected error: {other}"
+            ));
+            false
+        }
+        Ok(_) => true,
+    };
+
+    if applied_profile {
+        errors.push("Invalid profile passed validation and would have been applied".to_string());
+    }
+
+    Ok(TestResult {
+        passed: errors.is_empty(),
+        duration: start_time.elapsed(),
+        metrics: PerformanceMetrics::default(),
+        errors,
+        requirement_coverage: vec!["PRF-02".to_string()],
+    })
 }
 async fn test_diag01_blackbox_recording() -> Result<TestResult> {
     create_placeholder_test("DIAG-01").await
@@ -708,6 +791,30 @@ async fn create_placeholder_test(requirement_id: &str) -> Result<TestResult> {
 async fn simulate_telemetry_configuration(_game: &str) -> Result<()> {
     tokio::time::sleep(Duration::from_millis(200)).await;
     Ok(())
+}
+
+fn valid_profile_json() -> serde_json::Value {
+    json!({
+        "schema": "wheel.profile/1",
+        "scope": { "game": "iracing" },
+        "base": {
+            "ffbGain": 0.75,
+            "dorDeg": 900,
+            "torqueCapNm": 12.0,
+            "filters": {
+                "reconstruction": 2,
+                "friction": 0.0,
+                "damper": 0.0,
+                "inertia": 0.0,
+                "notchFilters": [],
+                "slewRate": 1.0,
+                "curvePoints": [
+                    { "input": 0.0, "output": 0.0 },
+                    { "input": 1.0, "output": 1.0 }
+                ]
+            }
+        }
+    })
 }
 
 async fn generate_acceptance_report(results: &HashMap<String, TestResult>) -> Result<()> {
