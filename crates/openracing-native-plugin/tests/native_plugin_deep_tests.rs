@@ -937,12 +937,9 @@ fn verify_plugin_with_sig_but_untrusted_key_in_permissive_mode() {
         let verifier =
             SignatureVerifier::new(&trust_store, SignatureVerificationConfig::permissive());
         let result = verifier.verify(&lib_path);
-        // Permissive allows unsigned, so unknown key should succeed with warnings
-        assert!(result.is_ok());
-        if let Ok(r) = result {
-            assert!(r.is_signed);
-            assert!(!r.warnings.is_empty());
-        }
+        // Permissive allows unsigned plugins, but a signed plugin with an
+        // unknown key must be rejected (fail-closed).
+        assert!(result.is_err());
     }
 }
 

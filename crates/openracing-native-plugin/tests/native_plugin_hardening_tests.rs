@@ -239,7 +239,7 @@ fn tampered_content_fails_verification() -> Result<(), Box<dyn std::error::Error
 }
 
 #[test]
-fn unknown_key_strict_mode_rejects_or_marks_unverified() -> Result<(), Box<dyn std::error::Error>> {
+fn unknown_key_strict_mode_rejects() -> Result<(), Box<dyn std::error::Error>> {
     use openracing_crypto::ed25519::{Ed25519Signer, KeyPair};
     use openracing_crypto::verification::ContentType;
 
@@ -259,15 +259,10 @@ fn unknown_key_strict_mode_rejects_or_marks_unverified() -> Result<(), Box<dyn s
     let verifier = SignatureVerifier::new(&trust_store, SignatureVerificationConfig::strict());
     let result = verifier.verify(&plugin_path);
 
-    match result {
-        Err(_) => { /* Rejection is correct in strict mode */ }
-        Ok(r) => {
-            assert!(
-                !r.verified,
-                "unknown key must not be marked verified in strict mode"
-            );
-        }
-    }
+    assert!(
+        result.is_err(),
+        "unknown key must be rejected in strict mode"
+    );
     Ok(())
 }
 
