@@ -435,7 +435,7 @@ fn unknown_key_strict_mode_rejected() -> Result<(), Box<dyn std::error::Error>> 
 }
 
 #[test]
-fn unknown_key_permissive_mode_warns() -> Result<(), Box<dyn std::error::Error>> {
+fn unknown_key_permissive_mode_rejected() -> Result<(), Box<dyn std::error::Error>> {
     let tmp = tempfile::TempDir::new()?;
     let content = b"plugin from unknown signer";
     let path = write_fake_plugin(tmp.path(), "unknown.dll", content)?;
@@ -445,13 +445,10 @@ fn unknown_key_permissive_mode_warns() -> Result<(), Box<dyn std::error::Error>>
     let store = TrustStore::new_in_memory();
 
     let verifier = SignatureVerifier::new(&store, SignatureVerificationConfig::permissive());
-    let result = verifier.verify(&path)?;
-
-    assert!(result.is_signed);
-    assert_eq!(result.trust_level, TrustLevel::Unknown);
+    let result = verifier.verify(&path);
     assert!(
-        !result.warnings.is_empty(),
-        "Should have warnings about unknown key"
+        result.is_err(),
+        "Unknown signer must be rejected when signed"
     );
 
     Ok(())
