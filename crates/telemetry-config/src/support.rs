@@ -110,9 +110,17 @@ pub struct AutoDetectConfig {
 
 /// Normalize game IDs at the boundary (historical alias support).
 pub fn normalize_game_id(game_id: &str) -> &str {
-    if game_id.eq_ignore_ascii_case("ea_wrc") {
+    let game_id = game_id.trim();
+
+    if game_id.eq_ignore_ascii_case("ea_wrc")
+        || game_id.eq_ignore_ascii_case("ea-wrc")
+        || game_id.eq_ignore_ascii_case("ea wrc")
+    {
         "eawrc"
-    } else if game_id.eq_ignore_ascii_case("f1_2025") {
+    } else if game_id.eq_ignore_ascii_case("f1_2025")
+        || game_id.eq_ignore_ascii_case("f1-2025")
+        || game_id.eq_ignore_ascii_case("f1 2025")
+    {
         "f1_25"
     } else {
         game_id
@@ -425,8 +433,19 @@ mod tests {
     fn normalize_game_id_case_insensitive_aliases() {
         assert_eq!(normalize_game_id("EA_WRC"), "eawrc");
         assert_eq!(normalize_game_id("Ea_Wrc"), "eawrc");
+        assert_eq!(normalize_game_id("ea-wrc"), "eawrc");
+        assert_eq!(normalize_game_id("ea wrc"), "eawrc");
         assert_eq!(normalize_game_id("F1_2025"), "f1_25");
         assert_eq!(normalize_game_id("F1_2025"), "f1_25");
+        assert_eq!(normalize_game_id("f1-2025"), "f1_25");
+        assert_eq!(normalize_game_id("f1 2025"), "f1_25");
+    }
+
+    #[test]
+    fn normalize_game_id_trims_surrounding_whitespace() {
+        assert_eq!(normalize_game_id(" ea_wrc "), "eawrc");
+        assert_eq!(normalize_game_id("\tf1_2025\n"), "f1_25");
+        assert_eq!(normalize_game_id(" iracing "), "iracing");
     }
 
     #[test]
