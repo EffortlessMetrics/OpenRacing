@@ -308,11 +308,36 @@ pub mod config {
             let value: Value = serde_json::from_str(json)?;
 
             // Validate against schema
-            if let Err(error) = self.schema.validate(&value) {
-                return Err(SchemaError::ValidationError {
-                    path: "root".to_string(),
-                    message: error.to_string(),
-                });
+            let validation_errors: Vec<SchemaError> = self
+                .schema
+                .iter_errors(&value)
+                .map(|error| {
+                    let path = if error.instance_path().is_empty() {
+                        "root".to_string()
+                    } else {
+                        error.instance_path().to_string()
+                    };
+
+                    SchemaError::ValidationError {
+                        path,
+                        message: error.to_string(),
+                    }
+                })
+                .collect();
+            if !validation_errors.is_empty() {
+                if validation_errors.len() == 1 {
+                    let mut errors = validation_errors.into_iter();
+                    if let Some(error) = errors.next() {
+                        return Err(error);
+                    }
+
+                    return Err(SchemaError::ValidationError {
+                        path: "root".to_string(),
+                        message: "unknown validation error".to_string(),
+                    });
+                }
+
+                return Err(SchemaError::MultipleValidationErrors(validation_errors));
             }
 
             // Deserialize to typed structure
