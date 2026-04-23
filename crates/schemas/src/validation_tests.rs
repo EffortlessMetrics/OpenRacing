@@ -167,6 +167,50 @@ mod tests {
     }
 
     #[test]
+    fn test_multiple_schema_violations_are_aggregated() {
+        let validator = must(ProfileValidator::new());
+
+        let invalid_profile = json!({
+            "schema": "wheel.profile/1",
+            "scope": {},
+            "base": {
+                "ffbGain": 1.5, // Invalid: > 1.0
+                "dorDeg": 90,   // Invalid: < 180
+                "torqueCapNm": 10.0,
+                "filters": {
+                    "reconstruction": 2,
+                    "friction": 0.1,
+                    "damper": 0.15,
+                    "inertia": 0.05,
+                    "notchFilters": [],
+                    "slewRate": 1.4, // Invalid: > 1.0
+                    "curvePoints": [
+                        {"input": 0.0, "output": 0.0},
+                        {"input": 1.0, "output": 1.0}
+                    ]
+                }
+            }
+        });
+
+        let json_str = must(serde_json::to_string(&invalid_profile));
+        let result = validator.validate_json(&json_str);
+
+        match result {
+            Err(SchemaError::MultipleValidationErrors(errors)) => {
+                assert!(
+                    errors.len() >= 2,
+                    "expected at least two schema errors, got {}",
+                    errors.len()
+                );
+            }
+            Err(other) => {
+                panic!("Expected MultipleValidationErrors, got: {other:?}");
+            }
+            Ok(_) => panic!("Expected validation failure"),
+        }
+    }
+
+    #[test]
     fn test_invalid_value_ranges() {
         let validator = must(ProfileValidator::new());
 
