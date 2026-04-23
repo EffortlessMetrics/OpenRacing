@@ -187,28 +187,13 @@ impl<'a> SignatureVerifier<'a> {
         let public_key = match self.trust_store.get_public_key(&metadata.key_fingerprint) {
             Some(key) => key,
             None => {
-                if trust_level == TrustLevel::Unknown && !self.config.allow_unsigned {
-                    return Err(NativePluginError::UntrustedSigner {
-                        fingerprint: metadata.key_fingerprint.clone(),
-                    });
-                }
-                // TODO(security): Fail-closed — cannot verify signature without
-                // the public key in the trust store. Mark as unverified so callers
-                // never treat an unchecked signature as valid.
-                tracing::warn!(
+                tracing::error!(
                     path = %library_path.display(),
-                    "Plugin signature NOT verified (signing key not in trust store)"
+                    fingerprint = %metadata.key_fingerprint,
+                    "Rejecting signed plugin: signing key not found in trust store"
                 );
-                return Ok(SignatureVerificationResult {
-                    is_signed: true,
-                    metadata: Some(metadata),
-                    trust_level,
-                    verified: false,
-                    warnings: vec![
-                        "Signature present but NOT cryptographically verified: \
-                         signing key not found in trust store"
-                            .to_string(),
-                    ],
+                return Err(NativePluginError::UntrustedSigner {
+                    fingerprint: metadata.key_fingerprint.clone(),
                 });
             }
         };
@@ -479,16 +464,10 @@ mod tests {
         let verifier = SignatureVerifier::new(&trust_store, SignatureVerificationConfig::strict());
         let result = verifier.verify(&plugin_path);
 
-        // The verifier must either error or return verified=false
-        match result {
-            Err(_) => { /* expected: fail-closed store causes rejection */ }
-            Ok(r) => {
-                assert!(
-                    !r.verified || r.trust_level == TrustLevel::Distrusted,
-                    "fail-closed store must not produce a trusted+verified result"
-                );
-            }
-        }
+        assert!(
+            matches!(result, Err(NativePluginError::UntrustedSigner { .. })),
+            "fail-closed trust store must reject signed plugins without a known key"
+        );
 
         Ok(())
     }
@@ -522,16 +501,48 @@ mod tests {
         let verifier = SignatureVerifier::new(&trust_store, SignatureVerificationConfig::strict());
         let result = verifier.verify(&plugin_path);
 
-        // Unknown key + strict + allow_unsigned=false → should reject or mark unverified
-        match result {
-            Err(_) => { /* rejection is correct */ }
-            Ok(r) => {
-                assert!(
-                    !r.verified,
-                    "unknown key in strict mode must not be marked verified"
-                );
-            }
-        }
+        // Unknown key + strict + allow_unsigned=false → reject
+        assert!(
+            matches!(result, Err(NativePluginError::UntrustedSigner { .. })),
+            "unknown key in strict mode must be rejected"
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_unknown_key_permissive_mode_also_rejects() -> Result<(), Box<dyn std::error::Error>> {
+        use openracing_crypto::ed25519::{Ed25519Signer, KeyPair};
+        use openracing_crypto::verification::ContentType;
+
+        let temp_dir = tempfile::TempDir::new()?;
+        let plugin_path = temp_dir.path().join("unknown_key_permissive.dll");
+        let plugin_data = b"plugin from unknown signer in permissive mode";
+        std::fs::write(&plugin_path, plugin_data)?;
+
+        let keypair = KeyPair::generate()?;
+        let metadata = Ed25519Signer::sign_with_metadata(
+            plugin_data,
+            &keypair,
+            "Unknown Author",
+            ContentType::Plugin,
+            None,
+        )?;
+
+        let sig_path = plugin_path.with_extension("dll.sig");
+        let sig_json = serde_json::to_string_pretty(&metadata)?;
+        std::fs::write(&sig_path, sig_json)?;
+
+        let trust_store = TrustStore::new_in_memory();
+
+        let verifier =
+            SignatureVerifier::new(&trust_store, SignatureVerificationConfig::permissive());
+        let result = verifier.verify(&plugin_path);
+
+        assert!(
+            matches!(result, Err(NativePluginError::UntrustedSigner { .. })),
+            "permissive mode only allows unsigned plugins, not unverified signatures"
+        );
 
         Ok(())
     }
