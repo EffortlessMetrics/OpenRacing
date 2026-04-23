@@ -173,7 +173,7 @@ where
     T: AsRef<str>,
 {
     ids.into_iter()
-        .map(|id| id.as_ref().to_ascii_lowercase())
+        .map(|id| id.as_ref().trim().to_ascii_lowercase())
         .filter(|id| !id.is_empty())
         .collect::<BTreeSet<_>>()
 }
@@ -377,6 +377,30 @@ mod tests {
         );
         assert_eq!(metrics.matrix_game_count, 2);
         assert_eq!(metrics.registry_game_count, 2);
+        assert!(metrics.parity_ok);
+    }
+
+    #[test]
+    fn whitespace_only_ids_are_filtered_out() {
+        let metrics = BddMatrixMetrics::from_sets(
+            ["acc", "   ", "iracing"],
+            ["acc", "iracing", "\t"],
+            MatrixParityPolicy::STRICT,
+        );
+        assert_eq!(metrics.matrix_game_count, 2);
+        assert_eq!(metrics.registry_game_count, 2);
+        assert!(metrics.parity_ok);
+    }
+
+    #[test]
+    fn ids_are_trimmed_before_comparison() {
+        let metrics = BddMatrixMetrics::from_sets(
+            [" ACC ", "iracing"],
+            ["acc", " iracing\t"],
+            MatrixParityPolicy::STRICT,
+        );
+        assert_eq!(metrics.missing_count, 0);
+        assert_eq!(metrics.extra_count, 0);
         assert!(metrics.parity_ok);
     }
 
