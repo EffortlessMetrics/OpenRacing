@@ -27,12 +27,12 @@ Feature: Signature Verification
     Then verification should fail
     And the error should mention "distrusted"
 
-  Scenario: Warn about unknown signer
+  Scenario: Reject unknown signer even in permissive mode
     Given a plugin file "plugin.so" signed with an unknown key
     And the trust store does not contain the key
     When I verify the signature
-    Then verification should succeed with warning
-    And the trust level should be "Unknown"
+    Then verification should fail
+    And the error should mention "untrusted"
 
   Scenario: Reject unsigned plugin in strict mode
     Given a plugin file "plugin.so" without signature
