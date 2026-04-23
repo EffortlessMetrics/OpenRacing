@@ -7,6 +7,8 @@
 use racing_wheel_telemetry_config_writers::{
     ConfigDiff, ConfigWriter, DiffOperation, TelemetryConfig, config_writer_factories,
 };
+use racing_wheel_telemetry_support::{GameSupport, load_default_matrix};
+use std::collections::{HashMap, HashSet};
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 
@@ -44,6 +46,105 @@ fn write_validate_round_trip(game_id: &str) -> TestResult {
         writer.validate_config(temp_dir.path())?,
         "{game_id}: validate_config returned false after write"
     );
+    Ok(())
+}
+
+fn matrix_derived_config(game: &GameSupport) -> TelemetryConfig {
+    let mut fields = vec![];
+    let mapping = &game.telemetry.fields;
+    for field in [
+        mapping.ffb_scalar.as_deref(),
+        mapping.rpm.as_deref(),
+        mapping.speed_ms.as_deref(),
+        mapping.slip_ratio.as_deref(),
+        mapping.gear.as_deref(),
+        mapping.flags.as_deref(),
+        mapping.car_id.as_deref(),
+        mapping.track_id.as_deref(),
+    ]
+    .into_iter()
+    .flatten()
+    {
+        if !field.is_empty() {
+            fields.push(field.to_string());
+        }
+    }
+    if fields.is_empty() {
+        fields.push("ffb_scalar".to_string());
+    }
+
+    TelemetryConfig {
+        enabled: true,
+        update_rate_hz: game.telemetry.update_rate_hz.max(1),
+        output_method: game.telemetry.method.clone(),
+        output_target: game
+            .telemetry
+            .output_target
+            .clone()
+            .unwrap_or_else(|| "127.0.0.1:20777".to_string()),
+        fields,
+        enable_high_rate_iracing_360hz: game.telemetry.supports_360hz_option,
+    }
+}
+
+#[test]
+fn matrix_config_writers_resolve_to_factories_and_round_trip() -> TestResult {
+    let matrix = load_default_matrix()?;
+
+    let factory_map: HashMap<&str, fn() -> Box<dyn ConfigWriter + Send + Sync>> =
+        config_writer_factories().iter().copied().collect();
+
+    for game_id in matrix.game_ids() {
+        let game = matrix
+            .games
+            .get(&game_id)
+            .ok_or_else(|| std::io::Error::other(format!("missing matrix game {game_id}")))?;
+        let writer_id = game.config_writer.as_str();
+
+        let factory = factory_map.get(writer_id).ok_or_else(|| {
+            std::io::Error::other(format!(
+                "{game_id} references unknown config writer `{writer_id}`"
+            ))
+        })?;
+
+        let writer = factory();
+        let temp_dir = tempfile::tempdir()?;
+        let config = matrix_derived_config(game);
+        let diffs = writer.write_config(temp_dir.path(), &config)?;
+        assert!(
+            !diffs.is_empty(),
+            "{game_id} ({writer_id}): write_config produced no diffs"
+        );
+        assert!(
+            writer.validate_config(temp_dir.path())?,
+            "{game_id} ({writer_id}): validate_config returned false after write"
+        );
+    }
+
+    Ok(())
+}
+
+#[test]
+fn all_factories_are_referenced_by_matrix_writers() -> TestResult {
+    let matrix = load_default_matrix()?;
+    let matrix_writer_ids: HashSet<&str> = matrix
+        .games
+        .values()
+        .map(|game| game.config_writer.as_str())
+        .collect();
+
+    let unreferenced: Vec<&str> = config_writer_factories()
+        .iter()
+        .map(|(id, _)| *id)
+        .filter(|id| !matrix_writer_ids.contains(id))
+        .collect();
+
+    assert!(
+        unreferenced.is_empty(),
+        "config writers not referenced by matrix: {:?}",
+        unreferenced
+    );
+
     Ok(())
 }
 
