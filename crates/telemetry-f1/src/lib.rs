@@ -45,3 +45,33 @@
 pub use racing_wheel_telemetry_adapters::TelemetryAdapter;
 pub use racing_wheel_telemetry_adapters::f1_native::F1NativeAdapter;
 pub use racing_wheel_telemetry_core::{NormalizedTelemetry, TelemetryFrame};
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::Duration;
+
+    #[test]
+    fn test_f1_adapter_game_id() {
+        let adapter = F1NativeAdapter::new();
+        assert_eq!(adapter.game_id(), "f1_native");
+    }
+
+    #[test]
+    fn test_f1_adapter_update_rate() {
+        let adapter = F1NativeAdapter::new();
+        assert!(adapter.expected_update_rate() > Duration::ZERO);
+    }
+
+    #[test]
+    fn test_f1_adapter_as_trait_object() {
+        let adapter: Box<dyn TelemetryAdapter> = Box::new(F1NativeAdapter::new());
+        assert_eq!(adapter.game_id(), "f1_native");
+    }
+
+    #[test]
+    fn test_f1_adapter_rejects_empty_data() {
+        let adapter = F1NativeAdapter::new();
+        assert!(adapter.normalize(&[]).is_err());
+    }
+}

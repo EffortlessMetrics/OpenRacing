@@ -264,6 +264,55 @@ mod tests {
     }
 
     #[test]
+    fn test_axis_calibration_degenerate_range() {
+        // When min == max, apply should return 0.5 as a safe fallback
+        let calib = AxisCalibration::new(500, 500);
+        assert!((calib.apply(500) - 0.5).abs() < f32::EPSILON);
+        assert!((calib.apply(0) - 0.5).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn test_axis_calibration_deadzone_clamps_below() {
+        let calib = AxisCalibration::new(0, 1000).with_deadzone(200, 800);
+        // Value below dead-zone min should return 0.0
+        assert!((calib.apply(100) - 0.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_axis_calibration_deadzone_clamps_above() {
+        let calib = AxisCalibration::new(0, 1000).with_deadzone(200, 800);
+        // Value above dead-zone max should return 1.0
+        assert!((calib.apply(900) - 1.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_axis_calibration_default() {
+        let calib = AxisCalibration::default();
+        assert_eq!(calib.min, 0);
+        assert_eq!(calib.max, 0xFFFF);
+        assert!(calib.center.is_none());
+        assert_eq!(calib.deadzone_min, 0);
+        assert_eq!(calib.deadzone_max, 0xFFFF);
+    }
+
+    #[test]
+    fn test_axis_calibration_serde_round_trip() {
+        let calib = AxisCalibration::new(100, 900)
+            .with_center(500)
+            .with_deadzone(150, 850);
+
+        let json = serde_json::to_string(&calib).expect("serialize should succeed");
+        let restored: AxisCalibration =
+            serde_json::from_str(&json).expect("deserialize should succeed");
+
+        assert_eq!(restored.min, calib.min);
+        assert_eq!(restored.max, calib.max);
+        assert_eq!(restored.center, calib.center);
+        assert_eq!(restored.deadzone_min, calib.deadzone_min);
+        assert_eq!(restored.deadzone_max, calib.deadzone_max);
+    }
+
+    #[test]
     fn test_device_calibration() {
         let mut calib = DeviceCalibration::new("Test Device", 2);
 
@@ -276,5 +325,40 @@ mod tests {
         if let Some(axis) = calib.axis(0) {
             assert_eq!(axis.max, 1000);
         }
+    }
+
+    #[test]
+    fn test_device_calibration_out_of_bounds() {
+        let mut calib = DeviceCalibration::new("Test", 2);
+        assert!(calib.axis(5).is_none());
+        assert!(calib.axis(100).is_none());
+    }
+
+    #[test]
+    fn test_device_calibration_default() {
+        let calib = DeviceCalibration::default();
+        assert!(calib.name.is_empty());
+        assert!(calib.axes.is_empty());
+        assert_eq!(calib.version, 1);
+    }
+
+    #[test]
+    fn test_device_calibration_serde_round_trip() {
+        let calib = DeviceCalibration::new("Fanatec CSL DD", 3);
+
+        let json = serde_json::to_string(&calib).expect("serialize should succeed");
+        let restored: DeviceCalibration =
+            serde_json::from_str(&json).expect("deserialize should succeed");
+
+        assert_eq!(restored.name, calib.name);
+        assert_eq!(restored.axes.len(), calib.axes.len());
+        assert_eq!(restored.version, calib.version);
+    }
+
+    #[test]
+    fn test_calibration_point() {
+        let point = CalibrationPoint::new(32768, 0.5);
+        assert_eq!(point.raw, 32768);
+        assert!((point.normalized - 0.5).abs() < f32::EPSILON);
     }
 }

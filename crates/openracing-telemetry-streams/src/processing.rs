@@ -118,6 +118,10 @@ mod tests {
     use std::thread;
     use std::time::Duration;
 
+    // -----------------------------------------------------------------------
+    // MovingAverage
+    // -----------------------------------------------------------------------
+
     #[test]
     fn test_moving_average() {
         let mut avg = MovingAverage::new(3);
@@ -134,6 +138,49 @@ mod tests {
     }
 
     #[test]
+    fn test_moving_average_empty() {
+        let avg = MovingAverage::new(5);
+        assert!((avg.average() - 0.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn test_moving_average_single_element() {
+        let mut avg = MovingAverage::new(10);
+        avg.push(42.0);
+        assert!((avg.average() - 42.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn test_moving_average_reset() {
+        let mut avg = MovingAverage::new(3);
+        avg.push(10.0);
+        avg.push(20.0);
+        avg.push(30.0);
+        assert!((avg.average() - 20.0).abs() < 0.01);
+
+        avg.reset();
+        assert!((avg.average() - 0.0).abs() < f32::EPSILON);
+
+        // After reset, new values work normally
+        avg.push(5.0);
+        assert!((avg.average() - 5.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn test_moving_average_window_exactly_full() {
+        let mut avg = MovingAverage::new(3);
+        avg.push(1.0);
+        avg.push(2.0);
+        avg.push(3.0);
+        // Window is exactly full, average = 2.0
+        assert!((avg.average() - 2.0).abs() < 0.01);
+    }
+
+    // -----------------------------------------------------------------------
+    // RateLimiter
+    // -----------------------------------------------------------------------
+
+    #[test]
     fn test_rate_limiter() {
         let mut limiter = RateLimiter::new(100.0);
 
@@ -144,6 +191,22 @@ mod tests {
 
         assert!(limiter.should_update());
     }
+
+    #[test]
+    fn test_rate_limiter_reset() {
+        let mut limiter = RateLimiter::new(100.0);
+
+        assert!(limiter.should_update());
+        assert!(!limiter.should_update());
+
+        limiter.reset();
+        // After reset, should_update is true again immediately
+        assert!(limiter.should_update());
+    }
+
+    // -----------------------------------------------------------------------
+    // RateCounter
+    // -----------------------------------------------------------------------
 
     #[test]
     fn test_rate_counter() {
@@ -157,5 +220,18 @@ mod tests {
 
         let rate = counter.rate();
         assert!(rate > 0.0);
+    }
+
+    #[test]
+    fn test_rate_counter_reset() {
+        let mut counter = RateCounter::new(Duration::from_secs(1));
+        for _ in 0..100 {
+            counter.increment();
+        }
+
+        counter.reset();
+        thread::sleep(Duration::from_millis(10));
+        // After reset, rate should be 0 (no increments)
+        assert!((counter.rate() - 0.0).abs() < f64::EPSILON);
     }
 }

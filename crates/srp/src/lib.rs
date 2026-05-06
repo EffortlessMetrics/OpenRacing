@@ -76,8 +76,10 @@ pub fn parse_srp_usb_report_best_effort(report: &[u8]) -> Option<SrpPedalAxesRaw
 mod tests {
     use super::*;
 
+    type TestResult = Result<(), Box<dyn std::error::Error>>;
+
     #[test]
-    fn parse_srp_report_best_effort_throttle_and_brake() -> Result<(), Box<dyn std::error::Error>> {
+    fn parse_srp_report_best_effort_throttle_and_brake() -> TestResult {
         let report = [0x01u8, 0xFF, 0xFF, 0x00, 0x80];
         let axes = parse_srp_usb_report_best_effort(&report)
             .ok_or("expected throttle/brake parse from best-effort SR-P report")?;
@@ -95,7 +97,7 @@ mod tests {
     }
 
     #[test]
-    fn normalize_srp_axes_maps_to_unit_range() -> Result<(), Box<dyn std::error::Error>> {
+    fn normalize_srp_axes_maps_to_unit_range() -> TestResult {
         let raw = SrpPedalAxesRaw {
             throttle: 65535,
             brake: Some(32768),
@@ -106,5 +108,78 @@ mod tests {
         let brake = normalized.brake.ok_or("expected brake sample")?;
         assert!((brake - (32768.0 / 65535.0)).abs() < 0.00002);
         Ok(())
+    }
+
+    #[test]
+    fn parse_axis_at_valid_offset() -> TestResult {
+        let report = [0x00, 0x34, 0x12, 0xAB, 0xCD];
+        let val = parse_axis(&report, 1).ok_or("expected u16 at offset 1")?;
+        assert_eq!(val, 0x1234);
+        Ok(())
+    }
+
+    #[test]
+    fn parse_axis_at_end_of_buffer() {
+        // Only 2 bytes from offset 0 → valid
+        let report = [0x78, 0x56];
+        assert_eq!(parse_axis(&report, 0), Some(0x5678));
+
+        // 1 byte from offset 0 → too short for u16
+        assert_eq!(parse_axis(&[0x78], 0), None);
+    }
+
+    #[test]
+    fn parse_axis_overflow_offset_does_not_panic() {
+        let report = [0x01, 0x02];
+        // usize::MAX would overflow with saturating_add(2) → still None, no panic
+        assert_eq!(parse_axis(&report, usize::MAX), None);
+    }
+
+    #[test]
+    fn normalize_zero_values() {
+        let raw = SrpPedalAxesRaw {
+            throttle: 0,
+            brake: Some(0),
+        };
+        let normalized = raw.normalize();
+        assert!((normalized.throttle).abs() < f32::EPSILON);
+        assert!((normalized.brake.unwrap_or(1.0)).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn normalize_without_brake() {
+        let raw = SrpPedalAxesRaw {
+            throttle: 32768,
+            brake: None,
+        };
+        let normalized = raw.normalize();
+        assert!(normalized.brake.is_none());
+        assert!((normalized.throttle - 32768.0 / 65535.0).abs() < 0.00002);
+    }
+
+    #[test]
+    fn parse_exact_min_length_report() -> TestResult {
+        let report = [0x00, 0x00, 0x00, 0x00, 0x00]; // exactly MIN_REPORT_LEN = 5
+        let axes = parse_srp_usb_report_best_effort(&report).ok_or("5-byte report should parse")?;
+        assert_eq!(axes.throttle, 0);
+        assert_eq!(axes.brake, Some(0));
+        Ok(())
+    }
+
+    #[test]
+    fn parse_4_byte_report_is_too_short() {
+        let report = [0x00, 0x00, 0x00, 0x00]; // MIN_REPORT_LEN - 1
+        assert!(parse_srp_usb_report_best_effort(&report).is_none());
+    }
+
+    #[test]
+    fn constants_are_consistent() {
+        // THROTTLE_START + 2 bytes + BRAKE_START + 2 bytes = MIN_REPORT_LEN
+        const {
+            assert!(THROTTLE_START + 2 <= BRAKE_START);
+        }
+        const {
+            assert!(BRAKE_START + 2 <= MIN_REPORT_LEN);
+        }
     }
 }

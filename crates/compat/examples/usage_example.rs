@@ -24,7 +24,7 @@ mod example {
     }
 
     // Import the compat trait
-    use crate::TelemetryCompat;
+    use compat::TelemetryCompat;
 
     // Implement the trait for our TelemetryData
     impl TelemetryCompat for TelemetryData {

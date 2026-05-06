@@ -180,21 +180,13 @@ mod tests {
     }
 
     #[test]
-    fn test_pedal_calibrator_throttle_only() {
+    fn test_pedal_calibrator_throttle_only_fails_brake() {
         let mut calibrator = PedalCalibrator::new();
-
         calibrator.add_throttle(0);
-        calibrator.add_throttle(32000);
         calibrator.add_throttle(65535);
-
-        // Throttle-only should work now since we added brake/clutch too
-        calibrator.add_brake(0);
-        calibrator.add_brake(65535);
-        calibrator.add_clutch(0);
-        calibrator.add_clutch(65535);
-
-        let result = calibrator.calibrate().expect("calibrate should succeed");
-        assert_eq!(result.len(), 3);
+        // Missing brake and clutch should fail
+        let result = calibrator.calibrate();
+        assert!(result.is_err());
     }
 
     #[test]
@@ -228,6 +220,22 @@ mod tests {
     }
 
     #[test]
+    fn test_pedal_calibrator_single_sample_per_axis() {
+        let mut calibrator = PedalCalibrator::new();
+        calibrator.add_throttle(500);
+        calibrator.add_brake(600);
+        calibrator.add_clutch(700);
+
+        let result = calibrator
+            .calibrate()
+            .expect("single sample should succeed");
+        assert_eq!(result.len(), 3);
+        // Single sample means min == max
+        assert_eq!(result[0].min, 500);
+        assert_eq!(result[0].max, 500);
+    }
+
+    #[test]
     fn test_reset() {
         let mut calibrator = PedalCalibrator::new();
 
@@ -246,5 +254,35 @@ mod tests {
             .expect("create should succeed");
 
         assert_eq!(result.len(), 3);
+    }
+
+    #[test]
+    fn test_create_pedal_calibration_empty_fails() {
+        let result = create_pedal_calibration(&[], &[0, 65535], &[0, 65535]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_pedal_calibrator_default_equivalence() {
+        let new = PedalCalibrator::new();
+        let default = PedalCalibrator::default();
+        // Both should fail calibration (empty)
+        assert!(new.calibrate().is_err());
+        assert!(default.calibrate().is_err());
+    }
+
+    #[test]
+    fn test_pedal_calibrator_narrow_range() {
+        let mut calibrator = PedalCalibrator::new();
+        calibrator.add_throttle(100);
+        calibrator.add_throttle(105);
+        calibrator.add_brake(200);
+        calibrator.add_brake(210);
+        calibrator.add_clutch(300);
+        calibrator.add_clutch(310);
+
+        let result = calibrator.calibrate().expect("narrow range should succeed");
+        assert_eq!(result[0].min, 100);
+        assert_eq!(result[0].max, 105);
     }
 }

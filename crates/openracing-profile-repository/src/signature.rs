@@ -276,4 +276,127 @@ mod tests {
         assert_eq!(hash1, hash2);
         assert_ne!(hash1, hash3);
     }
+
+    // -----------------------------------------------------------------------
+    // Additional tests
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_signature_unsigned_not_valid() {
+        let sig = ProfileSignature::new("s".to_string(), "k".to_string(), TrustState::Unsigned);
+        assert!(!sig.is_valid());
+        assert!(!sig.is_trusted());
+    }
+
+    #[test]
+    fn test_trust_state_default() {
+        let state = TrustState::default();
+        assert_eq!(state, TrustState::Unsigned);
+    }
+
+    #[test]
+    fn test_trust_state_serde_round_trip() {
+        for state in [
+            TrustState::Unsigned,
+            TrustState::Trusted,
+            TrustState::ValidUnknown,
+            TrustState::Invalid,
+        ] {
+            let json = serde_json::to_string(&state).expect("serialize");
+            let restored: TrustState = serde_json::from_str(&json).expect("deserialize");
+            assert_eq!(restored, state);
+        }
+    }
+
+    #[test]
+    fn test_profile_signature_serde_round_trip() {
+        let sig = ProfileSignature::new(
+            "sig_data".to_string(),
+            "pub_key".to_string(),
+            TrustState::Trusted,
+        );
+
+        let json = serde_json::to_string(&sig).expect("serialize");
+        let restored: ProfileSignature = serde_json::from_str(&json).expect("deserialize");
+
+        assert_eq!(restored.signature, sig.signature);
+        assert_eq!(restored.public_key, sig.public_key);
+        assert_eq!(restored.trust_state, sig.trust_state);
+    }
+
+    #[test]
+    fn test_hash_json_deterministic_length() {
+        let hash = ProfileSigner::hash_json("test");
+        assert_eq!(hash.len(), 64); // SHA-256 hex = 64 chars
+    }
+
+    #[test]
+    fn test_hash_json_empty_string() {
+        let hash = ProfileSigner::hash_json("");
+        assert_eq!(hash.len(), 64);
+        // Ensure it's a valid hex string
+        assert!(hash.chars().all(|c| c.is_ascii_hexdigit()));
+    }
+
+    #[test]
+    fn test_signer_add_trusted_key() {
+        let mut signer = ProfileSigner::new();
+        assert!(!signer.is_trusted("key1"));
+
+        signer.add_trusted_key("key1".to_string());
+        assert!(signer.is_trusted("key1"));
+        assert!(!signer.is_trusted("key2"));
+
+        signer.add_trusted_key("key2".to_string());
+        assert!(signer.is_trusted("key2"));
+    }
+
+    #[test]
+    fn test_signer_default() {
+        let signer = ProfileSigner::default();
+        assert!(!signer.is_trusted("anything"));
+    }
+
+    #[test]
+    fn test_sign_produces_non_empty_fields() {
+        let signer = ProfileSigner::new();
+        let signing_key = create_signing_key();
+        let json = r#"{"settings": {"gain": 0.5}}"#;
+
+        let sig = signer.sign(json, &signing_key).expect("should sign");
+        assert!(!sig.signature.is_empty());
+        assert!(!sig.public_key.is_empty());
+        // Verify both are valid base64
+        assert!(BASE64.decode(&sig.signature).is_ok());
+        assert!(BASE64.decode(&sig.public_key).is_ok());
+    }
+
+    #[test]
+    fn test_sign_different_content_produces_different_signatures() {
+        let signer = ProfileSigner::new();
+        let signing_key = create_signing_key();
+
+        let sig1 = signer.sign(r#"{"a": 1}"#, &signing_key).expect("sign 1");
+        let sig2 = signer.sign(r#"{"a": 2}"#, &signing_key).expect("sign 2");
+
+        assert_ne!(sig1.signature, sig2.signature);
+        // Same key for both
+        assert_eq!(sig1.public_key, sig2.public_key);
+    }
+
+    #[test]
+    fn test_verify_invalid_base64_signature() {
+        let signer = ProfileSigner::new();
+        let json = r#"{"test": "data"}"#;
+
+        let result = signer.verify(json, "!!!not-base64!!!");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_verify_invalid_json() {
+        let signer = ProfileSigner::new();
+        let result = signer.verify("not json at all", "AAAA");
+        assert!(result.is_err());
+    }
 }

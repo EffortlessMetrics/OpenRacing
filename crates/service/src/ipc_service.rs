@@ -566,12 +566,75 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_version_compatibility() {
+    fn test_version_compatibility_exact_match() {
         assert!(is_version_compatible("1.0.0", "1.0.0"));
+    }
+
+    #[test]
+    fn test_version_compatibility_higher_minor() {
         assert!(is_version_compatible("1.1.0", "1.0.0"));
+    }
+
+    #[test]
+    fn test_version_compatibility_higher_patch() {
         assert!(is_version_compatible("1.0.1", "1.0.0"));
+    }
+
+    #[test]
+    fn test_version_compatibility_lower_major() {
         assert!(!is_version_compatible("0.9.0", "1.0.0"));
+    }
+
+    #[test]
+    fn test_version_compatibility_higher_major() {
         assert!(!is_version_compatible("2.0.0", "1.0.0"));
+    }
+
+    #[test]
+    fn test_version_compatibility_higher_minor_and_patch() {
+        assert!(is_version_compatible("1.5.3", "1.2.1"));
+    }
+
+    #[test]
+    fn test_version_compatibility_lower_minor() {
+        assert!(!is_version_compatible("1.0.0", "1.1.0"));
+    }
+
+    #[test]
+    fn test_version_compatibility_same_minor_lower_patch() {
+        assert!(!is_version_compatible("1.0.0", "1.0.1"));
+    }
+
+    #[test]
+    fn test_version_compatibility_empty_strings() {
+        assert!(!is_version_compatible("", "1.0.0"));
+        assert!(!is_version_compatible("1.0.0", ""));
+        assert!(!is_version_compatible("", ""));
+    }
+
+    #[test]
+    fn test_version_compatibility_single_component() {
+        assert!(!is_version_compatible("1", "1.0.0"));
+        assert!(!is_version_compatible("1.0.0", "1"));
+    }
+
+    #[test]
+    fn test_version_compatibility_two_components() {
+        assert!(!is_version_compatible("1.0", "1.0.0"));
+        assert!(!is_version_compatible("1.0.0", "1.0"));
+    }
+
+    #[test]
+    fn test_version_compatibility_non_numeric() {
+        // Non-numeric components parse as 0, which may cause a false match
+        // Just verify it doesn't panic
+        let _ = is_version_compatible("abc.def.ghi", "1.0.0");
+    }
+
+    #[test]
+    fn test_version_compatibility_extra_components_ignored() {
+        // Extra components beyond the 3rd are ignored; first three must still match
+        assert!(is_version_compatible("1.0.0.beta", "1.0.0"));
     }
 
     #[tokio::test]

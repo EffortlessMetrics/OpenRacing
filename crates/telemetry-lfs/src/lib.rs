@@ -39,3 +39,33 @@
 pub use racing_wheel_telemetry_adapters::TelemetryAdapter;
 pub use racing_wheel_telemetry_adapters::lfs::LFSAdapter;
 pub use racing_wheel_telemetry_core::{NormalizedTelemetry, TelemetryFrame};
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::Duration;
+
+    #[test]
+    fn test_lfs_adapter_game_id() {
+        let adapter = LFSAdapter::new();
+        assert_eq!(adapter.game_id(), "live_for_speed");
+    }
+
+    #[test]
+    fn test_lfs_adapter_update_rate() {
+        let adapter = LFSAdapter::new();
+        assert!(adapter.expected_update_rate() > Duration::ZERO);
+    }
+
+    #[test]
+    fn test_lfs_adapter_as_trait_object() {
+        let adapter: Box<dyn TelemetryAdapter> = Box::new(LFSAdapter::new());
+        assert_eq!(adapter.game_id(), "live_for_speed");
+    }
+
+    #[test]
+    fn test_lfs_adapter_rejects_empty_data() {
+        let adapter = LFSAdapter::new();
+        assert!(adapter.normalize(&[]).is_err());
+    }
+}
