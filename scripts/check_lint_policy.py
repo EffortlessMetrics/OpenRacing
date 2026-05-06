@@ -56,11 +56,19 @@ def workspace_members() -> list[Path]:
     data = load_toml(ROOT_CARGO)
     members = data.get("workspace", {}).get("members", [])
     paths: list[Path] = []
+    missing: list[str] = []
     for member in members:
         # cargo glob expansion is rare here; the workspace is explicit.
         manifest = REPO_ROOT / member / "Cargo.toml"
         if manifest.exists():
             paths.append(manifest)
+        else:
+            missing.append(member)
+    if missing:
+        sys.exit(
+            "lint-policy: [workspace.members] references missing manifests: "
+            + ", ".join(missing)
+        )
     return paths
 
 

@@ -66,9 +66,14 @@ PATTERNS: list[tuple[str, re.Pattern[str]]] = [
     ("unwrap", re.compile(r"\.unwrap\s*\(\s*\)")),
     # `&s[a..b]` style panicking string slice (heuristic).
     ("string_slice", re.compile(r"&[A-Za-z_][A-Za-z0-9_]*\[[^\]]+\.\.[^\]]*\]")),
-    # `xs[i]` direct indexing on identifiers (heuristic; many false
-    # positives so we stage this as warn and collect-only).
-    ("indexing", re.compile(r"(?<![\w\]\)\.])[A-Za-z_][A-Za-z0-9_]*\[[^\]]+\]")),
+    # `xs[i]` direct indexing on identifiers. Heuristic; staged as warn /
+    # collect-only. The negative lookbehind excludes obvious non-indexing
+    # contexts: identifier continuation, dot-chains, attribute markers,
+    # type ascription (`: [u8; 4]`), and the `[T; N]` array-type form.
+    ("indexing", re.compile(
+        r"(?<![\w\]\)\.\:\#])"
+        r"[A-Za-z_][A-Za-z0-9_]*\[(?![A-Za-z_][A-Za-z0-9_<>:'\s]*;\s)[^\]]+\]"
+    )),
 ]
 
 # Lines containing these markers are skipped entirely. Comments and
