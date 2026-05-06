@@ -10,8 +10,11 @@ use tokio::time::{Duration, interval};
 use tracing::{debug, error, info, warn};
 
 use crate::{
-    IpcConfig, IpcServer, TransportType, WheelService, profile_repository::ProfileRepositoryConfig,
+    IpcConfig, TransportType, WheelService, game_service::GameService,
+    ipc_service::WheelServiceImpl, profile_repository::ProfileRepositoryConfig,
 };
+use racing_wheel_schemas::generated::wheel::v1::wheel_service_server::WheelServiceServer;
+use tonic::transport::Server;
 
 /// Service configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -235,21 +238,38 @@ impl ServiceDaemon {
 
         info!("Wheel service created successfully");
 
-        // Create IPC server
-        let ipc_server = IpcServer::new(self.config.ipc.clone())
-            .await
-            .context("Failed to create IPC server")?;
+        // Create game service for gRPC layer
+        let game_service = Arc::new(
+            GameService::new()
+                .await
+                .context("Failed to create game service")?,
+        );
 
-        // Start IPC server
-        let ipc_handle = {
-            let server = ipc_server.clone();
-            let service = wheel_service.clone();
-            tokio::spawn(async move {
-                if let Err(e) = server.serve(service).await {
-                    error!("IPC server error: {}", e);
-                }
-            })
-        };
+        // Create gRPC service implementation backed by real domain services
+        let (health_tx, _) = broadcast::channel(1000);
+        let grpc_service = WheelServiceImpl::new(
+            wheel_service.device_service().clone(),
+            wheel_service.profile_service().clone(),
+            wheel_service.safety_service().clone(),
+            game_service,
+            health_tx,
+        );
+
+        // Start gRPC IPC server
+        let grpc_addr = "127.0.0.1:50051";
+        let addr = grpc_addr
+            .parse()
+            .context("Failed to parse gRPC bind address")?;
+        info!("Starting gRPC IPC server on {}", grpc_addr);
+        let grpc_handle = tokio::spawn(async move {
+            if let Err(e) = Server::builder()
+                .add_service(WheelServiceServer::new(grpc_service))
+                .serve(addr)
+                .await
+            {
+                error!("gRPC server error: {}", e);
+            }
+        });
 
         // Start health monitoring
         let health_handle = {
@@ -284,11 +304,9 @@ impl ServiceDaemon {
         info!("Shutting down service instance");
         self.is_running.store(false, Ordering::SeqCst);
 
-        // Stop IPC server
-        ipc_server.shutdown().await;
-
-        // Wait for tasks to complete
-        let _ = tokio::join!(ipc_handle, health_handle);
+        // Abort gRPC server and wait for tasks to complete
+        grpc_handle.abort();
+        let _ = tokio::join!(grpc_handle, health_handle);
 
         info!("Service instance stopped");
         Ok(())
