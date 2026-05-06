@@ -177,8 +177,7 @@ fn new_project_cars_2_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
 }
 
 fn new_project_cars_3_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
-    // PCARS3 uses the same UDP telemetry format as PCARS2
-    Box::new(PCars2ConfigWriter)
+    Box::new(PCars3ConfigWriter)
 }
 
 fn new_live_for_speed_config_writer() -> Box<dyn ConfigWriter + Send + Sync> {
@@ -2789,6 +2788,8 @@ impl ConfigWriter for BeamNGDriveConfigWriter {
 
 const PCARS2_BRIDGE_RELATIVE_PATH: &str =
     "Documents/OpenRacing/project_cars_2_bridge_contract.json";
+const PCARS3_BRIDGE_RELATIVE_PATH: &str =
+    "Documents/OpenRacing/project_cars_3_bridge_contract.json";
 const PCARS2_BRIDGE_PROTOCOL: &str = "sms_udp_pcars2";
 const PCARS2_DEFAULT_PORT: u16 = 5606;
 
@@ -2888,6 +2889,111 @@ impl ConfigWriter for PCars2ConfigWriter {
 
         Ok(vec![ConfigDiff {
             file_path: PCARS2_BRIDGE_RELATIVE_PATH.to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: None,
+            new_value: expected,
+            operation: DiffOperation::Add,
+        }])
+    }
+}
+
+/// Project CARS 3 configuration writer.
+pub struct PCars3ConfigWriter;
+
+impl Default for PCars3ConfigWriter {
+    fn default() -> Self {
+        Self
+    }
+}
+
+impl ConfigWriter for PCars3ConfigWriter {
+    fn write_config(&self, game_path: &Path, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        info!("Writing Project CARS 3 bridge contract configuration");
+
+        let contract_path = resolve_game_path(game_path, PCARS3_BRIDGE_RELATIVE_PATH);
+        let existed_before = contract_path.exists();
+        let existing_content = if existed_before {
+            Some(fs::read_to_string(&contract_path)?)
+        } else {
+            None
+        };
+
+        let udp_port = parse_target_port(&config.output_target).unwrap_or(PCARS2_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "project_cars_3",
+            "telemetry_protocol": PCARS2_BRIDGE_PROTOCOL,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "setup_notes": [
+                "In Project CARS 3, enable UDP telemetry in Gameplay > HUD/Telemetry settings.",
+                "Set UDP IP Address to 127.0.0.1 and Port to 5606.",
+                "The bridge uses the Project CARS 2-compatible SMS UDP packet layout."
+            ],
+        });
+
+        let new_content = serde_json::to_string_pretty(&contract)?;
+        if let Some(parent) = contract_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(&contract_path, &new_content)?;
+
+        Ok(vec![ConfigDiff {
+            file_path: contract_path.to_string_lossy().to_string(),
+            section: None,
+            key: "entire_file".to_string(),
+            old_value: existing_content,
+            new_value: new_content,
+            operation: if existed_before {
+                DiffOperation::Modify
+            } else {
+                DiffOperation::Add
+            },
+        }])
+    }
+
+    fn validate_config(&self, game_path: &Path) -> Result<bool> {
+        let contract_path = resolve_game_path(game_path, PCARS3_BRIDGE_RELATIVE_PATH);
+        if !contract_path.exists() {
+            return Ok(false);
+        }
+
+        let content = fs::read_to_string(contract_path)?;
+        let value: Value = serde_json::from_str(&content)?;
+
+        let valid_protocol = value
+            .get("telemetry_protocol")
+            .and_then(Value::as_str)
+            .map(|v| v == PCARS2_BRIDGE_PROTOCOL)
+            .unwrap_or(false);
+        let valid_game = value
+            .get("game_id")
+            .and_then(Value::as_str)
+            .map(|v| v == "project_cars_3")
+            .unwrap_or(false);
+
+        Ok(valid_protocol && valid_game)
+    }
+
+    fn get_expected_diffs(&self, config: &TelemetryConfig) -> Result<Vec<ConfigDiff>> {
+        let udp_port = parse_target_port(&config.output_target).unwrap_or(PCARS2_DEFAULT_PORT);
+        let contract = serde_json::json!({
+            "game_id": "project_cars_3",
+            "telemetry_protocol": PCARS2_BRIDGE_PROTOCOL,
+            "udp_port": udp_port,
+            "update_rate_hz": config.update_rate_hz,
+            "enabled": config.enabled,
+            "setup_notes": [
+                "In Project CARS 3, enable UDP telemetry in Gameplay > HUD/Telemetry settings.",
+                "Set UDP IP Address to 127.0.0.1 and Port to 5606.",
+                "The bridge uses the Project CARS 2-compatible SMS UDP packet layout."
+            ],
+        });
+        let expected = serde_json::to_string_pretty(&contract)?;
+
+        Ok(vec![ConfigDiff {
+            file_path: PCARS3_BRIDGE_RELATIVE_PATH.to_string(),
             section: None,
             key: "entire_file".to_string(),
             old_value: None,
