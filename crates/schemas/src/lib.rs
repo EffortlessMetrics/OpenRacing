@@ -312,7 +312,7 @@ pub mod config {
                 .schema
                 .iter_errors(&value)
                 .map(|error| {
-                    let path = if error.instance_path().is_empty() {
+                    let path = if error.instance_path().to_string().is_empty() {
                         "root".to_string()
                     } else {
                         error.instance_path().to_string()
