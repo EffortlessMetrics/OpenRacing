@@ -14,6 +14,10 @@ readme = "README.md"
 description = "Command-line tools for configuring and diagnosing OpenRacing"
 keywords = ["cli", "config", "diagnostic", "racing", "openracing"]
 categories = ["command-line-utilities"]
+
+[lints]
+workspace = true
+
 [[bin]]
 name = "wheelctl"
 path = "src/main.rs"

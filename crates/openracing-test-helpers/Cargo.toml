@@ -8,6 +8,9 @@ repository.workspace = true
 description = "Shared test utilities for OpenRacing"
 publish = false
 
+[lints]
+workspace = true
+
 [lib]
 name = "openracing_test_helpers"
 path = "src/lib.rs"
@@ -33,9 +36,3 @@ workspace-hack = { version = "0.1", path = "../../workspace-hack" }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util"] }
-
-[lints.rust]
-unsafe_op_in_unsafe_fn = "deny"
-
-[lints.clippy]
-unwrap_used = "allow"

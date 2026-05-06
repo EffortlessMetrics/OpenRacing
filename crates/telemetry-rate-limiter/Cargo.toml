@@ -12,6 +12,8 @@ description = "Rate limiting helpers for telemetry processing in OpenRacing"
 readme = "README.md"
 keywords = ["telemetry", "realtime", "rate-limiting", "performance"]
 
+[lints]
+workspace = true
 
 [package.metadata.cargo-udeps.ignore]
 normal = ["workspace-hack"]

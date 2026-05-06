@@ -6,6 +6,9 @@ description = "Shared USB HID PID (PIDFF) effect encoders for force feedback dev
 license = "MIT OR Apache-2.0"
 publish = false
 
+[lints]
+workspace = true
+
 [dependencies]
 workspace-hack = { version = "0.1", path = "../../workspace-hack" }
 

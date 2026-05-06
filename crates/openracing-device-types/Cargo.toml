@@ -13,6 +13,10 @@ readme = "README.md"
 description = "Fundamental device type enumerations and classification for OpenRacing"
 keywords = ["device", "types", "classification", "hid", "openracing"]
 categories = ["game-development", "hardware-support"]
+
+[lints]
+workspace = true
+
 [features]
 proptest = ["dep:proptest"]
 

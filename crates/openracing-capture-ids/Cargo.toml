@@ -6,6 +6,8 @@ license.workspace = true
 authors.workspace = true
 repository.workspace = true
 
+[lints]
+workspace = true
 
 [package.metadata.cargo-udeps.ignore]
 normal = ["workspace-hack"]
@@ -28,4 +30,3 @@ ctrlc = "3.5.2"
 racing-wheel-moza-wheelbase-report = { workspace = true }
 racing-wheel-hid-logitech-protocol = { workspace = true }
 workspace-hack = { version = "0.1", path = "../../workspace-hack" }
-

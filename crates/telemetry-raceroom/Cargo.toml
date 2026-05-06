@@ -12,6 +12,8 @@ description = "RaceRoom Racing Experience telemetry adapter (R3E shared memory)"
 readme = "README.md"
 keywords = ["telemetry", "raceroom", "r3e", "racing", "simracing"]
 
+[lints]
+workspace = true
 
 [package.metadata.cargo-udeps.ignore]
 normal = ["workspace-hack"]

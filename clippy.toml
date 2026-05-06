@@ -1,31 +1,30 @@
-# Clippy configuration for consistent linting
+# Clippy configuration for OpenRacing.
+#
+# Lint levels live in the workspace Cargo.toml and are mirrored in
+# policy/clippy-lints.toml. This file is reserved for repo-specific Clippy
+# configuration knobs and disallowed-method/type/macro policy; do not add test
+# carveouts such as allow-unwrap-in-tests or allow-panic-in-tests.
 
-# Avoid false positives for large error types in Result
+# Avoid false positives for large error types in Result.
 type-complexity-threshold = 250
 
-# Allow longer function names for descriptive RT functions
+# Allow descriptive RT functions and builder-style APIs to remain readable.
 too-many-arguments-threshold = 8
 
-# Allow more complex functions for RT critical paths
+# Allow more complex functions for reviewed RT-critical state machines.
 cognitive-complexity-threshold = 30
 
-# Increase enum variant name threshold for detailed error types
+# Increase enum variant name threshold for detailed error types.
 enum-variant-name-threshold = 4
 
-# Allow longer variable names for clarity in RT code
+# Allow longer variable names for clarity in RT code.
 single-char-binding-names-threshold = 5
 
-# Increase literal representation threshold
+# Increase literal representation threshold.
 literal-representation-threshold = 10
 
-# Allow more fields in structs for configuration objects
+# Allow more lines in configuration and protocol tables before style warnings.
 too-many-lines-threshold = 150
 
-# Increase trivial copy pass by value threshold for small types
+# Increase trivial-copy pass-by-value threshold for small RT data types.
 trivial-copy-size-limit = 128
-
-# Allow more arguments for builder patterns (updated from 8 to 10)
-# too-many-arguments-threshold = 10  # Already set above to 8
-
-# Increase complexity threshold for state machines (already set above as cognitive-complexity-threshold)
-# cyclomatic-complexity-threshold = 15  # Deprecated, using cognitive-complexity-threshold instead

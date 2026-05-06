@@ -9,6 +9,8 @@ description = "RT-safe atomic counters and metrics primitives for OpenRacing"
 keywords = ["real-time", "atomic", "metrics", "counters", "no-std"]
 categories = ["concurrency", "embedded", "no-std"]
 
+[lints]
+workspace = true
 
 [package.metadata.cargo-udeps.ignore]
 normal = ["workspace-hack", "crossbeam"]

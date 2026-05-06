@@ -13,13 +13,9 @@ documentation = "https://docs.rs/hid-cube-controls-protocol"
 readme = "README.md"
 keywords = ["cube-controls", "hid", "usb", "racing", "protocol"]
 categories = ["hardware-support", "no-std"]
-[lints.rust]
-warnings = "deny"
-unused_must_use = "deny"
 
-[lints.clippy]
-unwrap_used = "deny"
-
+[lints]
+workspace = true
 
 [package.metadata.cargo-udeps.ignore]
 normal = ["workspace-hack"]

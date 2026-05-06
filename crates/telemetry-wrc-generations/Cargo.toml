@@ -12,6 +12,8 @@ description = "WRC Generations telemetry adapter (Codemasters Mode 1 UDP)"
 readme = "README.md"
 keywords = ["telemetry", "wrc", "codemasters", "racing", "simracing"]
 
+[lints]
+workspace = true
 
 [package.metadata.cargo-udeps.ignore]
 normal = ["workspace-hack"]

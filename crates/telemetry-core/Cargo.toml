@@ -13,6 +13,10 @@ readme = "README.md"
 keywords = ["telemetry", "racing", "ffb", "connection", "normalization"]
 
 categories = ["game-development"]
+
+[lints]
+workspace = true
+
 [features]
 default = []
 orchestrator = ["dep:racing-wheel-telemetry-recorder", "dep:racing-wheel-telemetry-config", "dep:tracing"]
