@@ -12,6 +12,8 @@ description = "Automobilista 2 (AMS2) shared memory telemetry adapter (PCARS2 fo
 readme = "README.md"
 keywords = ["telemetry", "ams2", "automobilista", "pcars2", "racing"]
 
+[lints]
+workspace = true
 
 [package.metadata.cargo-udeps.ignore]
 normal = ["workspace-hack"]

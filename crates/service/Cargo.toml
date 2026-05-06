@@ -13,6 +13,10 @@ readme = "README.md"
 description = "Background service daemon for OpenRacing hardware management"
 keywords = ["service", "daemon", "hardware", "racing", "openracing"]
 categories = ["game-development", "hardware-support"]
+
+[lints]
+workspace = true
+
 [[bin]]
 name = "wheeld"
 path = "src/main.rs"

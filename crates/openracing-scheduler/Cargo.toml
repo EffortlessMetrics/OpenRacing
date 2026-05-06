@@ -7,6 +7,8 @@ authors.workspace = true
 repository.workspace = true
 description = "Absolute scheduling with PLL drift correction and jitter tracking for real-time systems"
 
+[lints]
+workspace = true
 
 [package.metadata.cargo-udeps.ignore]
 normal = ["workspace-hack", "thiserror"]

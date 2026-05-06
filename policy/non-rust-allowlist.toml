@@ -1,0 +1,46 @@
+schema_version = "1.0"
+
+[[allow]]
+glob = "scripts/**/*.py"
+kind = "repo_tooling"
+owner = "build/tooling"
+reason = "Repository automation and policy checks are currently implemented as Python scripts."
+surface = "tooling"
+classification = "production"
+covered_by = ["python scripts/validate_adr.py --verbose", "python scripts/generate_docs_index.py"]
+
+[[allow]]
+glob = "scripts/**/*.sh"
+kind = "repo_tooling"
+owner = "build/tooling"
+reason = "Shell wrappers provide cross-platform CI entry points around Cargo commands."
+surface = "tooling"
+classification = "production"
+covered_by = ["scripts/ci_nix.sh"]
+
+[[allow]]
+glob = "scripts/**/*.ps1"
+kind = "repo_tooling"
+owner = "build/tooling"
+reason = "PowerShell wrappers provide Windows CI and developer entry points around Cargo commands."
+surface = "tooling"
+classification = "production"
+covered_by = ["scripts/ci_wsl.ps1"]
+
+[[allow]]
+glob = ".github/workflows/*.yml"
+kind = "ci_declarative"
+owner = "release/ci"
+reason = "GitHub Actions workflows are platform-required YAML configuration."
+surface = "ci"
+classification = "config"
+covered_by = ["cargo xtask check-lint-policy"]
+
+[[allow]]
+glob = "packaging/**/*.yml"
+kind = "packaging_config"
+owner = "release/packaging"
+reason = "Distribution packaging metadata is maintained in platform-native YAML."
+surface = "packaging"
+classification = "config"
+covered_by = ["cargo xtask check-lint-policy"]

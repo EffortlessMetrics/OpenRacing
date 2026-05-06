@@ -13,6 +13,8 @@ readme = "README.md"
 keywords = ["curve", "bezier", "ffb", "lut", "real-time"]
 categories = ["embedded", "game-development", "mathematics"]
 
+[lints]
+workspace = true
 
 [package.metadata.cargo-udeps.ignore]
 normal = ["workspace-hack", "thiserror"]
