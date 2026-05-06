@@ -12,6 +12,8 @@ description = "SimHub UDP JSON bridge telemetry adapter"
 readme = "README.md"
 keywords = ["telemetry", "simhub", "udp", "json", "racing"]
 
+[lints]
+workspace = true
 
 [package.metadata.cargo-udeps.ignore]
 normal = ["workspace-hack"]

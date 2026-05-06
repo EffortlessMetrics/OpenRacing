@@ -9,6 +9,8 @@ description = "Centralized error types for OpenRacing"
 keywords = ["error", "error-handling", "real-time", "racing"]
 categories = ["rust-patterns", "no-std"]
 
+[lints]
+workspace = true
 
 [package.metadata.cargo-udeps.ignore]
 normal = ["workspace-hack", "thiserror"]

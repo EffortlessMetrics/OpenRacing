@@ -12,6 +12,8 @@ description = "Tauri-based desktop GUI for OpenRacing"
 name = "openracing"
 path = "src/main.rs"
 
+[lints]
+workspace = true
 
 [package.metadata.cargo-udeps.ignore]
 normal = ["workspace-hack"]

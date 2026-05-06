@@ -9,6 +9,8 @@ description = "Hardware watchdog management for safety-critical torque control i
 keywords = ["watchdog", "hardware", "safety", "real-time", "embedded"]
 categories = ["embedded", "no-std", "hardware-support"]
 
+[lints]
+workspace = true
 
 [package.metadata.cargo-udeps.ignore]
 normal = ["workspace-hack"]

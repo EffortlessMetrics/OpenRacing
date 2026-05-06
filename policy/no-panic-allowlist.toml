@@ -1,0 +1,5 @@
+schema_version = "0.3"
+
+# No panic-family exceptions are approved by default.
+# Add narrow entries with path + family + selector identity only when the code
+# cannot yet be migrated to panic-free Result/Option handling.

@@ -12,6 +12,8 @@ description = "Telemetry recording, playback, and synthetic fixture generation f
 readme = "README.md"
 keywords = ["telemetry", "recording", "replay", "fixtures", "racing"]
 
+[lints]
+workspace = true
 
 [package.metadata.cargo-udeps.ignore]
 normal = ["workspace-hack"]

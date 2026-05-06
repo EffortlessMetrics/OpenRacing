@@ -1,0 +1,136 @@
+schema_version = "1.0"
+
+[[allow]]
+glob = ".github/workflows/*.yml"
+kind = "ci_declarative"
+owner = "release/ci"
+reason = "GitHub Actions workflow definitions are platform-required YAML."
+surface = "ci"
+classification = "config"
+covered_by = ["cargo xtask check-file-policy"]
+
+[[allow]]
+glob = "scripts/**/*.py"
+kind = "repo_tooling"
+owner = "build/tooling"
+reason = "Existing repository automation is Python while policy checks are moved toward Rust xtask commands."
+surface = "tooling"
+classification = "tooling"
+covered_by = ["python scripts/cargo_fmt_workspace.py", "cargo xtask check-file-policy"]
+
+[[allow]]
+glob = "scripts/**/*.sh"
+kind = "repo_tooling"
+owner = "build/tooling"
+reason = "Shell wrappers remain for platform setup and CI entry points."
+surface = "tooling"
+classification = "tooling"
+covered_by = ["cargo xtask check-file-policy"]
+
+[[allow]]
+glob = "scripts/**/*.ps1"
+kind = "repo_tooling"
+owner = "build/tooling"
+reason = "PowerShell wrappers support Windows developer and CI workflows."
+surface = "tooling"
+classification = "tooling"
+covered_by = ["cargo xtask check-file-policy"]
+
+[[allow]]
+glob = "**/*.feature"
+kind = "bdd_fixture"
+owner = "test/acceptance"
+reason = "Acceptance scenarios are declarative fixtures consumed by Rust tests."
+surface = "fixtures"
+classification = "test"
+covered_by = ["cargo test --all-features --workspace"]
+
+[[allow]]
+glob = "**/*.proto"
+kind = "protocol_schema"
+owner = "protocols"
+reason = "Protocol buffer schemas define IPC contracts generated into Rust."
+surface = "schema"
+classification = "production"
+covered_by = ["cargo test --all-features --workspace"]
+
+[[allow]]
+glob = "**/*.nix"
+kind = "dev_environment"
+owner = "build/tooling"
+reason = "Nix files describe reproducible development environments."
+surface = "tooling"
+classification = "config"
+covered_by = ["cargo xtask check-file-policy"]
+
+[[allow]]
+glob = "**/*.js"
+kind = "repo_tooling"
+owner = "build/tooling"
+reason = "Existing JavaScript tooling is tracked as non-Rust policy surface."
+surface = "tooling"
+classification = "tooling"
+covered_by = ["cargo xtask check-file-policy"]
+
+[[allow]]
+glob = "**/*.c"
+kind = "native_interop"
+owner = "platform"
+reason = "Native interop source is tracked explicitly as non-Rust policy surface."
+surface = "ffi"
+classification = "production"
+covered_by = ["cargo test --all-features --workspace"]
+
+[[allow]]
+glob = "**/*.wxs"
+kind = "installer_config"
+owner = "release/packaging"
+reason = "Windows installer definitions are platform-required packaging files."
+surface = "packaging"
+classification = "config"
+covered_by = ["cargo xtask check-file-policy"]
+
+[[allow]]
+glob = "build/**/*.sh"
+kind = "build_tooling"
+owner = "build/tooling"
+reason = "Build reproducibility wrappers are tracked as non-Rust policy surface."
+surface = "tooling"
+classification = "tooling"
+covered_by = ["cargo xtask check-file-policy"]
+
+[[allow]]
+glob = "packaging/**/*.sh"
+kind = "packaging_tooling"
+owner = "release/packaging"
+reason = "Platform packaging scripts are required for Linux and macOS release artifacts."
+surface = "packaging"
+classification = "tooling"
+covered_by = ["cargo xtask check-file-policy"]
+
+[[allow]]
+glob = "packaging/**/*.ps1"
+kind = "packaging_tooling"
+owner = "release/packaging"
+reason = "Windows packaging scripts are required for release artifacts."
+surface = "packaging"
+classification = "tooling"
+covered_by = ["cargo xtask check-file-policy"]
+
+[[allow]]
+glob = "crates/**/scripts/*.sh"
+kind = "crate_tooling"
+owner = "crate/owners"
+reason = "Crate-local compatibility scripts are tracked as non-Rust policy surface."
+surface = "tooling"
+classification = "tooling"
+covered_by = ["cargo xtask check-file-policy"]
+
+[[allow]]
+glob = "crates/**/scripts/*.ps1"
+kind = "crate_tooling"
+owner = "crate/owners"
+reason = "Crate-local Windows compatibility scripts are tracked as non-Rust policy surface."
+surface = "tooling"
+classification = "tooling"
+covered_by = ["cargo xtask check-file-policy"]

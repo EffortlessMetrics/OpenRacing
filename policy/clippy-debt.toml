@@ -1,0 +1,10 @@
+schema = 1
+
+# Temporary repo-specific lint exceptions go here as reviewed, expiring debt.
+#
+# [[debt]]
+# lint = "clippy::arithmetic_side_effects"
+# path = "crates/example/src/kernels/*.rs"
+# owner = "numeric-kernel"
+# reason = "Kernel arithmetic needs a reviewed checked/wrapping/saturating policy before global cleanup."
+# expires = "2026-07-01"

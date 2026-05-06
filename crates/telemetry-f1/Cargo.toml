@@ -13,6 +13,10 @@ readme = "README.md"
 keywords = ["telemetry", "f1", "formula1", "codemasters", "racing"]
 
 categories = ["game-development"]
+
+[lints]
+workspace = true
+
 [dependencies]
 racing-wheel-telemetry-adapters = { path = "../telemetry-adapters", version = "0.1.0" }
 racing-wheel-telemetry-core = { path = "../telemetry-core", version = "0.1.0" }

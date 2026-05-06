@@ -9,6 +9,8 @@ description = "Firmware update management for OpenRacing with A/B partition supp
 keywords = ["firmware", "update", "ota", "rollback", "embedded"]
 categories = ["embedded", "filesystem", "hardware-support"]
 
+[lints]
+workspace = true
 
 [package.metadata.cargo-udeps.ignore]
 normal = ["workspace-hack", "openracing-errors"]

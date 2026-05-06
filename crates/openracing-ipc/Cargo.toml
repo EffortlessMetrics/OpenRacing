@@ -9,6 +9,8 @@ description = "IPC server and transport for OpenRacing"
 keywords = ["ipc", "grpc", "tonic", "transport", "racing"]
 categories = ["network-programming", "asynchronous"]
 
+[lints]
+workspace = true
 
 [package.metadata.cargo-udeps.ignore]
 normal = ["workspace-hack", "async-stream", "chrono", "futures", "openracing-errors", "prost-types", "tokio-stream", "tonic"]

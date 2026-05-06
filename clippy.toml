@@ -29,3 +29,7 @@ trivial-copy-size-limit = 128
 
 # Increase complexity threshold for state machines (already set above as cognitive-complexity-threshold)
 # cyclomatic-complexity-threshold = 15  # Deprecated, using cognitive-complexity-threshold instead
+# Policy note: do not add test carveouts here. Workspace panic-free posture
+# applies to production, examples, benches, and tests. Repo-specific disallowed
+# methods/types/macros may be added here when a boundary policy needs Clippy
+# enforcement.

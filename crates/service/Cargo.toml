@@ -17,11 +17,13 @@ categories = ["game-development", "hardware-support"]
 name = "wheeld"
 path = "src/main.rs"
 
+[lints]
+workspace = true
+
 [features]
 default = []
 # Legacy feature flag - keygen is now always available
 keygen = []
-
 
 [package.metadata.cargo-udeps.ignore]
 normal = ["workspace-hack", "libudev", "openracing-ipc"]
