@@ -29,3 +29,6 @@ trivial-copy-size-limit = 128
 
 # Increase complexity threshold for state machines (already set above as cognitive-complexity-threshold)
 # cyclomatic-complexity-threshold = 15  # Deprecated, using cognitive-complexity-threshold instead
+# Policy note: this file is reserved for Clippy configuration knobs and
+# repo-specific disallowed methods/types/macros. Do not add test carveouts;
+# OpenRacing's policy is workspace panic-free.

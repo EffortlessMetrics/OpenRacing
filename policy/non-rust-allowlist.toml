@@ -1,0 +1,127 @@
+schema_version = "1.0"
+
+[[allow]]
+glob = "scripts/**/*.py"
+kind = "repo_tooling"
+owner = "workspace-maintainers"
+reason = "Repository maintenance and validation scripts are existing Python tooling that predate the Rust xtask migration."
+surface = "tooling"
+classification = "production"
+covered_by = ["python scripts/validate_adr.py --verbose", "python scripts/generate_docs_index.py"]
+
+[[allow]]
+glob = "scripts/**/*.sh"
+kind = "repo_tooling"
+owner = "workspace-maintainers"
+reason = "Shell wrappers provide cross-platform CI and release entry points while Rust replacements are staged."
+surface = "tooling"
+classification = "production"
+covered_by = ["shellcheck scripts/*.sh scripts/pre-commit/*.sh"]
+
+[[allow]]
+glob = "scripts/**/*.ps1"
+kind = "repo_tooling"
+owner = "workspace-maintainers"
+reason = "PowerShell wrappers support Windows CI and release workflows for this cross-platform project."
+surface = "tooling"
+classification = "production"
+covered_by = ["pwsh -NoProfile -File scripts/lint_gates.ps1"]
+
+[[allow]]
+glob = ".github/workflows/*.yml"
+kind = "ci_declarative"
+owner = "release/ci"
+reason = "GitHub Actions workflow definitions are platform-required YAML."
+surface = "ci"
+classification = "config"
+covered_by = ["cargo xtask check-file-policy"]
+
+[[allow]]
+glob = "crates/**/tests/fixtures/**"
+kind = "fixture_input"
+owner = "test-fixtures"
+reason = "Fixture directories intentionally carry non-Rust payloads consumed by Rust tests."
+surface = "fixtures"
+classification = "test"
+covered_by = ["cargo test --all-features --workspace"]
+
+[[allow]]
+glob = "packaging/**/*"
+kind = "packaging_config"
+owner = "release/packaging"
+reason = "Packaging metadata uses platform-specific declarative and scripting languages."
+surface = "release"
+classification = "config"
+covered_by = ["cargo xtask check-file-policy"]
+
+[[allow]]
+path = "flake.nix"
+kind = "dev_environment"
+owner = "dev-infra"
+reason = "Nix flake describes the reproducible development environment."
+surface = "tooling"
+classification = "config"
+covered_by = ["nix flake check"]
+
+[[allow]]
+path = "crates/telemetry-config-writers/tests/fixtures/f1_game_config/included/config/overlays/style.css"
+kind = "fixture_input"
+owner = "telemetry-config"
+reason = "CSS fixture models existing game configuration files consumed by telemetry config writer tests."
+surface = "fixtures"
+classification = "test"
+covered_by = ["cargo test -p racing-wheel-telemetry-config-writers"]
+
+[[allow]]
+path = "crates/telemetry-config-writers/tests/fixtures/f1_game_config/included/config/overlays/app.js"
+kind = "fixture_input"
+owner = "telemetry-config"
+reason = "JavaScript fixture models existing game configuration files consumed by telemetry config writer tests."
+surface = "fixtures"
+classification = "test"
+covered_by = ["cargo test -p racing-wheel-telemetry-config-writers"]
+
+[[allow]]
+path = "third_party/shared_memory/src/unix/cmsg_space.c"
+kind = "vendored_compat"
+owner = "platform-interop"
+reason = "Vendored compatibility helper is patched through third_party/shared_memory and kept outside the workspace member set."
+surface = "third_party"
+classification = "production"
+covered_by = ["cargo test --all-features --workspace"]
+
+[[allow]]
+glob = "build/**/*.sh"
+kind = "repo_tooling"
+owner = "build-infra"
+reason = "Build helper scripts are existing shell entry points while Rust xtask replacements are staged."
+surface = "tooling"
+classification = "production"
+covered_by = ["cargo xtask check-file-policy"]
+
+[[allow]]
+glob = "crates/schemas/scripts/**/*"
+kind = "schema_tooling"
+owner = "schema-maintainers"
+reason = "Schema compatibility helpers support cross-platform generated-schema validation."
+surface = "tooling"
+classification = "production"
+covered_by = ["cargo test -p racing-wheel-schemas"]
+
+[[allow]]
+glob = "crates/ui/dist/**/*"
+kind = "ui_static_asset"
+owner = "ui"
+reason = "Packaged UI static assets are served by the Rust UI crate and are not Rust source."
+surface = "ui"
+classification = "production"
+covered_by = ["cargo test -p racing-wheel-ui"]
+
+[[allow]]
+path = "crates/plugins/examples/sample_dsp_plugin.c"
+kind = "native_plugin_example"
+owner = "plugins"
+reason = "Native plugin ABI example intentionally demonstrates a C integration boundary."
+surface = "plugin-example"
+classification = "example"
+covered_by = ["cargo test -p racing-wheel-plugins"]

@@ -43,6 +43,7 @@ class LintGates:
             ("Glob Re-exports", self.check_glob_reexports),
             ("Cross-Crate Private Imports", self.check_private_imports),
             ("Lint Attributes", self.check_lint_attributes),
+            ("Policy Ledgers", self.check_policy_ledgers),
             ("Print Statements", self.check_print_statements),
         ]
         
@@ -173,6 +174,34 @@ class LintGates:
             print(f"Error running clippy for test code: {e}")
             return False
     
+
+    def check_policy_ledgers(self) -> bool:
+        """Run structured lint and exception policy checks."""
+        commands = [
+            ["cargo", "xtask", "check-lint-policy"],
+            ["cargo", "xtask", "check-file-policy"],
+            ["cargo", "xtask", "check-no-panic-family"],
+        ]
+
+        for command in commands:
+            result = subprocess.run(
+                command,
+                cwd=self.root_dir,
+                capture_output=True,
+                text=True,
+                encoding='utf-8',
+                errors='replace',
+            )
+            if result.returncode != 0:
+                print(f"Policy command failed: {' '.join(command)}")
+                if result.stdout:
+                    print(result.stdout)
+                if result.stderr:
+                    print(result.stderr)
+                return False
+
+        return True
+
     def check_unused_dependencies(self) -> bool:
         """Check for unused dependencies with cargo-udeps."""
         try:

@@ -1,0 +1,29 @@
+schema = 1
+
+[[debt]]
+lint = "clippy::unwrap_used"
+path = "crates/**/*.rs"
+owner = "workspace-maintainers"
+reason = "Initial OpenRacing strict-policy rollout preserves existing panic-family call sites as explicit migration debt for stacked cleanup PRs."
+expires = "2026-07-01"
+
+[[debt]]
+lint = "clippy::expect_used"
+path = "crates/**/*.rs"
+owner = "workspace-maintainers"
+reason = "Initial OpenRacing strict-policy rollout preserves existing panic-family call sites as explicit migration debt for stacked cleanup PRs."
+expires = "2026-07-01"
+
+[[debt]]
+lint = "clippy::arithmetic_side_effects"
+path = "crates/**/*.rs"
+owner = "rt-numeric"
+reason = "Real-time and telemetry numeric paths need reviewed wrapping, saturating, checked, and bounded arithmetic policy before warning cleanup."
+expires = "2026-07-01"
+
+[[debt]]
+lint = "clippy::indexing_slicing"
+path = "crates/**/*.rs"
+owner = "protocol-telemetry"
+reason = "Protocol parsing and generated fixture paths need checked-access abstractions before strict indexing cleanup."
+expires = "2026-07-01"

@@ -1,0 +1,6 @@
+schema_version = "0.3"
+
+# OpenRacing intentionally starts with no permanent no-panic exceptions in the
+# shared policy directory. Existing call sites are tracked as temporary Clippy
+# migration debt in policy/clippy-debt.toml and should move here only when a
+# narrow, semantic selector is reviewed.

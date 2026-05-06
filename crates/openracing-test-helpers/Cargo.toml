@@ -34,8 +34,5 @@ workspace-hack = { version = "0.1", path = "../../workspace-hack" }
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util"] }
 
-[lints.rust]
-unsafe_op_in_unsafe_fn = "deny"
-
-[lints.clippy]
-unwrap_used = "allow"
+[lints]
+workspace = true
