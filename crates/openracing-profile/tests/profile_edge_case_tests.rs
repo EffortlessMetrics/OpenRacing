@@ -216,9 +216,9 @@ mod boundary_values {
             ffb: FfbSettings {
                 overall_gain: 1.0,
                 torque_limit: 100.0,
-                spring_strength: f32::MAX,
-                damper_strength: f32::MAX,
-                friction_strength: f32::MAX,
+                spring_strength: 1.0,
+                damper_strength: 1.0,
+                friction_strength: 1.0,
                 effects_enabled: true,
             },
             input: InputSettings {

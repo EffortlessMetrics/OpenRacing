@@ -40,6 +40,33 @@ pub fn validate_settings(settings: &WheelSettings) -> ProfileResult<()> {
         ));
     }
 
+    if !settings.ffb.spring_strength.is_finite()
+        || settings.ffb.spring_strength < 0.0
+        || settings.ffb.spring_strength > 1.0
+    {
+        return Err(crate::ProfileError::ValidationError(
+            "Spring strength must be a finite value between 0.0 and 1.0".to_string(),
+        ));
+    }
+
+    if !settings.ffb.damper_strength.is_finite()
+        || settings.ffb.damper_strength < 0.0
+        || settings.ffb.damper_strength > 1.0
+    {
+        return Err(crate::ProfileError::ValidationError(
+            "Damper strength must be a finite value between 0.0 and 1.0".to_string(),
+        ));
+    }
+
+    if !settings.ffb.friction_strength.is_finite()
+        || settings.ffb.friction_strength < 0.0
+        || settings.ffb.friction_strength > 1.0
+    {
+        return Err(crate::ProfileError::ValidationError(
+            "Friction strength must be a finite value between 0.0 and 1.0".to_string(),
+        ));
+    }
+
     // Input validation
     if settings.input.steering_range < 90 || settings.input.steering_range > 3600 {
         return Err(crate::ProfileError::ValidationError(
@@ -99,14 +126,15 @@ fn validate_custom_curve(
         )));
     }
 
-    if curve.points.first().map(|p| p.x).unwrap_or(f32::NAN) > f32::EPSILON {
+    // Safety: indexing is sound here because we checked len() >= 2 above.
+    if curve.points[0].x > f32::EPSILON {
         return Err(crate::ProfileError::ValidationError(format!(
             "{} custom curve must start at x=0.0",
             name
         )));
     }
 
-    if (curve.points.last().map(|p| p.x).unwrap_or(f32::NAN) - 1.0).abs() > f32::EPSILON {
+    if (curve.points[curve.points.len() - 1].x - 1.0).abs() > f32::EPSILON {
         return Err(crate::ProfileError::ValidationError(format!(
             "{} custom curve must end at x=1.0",
             name
@@ -575,5 +603,49 @@ mod tests {
         );
         assert!(merged.settings.input.custom_throttle_curve.is_some());
         assert_eq!(merged.settings.advanced.led_mode, crate::LedMode::Rpm);
+    }
+
+    // -----------------------------------------------------------------------
+    // FFB strength field NaN/Infinity rejection
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_spring_strength_nan_rejected() {
+        let mut s = WheelSettings::default();
+        s.ffb.spring_strength = f32::NAN;
+        assert!(
+            validate_settings(&s).is_err(),
+            "NaN spring strength must be rejected"
+        );
+    }
+
+    #[test]
+    fn test_damper_strength_infinity_rejected() {
+        let mut s = WheelSettings::default();
+        s.ffb.damper_strength = f32::INFINITY;
+        assert!(
+            validate_settings(&s).is_err(),
+            "Infinity damper strength must be rejected"
+        );
+    }
+
+    #[test]
+    fn test_friction_strength_neg_infinity_rejected() {
+        let mut s = WheelSettings::default();
+        s.ffb.friction_strength = f32::NEG_INFINITY;
+        assert!(
+            validate_settings(&s).is_err(),
+            "NEG_INFINITY friction strength must be rejected"
+        );
+    }
+
+    #[test]
+    fn test_spring_strength_out_of_range_rejected() {
+        let mut s = WheelSettings::default();
+        s.ffb.spring_strength = 1.01;
+        assert!(validate_settings(&s).is_err());
+
+        s.ffb.spring_strength = -0.01;
+        assert!(validate_settings(&s).is_err());
     }
 }
