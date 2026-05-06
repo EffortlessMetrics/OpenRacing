@@ -4,9 +4,9 @@
 //! roundtrips, schema migration, and property-based fuzzing.
 
 use openracing_profile::{
-    AdvancedSettings, CURRENT_SCHEMA_VERSION, CurveType, FfbSettings, InputSettings, LedMode,
-    LimitSettings, ProfileError, WheelProfile, WheelSettings, backup_profile, generate_profile_id,
-    merge_profiles, migrate_profile, validate_profile, validate_settings,
+    AdvancedSettings, CURRENT_SCHEMA_VERSION, CurveType, CustomCurve, FfbSettings, InputSettings,
+    LedMode, LimitSettings, ProfileError, WheelProfile, WheelSettings, backup_profile,
+    generate_profile_id, merge_profiles, migrate_profile, validate_profile, validate_settings,
 };
 use proptest::prelude::*;
 
@@ -57,6 +57,8 @@ mod serialization_roundtrip {
                 throttle_curve: CurveType::Exponential,
                 brake_curve: CurveType::Logarithmic,
                 clutch_curve: CurveType::Custom,
+                custom_clutch_curve: Some(CustomCurve::default()),
+                ..Default::default()
             },
             limits: LimitSettings {
                 max_speed: Some(300.0),
@@ -499,10 +501,8 @@ mod property_tests {
                     torque_limit: torque,
                     ..FfbSettings::default()
                 },
-                input: InputSettings {
-                    steering_range: range,
-                    ..InputSettings::default()
-                },
+                input: InputSettings { steering_range: range,
+                    ..InputSettings::default() },
                 advanced: AdvancedSettings {
                     filter_strength: filter,
                     ..AdvancedSettings::default()

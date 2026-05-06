@@ -5,9 +5,9 @@
 //! device-specific bindings, and proptest-based randomized validation.
 
 use openracing_profile::{
-    AdvancedSettings, CURRENT_SCHEMA_VERSION, CurveType, FfbSettings, InputSettings, LedMode,
-    LimitSettings, ProfileError, WheelProfile, WheelSettings, backup_profile, generate_profile_id,
-    merge_profiles, migrate_profile, validate_profile, validate_settings,
+    AdvancedSettings, CURRENT_SCHEMA_VERSION, CurveType, CustomCurve, FfbSettings, InputSettings,
+    LedMode, LimitSettings, ProfileError, WheelProfile, WheelSettings, backup_profile,
+    generate_profile_id, merge_profiles, migrate_profile, validate_profile, validate_settings,
 };
 use proptest::prelude::*;
 
@@ -50,6 +50,8 @@ mod creation_all_fields {
                 throttle_curve: CurveType::Exponential,
                 brake_curve: CurveType::Logarithmic,
                 clutch_curve: CurveType::Custom,
+                custom_clutch_curve: Some(CustomCurve::default()),
+                ..Default::default()
             },
             ..WheelSettings::default()
         };
@@ -134,6 +136,9 @@ mod creation_all_fields {
         for curve in &curves {
             let mut settings = WheelSettings::default();
             settings.input.throttle_curve = *curve;
+            if *curve == CurveType::Custom {
+                settings.input.custom_throttle_curve = Some(CustomCurve::default());
+            }
             let profile = WheelProfile::new("Curve Test", "dev").with_settings(settings);
             validate_profile(&profile)?;
         }
@@ -255,15 +260,15 @@ mod validation_rules {
     }
 
     #[test]
-    fn gain_nan_passes_validation() -> TestResult {
-        // NaN comparisons are always false in Rust, so range checks
-        // (0.0..=1.0).contains(&NaN) returns false. However the current
-        // validator does not explicitly reject NaN. Document that behaviour.
+    fn gain_nan_rejected_by_validation() {
+        // NaN is now explicitly rejected by the is_finite() guard in
+        // validate_settings. Previously NaN would slip through range checks.
         let mut s = WheelSettings::default();
         s.ffb.overall_gain = f32::NAN;
-        // If validation rejects NaN in the future, flip this assertion.
-        assert!(validate_settings(&s).is_ok());
-        Ok(())
+        assert!(
+            validate_settings(&s).is_err(),
+            "NaN must be rejected by is_finite() guard"
+        );
     }
 
     // Torque limit boundaries
@@ -492,9 +497,12 @@ mod import_export_round_trip {
             input: InputSettings {
                 steering_range: 1440,
                 steering_deadzone: 3,
-                throttle_curve: CurveType::Exponential,
+                throttle_curve: CurveType::Custom,
+                custom_throttle_curve: Some(CustomCurve::default()),
                 brake_curve: CurveType::Logarithmic,
                 clutch_curve: CurveType::Custom,
+                custom_clutch_curve: Some(CustomCurve::default()),
+                ..Default::default()
             },
             limits: LimitSettings {
                 max_speed: Some(250.0),
@@ -777,6 +785,7 @@ mod default_profiles_per_device {
                 throttle_curve: CurveType::Linear,
                 brake_curve: CurveType::Exponential,
                 clutch_curve: CurveType::Linear,
+                ..Default::default()
             },
             limits: LimitSettings {
                 max_speed: None,
@@ -808,6 +817,7 @@ mod default_profiles_per_device {
                 throttle_curve: CurveType::Linear,
                 brake_curve: CurveType::Linear,
                 clutch_curve: CurveType::Linear,
+                ..Default::default()
             },
             limits: LimitSettings {
                 max_speed: None,
@@ -1033,8 +1043,10 @@ mod comparison_and_diff {
                 steering_range: 180,
                 steering_deadzone: 10,
                 throttle_curve: CurveType::Custom,
+                custom_throttle_curve: Some(CustomCurve::default()),
                 brake_curve: CurveType::Exponential,
                 clutch_curve: CurveType::Logarithmic,
+                ..Default::default()
             },
             limits: LimitSettings {
                 max_speed: Some(100.0),
@@ -1312,7 +1324,9 @@ mod additional_field_validation {
                 steering_deadzone: 3,
                 throttle_curve: CurveType::Logarithmic,
                 brake_curve: CurveType::Custom,
+                custom_brake_curve: Some(CustomCurve::default()),
                 clutch_curve: CurveType::Exponential,
+                ..Default::default()
             },
             limits: LimitSettings {
                 max_speed: Some(200.0),
@@ -1557,10 +1571,8 @@ mod proptest_validation {
                     torque_limit: torque,
                     ..FfbSettings::default()
                 },
-                input: InputSettings {
-                    steering_range: range,
-                    ..InputSettings::default()
-                },
+                input: InputSettings { steering_range: range,
+                    ..InputSettings::default() },
                 advanced: AdvancedSettings {
                     filter_strength: filter,
                     ..AdvancedSettings::default()
@@ -1614,10 +1626,8 @@ mod proptest_validation {
                     torque_limit: torque,
                     ..FfbSettings::default()
                 },
-                input: InputSettings {
-                    steering_range: range,
-                    ..InputSettings::default()
-                },
+                input: InputSettings { steering_range: range,
+                    ..InputSettings::default() },
                 ..WheelSettings::default()
             };
             let original = WheelProfile::new("PropTest", "dev").with_settings(settings);

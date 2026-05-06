@@ -81,6 +81,16 @@ pub struct InputSettings {
     pub throttle_curve: CurveType,
     pub brake_curve: CurveType,
     pub clutch_curve: CurveType,
+
+    /// Optional control point payload used when `throttle_curve` == `CurveType::Custom`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub custom_throttle_curve: Option<crate::tuning::CustomCurve>,
+    /// Optional control point payload used when `brake_curve` == `CurveType::Custom`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub custom_brake_curve: Option<crate::tuning::CustomCurve>,
+    /// Optional control point payload used when `clutch_curve` == `CurveType::Custom`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub custom_clutch_curve: Option<crate::tuning::CustomCurve>,
 }
 
 impl Default for InputSettings {
@@ -91,6 +101,9 @@ impl Default for InputSettings {
             throttle_curve: CurveType::Linear,
             brake_curve: CurveType::Linear,
             clutch_curve: CurveType::Linear,
+            custom_throttle_curve: None,
+            custom_brake_curve: None,
+            custom_clutch_curve: None,
         }
     }
 }

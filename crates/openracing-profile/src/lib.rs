@@ -6,9 +6,11 @@
 #![deny(unsafe_op_in_unsafe_fn)]
 #![deny(clippy::unwrap_used)]
 
+pub mod tuning;
 pub mod types;
 pub mod validation;
 
+pub use tuning::*;
 pub use types::*;
 pub use validation::*;
 
