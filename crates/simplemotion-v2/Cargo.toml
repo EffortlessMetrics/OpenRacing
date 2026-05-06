@@ -6,6 +6,13 @@ license.workspace = true
 authors.workspace = true
 repository.workspace = true
 
+publish = true
+homepage = "https://github.com/EffortlessMetrics/OpenRacing"
+documentation = "https://docs.rs/racing-wheel-simplemotion-v2"
+readme = "README.md"
+description = "SimpleMotion V2 serial protocol for Granite Devices servo controllers"
+keywords = ["simplemotion", "servo", "serial", "granite", "motor"]
+categories = ["hardware-support", "embedded"]
 [lints.rust]
 warnings = "deny"
 unused_must_use = "deny"

@@ -17,6 +17,7 @@ keywords = ["telemetry", "racing", "simulator", "ffb", "config"]
 normal = ["workspace-hack"]
 development = ["tempfile"]
 
+categories = ["game-development", "config"]
 [dependencies]
 anyhow = { workspace = true }
 racing-wheel-telemetry-config-writers = { workspace = true }

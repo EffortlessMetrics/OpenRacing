@@ -11,6 +11,13 @@ repository.workspace = true
 normal = ["workspace-hack"]
 development = ["proptest", "quickcheck"]
 
+publish = true
+homepage = "https://github.com/EffortlessMetrics/OpenRacing"
+documentation = "https://docs.rs/openracing-handbrake"
+readme = "README.md"
+description = "Analog handbrake device types and calibration for OpenRacing"
+keywords = ["handbrake", "racing", "analog", "calibration", "openracing"]
+categories = ["game-development", "hardware-support"]
 [dependencies]
 serde = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }

@@ -13,6 +13,10 @@ categories = ["embedded", "no-std", "hardware-support"]
 [package.metadata.cargo-udeps.ignore]
 normal = ["workspace-hack"]
 
+publish = true
+homepage = "https://github.com/EffortlessMetrics/OpenRacing"
+documentation = "https://docs.rs/openracing-hardware-watchdog"
+readme = "README.md"
 [dependencies]
  portable-atomic = "1.10.0"
 workspace-hack = { version = "0.1", path = "../../workspace-hack" }

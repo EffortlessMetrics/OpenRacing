@@ -5,6 +5,12 @@ edition.workspace = true
 license.workspace = true
 description = "SimExperience AccuForce USB HID protocol constants and device classification"
 
+publish = true
+homepage = "https://github.com/EffortlessMetrics/OpenRacing"
+documentation = "https://docs.rs/racing-wheel-hid-accuforce-protocol"
+readme = "README.md"
+keywords = ["accuforce", "hid", "usb", "racing", "protocol"]
+categories = ["hardware-support", "no-std"]
 [lints.rust]
 warnings = "deny"
 unused_must_use = "deny"

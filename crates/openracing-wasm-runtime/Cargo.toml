@@ -11,6 +11,12 @@ description = "WASM plugin runtime with capability-based sandboxing for OpenRaci
 [package.metadata.cargo-udeps.ignore]
 normal = ["workspace-hack"]
 
+publish = true
+homepage = "https://github.com/EffortlessMetrics/OpenRacing"
+documentation = "https://docs.rs/openracing-wasm-runtime"
+readme = "README.md"
+keywords = ["wasm", "runtime", "sandbox", "plugin", "openracing"]
+categories = ["wasm"]
 [dependencies]
 openracing-plugin-abi = { workspace = true }
 wasmtime = "41.0.4"

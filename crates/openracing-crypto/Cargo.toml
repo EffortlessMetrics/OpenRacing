@@ -13,6 +13,10 @@ categories = ["cryptography", "authentication"]
 [package.metadata.cargo-udeps.ignore]
 normal = ["workspace-hack"]
 
+publish = true
+homepage = "https://github.com/EffortlessMetrics/OpenRacing"
+documentation = "https://docs.rs/openracing-crypto"
+readme = "README.md"
 [dependencies]
 ed25519-dalek = { version = "2.2.0", features = ["rand_core"] }
 sha2 = "0.10.9"

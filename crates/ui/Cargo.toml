@@ -6,6 +6,8 @@ license.workspace = true
 authors.workspace = true
 repository.workspace = true
 
+publish = false
+description = "Tauri-based desktop GUI for OpenRacing"
 [[bin]]
 name = "openracing"
 path = "src/main.rs"

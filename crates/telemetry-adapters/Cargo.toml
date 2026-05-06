@@ -16,6 +16,7 @@ keywords = ["telemetry", "gaming", "adapters", "ffb", "racing"]
 [package.metadata.cargo-udeps.ignore]
 normal = ["workspace-hack"]
 
+categories = ["game-development"]
 [dependencies]
 anyhow = { workspace = true }
 async-trait = { workspace = true }
@@ -25,7 +26,7 @@ serde_yaml = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
 quick-xml = { workspace = true }
-racing-wheel-telemetry-core = { path = "../telemetry-core" }
+racing-wheel-telemetry-core = { path = "../telemetry-core", version = "0.1.0" }
 workspace-hack = { version = "0.1", path = "../../workspace-hack" }
 
 [dev-dependencies]

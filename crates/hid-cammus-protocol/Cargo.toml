@@ -5,6 +5,12 @@ edition.workspace = true
 license.workspace = true
 description = "Cammus C5/C12 direct drive wheel HID protocol implementation"
 
+publish = true
+homepage = "https://github.com/EffortlessMetrics/OpenRacing"
+documentation = "https://docs.rs/racing-wheel-hid-cammus-protocol"
+readme = "README.md"
+keywords = ["cammus", "hid", "usb", "racing", "protocol"]
+categories = ["hardware-support", "no-std"]
 [lints.rust]
 warnings = "deny"
 unused_must_use = "deny"

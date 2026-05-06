@@ -16,14 +16,15 @@ keywords = ["telemetry", "racing", "matrix", "integration", "compatibility"]
 [package.metadata.cargo-udeps.ignore]
 normal = ["workspace-hack"]
 
+categories = ["game-development", "development-tools"]
 [dependencies]
-racing-wheel-telemetry-bdd-metrics = { path = "../telemetry-bdd-metrics" }
+racing-wheel-telemetry-bdd-metrics = { path = "../telemetry-bdd-metrics", version = "0.1.0" }
 workspace-hack = { version = "0.1", path = "../../workspace-hack" }
 
 [dev-dependencies]
-racing-wheel-telemetry-adapters = { path = "../telemetry-adapters" }
-racing-wheel-telemetry-rate-limiter = { path = "../telemetry-rate-limiter" }
-racing-wheel-telemetry-recorder = { path = "../telemetry-recorder" }
-racing-wheel-telemetry-support = { path = "../telemetry-support" }
+racing-wheel-telemetry-adapters = { path = "../telemetry-adapters", version = "0.1.0" }
+racing-wheel-telemetry-rate-limiter = { path = "../telemetry-rate-limiter", version = "0.1.0" }
+racing-wheel-telemetry-recorder = { path = "../telemetry-recorder", version = "0.1.0" }
+racing-wheel-telemetry-support = { path = "../telemetry-support", version = "0.1.0" }
 tempfile = "3.25.0"
 tokio = { workspace = true }

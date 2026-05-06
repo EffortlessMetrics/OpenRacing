@@ -6,6 +6,13 @@ license.workspace = true
 authors.workspace = true
 repository.workspace = true
 
+publish = true
+homepage = "https://github.com/EffortlessMetrics/OpenRacing"
+documentation = "https://docs.rs/racing-wheel-moza-wheelbase-report"
+readme = "README.md"
+description = "Moza wheelbase HID report definitions and parsing"
+keywords = ["moza", "wheelbase", "hid", "racing", "report"]
+categories = ["hardware-support", "no-std"]
 [lints.rust]
 warnings = "deny"
 unused_must_use = "deny"

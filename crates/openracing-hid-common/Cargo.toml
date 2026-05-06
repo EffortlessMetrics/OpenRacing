@@ -11,6 +11,13 @@ repository.workspace = true
 normal = ["workspace-hack", "hidapi", "racing-wheel-schemas", "tracing"]
 development = ["proptest", "quickcheck"]
 
+publish = true
+homepage = "https://github.com/EffortlessMetrics/OpenRacing"
+documentation = "https://docs.rs/openracing-hid-common"
+readme = "README.md"
+description = "Common abstractions for USB HID device communication in OpenRacing"
+keywords = ["hid", "usb", "common", "device", "openracing"]
+categories = ["game-development", "hardware-support"]
 [dependencies]
 hidapi = { workspace = true }
 serde = { workspace = true }

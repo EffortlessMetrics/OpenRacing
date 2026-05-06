@@ -7,6 +7,13 @@ license.workspace = true
 authors.workspace = true
 repository.workspace = true
 
+publish = true
+homepage = "https://github.com/EffortlessMetrics/OpenRacing"
+documentation = "https://docs.rs/wheelctl"
+readme = "README.md"
+description = "Command-line tools for configuring and diagnosing OpenRacing"
+keywords = ["cli", "config", "diagnostic", "racing", "openracing"]
+categories = ["command-line-utilities"]
 [[bin]]
 name = "wheelctl"
 path = "src/main.rs"
@@ -28,8 +35,8 @@ path = "src/bin/generate_docs_index.rs"
 normal = ["workspace-hack"]
 
 [dependencies]
-racing-wheel-telemetry-config = { path = "../telemetry-config" }
-racing-wheel-schemas = { path = "../schemas" }
+racing-wheel-telemetry-config = { path = "../telemetry-config", version = "0.1.0" }
+racing-wheel-schemas = { path = "../schemas", version = "0.1.0" }
 tokio = { workspace = true }
 tonic = { workspace = true }
 clap = { version = "4.5.60", features = ["derive", "env", "color"] }

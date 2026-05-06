@@ -6,6 +6,13 @@ license.workspace = true
 authors.workspace = true
 repository.workspace = true
 
+publish = true
+homepage = "https://github.com/EffortlessMetrics/OpenRacing"
+documentation = "https://docs.rs/openracing-device-types"
+readme = "README.md"
+description = "Fundamental device type enumerations and classification for OpenRacing"
+keywords = ["device", "types", "classification", "hid", "openracing"]
+categories = ["game-development", "hardware-support"]
 [features]
 proptest = ["dep:proptest"]
 
@@ -14,7 +21,7 @@ proptest = ["dep:proptest"]
 normal = ["workspace-hack", "racing-wheel-schemas"]
 
 [dependencies]
-racing-wheel-schemas = { path = "../schemas" }
+racing-wheel-schemas = { path = "../schemas", version = "0.1.0" }
 proptest = { workspace = true, optional = true }
 workspace-hack = { version = "0.1", path = "../../workspace-hack" }
 

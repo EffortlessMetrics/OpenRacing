@@ -6,6 +6,13 @@ license.workspace = true
 authors.workspace = true
 repository.workspace = true
 
+publish = true
+homepage = "https://github.com/EffortlessMetrics/OpenRacing"
+documentation = "https://docs.rs/racing-wheel-hid-simagic-protocol"
+readme = "README.md"
+description = "Simagic USB HID protocol constants and encoders (I/O-free, allocation-free)"
+keywords = ["simagic", "hid", "usb", "racing", "protocol"]
+categories = ["hardware-support", "no-std"]
 [lints.rust]
 warnings = "deny"
 unused_must_use = "deny"

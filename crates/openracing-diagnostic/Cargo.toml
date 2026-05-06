@@ -13,6 +13,10 @@ categories = ["development-tools::debugging", "aerospace::simulation"]
 [package.metadata.cargo-udeps.ignore]
 normal = ["workspace-hack"]
 
+publish = true
+homepage = "https://github.com/EffortlessMetrics/OpenRacing"
+documentation = "https://docs.rs/openracing-diagnostic"
+readme = "README.md"
 [dependencies]
 bincode = { workspace = true }
 serde = { workspace = true }
