@@ -11,6 +11,13 @@ repository.workspace = true
 normal = ["workspace-hack", "thiserror"]
 development = ["quickcheck"]
 
+publish = true
+homepage = "https://github.com/EffortlessMetrics/OpenRacing"
+documentation = "https://docs.rs/openracing-ffb"
+readme = "README.md"
+description = "Force feedback core calculations, effects, and torque output for OpenRacing"
+keywords = ["ffb", "force-feedback", "torque", "haptics", "openracing"]
+categories = ["game-development", "hardware-support"]
 [dependencies]
 serde = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }

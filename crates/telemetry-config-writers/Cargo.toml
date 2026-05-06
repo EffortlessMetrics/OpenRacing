@@ -16,6 +16,7 @@ keywords = ["telemetry", "racing", "simulator", "ffb", "config"]
 [package.metadata.cargo-udeps.ignore]
 normal = ["workspace-hack"]
 
+categories = ["game-development", "config"]
 [dependencies]
 anyhow = { workspace = true }
 serde = { workspace = true }

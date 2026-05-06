@@ -6,6 +6,13 @@ license.workspace = true
 authors.workspace = true
 repository.workspace = true
 
+publish = true
+homepage = "https://github.com/EffortlessMetrics/OpenRacing"
+documentation = "https://docs.rs/racing-wheel-service"
+readme = "README.md"
+description = "Background service daemon for OpenRacing hardware management"
+keywords = ["service", "daemon", "hardware", "racing", "openracing"]
+categories = ["game-development", "hardware-support"]
 [[bin]]
 name = "wheeld"
 path = "src/main.rs"
@@ -20,12 +27,12 @@ keygen = []
 normal = ["workspace-hack", "libudev", "openracing-ipc"]
 
 [dependencies]
-racing-wheel-schemas = { path = "../schemas" }
-racing-wheel-engine = { path = "../engine" }
-racing-wheel-telemetry-core = { path = "../telemetry-core", features = ["orchestrator"] }
-racing-wheel-telemetry-adapters = { path = "../telemetry-adapters" }
-racing-wheel-telemetry-recorder = { path = "../telemetry-recorder" }
-racing-wheel-telemetry-config = { path = "../telemetry-config" }
+racing-wheel-schemas = { path = "../schemas", version = "0.1.0" }
+racing-wheel-engine = { path = "../engine", version = "0.1.0" }
+racing-wheel-telemetry-core = { path = "../telemetry-core", version = "0.1.0", features = ["orchestrator"] }
+racing-wheel-telemetry-adapters = { path = "../telemetry-adapters", version = "0.1.0" }
+racing-wheel-telemetry-recorder = { path = "../telemetry-recorder", version = "0.1.0" }
+racing-wheel-telemetry-config = { path = "../telemetry-config", version = "0.1.0" }
 racing-wheel-changelog = { workspace = true }
 openracing-errors = { workspace = true }
 openracing-hid-common = { workspace = true }
@@ -73,7 +80,7 @@ rand = "0.8.5"
 tempfile = "3.25.0"
 tracing-test = "0.2.5"
 proptest = { workspace = true }
-racing-wheel-telemetry-support = { path = "../telemetry-support" }
+racing-wheel-telemetry-support = { path = "../telemetry-support", version = "0.1.0" }
 zip = "7.2.0"
 
 [target.'cfg(target_os = "linux")'.dependencies]

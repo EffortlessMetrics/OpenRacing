@@ -7,6 +7,12 @@ authors.workspace = true
 repository.workspace = true
 description = "CLI tool for capturing raw HID reports from connected racing wheel devices"
 
+publish = true
+homepage = "https://github.com/EffortlessMetrics/OpenRacing"
+documentation = "https://docs.rs/racing-wheel-hid-capture"
+readme = "README.md"
+keywords = ["hid", "capture", "usb", "replay", "openracing"]
+categories = ["command-line-utilities", "hardware-support"]
 [[bin]]
 name = "hid-capture"
 path = "src/main.rs"

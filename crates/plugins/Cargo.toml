@@ -11,10 +11,17 @@ repository.workspace = true
 normal = ["workspace-hack", "cap-std", "memmap2", "wasi-common"]
 development = ["criterion", "tokio-test", "tracing-test"]
 
+publish = true
+homepage = "https://github.com/EffortlessMetrics/OpenRacing"
+documentation = "https://docs.rs/racing-wheel-plugins"
+readme = "README.md"
+description = "Native and WASM plugin runtime for extending OpenRacing"
+keywords = ["plugins", "wasm", "native", "extensible", "openracing"]
+categories = ["game-development", "hardware-support"]
 [dependencies]
-racing-wheel-schemas = { path = "../schemas" }
-racing-wheel-engine = { path = "../engine" }
-racing-wheel-service = { path = "../service" }
+racing-wheel-schemas = { path = "../schemas", version = "0.1.0" }
+racing-wheel-engine = { path = "../engine", version = "0.1.0" }
+racing-wheel-service = { path = "../service", version = "0.1.0" }
 openracing-plugin-abi = { workspace = true }
 openracing-native-plugin = { workspace = true }
 openracing-crypto = { workspace = true }

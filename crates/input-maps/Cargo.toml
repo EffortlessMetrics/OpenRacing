@@ -6,6 +6,13 @@ license.workspace = true
 authors.workspace = true
 repository.workspace = true
 
+publish = true
+homepage = "https://github.com/EffortlessMetrics/OpenRacing"
+documentation = "https://docs.rs/racing-wheel-input-maps"
+readme = "README.md"
+description = "Unified input mapping structures for racing peripherals"
+keywords = ["input", "mapping", "racing", "controller", "hid"]
+categories = ["game-development", "data-structures"]
 [lints.rust]
 warnings = "deny"
 unused_must_use = "deny"
@@ -19,7 +26,7 @@ normal = ["workspace-hack"]
 
 [dependencies]
 serde = { workspace = true }
-racing-wheel-ks = { path = "../ks" }
+racing-wheel-ks = { path = "../ks", version = "0.1.0" }
 workspace-hack = { version = "0.1", path = "../../workspace-hack" }
 
 [dev-dependencies]

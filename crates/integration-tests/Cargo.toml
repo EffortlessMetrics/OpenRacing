@@ -7,6 +7,8 @@ authors.workspace = true
 repository.workspace = true
 
 # Lint gates for integration tests
+publish = false
+description = "Integration and acceptance tests for OpenRacing"
 [lints.rust]
 warnings = "deny"
 unused_must_use = "deny"
@@ -29,6 +31,8 @@ racing-wheel-telemetry-adapters = { path = "../telemetry-adapters" }
 racing-wheel-telemetry-config = { path = "../telemetry-config" }
 racing-wheel-telemetry-config-writers = { path = "../telemetry-config-writers" }
 racing-wheel-telemetry-support = { path = "../telemetry-support" }
+racing-wheel-telemetry-integration = { path = "../telemetry-integration" }
+racing-wheel-telemetry-bdd-metrics = { path = "../telemetry-bdd-metrics" }
 racing-wheel-telemetry-recorder = { path = "../telemetry-recorder" }
 racing-wheel-hid-moza-protocol = { path = "../hid-moza-protocol" }
 racing-wheel-hid-fanatec-protocol = { path = "../hid-fanatec-protocol" }

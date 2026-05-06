@@ -9,6 +9,13 @@ repository.workspace = true
 [package.metadata.cargo-udeps.ignore]
 normal = ["serde", "tokio"]
 
+publish = true
+homepage = "https://github.com/EffortlessMetrics/OpenRacing"
+documentation = "https://docs.rs/openracing-telemetry-streams"
+readme = "README.md"
+description = "In-memory telemetry data channels for real-time streaming in OpenRacing"
+keywords = ["telemetry", "streaming", "channels", "real-time", "openracing"]
+categories = ["game-development", "hardware-support"]
 [dependencies]
 serde = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }

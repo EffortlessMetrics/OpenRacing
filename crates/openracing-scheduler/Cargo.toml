@@ -11,6 +11,12 @@ description = "Absolute scheduling with PLL drift correction and jitter tracking
 [package.metadata.cargo-udeps.ignore]
 normal = ["workspace-hack", "thiserror"]
 
+publish = true
+homepage = "https://github.com/EffortlessMetrics/OpenRacing"
+documentation = "https://docs.rs/openracing-scheduler"
+readme = "README.md"
+keywords = ["scheduler", "real-time", "pll", "timing", "openracing"]
+categories = ["concurrency", "embedded"]
 [dependencies]
 thiserror = { workspace = true }
 workspace-hack = { version = "0.1", path = "../../workspace-hack" }

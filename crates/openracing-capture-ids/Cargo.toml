@@ -10,6 +10,13 @@ repository.workspace = true
 [package.metadata.cargo-udeps.ignore]
 normal = ["workspace-hack"]
 
+publish = true
+homepage = "https://github.com/EffortlessMetrics/OpenRacing"
+documentation = "https://docs.rs/openracing-capture-ids"
+readme = "README.md"
+description = "Hardware identifiers and USB VID/PID constants for HID device captures"
+keywords = ["capture", "hid", "usb", "vid-pid", "openracing"]
+categories = ["game-development", "hardware-support"]
 [dependencies]
 crc32fast = { workspace = true }
 hidapi = { workspace = true }

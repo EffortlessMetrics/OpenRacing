@@ -8,6 +8,8 @@ license.workspace = true
 [package.metadata.cargo-udeps.ignore]
 normal = ["workspace-hack"]
 
+publish = false
+description = "Compatibility layer and snapshot tests for OpenRacing schemas"
 [dependencies]
 workspace-hack = { version = "0.1", path = "../../workspace-hack" }
 openracing-hid-common = { workspace = true }

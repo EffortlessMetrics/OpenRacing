@@ -16,6 +16,7 @@ readme = "README.md"
 [package.metadata.cargo-udeps.ignore]
 normal = ["workspace-hack"]
 
+categories = ["game-development"]
 [dependencies]
 serde = { workspace = true }
 workspace-hack = { version = "0.1", path = "../../workspace-hack" }

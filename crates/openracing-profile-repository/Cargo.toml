@@ -14,8 +14,12 @@ categories = ["config", "filesystem"]
 normal = ["workspace-hack"]
 development = ["proptest", "tracing-test"]
 
+publish = true
+homepage = "https://github.com/EffortlessMetrics/OpenRacing"
+documentation = "https://docs.rs/openracing-profile-repository"
+readme = "README.md"
 [dependencies]
-racing-wheel-schemas = { path = "../schemas" }
+racing-wheel-schemas = { path = "../schemas", version = "0.1.0" }
 openracing-errors = { workspace = true }
 tokio = { workspace = true }
 serde = { workspace = true }

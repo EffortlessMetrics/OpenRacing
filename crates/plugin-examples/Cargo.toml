@@ -12,6 +12,7 @@ categories = ["examples"]
 [package.metadata.cargo-udeps.ignore]
 normal = ["workspace-hack"]
 
+publish = false
 [dependencies]
 openracing-plugin-abi = { workspace = true }
 serde = { workspace = true }

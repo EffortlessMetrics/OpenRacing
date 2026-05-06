@@ -10,6 +10,13 @@ repository.workspace = true
 [package.metadata.cargo-udeps.ignore]
 normal = ["workspace-hack"]
 
+publish = true
+homepage = "https://github.com/EffortlessMetrics/OpenRacing"
+documentation = "https://docs.rs/hid-heusinkveld-protocol"
+readme = "README.md"
+description = "Heusinkveld USB HID protocol constants and encoders (I/O-free, allocation-free)"
+keywords = ["heusinkveld", "hid", "usb", "racing", "protocol"]
+categories = ["hardware-support", "no-std"]
 [dependencies]
 openracing-hid-common = { workspace = true }
 serde = { workspace = true, features = ["derive"] }

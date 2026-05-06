@@ -14,6 +14,10 @@ categories = ["api-bindings", "os", "development-tools::ffi"]
 normal = ["workspace-hack", "crossbeam"]
 development = ["quickcheck", "quickcheck_macros", "tokio-test", "tracing-test"]
 
+publish = true
+homepage = "https://github.com/EffortlessMetrics/OpenRacing"
+documentation = "https://docs.rs/openracing-native-plugin"
+readme = "README.md"
 [dependencies]
 libloading = "0.9.0"
 shared_memory = "0.12.4"

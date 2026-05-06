@@ -16,8 +16,9 @@ keywords = ["telemetry", "recording", "replay", "fixtures", "racing"]
 [package.metadata.cargo-udeps.ignore]
 normal = ["workspace-hack"]
 
+categories = ["game-development", "data-structures"]
 [dependencies]
-racing-wheel-schemas = { path = "../schemas" }
+racing-wheel-schemas = { path = "../schemas", version = "0.1.0" }
 anyhow = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
