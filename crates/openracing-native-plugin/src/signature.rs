@@ -187,14 +187,19 @@ impl<'a> SignatureVerifier<'a> {
         let public_key = match self.trust_store.get_public_key(&metadata.key_fingerprint) {
             Some(key) => key,
             None => {
-                if trust_level == TrustLevel::Unknown && !self.config.allow_unsigned {
+                // Fail-closed for signed plugins when signatures are required:
+                // allow_unsigned only applies to plugins with no signature.
+                if self.config.require_signatures {
+                    tracing::warn!(
+                        path = %library_path.display(),
+                        fingerprint = %metadata.key_fingerprint,
+                        "Rejecting signed plugin: signing key not found in trust store"
+                    );
                     return Err(NativePluginError::UntrustedSigner {
                         fingerprint: metadata.key_fingerprint.clone(),
                     });
                 }
-                // TODO(security): Fail-closed — cannot verify signature without
-                // the public key in the trust store. Mark as unverified so callers
-                // never treat an unchecked signature as valid.
+
                 tracing::warn!(
                     path = %library_path.display(),
                     "Plugin signature NOT verified (signing key not in trust store)"
