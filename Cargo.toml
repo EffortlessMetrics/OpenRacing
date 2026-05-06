@@ -274,3 +274,91 @@ plugins-native = { owner = "@owner-plug", features = [
 
 [patch.crates-io]
 shared_memory = { path = "third_party/shared_memory" }
+
+# ---------------------------------------------------------------------------
+# Workspace lint policy (Stage A).
+#
+# This block is the single source of truth for active lint levels. The
+# declarative policy lives in `policy/clippy-lints.toml`; the burndown
+# ledger in `policy/clippy-debt.toml`; the panic-family exception ledger
+# in `policy/no-panic-allowlist.toml`; the non-Rust file surface in
+# `policy/non-rust-allowlist.toml`.
+#
+# See docs/CLIPPY_POLICY.md for the staging discipline. In short:
+#
+#   * Panic-family lints are `warn` during Stage A while existing debt is
+#     enumerated by `scripts/check_no_panic_family.py`. They are promoted
+#     to `deny` in a dedicated `policy/strict-clippy-flip` PR.
+#   * Hard denies are limited to lints that are either zero-debt today or
+#     are obvious correctness bugs (silent failure, async footguns,
+#     repr_packed_without_abi, etc.).
+#   * `unsafe_code = "deny"` (NOT forbid): OpenRacing has legitimate RT,
+#     HID, and FFI islands receipted with `// SAFETY:` comments.
+#   * No global `-D warnings` until `policy/clippy-debt.toml` is empty.
+#   * No test carveouts in `clippy.toml`. Use the semantic checker.
+# ---------------------------------------------------------------------------
+
+[workspace.lints.rust]
+unsafe_op_in_unsafe_fn = "deny"
+unused_must_use = "deny"
+unexpected_cfgs = "warn"
+unsafe_code = "deny"
+
+[workspace.lints.clippy]
+# --- Panic family (Stage A: warn). Promoted in policy/strict-clippy-flip ---
+unwrap_used = "warn"
+expect_used = "warn"
+panic = "warn"
+todo = "warn"
+unimplemented = "warn"
+unreachable = "warn"
+get_unwrap = "warn"
+unwrap_in_result = "warn"
+panic_in_result_fn = "warn"
+indexing_slicing = "warn"
+string_slice = "warn"
+dbg_macro = "warn"
+
+# --- Silent failure (hard denies) -----------------------------------------
+let_underscore_future = "deny"
+let_underscore_must_use = "deny"
+map_err_ignore = "deny"
+lines_filter_map_ok = "deny"
+match_result_ok = "deny"
+
+# --- Async / concurrency (hard denies) ------------------------------------
+await_holding_lock = "deny"
+await_holding_refcell_ref = "deny"
+await_holding_invalid_type = "deny"
+arc_with_non_send_sync = "deny"
+rc_mutex = "deny"
+mut_mutex_lock = "deny"
+readonly_write_lock = "deny"
+
+# --- Unsafe / memory ------------------------------------------------------
+mem_forget = "deny"
+forget_non_drop = "deny"
+drop_non_drop = "deny"
+undocumented_unsafe_blocks = "warn"     # promoted in panic-debt/unsafe-receipts
+multiple_unsafe_ops_per_block = "warn"  # promoted in panic-debt/unsafe-receipts
+
+# --- Numeric correctness --------------------------------------------------
+float_cmp = "warn"
+float_cmp_const = "warn"
+float_equality_without_abs = "warn"
+lossy_float_literal = "warn"
+invalid_upcast_comparisons = "deny"
+cast_nan_to_int = "deny"
+cast_enum_truncation = "deny"
+
+# --- File / process / path footguns --------------------------------------
+suspicious_open_options = "deny"
+path_buf_push_overwrite = "deny"
+join_absolute_paths = "deny"
+exit = "warn"  # CLI binaries call exit; promote after disallowed-methods carveout
+
+# --- Governance -----------------------------------------------------------
+allow_attributes = "warn"                # promoted in policy/expect-with-reason-sweep
+allow_attributes_without_reason = "warn" # promoted in policy/expect-with-reason-sweep
+blanket_clippy_restriction_lints = "deny"
+should_panic_without_expect = "deny"
