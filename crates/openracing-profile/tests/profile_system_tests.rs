@@ -5,9 +5,9 @@
 //! comparison, and conflict resolution.
 
 use openracing_profile::{
-    AdvancedSettings, CURRENT_SCHEMA_VERSION, CurveType, FfbSettings, InputSettings, LedMode,
-    LimitSettings, ProfileError, WheelProfile, WheelSettings, generate_profile_id, merge_profiles,
-    migrate_profile, validate_profile, validate_settings,
+    AdvancedSettings, CURRENT_SCHEMA_VERSION, CurveType, CustomCurve, FfbSettings, InputSettings,
+    LedMode, LimitSettings, ProfileError, WheelProfile, WheelSettings, generate_profile_id,
+    merge_profiles, migrate_profile, validate_profile, validate_settings,
 };
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
@@ -36,6 +36,8 @@ mod profile_creation_system {
                 throttle_curve: CurveType::Exponential,
                 brake_curve: CurveType::Logarithmic,
                 clutch_curve: CurveType::Custom,
+                custom_clutch_curve: Some(CustomCurve::default()),
+                ..Default::default()
             },
             limits: LimitSettings {
                 max_speed: Some(350.0),
@@ -262,6 +264,7 @@ mod validation_system {
                 throttle_curve: CurveType::Linear,
                 brake_curve: CurveType::Linear,
                 clutch_curve: CurveType::Linear,
+                ..Default::default()
             },
             limits: LimitSettings {
                 max_speed: None,
@@ -295,8 +298,11 @@ mod validation_system {
                 steering_range: 3600, // max
                 steering_deadzone: u16::MAX,
                 throttle_curve: CurveType::Custom,
+                custom_throttle_curve: Some(CustomCurve::default()),
                 brake_curve: CurveType::Custom,
+                custom_brake_curve: Some(CustomCurve::default()),
                 clutch_curve: CurveType::Custom,
+                custom_clutch_curve: Some(CustomCurve::default()),
             },
             limits: LimitSettings {
                 max_speed: Some(f32::MAX),
@@ -799,6 +805,8 @@ mod profile_comparison {
                 throttle_curve: CurveType::Exponential,
                 brake_curve: CurveType::Logarithmic,
                 clutch_curve: CurveType::Custom,
+                custom_clutch_curve: Some(CustomCurve::default()),
+                ..Default::default()
             },
             limits: LimitSettings {
                 max_speed: Some(300.0),
@@ -984,6 +992,7 @@ mod templates_and_defaults {
                 throttle_curve: CurveType::Linear,
                 brake_curve: CurveType::Linear,
                 clutch_curve: CurveType::Linear,
+                ..Default::default()
             },
             limits: LimitSettings {
                 max_speed: None,
@@ -1016,6 +1025,7 @@ mod templates_and_defaults {
                 throttle_curve: CurveType::Exponential,
                 brake_curve: CurveType::Linear,
                 clutch_curve: CurveType::Linear,
+                ..Default::default()
             },
             limits: LimitSettings {
                 max_speed: None,
@@ -1048,6 +1058,7 @@ mod templates_and_defaults {
                 throttle_curve: CurveType::Linear,
                 brake_curve: CurveType::Exponential,
                 clutch_curve: CurveType::Linear,
+                ..Default::default()
             },
             limits: LimitSettings {
                 max_speed: None,
@@ -1347,6 +1358,7 @@ mod game_specific_overrides {
                 throttle_curve: CurveType::Linear,
                 brake_curve: CurveType::Linear,
                 clutch_curve: CurveType::Linear,
+                ..Default::default()
             },
             limits: LimitSettings::default(),
             advanced: AdvancedSettings {
@@ -1375,6 +1387,7 @@ mod game_specific_overrides {
                 throttle_curve: CurveType::Exponential,
                 brake_curve: CurveType::Exponential,
                 clutch_curve: CurveType::Linear,
+                ..Default::default()
             },
             limits: LimitSettings::default(),
             advanced: AdvancedSettings {

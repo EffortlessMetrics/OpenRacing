@@ -1,8 +1,8 @@
 //! Snapshot tests for profile serialization formats
 
 use openracing_profile::{
-    AdvancedSettings, CurveType, FfbSettings, InputSettings, LedMode, LimitSettings, WheelProfile,
-    WheelSettings,
+    AdvancedSettings, CurveType, CustomCurve, FfbSettings, InputSettings, LedMode, LimitSettings,
+    WheelProfile, WheelSettings,
 };
 
 // --- Default settings snapshots ---
@@ -51,6 +51,8 @@ fn snapshot_wheel_settings_fully_populated() {
             throttle_curve: CurveType::Exponential,
             brake_curve: CurveType::Logarithmic,
             clutch_curve: CurveType::Custom,
+            custom_clutch_curve: Some(CustomCurve::default()),
+            ..Default::default()
         },
         limits: LimitSettings {
             max_speed: Some(120.0),
@@ -95,6 +97,7 @@ fn snapshot_profile_all_fields_populated() {
             throttle_curve: CurveType::Exponential,
             brake_curve: CurveType::Exponential,
             clutch_curve: CurveType::Linear,
+            ..Default::default()
         },
         limits: LimitSettings {
             max_speed: Some(200.0),

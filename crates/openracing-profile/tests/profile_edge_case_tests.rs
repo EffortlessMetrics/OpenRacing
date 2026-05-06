@@ -4,9 +4,9 @@
 //! duplicate profiles, boundary values, corruption recovery, and more.
 
 use openracing_profile::{
-    AdvancedSettings, CURRENT_SCHEMA_VERSION, CurveType, FfbSettings, InputSettings, LedMode,
-    LimitSettings, ProfileError, WheelProfile, WheelSettings, backup_profile, merge_profiles,
-    migrate_profile, validate_profile, validate_settings,
+    AdvancedSettings, CURRENT_SCHEMA_VERSION, CurveType, CustomCurve, FfbSettings, InputSettings,
+    LedMode, LimitSettings, ProfileError, WheelProfile, WheelSettings, backup_profile,
+    merge_profiles, migrate_profile, validate_profile, validate_settings,
 };
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
@@ -190,6 +190,7 @@ mod boundary_values {
                 throttle_curve: CurveType::Linear,
                 brake_curve: CurveType::Linear,
                 clutch_curve: CurveType::Linear,
+                ..Default::default()
             },
             limits: LimitSettings {
                 max_speed: None,
@@ -215,17 +216,20 @@ mod boundary_values {
             ffb: FfbSettings {
                 overall_gain: 1.0,
                 torque_limit: 100.0,
-                spring_strength: f32::MAX,
-                damper_strength: f32::MAX,
-                friction_strength: f32::MAX,
+                spring_strength: 1.0,
+                damper_strength: 1.0,
+                friction_strength: 1.0,
                 effects_enabled: true,
             },
             input: InputSettings {
                 steering_range: 3600,
                 steering_deadzone: u16::MAX,
                 throttle_curve: CurveType::Custom,
+                custom_throttle_curve: Some(CustomCurve::default()),
                 brake_curve: CurveType::Custom,
+                custom_brake_curve: Some(CustomCurve::default()),
                 clutch_curve: CurveType::Custom,
+                custom_clutch_curve: Some(CustomCurve::default()),
             },
             limits: LimitSettings {
                 max_speed: Some(f32::MAX),
@@ -287,13 +291,9 @@ mod boundary_values {
     fn filter_strength_nan_rejected() {
         let mut s = WheelSettings::default();
         s.advanced.filter_strength = f32::NAN;
-        // NaN comparisons: NaN < 0.0 is false, NaN > 1.0 is false,
-        // so the range check passes. This documents current behavior.
-        let result = validate_settings(&s);
-        // NaN bypasses the range check because all comparisons with NaN are false
         assert!(
-            result.is_ok(),
-            "NaN slips through range checks (known behavior)"
+            validate_settings(&s).is_err(),
+            "NaN must be rejected by is_finite() guard"
         );
     }
 

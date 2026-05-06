@@ -11,6 +11,13 @@ repository.workspace = true
 normal = ["workspace-hack"]
 development = ["proptest", "quickcheck"]
 
+publish = true
+homepage = "https://github.com/EffortlessMetrics/OpenRacing"
+documentation = "https://docs.rs/openracing-profile"
+readme = "README.md"
+description = "Profile data types and serialization for OpenRacing force feedback tuning"
+keywords = ["profile", "ffb", "tuning", "config", "openracing"]
+categories = ["game-development", "hardware-support"]
 [dependencies]
 serde = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }
