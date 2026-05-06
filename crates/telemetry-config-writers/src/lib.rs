@@ -6679,23 +6679,36 @@ mod path_resolution_tests {
     use super::*;
 
     #[test]
-    fn test_resolve_game_path() {
+    fn test_resolve_game_path_with_nonempty_base() {
         let base = Path::new("test_base");
 
-        // standard relative path
+        // Non-empty base always joins directly, even for Documents/ paths
         let res = resolve_game_path(base, "Config/app.ini");
         assert_eq!(res, base.join("Config/app.ini"));
 
-        // Documents absolute path logic on Windows
-        #[cfg(windows)]
-        {
-            let res = resolve_game_path(base, "Documents/MyGame/app.ini");
-            // should not use base anymore if USERPROFILE exists
-            if let Some(user_profile) = std::env::var_os("USERPROFILE") {
-                let expected =
-                    PathBuf::from(user_profile).join("Documents/MyGame/app.ini".replace('/', "\\"));
-                assert_eq!(res, expected);
-            }
+        let res = resolve_game_path(base, "Documents/MyGame/app.ini");
+        assert_eq!(res, base.join("Documents/MyGame/app.ini"));
+    }
+
+    #[test]
+    fn test_resolve_game_path_plain_relative() {
+        // "." base with a non-Documents path just joins
+        let base = Path::new(".");
+        let res = resolve_game_path(base, "Config/app.ini");
+        assert_eq!(res, base.join("Config/app.ini"));
+    }
+
+    /// When game_path is "." (current dir), Documents/ paths on Windows
+    /// should resolve to USERPROFILE/Documents/… instead of ./Documents/…
+    #[cfg(windows)]
+    #[test]
+    fn test_resolve_game_path_documents_resolves_via_userprofile() {
+        let base = Path::new(".");
+        let res = resolve_game_path(base, "Documents/MyGame/app.ini");
+
+        if let Some(user_profile) = std::env::var_os("USERPROFILE") {
+            let expected = PathBuf::from(user_profile).join("Documents\\MyGame\\app.ini");
+            assert_eq!(res, expected);
         }
     }
 }

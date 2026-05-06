@@ -529,58 +529,15 @@ fn protocol_pids_unique_within_vendor() -> TestResult {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-// 3. Telemetry adapter game IDs match config/registry
+// 3. Telemetry adapter game IDs match config/registry (Superseded)
 // ═════════════════════════════════════════════════════════════════════════════
 
-/// Every game ID returned by `adapter_factories()` must appear in both
-/// telemetry YAML config files. This is a cross-crate consistency check
-/// between the telemetry-adapters, telemetry-config, and telemetry-support
-/// crates.
-#[test]
-fn telemetry_adapter_game_ids_in_config_registry() -> TestResult {
-    let config_ids = racing_wheel_telemetry_config::matrix_game_id_set()?;
-    let support_ids = racing_wheel_telemetry_support::matrix_game_id_set()?;
-
-    let mut missing: Vec<String> = Vec::new();
-
-    for (game_id, _) in adapter_factories() {
-        if !config_ids.contains(*game_id) {
-            missing.push(format!("'{game_id}' missing from telemetry-config matrix"));
-        }
-        if !support_ids.contains(*game_id) {
-            missing.push(format!("'{game_id}' missing from telemetry-support matrix"));
-        }
-    }
-
-    assert!(
-        missing.is_empty(),
-        "Telemetry adapter game IDs not found in config/registry:\n  {}",
-        missing.join("\n  ")
-    );
-
-    Ok(())
-}
-
-/// Adapter factory game IDs must be non-empty and contain no whitespace-only
-/// entries.
-#[test]
-fn telemetry_adapter_game_ids_are_non_empty() -> TestResult {
-    let mut invalid: Vec<String> = Vec::new();
-
-    for (game_id, _) in adapter_factories() {
-        if game_id.is_empty() || game_id.trim().is_empty() {
-            invalid.push("empty or whitespace-only game ID found".to_string());
-        }
-    }
-
-    assert!(
-        invalid.is_empty(),
-        "Invalid telemetry adapter game IDs:\n  {}",
-        invalid.join("\n  ")
-    );
-
-    Ok(())
-}
+// NOTE: The cross-crate consistency check between telemetry-adapters,
+// telemetry-config-writers, and telemetry-support is now fully governed
+// by the deterministic BDD metrics tests in `bdd_matrix_parity_tests.rs`.
+//
+// See `crates/integration-tests/tests/bdd_matrix_parity_tests.rs` for the
+// exact coverage constraints.
 
 // ═════════════════════════════════════════════════════════════════════════════
 // 4. Device names: no empty strings or placeholder text

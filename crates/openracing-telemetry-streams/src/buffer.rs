@@ -155,6 +155,10 @@ impl<T> RingBuffer<T> {
 mod tests {
     use super::*;
 
+    // -----------------------------------------------------------------------
+    // TelemetryBuffer
+    // -----------------------------------------------------------------------
+
     #[test]
     fn test_telemetry_buffer_basic() {
         let buffer = TelemetryBuffer::new(3);
@@ -184,6 +188,67 @@ mod tests {
     }
 
     #[test]
+    fn test_telemetry_buffer_empty_operations() {
+        let buffer: TelemetryBuffer<i32> = TelemetryBuffer::new(5);
+
+        assert!(buffer.is_empty());
+        assert_eq!(buffer.len(), 0);
+        assert_eq!(buffer.pop(), None);
+        assert_eq!(buffer.latest(), None);
+        assert_eq!(buffer.oldest(), None);
+    }
+
+    #[test]
+    fn test_telemetry_buffer_clear() {
+        let buffer = TelemetryBuffer::new(5);
+        buffer.push(10);
+        buffer.push(20);
+        assert_eq!(buffer.len(), 2);
+
+        buffer.clear();
+        assert!(buffer.is_empty());
+        assert_eq!(buffer.len(), 0);
+        assert_eq!(buffer.pop(), None);
+    }
+
+    #[test]
+    fn test_telemetry_buffer_iter() {
+        let buffer = TelemetryBuffer::new(5);
+        buffer.push(1);
+        buffer.push(2);
+        buffer.push(3);
+
+        let items: Vec<i32> = buffer.iter().collect();
+        assert_eq!(items, vec![1, 2, 3]);
+    }
+
+    #[test]
+    fn test_telemetry_buffer_default_capacity() {
+        let buffer: TelemetryBuffer<i32> = TelemetryBuffer::default();
+        // Default is 1000, fill beyond it
+        for i in 0..1001 {
+            buffer.push(i);
+        }
+        assert_eq!(buffer.len(), 1000);
+    }
+
+    #[test]
+    fn test_telemetry_buffer_size_one() {
+        let buffer = TelemetryBuffer::new(1);
+        buffer.push(10);
+        assert_eq!(buffer.len(), 1);
+
+        buffer.push(20);
+        assert_eq!(buffer.len(), 1);
+        assert_eq!(buffer.latest(), Some(20));
+        assert_eq!(buffer.oldest(), Some(20));
+    }
+
+    // -----------------------------------------------------------------------
+    // RingBuffer
+    // -----------------------------------------------------------------------
+
+    #[test]
     fn test_ring_buffer() {
         let mut buffer = RingBuffer::new(3);
 
@@ -211,5 +276,63 @@ mod tests {
         assert_eq!(buffer.len(), 2);
         assert_eq!(buffer.read(), Some(2));
         assert_eq!(buffer.read(), Some(3));
+    }
+
+    #[test]
+    fn test_ring_buffer_clear() {
+        let mut buffer = RingBuffer::new(5);
+        buffer.write(1);
+        buffer.write(2);
+        buffer.write(3);
+        assert_eq!(buffer.len(), 3);
+
+        buffer.clear();
+        assert!(buffer.is_empty());
+        assert_eq!(buffer.len(), 0);
+        assert_eq!(buffer.read(), None);
+    }
+
+    #[test]
+    fn test_ring_buffer_capacity() {
+        let buffer: RingBuffer<i32> = RingBuffer::new(7);
+        assert_eq!(buffer.capacity(), 7);
+        assert!(buffer.is_empty());
+        assert!(!buffer.is_full());
+    }
+
+    #[test]
+    fn test_ring_buffer_full_detection() {
+        let mut buffer = RingBuffer::new(2);
+        assert!(!buffer.is_full());
+
+        buffer.write(1);
+        assert!(!buffer.is_full());
+
+        buffer.write(2);
+        assert!(buffer.is_full());
+    }
+
+    #[test]
+    fn test_ring_buffer_write_returns_overwritten_item() {
+        let mut buffer = RingBuffer::new(2);
+
+        assert!(buffer.write(1).is_none());
+        assert!(buffer.write(2).is_none());
+        // Next write should overwrite and return the old item
+        let old = buffer.write(3);
+        assert_eq!(old, Some(1));
+    }
+
+    #[test]
+    fn test_ring_buffer_read_after_clear() {
+        let mut buffer = RingBuffer::new(3);
+        buffer.write(10);
+        buffer.write(20);
+        buffer.clear();
+
+        assert_eq!(buffer.read(), None);
+        // After clear, writing should work normally
+        buffer.write(30);
+        assert_eq!(buffer.read(), Some(30));
     }
 }

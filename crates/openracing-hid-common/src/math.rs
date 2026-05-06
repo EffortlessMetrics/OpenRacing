@@ -30,4 +30,32 @@ mod tests {
         assert_eq!(safe_clamp(2.0, -1.0, 1.0), 1.0);
         assert_eq!(safe_clamp(-2.0, -1.0, 1.0), -1.0);
     }
+
+    #[test]
+    fn test_safe_clamp_positive_infinity() {
+        assert_eq!(safe_clamp(f32::INFINITY, 0.0, 1.0), 1.0);
+    }
+
+    #[test]
+    fn test_safe_clamp_negative_infinity() {
+        assert_eq!(safe_clamp(f32::NEG_INFINITY, 0.0, 1.0), 0.0);
+    }
+
+    #[test]
+    fn test_safe_clamp_at_boundaries() {
+        assert_eq!(safe_clamp(0.0, 0.0, 1.0), 0.0);
+        assert_eq!(safe_clamp(1.0, 0.0, 1.0), 1.0);
+    }
+
+    #[test]
+    fn test_safe_clamp_zero_range() {
+        assert_eq!(safe_clamp(5.0, 3.0, 3.0), 3.0);
+        assert_eq!(safe_clamp(1.0, 3.0, 3.0), 3.0);
+    }
+
+    #[test]
+    fn test_safe_clamp_nan_with_zero_range() {
+        // NaN with range [5.0, 5.0] → min.max(0.0) = 5.0, 5.0.min(5.0) = 5.0
+        assert_eq!(safe_clamp(f32::NAN, 5.0, 5.0), 5.0);
+    }
 }

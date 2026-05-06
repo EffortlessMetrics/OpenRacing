@@ -4,7 +4,7 @@
 //! queue overflow/underflow, FIFO ordering, wrap-around, and
 //! property-based testing for arbitrary operation sequences.
 
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Barrier};
 use std::thread;
 
@@ -472,6 +472,7 @@ fn latency_threshold_boundary() -> Result<(), Box<dyn std::error::Error>> {
 #[cfg(feature = "queues")]
 mod queue_correctness {
     use super::*;
+    use std::sync::atomic::AtomicU64;
 
     #[test]
     fn queue_default_capacity() -> Result<(), Box<dyn std::error::Error>> {

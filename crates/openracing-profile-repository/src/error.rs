@@ -287,3 +287,258 @@ impl From<StorageError> for ProfileRepositoryError {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // -----------------------------------------------------------------------
+    // ProfileRepositoryError::is_recoverable
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_is_recoverable_profile_not_found() {
+        let err = ProfileRepositoryError::ProfileNotFound("id".to_string());
+        assert!(err.is_recoverable());
+    }
+
+    #[test]
+    fn test_is_recoverable_validation_failed() {
+        let err = ProfileRepositoryError::ValidationFailed("bad".to_string());
+        assert!(!err.is_recoverable());
+    }
+
+    #[test]
+    fn test_is_recoverable_migration_failed() {
+        let err = ProfileRepositoryError::MigrationFailed("old".to_string());
+        assert!(err.is_recoverable());
+    }
+
+    #[test]
+    fn test_is_recoverable_unsupported_schema() {
+        let err = ProfileRepositoryError::UnsupportedSchemaVersion("99".to_string());
+        assert!(!err.is_recoverable());
+    }
+
+    #[test]
+    fn test_is_recoverable_signature_error() {
+        let err = ProfileRepositoryError::SignatureError("bad sig".to_string());
+        assert!(err.is_recoverable());
+    }
+
+    #[test]
+    fn test_is_recoverable_json_error() {
+        let raw_err =
+            serde_json::from_str::<serde_json::Value>("not json").expect_err("Expected JSON error");
+        let err = ProfileRepositoryError::JsonError(raw_err);
+        assert!(!err.is_recoverable());
+    }
+
+    #[test]
+    fn test_is_recoverable_invalid_profile_id() {
+        let err = ProfileRepositoryError::InvalidProfileId("???".to_string());
+        assert!(!err.is_recoverable());
+    }
+
+    #[test]
+    fn test_is_recoverable_config_error() {
+        let err = ProfileRepositoryError::ConfigError("bad config".to_string());
+        assert!(!err.is_recoverable());
+    }
+
+    #[test]
+    fn test_is_recoverable_cache_error() {
+        let err = ProfileRepositoryError::CacheError("cache miss".to_string());
+        assert!(err.is_recoverable());
+    }
+
+    #[test]
+    fn test_is_recoverable_file_path_error() {
+        let err = ProfileRepositoryError::FilePathError {
+            path: PathBuf::from("/tmp/test"),
+            reason: "not found".to_string(),
+        };
+        assert!(!err.is_recoverable());
+    }
+
+    #[test]
+    fn test_is_recoverable_atomic_write_failed() {
+        let err = ProfileRepositoryError::AtomicWriteFailed {
+            temp_path: PathBuf::from("/tmp/temp"),
+            target_path: PathBuf::from("/tmp/target"),
+        };
+        assert!(err.is_recoverable());
+    }
+
+    #[test]
+    fn test_is_recoverable_scope_mismatch() {
+        let err = ProfileRepositoryError::ScopeMismatch {
+            expected: "global".to_string(),
+            actual: "car".to_string(),
+        };
+        assert!(!err.is_recoverable());
+    }
+
+    #[test]
+    fn test_is_recoverable_hierarchy_resolution() {
+        let err = ProfileRepositoryError::HierarchyResolutionFailed("no root".to_string());
+        assert!(err.is_recoverable());
+    }
+
+    // -----------------------------------------------------------------------
+    // Display strings
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_display_profile_not_found() {
+        let err = ProfileRepositoryError::ProfileNotFound("abc".to_string());
+        let msg = format!("{}", err);
+        assert!(msg.contains("abc"));
+        assert!(msg.contains("not found"));
+    }
+
+    #[test]
+    fn test_display_scope_mismatch() {
+        let err = ProfileRepositoryError::ScopeMismatch {
+            expected: "global".to_string(),
+            actual: "session".to_string(),
+        };
+        let msg = format!("{}", err);
+        assert!(msg.contains("global"));
+        assert!(msg.contains("session"));
+    }
+
+    // -----------------------------------------------------------------------
+    // Factory methods
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_validation_failed_factory() {
+        let err = ProfileRepositoryError::validation_failed("gain", "out of range");
+        let msg = format!("{}", err);
+        assert!(msg.contains("gain"));
+        assert!(msg.contains("out of range"));
+    }
+
+    #[test]
+    fn test_file_path_error_factory() {
+        let err = ProfileRepositoryError::file_path_error("/data/profile.json", "corrupt");
+        match &err {
+            ProfileRepositoryError::FilePathError { path, reason } => {
+                assert!(path.to_string_lossy().contains("profile.json"));
+                assert_eq!(reason, "corrupt");
+            }
+            other => panic!("expected FilePathError, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_atomic_write_failed_factory() {
+        let err = ProfileRepositoryError::atomic_write_failed("/tmp/t", "/data/p");
+        match &err {
+            ProfileRepositoryError::AtomicWriteFailed {
+                temp_path,
+                target_path,
+            } => {
+                assert!(temp_path.to_string_lossy().contains("t"));
+                assert!(target_path.to_string_lossy().contains("p"));
+            }
+            other => panic!("expected AtomicWriteFailed, got {:?}", other),
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // From conversions
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_from_validation_error() {
+        let err = ValidationError::MissingField("name".to_string());
+        let repo_err: ProfileRepositoryError = err.into();
+        let msg = format!("{}", repo_err);
+        assert!(msg.contains("name"));
+    }
+
+    #[test]
+    fn test_from_storage_error_read_failed() {
+        let io_err = std::io::Error::new(std::io::ErrorKind::NotFound, "not found");
+        let err = StorageError::read_failed("/data/file.json", io_err);
+        let repo_err: ProfileRepositoryError = err.into();
+        let msg = format!("{}", repo_err);
+        assert!(msg.contains("file.json"));
+    }
+
+    #[test]
+    fn test_from_storage_error_file_exists() {
+        let err = StorageError::FileExists(PathBuf::from("/data/exists.json"));
+        let repo_err: ProfileRepositoryError = err.into();
+        let msg = format!("{}", repo_err);
+        assert!(msg.contains("exists.json"));
+    }
+
+    #[test]
+    fn test_from_storage_error_permission_denied() {
+        let err = StorageError::PermissionDenied {
+            operation: "write".to_string(),
+            path: PathBuf::from("/data/locked.json"),
+        };
+        let repo_err: ProfileRepositoryError = err.into();
+        let msg = format!("{}", repo_err);
+        assert!(msg.contains("Permission denied"));
+        assert!(msg.contains("write"));
+    }
+
+    // -----------------------------------------------------------------------
+    // ValidationError factories
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_validation_error_missing_field() {
+        let err = ValidationError::missing_field("device_id");
+        let msg = format!("{}", err);
+        assert!(msg.contains("device_id"));
+    }
+
+    #[test]
+    fn test_validation_error_invalid_value() {
+        let err = ValidationError::invalid_value("gain", "must be in [0, 1]");
+        let msg = format!("{}", err);
+        assert!(msg.contains("gain"));
+        assert!(msg.contains("must be in [0, 1]"));
+    }
+
+    #[test]
+    fn test_validation_error_out_of_range() {
+        let err = ValidationError::out_of_range("torque", 150.0, 0.0, 100.0);
+        let msg = format!("{}", err);
+        assert!(msg.contains("torque"));
+        assert!(msg.contains("150"));
+    }
+
+    #[test]
+    fn test_validation_error_non_monotonic() {
+        let err = ValidationError::NonMonotonicCurve;
+        let msg = format!("{}", err);
+        assert!(msg.contains("monotonic"));
+    }
+
+    #[test]
+    fn test_validation_error_unsorted_rpm() {
+        let err = ValidationError::UnsortedRpmBands;
+        let msg = format!("{}", err);
+        assert!(msg.contains("RPM"));
+    }
+
+    // -----------------------------------------------------------------------
+    // StorageError factories
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_storage_error_write_failed() {
+        let io_err = std::io::Error::new(std::io::ErrorKind::PermissionDenied, "denied");
+        let err = StorageError::write_failed("/tmp/out.json", io_err);
+        let msg = format!("{}", err);
+        assert!(msg.contains("out.json"));
+        assert!(msg.contains("denied"));
+    }
+}

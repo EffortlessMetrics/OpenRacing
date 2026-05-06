@@ -577,17 +577,26 @@ mod tests {
     use super::*;
     use tempfile::tempdir;
 
+    type TestResult = Result<(), Box<dyn std::error::Error>>;
+
+    fn make_recording(frame_count: usize) -> TelemetryRecording {
+        TestFixtureGenerator::generate_racing_session("test".to_string(), 1.0, frame_count as f32)
+    }
+
+    // -----------------------------------------------------------------------
+    // Recorder lifecycle
+    // -----------------------------------------------------------------------
+
     #[test]
-    fn test_recorder_creation() -> anyhow::Result<()> {
+    fn test_recorder_creation() -> TestResult {
         let temp_dir = tempdir()?;
         let output_path = temp_dir.path().join("test_recording.json");
-
         assert!(TelemetryRecorder::new(output_path).is_ok());
         Ok(())
     }
 
     #[test]
-    fn test_recording_lifecycle() -> anyhow::Result<()> {
+    fn test_recording_lifecycle() -> TestResult {
         let temp_dir = tempdir()?;
         let output_path = temp_dir.path().join("test_recording.json");
         let mut recorder = TelemetryRecorder::new(output_path)?;
@@ -609,6 +618,57 @@ mod tests {
     }
 
     #[test]
+    fn test_record_frame_before_start_is_ignored() -> TestResult {
+        let temp_dir = tempdir()?;
+        let output_path = temp_dir.path().join("no_start.json");
+        let mut recorder = TelemetryRecorder::new(output_path)?;
+
+        let telemetry = NormalizedTelemetry::builder().rpm(3000.0).build();
+        let frame = TelemetryFrame::new(telemetry, 1_000_000, 0, 64);
+        recorder.record_frame(frame);
+
+        assert_eq!(recorder.frame_count(), 0);
+        assert!(!recorder.is_recording());
+        Ok(())
+    }
+
+    #[test]
+    fn test_stop_recording_without_start_returns_error() -> TestResult {
+        let temp_dir = tempdir()?;
+        let output_path = temp_dir.path().join("no_start.json");
+        let mut recorder = TelemetryRecorder::new(output_path)?;
+
+        let result = recorder.stop_recording(None);
+        assert!(result.is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn test_load_recording_round_trip() -> TestResult {
+        let temp_dir = tempdir()?;
+        let output_path = temp_dir.path().join("round_trip.json");
+        let mut recorder = TelemetryRecorder::new(output_path.clone())?;
+
+        recorder.start_recording("round_trip_game".to_string());
+        let telemetry = NormalizedTelemetry::builder()
+            .rpm(7000.0)
+            .speed_ms(42.0)
+            .build();
+        recorder.record_frame(TelemetryFrame::new(telemetry, 100, 0, 64));
+        recorder.stop_recording(Some("round trip test".to_string()))?;
+
+        let loaded = TelemetryRecorder::load_recording(&output_path)?;
+        assert_eq!(loaded.metadata.game_id, "round_trip_game");
+        assert_eq!(loaded.frames.len(), 1);
+        assert!((loaded.frames[0].data.rpm - 7000.0).abs() < f32::EPSILON);
+        Ok(())
+    }
+
+    // -----------------------------------------------------------------------
+    // Telemetry player
+    // -----------------------------------------------------------------------
+
+    #[test]
     fn test_telemetry_player() {
         let recording =
             TestFixtureGenerator::generate_racing_session("test_game".to_string(), 1.0, 10.0);
@@ -624,6 +684,62 @@ mod tests {
     }
 
     #[test]
+    fn test_player_empty_recording() {
+        let recording = TelemetryRecording {
+            metadata: RecordingMetadata {
+                game_id: "empty".to_string(),
+                timestamp: 0,
+                duration_seconds: 0.0,
+                frame_count: 0,
+                average_fps: 0.0,
+                car_id: None,
+                track_id: None,
+                description: None,
+            },
+            frames: vec![],
+        };
+
+        let mut player = TelemetryPlayer::new(recording);
+        assert!(player.is_finished());
+        assert_eq!(player.progress(), 1.0); // empty → 100% done
+
+        player.start_playback();
+        assert!(player.get_next_frame().is_none());
+    }
+
+    #[test]
+    fn test_player_metadata_access() {
+        let recording = make_recording(5);
+        let player = TelemetryPlayer::new(recording);
+
+        assert_eq!(player.metadata().game_id, "test");
+        assert_eq!(player.metadata().frame_count, 5);
+    }
+
+    #[test]
+    fn test_player_get_next_frame_before_start_returns_none() {
+        let recording = make_recording(5);
+        let mut player = TelemetryPlayer::new(recording);
+        assert!(player.get_next_frame().is_none());
+    }
+
+    #[test]
+    fn test_player_speed_clamped() {
+        let recording = make_recording(5);
+        let mut player = TelemetryPlayer::new(recording);
+
+        player.set_playback_speed(0.01); // below min
+        // Speed should be clamped — no panic
+
+        player.set_playback_speed(100.0); // above max
+        // Speed should be clamped — no panic
+    }
+
+    // -----------------------------------------------------------------------
+    // Synthetic fixture generation
+    // -----------------------------------------------------------------------
+
+    #[test]
     fn test_synthetic_fixture_generation() {
         let recording =
             TestFixtureGenerator::generate_racing_session("test_game".to_string(), 2.0, 60.0);
@@ -633,5 +749,206 @@ mod tests {
             assert!(frame.data.rpm > 0.0);
             assert!(frame.data.speed_ms > 0.0);
         }
+    }
+
+    #[test]
+    fn test_scenario_constant_speed() {
+        let recording =
+            TestFixtureGenerator::generate_test_scenario(TestScenario::ConstantSpeed, 1.0, 10.0);
+        assert_eq!(recording.frames.len(), 10);
+        for frame in &recording.frames {
+            assert!((frame.data.speed_ms - 50.0).abs() < f32::EPSILON);
+            assert!((frame.data.rpm - 6000.0).abs() < f32::EPSILON);
+        }
+    }
+
+    #[test]
+    fn test_scenario_acceleration() {
+        let recording =
+            TestFixtureGenerator::generate_test_scenario(TestScenario::Acceleration, 1.0, 10.0);
+        assert_eq!(recording.frames.len(), 10);
+        // First frame should be slow, last should be faster
+        let first_speed = recording
+            .frames
+            .first()
+            .map(|f| f.data.speed_ms)
+            .unwrap_or(0.0);
+        let last_speed = recording
+            .frames
+            .last()
+            .map(|f| f.data.speed_ms)
+            .unwrap_or(0.0);
+        assert!(last_speed > first_speed);
+    }
+
+    #[test]
+    fn test_scenario_cornering() {
+        let recording =
+            TestFixtureGenerator::generate_test_scenario(TestScenario::Cornering, 1.0, 10.0);
+        assert_eq!(recording.frames.len(), 10);
+        for frame in &recording.frames {
+            assert!((frame.data.ffb_scalar - 0.9).abs() < f32::EPSILON);
+        }
+    }
+
+    #[test]
+    fn test_scenario_pitstop() {
+        let recording =
+            TestFixtureGenerator::generate_test_scenario(TestScenario::PitStop, 1.0, 10.0);
+        assert_eq!(recording.frames.len(), 10);
+        // Some frames should be in pit (speed 15), some not (speed 45)
+        let has_pit = recording
+            .frames
+            .iter()
+            .any(|f| (f.data.speed_ms - 15.0).abs() < f32::EPSILON);
+        let has_track = recording
+            .frames
+            .iter()
+            .any(|f| (f.data.speed_ms - 45.0).abs() < f32::EPSILON);
+        assert!(has_pit, "should have pit lane frames");
+        assert!(has_track, "should have on-track frames");
+    }
+
+    // -----------------------------------------------------------------------
+    // CSV export
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_csv_export_header() {
+        let recording = make_recording(2);
+        let csv = recording.to_csv();
+        let header = csv.lines().next().unwrap_or("");
+        assert_eq!(
+            header,
+            "timestamp_ns,frame_index,raw_size,ffb_scalar,rpm,speed_ms,slip_ratio,gear"
+        );
+    }
+
+    #[test]
+    fn test_csv_export_row_count() {
+        let recording = make_recording(5);
+        let csv = recording.to_csv();
+        // header + 5 data rows (trailing newline may add an empty line)
+        let non_empty_lines: Vec<&str> = csv.lines().filter(|l| !l.is_empty()).collect();
+        assert_eq!(non_empty_lines.len(), 6); // 1 header + 5 data
+    }
+
+    #[test]
+    fn test_csv_empty_recording() {
+        let recording = TelemetryRecording {
+            metadata: RecordingMetadata {
+                game_id: "empty".to_string(),
+                timestamp: 0,
+                duration_seconds: 0.0,
+                frame_count: 0,
+                average_fps: 0.0,
+                car_id: None,
+                track_id: None,
+                description: None,
+            },
+            frames: vec![],
+        };
+        let csv = recording.to_csv();
+        let non_empty_lines: Vec<&str> = csv.lines().filter(|l| !l.is_empty()).collect();
+        assert_eq!(non_empty_lines.len(), 1); // header only
+    }
+
+    // -----------------------------------------------------------------------
+    // Compact JSON export
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_compact_json_round_trip() -> TestResult {
+        let recording = make_recording(10);
+        let json_bytes = recording.to_compact_json()?;
+        let restored: TelemetryRecording = serde_json::from_slice(&json_bytes)?;
+        assert_eq!(restored.frames.len(), recording.frames.len());
+        assert_eq!(restored.metadata.game_id, recording.metadata.game_id);
+        Ok(())
+    }
+
+    // -----------------------------------------------------------------------
+    // Binary export / import
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_binary_round_trip() -> TestResult {
+        let recording = make_recording(20);
+        let binary = recording.to_binary()?;
+        let restored = TelemetryRecording::from_binary(&binary)?;
+
+        assert_eq!(restored.frames.len(), recording.frames.len());
+        assert_eq!(restored.metadata.game_id, recording.metadata.game_id);
+        assert_eq!(
+            restored.metadata.frame_count,
+            recording.metadata.frame_count
+        );
+
+        for (orig, rest) in recording.frames.iter().zip(restored.frames.iter()) {
+            assert_eq!(orig.timestamp_ns, rest.timestamp_ns);
+            assert!((orig.data.rpm - rest.data.rpm).abs() < f32::EPSILON);
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn test_binary_too_short_fails() {
+        let result = TelemetryRecording::from_binary(&[0, 1, 2]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_binary_truncated_metadata_fails() {
+        // 4-byte length header claiming 1000 bytes, but only 5 bytes total
+        let bytes = [0xE8, 0x03, 0x00, 0x00, 0xFF];
+        let result = TelemetryRecording::from_binary(&bytes);
+        assert!(result.is_err());
+    }
+
+    // -----------------------------------------------------------------------
+    // Session diff
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_diff_identical_sessions() {
+        let recording = make_recording(10);
+        let diff = recording.diff(&recording);
+
+        assert!(diff.is_identical());
+        assert_eq!(diff.frame_count_delta, 0);
+        assert!(diff.metadata_diffs.is_empty());
+        assert!(diff.field_diffs.is_empty());
+    }
+
+    #[test]
+    fn test_diff_different_game_ids() {
+        let a = TestFixtureGenerator::generate_racing_session("game_a".to_string(), 1.0, 5.0);
+        let b = TestFixtureGenerator::generate_racing_session("game_b".to_string(), 1.0, 5.0);
+
+        let diff = a.diff(&b);
+        assert!(!diff.is_identical());
+        assert!(diff.metadata_diffs.iter().any(|d| d.contains("game_id")));
+    }
+
+    #[test]
+    fn test_diff_different_frame_counts() {
+        let a = make_recording(10);
+        let b = make_recording(15);
+
+        let diff = a.diff(&b);
+        assert_eq!(diff.frame_count_delta, -5); // 10 - 15 = -5
+    }
+
+    #[test]
+    fn test_diff_field_differences_detected() {
+        let a_rec =
+            TestFixtureGenerator::generate_test_scenario(TestScenario::ConstantSpeed, 1.0, 5.0);
+        let b_rec = TestFixtureGenerator::generate_test_scenario(TestScenario::Cornering, 1.0, 5.0);
+
+        let diff = a_rec.diff(&b_rec);
+        assert!(
+            !diff.field_diffs.is_empty(),
+            "different scenarios should produce field diffs"
+        );
     }
 }

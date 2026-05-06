@@ -244,12 +244,49 @@ mod tests {
     }
 
     #[test]
+    fn test_button_out_of_bounds_returns_false() {
+        let inputs = DeviceInputs::default();
+        assert!(!inputs.button(16));
+        assert!(!inputs.button(100));
+        assert!(!inputs.button(usize::MAX));
+    }
+
+    #[test]
+    fn test_set_button_out_of_bounds_is_noop() {
+        let mut inputs = DeviceInputs::default();
+        inputs.set_button(16, true); // should not panic
+        inputs.set_button(100, true); // should not panic
+        // All buttons still false
+        for i in 0..16 {
+            assert!(!inputs.button(i));
+        }
+    }
+
+    #[test]
+    fn test_button_toggle() {
+        let mut inputs = DeviceInputs::default();
+        inputs.set_button(5, true);
+        assert!(inputs.button(5));
+        inputs.set_button(5, false);
+        assert!(!inputs.button(5));
+        inputs.set_button(5, true);
+        assert!(inputs.button(5));
+    }
+
+    #[test]
     fn test_rotary_access() {
         let inputs = DeviceInputs::new().with_rotaries([1, 2, 3, 4, 5, 6, 7, 8]);
 
         assert_eq!(inputs.rotary(0), 1);
         assert_eq!(inputs.rotary(7), 8);
         assert_eq!(inputs.rotary(8), 0);
+    }
+
+    #[test]
+    fn test_rotary_out_of_bounds_returns_zero() {
+        let inputs = DeviceInputs::default();
+        assert_eq!(inputs.rotary(8), 0);
+        assert_eq!(inputs.rotary(100), 0);
     }
 
     #[test]
@@ -263,6 +300,41 @@ mod tests {
 
         inputs.hat = 0xFF;
         assert_eq!(inputs.hat_direction(), HatDirection::Neutral);
+    }
+
+    #[test]
+    fn test_hat_direction_all_values() {
+        let expected = [
+            (0, HatDirection::Up),
+            (1, HatDirection::UpRight),
+            (2, HatDirection::Right),
+            (3, HatDirection::DownRight),
+            (4, HatDirection::Down),
+            (5, HatDirection::DownLeft),
+            (6, HatDirection::Left),
+            (7, HatDirection::UpLeft),
+        ];
+        let mut inputs = DeviceInputs::default();
+        for (val, dir) in expected {
+            inputs.hat = val;
+            assert_eq!(
+                inputs.hat_direction(),
+                dir,
+                "hat value {} should map to {:?}",
+                val,
+                dir
+            );
+        }
+    }
+
+    #[test]
+    fn test_hat_boundary_values_neutral() {
+        let mut inputs = DeviceInputs::default();
+        // Values 8 and above should all be neutral
+        for val in [8, 9, 15, 128, 255] {
+            inputs.hat = val;
+            assert_eq!(inputs.hat_direction(), HatDirection::Neutral);
+        }
     }
 
     #[test]
@@ -292,5 +364,46 @@ mod tests {
         assert_eq!(telemetry.wheel_angle_deg, 45.0);
         assert_eq!(telemetry.temperature_c, 50);
         assert!(telemetry.hands_on);
+    }
+
+    #[test]
+    fn test_new_equals_default() {
+        let new_inputs = DeviceInputs::new();
+        let default_inputs = DeviceInputs::default();
+        assert_eq!(new_inputs.tick, default_inputs.tick);
+        assert_eq!(new_inputs.buttons, default_inputs.buttons);
+        assert_eq!(new_inputs.hat, default_inputs.hat);
+        assert_eq!(new_inputs.steering, default_inputs.steering);
+    }
+
+    #[test]
+    fn test_with_hat_builder() {
+        let inputs = DeviceInputs::new().with_hat(4);
+        assert_eq!(inputs.hat, 4);
+        assert_eq!(inputs.hat_direction(), HatDirection::Down);
+    }
+
+    #[test]
+    fn test_clutch_button_fields() {
+        let inputs = DeviceInputs {
+            clutch_left_button: Some(true),
+            clutch_right_button: Some(false),
+            ..Default::default()
+        };
+        assert_eq!(inputs.clutch_left_button, Some(true));
+        assert_eq!(inputs.clutch_right_button, Some(false));
+    }
+
+    #[test]
+    fn test_telemetry_fault_flags() {
+        let telemetry = TelemetryData {
+            wheel_angle_deg: 0.0,
+            wheel_speed_rad_s: 0.0,
+            temperature_c: 0,
+            fault_flags: 0b1010_0101,
+            hands_on: false,
+        };
+        assert_eq!(telemetry.fault_flags, 0b1010_0101);
+        assert!(!telemetry.hands_on);
     }
 }

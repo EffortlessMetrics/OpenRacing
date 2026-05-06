@@ -151,12 +151,52 @@ mod tests {
     }
 
     #[test]
+    fn test_joystick_center_detected() {
+        let mut calibrator = JoystickCalibrator::new(0);
+        calibrator.add_sample(0, 0.0);
+        calibrator.add_sample(32768, 0.5); // near 0.5 → should be center
+        calibrator.add_sample(65535, 1.0);
+
+        let result = calibrator.calibrate().expect("calibrate should succeed");
+        assert_eq!(result.center, Some(32768));
+    }
+
+    #[test]
+    fn test_joystick_no_center_when_far_from_half() {
+        let mut calibrator = JoystickCalibrator::new(0);
+        calibrator.add_sample(0, 0.0);
+        calibrator.add_sample(65535, 1.0);
+        // No sample near 0.5, so center should be None
+
+        let result = calibrator.calibrate().expect("calibrate should succeed");
+        assert!(result.center.is_none());
+    }
+
+    #[test]
+    fn test_joystick_single_sample() {
+        let mut calibrator = JoystickCalibrator::new(0);
+        calibrator.add_sample(500, 0.3);
+
+        let result = calibrator
+            .calibrate()
+            .expect("single sample should succeed");
+        assert_eq!(result.min, 500);
+        assert_eq!(result.max, 500);
+    }
+
+    #[test]
     fn test_calibrate_joystick_axis() {
         let samples = vec![(0, 0.0), (32768, 0.5), (65535, 1.0)];
 
         let result = calibrate_joystick_axis(&samples).expect("calibrate should succeed");
         assert_eq!(result.min, 0);
         assert_eq!(result.max, 65535);
+    }
+
+    #[test]
+    fn test_calibrate_joystick_axis_empty_fails() {
+        let result = calibrate_joystick_axis(&[]);
+        assert!(result.is_err());
     }
 
     #[test]
@@ -170,5 +210,17 @@ mod tests {
 
         let result = calibrator.calibrate();
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_joystick_deadzone_matches_range() {
+        let mut calibrator = JoystickCalibrator::new(0);
+        calibrator.add_sample(100, 0.0);
+        calibrator.add_sample(900, 1.0);
+
+        let result = calibrator.calibrate().expect("calibrate should succeed");
+        // Deadzone should be set to the same as min/max
+        assert_eq!(result.deadzone_min, result.min);
+        assert_eq!(result.deadzone_max, result.max);
     }
 }
