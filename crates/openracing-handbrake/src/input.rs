@@ -26,12 +26,16 @@ impl HandbrakeInput {
     }
 
     pub fn normalized(&self) -> f32 {
-        let range = (self.calibration_max - self.calibration_min) as f32;
-        if range > 0.0 {
-            ((self.raw_value - self.calibration_min) as f32 / range).clamp(0.0, 1.0)
-        } else {
-            0.0
+        let min = self.calibration_min.min(self.calibration_max);
+        let max = self.calibration_min.max(self.calibration_max);
+        let range = max.saturating_sub(min);
+
+        if range == 0 {
+            return 0.0;
         }
+
+        let offset = self.raw_value.saturating_sub(min);
+        (f32::from(offset) / f32::from(range)).clamp(0.0, 1.0)
     }
 
     pub fn with_calibration(mut self, min: u16, max: u16) -> Self {
@@ -175,6 +179,28 @@ mod tests {
             calibration_max: 5000,
         };
         assert!((input.normalized() - 1.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn test_normalized_clamped_below_min() {
+        let input = HandbrakeInput {
+            raw_value: 500,
+            is_engaged: true,
+            calibration_min: 1000,
+            calibration_max: 5000,
+        };
+        assert!((input.normalized()).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn test_normalized_handles_inverted_calibration_range() {
+        let input = HandbrakeInput {
+            raw_value: 2500,
+            is_engaged: true,
+            calibration_min: 5000,
+            calibration_max: 1000,
+        };
+        assert!((input.normalized() - 0.375).abs() < 0.001);
     }
 
     #[test]
@@ -355,9 +381,7 @@ mod tests {
         #![proptest_config(proptest::test_runner::Config::with_cases(256))]
 
         #[test]
-        fn prop_normalized_within_unit_range(min in 0u16..=32767u16, max in 32768u16..=65535u16) {
-            // Constrain raw_value >= min to avoid u16 subtraction overflow in normalized()
-            let raw_value = min.saturating_add((max - min) / 2);
+        fn prop_normalized_within_unit_range(raw_value in any::<u16>(), min in any::<u16>(), max in any::<u16>()) {
             let input = HandbrakeInput {
                 raw_value,
                 is_engaged: raw_value > 100,
@@ -400,8 +424,8 @@ mod tests {
             for &s in &samples {
                 calibration.sample(s);
             }
-            let expected_min = *samples.iter().min().expect("non-empty");
-            let expected_max = *samples.iter().max().expect("non-empty");
+            let expected_min = samples.iter().copied().fold(u16::MAX, u16::min);
+            let expected_max = samples.iter().copied().fold(u16::MIN, u16::max);
             prop_assert_eq!(calibration.min, expected_min);
             prop_assert_eq!(calibration.max, expected_max);
         }
