@@ -41,24 +41,29 @@ This dual-rail design means:
 
 OpenRacing uses a four-stage rollout:
 
-1. **Stage A — current.** Hard-deny lints with verified zero debt
-   land in `[workspace.lints]` immediately. Panic-family and other
-   noisy lints with existing debt are **`allow`** rather than `warn`,
-   because existing CI runs `cargo clippy ... -- -D warnings` for
-   non-test crates; promoting them to `warn` here would convert them
-   to errors and break unrelated jobs (smoke / acceptance / soak / …).
-   The semantic checker (`scripts/check_no_panic_family.py`) enumerates
-   findings without blocking and remains the authoritative drift
-   reporter for panic-family lints during burndown.
-2. **Stage B — burndown.** Each entry in `policy/clippy-debt.toml` is
-   addressed by its named `target_pr`. Findings are either fixed or
-   receipted into `policy/no-panic-allowlist.toml`. As each lint
-   reaches zero unreceipted findings on default-members, it is
-   promoted from `allow` → `warn` (its own dedicated PR).
-3. **Stage C — strict flip.** When all debt entries reach `warn`
-   level cleanly, panic-family lints are promoted to `deny`.
-   Exceptions require both a TOML entry and an
-   `#[expect(..., reason = "policy:no-panic:<id>")]` attribute.
+1. **Stage A — current.** Pure infrastructure: policy files, docs,
+   semantic checker, file-policy checker, lint-inheritance check,
+   `[lints] workspace = true` on every crate, the `[workspace.lints]`
+   block itself. Stage A introduces **no new managed clippy
+   enforcement**: existing CI already runs
+   `cargo clippy ... -- -D warnings -D clippy::unwrap_used
+   -D clippy::panic -D clippy::expect_used`, and adding new workspace
+   `warn` or `deny` levels would either be redundant with that
+   existing enforcement or would convert previously-tolerated
+   patterns into errors and break unrelated jobs (smoke / acceptance
+   / soak / cross-platform / …). The only workspace-level
+   enforcement Stage A adds are two zero-debt governance denies
+   (`blanket_clippy_restriction_lints`, `should_panic_without_expect`).
+2. **Stage B — burndown / introduction.** Each entry in
+   `policy/clippy-debt.toml` is addressed by its named `target_pr`.
+   Findings are either fixed or (for panic-family) receipted into
+   `policy/no-panic-allowlist.toml`. Each PR introduces ONE lint at a
+   time at `warn` or `deny`, so the cause-and-effect of any new
+   regression is unambiguous.
+3. **Stage C — strict flip.** Once every debt entry has been
+   promoted to its `target_level`, the explicit `-D clippy::*` flags
+   in CI workflows are removed (the workspace lints carry the
+   enforcement on their own) and `policy/clippy-debt.toml` is empty.
 4. **Stage D — MSRV flips.** When MSRV bumps, the lints listed under
    `[[planned]]` in `policy/clippy-lints.toml` activate.
 

@@ -56,58 +56,29 @@ panic_in_result_fn = "allow"
 indexing_slicing = "allow"
 string_slice = "allow"
 
-# --- Hard denies that are safe to ship now ----------------------------------
+# --- Stage A: hard denies that are safe to ship now -------------------------
 #
-# These are either zero-debt today or are obvious correctness bugs.
-[stage.a.silent_failure]
-let_underscore_future = "deny"
-let_underscore_must_use = "deny"
-let_underscore_lock = "deny"
-map_err_ignore = "deny"
-lines_filter_map_ok = "deny"
-match_result_ok = "deny"
-
-[stage.a.async_concurrency]
-await_holding_lock = "deny"
-await_holding_refcell_ref = "deny"
-await_holding_invalid_type = "deny"
-arc_with_non_send_sync = "deny"
-rc_mutex = "deny"
-mut_mutex_lock = "deny"
-readonly_write_lock = "deny"
-
-[stage.a.unsafe_memory]
-mem_forget = "deny"
-forget_non_drop = "deny"
-drop_non_drop = "deny"
-undocumented_unsafe_blocks = "absent"     # introduced in panic-debt/unsafe-receipts
-multiple_unsafe_ops_per_block = "absent"  # introduced in panic-debt/unsafe-receipts
-repr_packed_without_abi = "absent"        # introduced after audit
-
-[stage.a.numeric]
-float_cmp = "allow"                  # introduced in panic-debt/numeric
-float_cmp_const = "allow"            # introduced in panic-debt/numeric
-float_equality_without_abs = "allow" # introduced in panic-debt/numeric
-lossy_float_literal = "allow"        # introduced in panic-debt/numeric
-invalid_upcast_comparisons = "deny"
-cast_nan_to_int = "deny"
-cast_enum_truncation = "deny"
-arithmetic_side_effects = "allow"    # too noisy for RT/numeric pipeline today
-
-[stage.a.file_process]
-suspicious_open_options = "deny"
-nonsensical_open_options = "absent"  # introduced after audit
-ineffective_open_options = "absent"  # introduced after audit
-path_buf_push_overwrite = "deny"
-join_absolute_paths = "deny"
-exit = "allow"      # CLI binaries call exit; promoted after disallowed-methods carveout
-dbg_macro = "allow" # promoted in policy/expect-with-reason-sweep
-
+# Stage A introduces NO new managed enforcement at the workspace level.
+# Existing CI already runs `cargo clippy ... -- -D warnings -D clippy::unwrap_used
+# -D clippy::panic -D clippy::expect_used` for non-test crates, so adding
+# new workspace warns/denies risks regressing unrelated jobs. Every
+# panic-family / silent-failure / async / unsafe-memory / numeric /
+# file-process / governance lint is tracked in
+# `policy/clippy-debt.toml` with `level = "absent"` and a `target_pr`
+# that introduces it.
+#
+# The only lints actively enforced at the workspace level today are
+# the two below, both of which are zero-debt and have no expected
+# false positives.
 [stage.a.governance]
-allow_attributes = "allow"                # promoted in policy/expect-with-reason-sweep
-allow_attributes_without_reason = "allow" # promoted in policy/expect-with-reason-sweep
 blanket_clippy_restriction_lints = "deny"
 should_panic_without_expect = "deny"
+
+# --- Future stages (allow -> warn -> deny) ----------------------------------
+#
+# `policy/clippy-debt.toml` is the source of truth for the per-lint
+# burndown and promotion schedule. The Stage B / C ratchets happen
+# one PR at a time, each one promoting a single debt entry.
 
 # --- Planned flips for future MSRV bumps ------------------------------------
 

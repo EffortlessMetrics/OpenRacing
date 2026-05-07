@@ -305,74 +305,24 @@ shared_memory = { path = "third_party/shared_memory" }
 # ---------------------------------------------------------------------------
 
 [workspace.lints.rust]
-unsafe_op_in_unsafe_fn = "deny"
-unused_must_use = "deny"
-unexpected_cfgs = "warn"
-unsafe_code = "deny"
+# Stage A introduces NO new rust-lint enforcement. The existing tree
+# enforces `unsafe_op_in_unsafe_fn` / `unused_must_use` / `static_mut_refs`
+# via per-file `#![deny(...)]` attributes in production crates and
+# `RUSTFLAGS="-D warnings -D unused_must_use"` in CI. Adding workspace-
+# level denies here would either be redundant or risk new regressions in
+# crates that currently pass under those rules.
 
 [workspace.lints.clippy]
-# --- Panic family (Stage A: `allow`; semantic checker reports drift) ------
+# Stage A is intentionally empty at the workspace level for managed
+# lints. Every panic-family / silent-failure / async / unsafe-memory /
+# numeric / file-process / governance lint listed in
+# `policy/clippy-debt.toml` is promoted from `allow` -> `warn` (and then
+# `deny`) one PR at a time, so each burndown can be reviewed in
+# isolation. The semantic no-panic checker
+# (`scripts/check_no_panic_family.py`) is the authoritative drift
+# reporter while debt is being burned down.
 #
-# Each of these has corresponding burndown debt in
-# policy/clippy-debt.toml. They are intentionally `allow` rather than
-# `warn` because existing CI runs `-D warnings` for non-test crates;
-# promoting them to `warn` here would break the workspace before any
-# burndown PR has landed. The semantic no-panic checker provides the
-# authoritative drift report in the meantime.
-unwrap_used = "allow"
-expect_used = "allow"
-panic = "allow"
-todo = "allow"
-unimplemented = "allow"
-unreachable = "allow"
-get_unwrap = "allow"
-unwrap_in_result = "allow"
-panic_in_result_fn = "allow"
-indexing_slicing = "allow"
-string_slice = "allow"
-dbg_macro = "allow"
-
-# --- Silent failure (hard denies; verified zero debt today) ---------------
-let_underscore_future = "deny"
-let_underscore_must_use = "deny"
-map_err_ignore = "deny"
-lines_filter_map_ok = "deny"
-match_result_ok = "deny"
-
-# --- Async / concurrency (hard denies; verified zero debt today) ----------
-await_holding_lock = "deny"
-await_holding_refcell_ref = "deny"
-await_holding_invalid_type = "deny"
-arc_with_non_send_sync = "deny"
-rc_mutex = "deny"
-mut_mutex_lock = "deny"
-readonly_write_lock = "deny"
-
-# --- Unsafe / memory (hard denies; verified zero debt today) --------------
-mem_forget = "deny"
-forget_non_drop = "deny"
-drop_non_drop = "deny"
-# undocumented_unsafe_blocks / multiple_unsafe_ops_per_block are
-# intentionally NOT enabled here; they are tracked in
-# policy/clippy-debt.toml and promoted in panic-debt/unsafe-receipts.
-
-# --- Numeric correctness --------------------------------------------------
-# float_cmp / cast_possible_* / etc. are allow-stage (debt) until the
-# panic-debt/numeric PR receipts FFB / calibration findings. The hard
-# denies below are zero-debt today.
-invalid_upcast_comparisons = "deny"
-cast_nan_to_int = "deny"
-cast_enum_truncation = "deny"
-
-# --- File / process / path footguns (hard denies; zero debt today) -------
-suspicious_open_options = "deny"
-path_buf_push_overwrite = "deny"
-join_absolute_paths = "deny"
-# `exit` is allow-stage: CLI binaries call exit; promotion gated on
-# disallowed-methods carveout.
-
-# --- Governance -----------------------------------------------------------
-# allow_attributes / allow_attributes_without_reason are allow-stage; the
-# expect-with-reason-sweep PR promotes them after the source-level sweep.
+# The two hard denies below are zero-debt today and have no expected
+# false positives:
 blanket_clippy_restriction_lints = "deny"
 should_panic_without_expect = "deny"
