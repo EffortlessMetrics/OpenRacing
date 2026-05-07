@@ -12,9 +12,16 @@
 
 schema_version = "1.0"
 
+# Stage A: items below are at `allow` in [workspace.lints], NOT `warn`.
+# Existing CI runs `cargo clippy ... -- -D warnings`, which would
+# promote a `warn` to an error and break unrelated builds. Each entry
+# is promoted from `allow` -> `warn` (and then to `target_level`) by
+# its named `target_pr` after the corresponding burndown lands.
+# See docs/CLIPPY_POLICY.md "Stages" for the discipline.
+
 [[debt]]
 lint = "clippy::unwrap_used"
-level = "warn"
+level = "allow"
 target_level = "deny"
 owner = "core"
 target_pr = "policy/strict-clippy-flip"
@@ -23,7 +30,7 @@ reason = "Stage A baseline; semantic checker enumerates findings before flip."
 
 [[debt]]
 lint = "clippy::expect_used"
-level = "warn"
+level = "allow"
 target_level = "deny"
 owner = "core"
 target_pr = "policy/strict-clippy-flip"
@@ -32,7 +39,7 @@ reason = "Stage A baseline; semantic checker enumerates findings before flip."
 
 [[debt]]
 lint = "clippy::panic"
-level = "warn"
+level = "allow"
 target_level = "deny"
 owner = "core"
 target_pr = "policy/strict-clippy-flip"
@@ -41,7 +48,7 @@ reason = "Stage A baseline; semantic checker enumerates findings before flip."
 
 [[debt]]
 lint = "clippy::todo"
-level = "warn"
+level = "allow"
 target_level = "deny"
 owner = "core"
 target_pr = "policy/strict-clippy-flip"
@@ -50,7 +57,7 @@ reason = "Stage A baseline; in-progress markers should burn down."
 
 [[debt]]
 lint = "clippy::unimplemented"
-level = "warn"
+level = "allow"
 target_level = "deny"
 owner = "core"
 target_pr = "policy/strict-clippy-flip"
@@ -59,7 +66,7 @@ reason = "Stage A baseline; in-progress markers should burn down."
 
 [[debt]]
 lint = "clippy::unreachable"
-level = "warn"
+level = "allow"
 target_level = "deny"
 owner = "core"
 target_pr = "policy/strict-clippy-flip"
@@ -68,7 +75,7 @@ reason = "Stage A baseline; receipt or migrate to fallible flow."
 
 [[debt]]
 lint = "clippy::indexing_slicing"
-level = "warn"
+level = "allow"
 target_level = "deny"
 owner = "ffb,protocols"
 target_pr = "panic-debt/parsers"
@@ -77,7 +84,7 @@ reason = "HID/protocol parsers and curve LUTs need targeted burndown first."
 
 [[debt]]
 lint = "clippy::string_slice"
-level = "warn"
+level = "allow"
 target_level = "deny"
 owner = "core"
 target_pr = "panic-debt/parsers"
@@ -86,7 +93,7 @@ reason = "Stage A baseline; UTF-8 boundary safety burndown."
 
 [[debt]]
 lint = "clippy::get_unwrap"
-level = "warn"
+level = "allow"
 target_level = "deny"
 owner = "core"
 target_pr = "policy/strict-clippy-flip"
@@ -95,7 +102,7 @@ reason = "Stage A baseline."
 
 [[debt]]
 lint = "clippy::unwrap_in_result"
-level = "warn"
+level = "allow"
 target_level = "deny"
 owner = "core"
 target_pr = "policy/strict-clippy-flip"
@@ -104,7 +111,7 @@ reason = "Stage A baseline; fallible flows should propagate Err."
 
 [[debt]]
 lint = "clippy::panic_in_result_fn"
-level = "warn"
+level = "allow"
 target_level = "deny"
 owner = "core"
 target_pr = "testing/fallible-helpers"
@@ -113,81 +120,81 @@ reason = "Promote after fallible test helper migration."
 
 [[debt]]
 lint = "clippy::undocumented_unsafe_blocks"
-level = "warn"
+level = "absent"
 target_level = "deny"
 owner = "rt,hid"
 target_pr = "panic-debt/unsafe-receipts"
 target_date = "2026-12-01"
-reason = "RT/HID/FFI islands receipted with SAFETY comments first."
+reason = "RT/HID/FFI islands receipted with SAFETY comments first; not yet introduced into [workspace.lints]."
 
 [[debt]]
 lint = "clippy::multiple_unsafe_ops_per_block"
-level = "warn"
+level = "absent"
 target_level = "deny"
 owner = "rt,hid"
 target_pr = "panic-debt/unsafe-receipts"
 target_date = "2026-12-01"
-reason = "Split RT/HID unsafe blocks alongside SAFETY comments."
+reason = "Split RT/HID unsafe blocks alongside SAFETY comments; not yet introduced into [workspace.lints]."
 
 [[debt]]
 lint = "clippy::float_cmp"
-level = "warn"
+level = "absent"
 target_level = "deny"
 owner = "ffb,calibration"
 target_pr = "panic-debt/numeric"
 target_date = "2026-12-01"
-reason = "Calibration / FFB curve code needs explicit epsilon helpers."
+reason = "Introduced in panic-debt/numeric after calibration / FFB curve code gets explicit epsilon helpers."
 
 [[debt]]
 lint = "clippy::float_cmp_const"
-level = "warn"
+level = "absent"
 target_level = "deny"
 owner = "ffb,calibration"
 target_pr = "panic-debt/numeric"
 target_date = "2026-12-01"
-reason = "Same as float_cmp."
+reason = "Introduced in panic-debt/numeric (same family as float_cmp)."
 
 [[debt]]
 lint = "clippy::float_equality_without_abs"
-level = "warn"
+level = "absent"
 target_level = "deny"
 owner = "ffb,calibration"
 target_pr = "panic-debt/numeric"
 target_date = "2026-12-01"
-reason = "Same as float_cmp."
+reason = "Introduced in panic-debt/numeric (same family as float_cmp)."
 
 [[debt]]
 lint = "clippy::lossy_float_literal"
-level = "warn"
+level = "absent"
 target_level = "deny"
 owner = "ffb,calibration"
 target_pr = "panic-debt/numeric"
 target_date = "2026-12-01"
-reason = "Curve coefficient literals reviewed for precision."
+reason = "Introduced in panic-debt/numeric after curve coefficient literals are reviewed."
 
 [[debt]]
 lint = "clippy::exit"
-level = "warn"
+level = "absent"
 target_level = "deny"
 owner = "cli"
 target_pr = "policy/strict-clippy-flip"
 target_date = "2026-09-01"
-reason = "Add disallowed-methods carveout for CLI binary entry points first."
+reason = "Introduced after disallowed-methods carveout for CLI binary entry points lands."
 
 [[debt]]
 lint = "clippy::allow_attributes"
-level = "warn"
+level = "absent"
 target_level = "deny"
 owner = "core"
 target_pr = "policy/expect-with-reason-sweep"
 target_date = "2026-09-15"
-reason = "Sweep bare #[allow(...)] to #[expect(..., reason = ...)]."
+reason = "Introduced after #[allow(...)] -> #[expect(..., reason = ...)] sweep."
 
 [[debt]]
 lint = "clippy::allow_attributes_without_reason"
-level = "warn"
+level = "absent"
 target_level = "deny"
 owner = "core"
 target_pr = "policy/expect-with-reason-sweep"
 target_date = "2026-09-15"
-reason = "Sweep bare #[allow(...)] to #[expect(..., reason = ...)]."
+reason = "Introduced after #[allow(...)] -> #[expect(..., reason = ...)] sweep."

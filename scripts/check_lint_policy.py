@@ -106,6 +106,9 @@ def check_clippy_toml_carveouts() -> list[str]:
 
 
 def check_workspace_lints_present() -> list[str]:
+    """The [workspace.lints] block must exist; specific lint presence is
+    governed by policy/clippy-debt.toml (which lists each managed lint
+    with its current level, including `absent`)."""
     errors: list[str] = []
     data = load_toml(ROOT_CARGO)
     lints = data.get("workspace", {}).get("lints", {})
@@ -114,17 +117,6 @@ def check_workspace_lints_present() -> list[str]:
             "Cargo.toml: missing [workspace.lints] section "
             "(see policy/clippy-lints.toml)."
         )
-    else:
-        clippy = lints.get("clippy", {})
-        for required in (
-            "unwrap_used", "expect_used", "panic", "todo",
-            "unimplemented", "indexing_slicing",
-        ):
-            if required not in clippy:
-                errors.append(
-                    f"Cargo.toml: [workspace.lints.clippy] missing '{required}' "
-                    "(required by policy/clippy-lints.toml stage A)."
-                )
     return errors
 
 
@@ -147,10 +139,19 @@ def check_debt_consistency() -> list[str]:
         else:
             name = lint.removeprefix("rust::")
             actual = _level_of(rust_lints.get(name))
+        if level == "absent":
+            # The debt entry asserts the lint is intentionally NOT yet
+            # present in [workspace.lints]; flag drift if it appears.
+            if actual is not None:
+                errors.append(
+                    f"clippy-debt.toml: lint '{lint}' is recorded as "
+                    f"level='absent' but Cargo.toml has {actual!r}."
+                )
+            continue
         if actual is None:
             errors.append(
                 f"clippy-debt.toml: lint '{lint}' is in the debt ledger "
-                "but not present in [workspace.lints]."
+                f"(level={level!r}) but not present in [workspace.lints]."
             )
             continue
         if actual != level:

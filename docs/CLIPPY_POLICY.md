@@ -41,14 +41,23 @@ This dual-rail design means:
 
 OpenRacing uses a four-stage rollout:
 
-1. **Stage A — current.** Strict Rust/Clippy block lands in
-   `[workspace.lints]`. Panic-family lints are `warn`. The semantic
-   checker enumerates findings without blocking.
-2. **Stage B.** Semantic checker becomes blocking. Every
-   panic-family finding must either be receipted in
-   `policy/no-panic-allowlist.toml` or removed.
-3. **Stage C — strict flip.** Panic-family Clippy lints are promoted
-   to `deny`. Exceptions require both a TOML entry and an
+1. **Stage A — current.** Hard-deny lints with verified zero debt
+   land in `[workspace.lints]` immediately. Panic-family and other
+   noisy lints with existing debt are **`allow`** rather than `warn`,
+   because existing CI runs `cargo clippy ... -- -D warnings` for
+   non-test crates; promoting them to `warn` here would convert them
+   to errors and break unrelated jobs (smoke / acceptance / soak / …).
+   The semantic checker (`scripts/check_no_panic_family.py`) enumerates
+   findings without blocking and remains the authoritative drift
+   reporter for panic-family lints during burndown.
+2. **Stage B — burndown.** Each entry in `policy/clippy-debt.toml` is
+   addressed by its named `target_pr`. Findings are either fixed or
+   receipted into `policy/no-panic-allowlist.toml`. As each lint
+   reaches zero unreceipted findings on default-members, it is
+   promoted from `allow` → `warn` (its own dedicated PR).
+3. **Stage C — strict flip.** When all debt entries reach `warn`
+   level cleanly, panic-family lints are promoted to `deny`.
+   Exceptions require both a TOML entry and an
    `#[expect(..., reason = "policy:no-panic:<id>")]` attribute.
 4. **Stage D — MSRV flips.** When MSRV bumps, the lints listed under
    `[[planned]]` in `policy/clippy-lints.toml` activate.

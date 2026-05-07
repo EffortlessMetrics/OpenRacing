@@ -286,15 +286,21 @@ shared_memory = { path = "third_party/shared_memory" }
 #
 # See docs/CLIPPY_POLICY.md for the staging discipline. In short:
 #
-#   * Panic-family lints are `warn` during Stage A while existing debt is
-#     enumerated by `scripts/check_no_panic_family.py`. They are promoted
-#     to `deny` in a dedicated `policy/strict-clippy-flip` PR.
-#   * Hard denies are limited to lints that are either zero-debt today or
-#     are obvious correctness bugs (silent failure, async footguns,
-#     repr_packed_without_abi, etc.).
+#   * Existing CI runs `cargo clippy ... -- -D warnings`. Adding a `warn`
+#     for a lint with existing debt would therefore promote it to an
+#     error and break unrelated jobs (smoke / acceptance / soak / ...).
+#     Stage A keeps panic-family and other noisy lints at `allow` here;
+#     the semantic checker (scripts/check_no_panic_family.py) is the
+#     authoritative reporter while debt is being burned down. Each lint
+#     gets promoted to `warn` (and then `deny`) only when its
+#     corresponding entry in policy/clippy-debt.toml has burndown ready.
+#   * Hard denies are limited to lints that are zero-debt today or are
+#     obvious correctness bugs (silent failure, async footguns, etc.)
+#     where no existing finding has been observed in any crate.
 #   * `unsafe_code = "deny"` (NOT forbid): OpenRacing has legitimate RT,
 #     HID, and FFI islands receipted with `// SAFETY:` comments.
-#   * No global `-D warnings` until `policy/clippy-debt.toml` is empty.
+#   * No global `-D warnings` change in this PR. The next promotion PR
+#     ratchets debt items one lint at a time.
 #   * No test carveouts in `clippy.toml`. Use the semantic checker.
 # ---------------------------------------------------------------------------
 
@@ -305,28 +311,35 @@ unexpected_cfgs = "warn"
 unsafe_code = "deny"
 
 [workspace.lints.clippy]
-# --- Panic family (Stage A: warn). Promoted in policy/strict-clippy-flip ---
-unwrap_used = "warn"
-expect_used = "warn"
-panic = "warn"
-todo = "warn"
-unimplemented = "warn"
-unreachable = "warn"
-get_unwrap = "warn"
-unwrap_in_result = "warn"
-panic_in_result_fn = "warn"
-indexing_slicing = "warn"
-string_slice = "warn"
-dbg_macro = "warn"
+# --- Panic family (Stage A: `allow`; semantic checker reports drift) ------
+#
+# Each of these has corresponding burndown debt in
+# policy/clippy-debt.toml. They are intentionally `allow` rather than
+# `warn` because existing CI runs `-D warnings` for non-test crates;
+# promoting them to `warn` here would break the workspace before any
+# burndown PR has landed. The semantic no-panic checker provides the
+# authoritative drift report in the meantime.
+unwrap_used = "allow"
+expect_used = "allow"
+panic = "allow"
+todo = "allow"
+unimplemented = "allow"
+unreachable = "allow"
+get_unwrap = "allow"
+unwrap_in_result = "allow"
+panic_in_result_fn = "allow"
+indexing_slicing = "allow"
+string_slice = "allow"
+dbg_macro = "allow"
 
-# --- Silent failure (hard denies) -----------------------------------------
+# --- Silent failure (hard denies; verified zero debt today) ---------------
 let_underscore_future = "deny"
 let_underscore_must_use = "deny"
 map_err_ignore = "deny"
 lines_filter_map_ok = "deny"
 match_result_ok = "deny"
 
-# --- Async / concurrency (hard denies) ------------------------------------
+# --- Async / concurrency (hard denies; verified zero debt today) ----------
 await_holding_lock = "deny"
 await_holding_refcell_ref = "deny"
 await_holding_invalid_type = "deny"
@@ -335,30 +348,31 @@ rc_mutex = "deny"
 mut_mutex_lock = "deny"
 readonly_write_lock = "deny"
 
-# --- Unsafe / memory ------------------------------------------------------
+# --- Unsafe / memory (hard denies; verified zero debt today) --------------
 mem_forget = "deny"
 forget_non_drop = "deny"
 drop_non_drop = "deny"
-undocumented_unsafe_blocks = "warn"     # promoted in panic-debt/unsafe-receipts
-multiple_unsafe_ops_per_block = "warn"  # promoted in panic-debt/unsafe-receipts
+# undocumented_unsafe_blocks / multiple_unsafe_ops_per_block are
+# intentionally NOT enabled here; they are tracked in
+# policy/clippy-debt.toml and promoted in panic-debt/unsafe-receipts.
 
 # --- Numeric correctness --------------------------------------------------
-float_cmp = "warn"
-float_cmp_const = "warn"
-float_equality_without_abs = "warn"
-lossy_float_literal = "warn"
+# float_cmp / cast_possible_* / etc. are allow-stage (debt) until the
+# panic-debt/numeric PR receipts FFB / calibration findings. The hard
+# denies below are zero-debt today.
 invalid_upcast_comparisons = "deny"
 cast_nan_to_int = "deny"
 cast_enum_truncation = "deny"
 
-# --- File / process / path footguns --------------------------------------
+# --- File / process / path footguns (hard denies; zero debt today) -------
 suspicious_open_options = "deny"
 path_buf_push_overwrite = "deny"
 join_absolute_paths = "deny"
-exit = "warn"  # CLI binaries call exit; promote after disallowed-methods carveout
+# `exit` is allow-stage: CLI binaries call exit; promotion gated on
+# disallowed-methods carveout.
 
 # --- Governance -----------------------------------------------------------
-allow_attributes = "warn"                # promoted in policy/expect-with-reason-sweep
-allow_attributes_without_reason = "warn" # promoted in policy/expect-with-reason-sweep
+# allow_attributes / allow_attributes_without_reason are allow-stage; the
+# expect-with-reason-sweep PR promotes them after the source-level sweep.
 blanket_clippy_restriction_lints = "deny"
 should_panic_without_expect = "deny"

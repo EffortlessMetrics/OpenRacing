@@ -30,24 +30,31 @@ blanket_categories = false
 #   * panic-family stages from "warn" to "deny" after debt is receipted.
 repo_class = "numeric_ffi_rt"
 
-# --- Stage A: warn-stage panic-family lints (current rollout) ---------------
+# --- Stage A: allow-stage panic-family lints (current rollout) --------------
 #
-# These are emitted as warnings in the workspace lint block while existing
-# debt is enumerated in `policy/no-panic-allowlist.toml`. They will be
-# promoted to "deny" in PR `policy/strict-clippy-flip` once the semantic
-# checker reports zero unreceipted findings on default-members.
+# These are intentionally `allow` in [workspace.lints], not `warn`. The
+# existing CI runs `cargo clippy ... -- -D warnings` for non-test crates,
+# which would promote any new `warn` to a hard error and break smoke /
+# acceptance / soak / cross-platform builds before any burndown PR has
+# landed. The semantic no-panic checker (scripts/check_no_panic_family.py)
+# is the authoritative drift reporter for these families during Stage A.
+#
+# Each lint listed here has a corresponding entry in
+# `policy/clippy-debt.toml`, with `level = "allow"` and a `target_pr`
+# that promotes it to `warn` (and then to `deny`) once the relevant
+# burndown lands.
 [stage.a.panic_family]
-unwrap_used = "warn"
-expect_used = "warn"
-panic = "warn"
-todo = "warn"
-unimplemented = "warn"
-unreachable = "warn"
-get_unwrap = "warn"
-unwrap_in_result = "warn"
-panic_in_result_fn = "warn"
-indexing_slicing = "warn"
-string_slice = "warn"
+unwrap_used = "allow"
+expect_used = "allow"
+panic = "allow"
+todo = "allow"
+unimplemented = "allow"
+unreachable = "allow"
+get_unwrap = "allow"
+unwrap_in_result = "allow"
+panic_in_result_fn = "allow"
+indexing_slicing = "allow"
+string_slice = "allow"
 
 # --- Hard denies that are safe to ship now ----------------------------------
 #
@@ -73,31 +80,32 @@ readonly_write_lock = "deny"
 mem_forget = "deny"
 forget_non_drop = "deny"
 drop_non_drop = "deny"
-undocumented_unsafe_blocks = "warn"     # promoted later when receipted
-multiple_unsafe_ops_per_block = "warn"  # promoted later when receipted
-repr_packed_without_abi = "deny"
+undocumented_unsafe_blocks = "absent"     # introduced in panic-debt/unsafe-receipts
+multiple_unsafe_ops_per_block = "absent"  # introduced in panic-debt/unsafe-receipts
+repr_packed_without_abi = "absent"        # introduced after audit
 
 [stage.a.numeric]
-float_cmp = "warn"
-float_cmp_const = "warn"
-float_equality_without_abs = "warn"
-lossy_float_literal = "warn"
+float_cmp = "allow"                  # introduced in panic-debt/numeric
+float_cmp_const = "allow"            # introduced in panic-debt/numeric
+float_equality_without_abs = "allow" # introduced in panic-debt/numeric
+lossy_float_literal = "allow"        # introduced in panic-debt/numeric
 invalid_upcast_comparisons = "deny"
 cast_nan_to_int = "deny"
 cast_enum_truncation = "deny"
-arithmetic_side_effects = "allow"  # too noisy for RT/numeric pipeline today
+arithmetic_side_effects = "allow"    # too noisy for RT/numeric pipeline today
 
 [stage.a.file_process]
 suspicious_open_options = "deny"
-nonsensical_open_options = "deny"
-ineffective_open_options = "deny"
+nonsensical_open_options = "absent"  # introduced after audit
+ineffective_open_options = "absent"  # introduced after audit
 path_buf_push_overwrite = "deny"
 join_absolute_paths = "deny"
-exit = "warn"  # CLI binaries call exit; promote after disallowed-methods carveout
+exit = "allow"      # CLI binaries call exit; promoted after disallowed-methods carveout
+dbg_macro = "allow" # promoted in policy/expect-with-reason-sweep
 
 [stage.a.governance]
-allow_attributes = "warn"                # promote to deny after sweep
-allow_attributes_without_reason = "warn" # promote to deny after sweep
+allow_attributes = "allow"                # promoted in policy/expect-with-reason-sweep
+allow_attributes_without_reason = "allow" # promoted in policy/expect-with-reason-sweep
 blanket_clippy_restriction_lints = "deny"
 should_panic_without_expect = "deny"
 
