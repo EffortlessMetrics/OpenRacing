@@ -1,6 +1,6 @@
 # OpenRacing Clippy / lint policy (declarative, single source of truth).
 #
-# This file is the policy that `scripts/check_lint_policy.py` validates.
+# This file is the policy that `scripts/policy_lint.py` validates.
 # The actual lint levels live in the workspace `Cargo.toml` `[workspace.lints]`
 # block. This file documents what should be there, the planned 1.94/1.95
 # flips, and the staging discipline.
@@ -36,7 +36,7 @@ repo_class = "numeric_ffi_rt"
 # existing CI runs `cargo clippy ... -- -D warnings` for non-test crates,
 # which would promote any new `warn` to a hard error and break smoke /
 # acceptance / soak / cross-platform builds before any burndown PR has
-# landed. The semantic no-panic checker (scripts/check_no_panic_family.py)
+# landed. The semantic no-panic checker (scripts/policy_no_panic.py)
 # is the authoritative drift reporter for these families during Stage A.
 #
 # Each lint listed here has a corresponding entry in

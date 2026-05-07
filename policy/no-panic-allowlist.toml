@@ -11,7 +11,7 @@
 # Schema and discipline are documented in docs/NO_PANIC_POLICY.md.
 #
 # To regenerate proposed entries from current findings:
-#   python scripts/check_no_panic_family.py --propose
+#   python scripts/policy_no_panic.py --propose
 #
 # The script writes target/no-panic-proposed-allowlist.toml; review it,
 # add owner/reason/expiry, then move entries here. The script never

@@ -290,7 +290,7 @@ shared_memory = { path = "third_party/shared_memory" }
 #     for a lint with existing debt would therefore promote it to an
 #     error and break unrelated jobs (smoke / acceptance / soak / ...).
 #     Stage A keeps panic-family and other noisy lints at `allow` here;
-#     the semantic checker (scripts/check_no_panic_family.py) is the
+#     the semantic checker (scripts/policy_no_panic.py) is the
 #     authoritative reporter while debt is being burned down. Each lint
 #     gets promoted to `warn` (and then `deny`) only when its
 #     corresponding entry in policy/clippy-debt.toml has burndown ready.
@@ -319,7 +319,7 @@ shared_memory = { path = "third_party/shared_memory" }
 # `policy/clippy-debt.toml` is promoted from `allow` -> `warn` (and then
 # `deny`) one PR at a time, so each burndown can be reviewed in
 # isolation. The semantic no-panic checker
-# (`scripts/check_no_panic_family.py`) is the authoritative drift
+# (`scripts/policy_no_panic.py`) is the authoritative drift
 # reporter while debt is being burned down.
 #
 # The two hard denies below are zero-debt today and have no expected

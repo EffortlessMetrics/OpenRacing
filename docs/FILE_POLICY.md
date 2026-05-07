@@ -11,7 +11,7 @@ ever-growing junk drawer.
 * `policy/non-rust-allowlist.toml` — TOML allowlist of expected
   non-Rust surfaces, with owner / surface / classification / reason /
   covered-by metadata for each.
-* `scripts/check_file_policy.py` — checker that walks every git-tracked
+* `scripts/policy_file.py` — checker that walks every git-tracked
   file and matches it against the allowlist.
 
 ## Schema
@@ -37,7 +37,7 @@ violations**, even if they happen to compile. The intended workflow:
 
 1. Add a new non-Rust surface (workflow, fixture, script, schema, …).
 2. Add a matching entry in `policy/non-rust-allowlist.toml`.
-3. Run `python scripts/check_file_policy.py` to confirm no drift.
+3. Run `python scripts/policy_file.py` to confirm no drift.
 
 For one-off generated artifacts that should not be tracked here (e.g.
 build outputs in `target/`), prefer to keep them out of git via

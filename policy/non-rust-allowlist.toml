@@ -6,7 +6,7 @@
 # instead of an ever-growing junk drawer.
 #
 # Schema is documented in docs/FILE_POLICY.md.
-# Validate with: python scripts/check_file_policy.py
+# Validate with: python scripts/policy_file.py
 #
 # Recognized fields (all required unless marked optional):
 #   glob          glob relative to repo root, OR
@@ -97,8 +97,8 @@ kind = "clippy_config"
 owner = "core"
 surface = "tooling"
 classification = "config"
-reason = "Clippy thresholds. Test carveouts are forbidden by check_lint_policy.py."
-covered_by = ["python scripts/check_lint_policy.py"]
+reason = "Clippy thresholds. Test carveouts are forbidden by policy_lint.py."
+covered_by = ["python scripts/policy_lint.py"]
 
 [[allow]]
 glob = "deny.toml"
@@ -166,9 +166,9 @@ surface = "tooling"
 classification = "config"
 reason = "Declarative repo policy validated by xtask checks / scripts."
 covered_by = [
-  "python scripts/check_lint_policy.py",
-  "python scripts/check_no_panic_family.py",
-  "python scripts/check_file_policy.py",
+  "python scripts/policy_lint.py",
+  "python scripts/policy_no_panic.py",
+  "python scripts/policy_file.py",
 ]
 
 [[allow]]

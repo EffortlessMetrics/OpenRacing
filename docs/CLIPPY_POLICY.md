@@ -17,7 +17,7 @@ drift.
 
 `policy/clippy-lints.toml` is **what should be true**. The
 `[workspace.lints]` block in `Cargo.toml` is **what is true today**.
-`scripts/check_lint_policy.py` enforces that the second matches the first
+`scripts/policy_lint.py` enforces that the second matches the first
 modulo the staged debt entries in `policy/clippy-debt.toml`.
 
 ## Two-rail design
@@ -26,7 +26,7 @@ Clippy lints catch local bad shapes near the code, in the editor, and in
 CI. They cannot, however, carry full exception metadata: who owns the
 exception, why it exists, when it expires, what selector identifies it.
 
-The **semantic no-panic checker** (`scripts/check_no_panic_family.py`)
+The **semantic no-panic checker** (`scripts/policy_no_panic.py`)
 owns that ledger, keyed by `path + family + selector`, with `last_seen`
 line/column hints used only for human review (never for matching).
 
@@ -71,7 +71,7 @@ The repo currently sits at Stage A.
 
 ## Forbidden patterns
 
-These are rejected by `scripts/check_lint_policy.py`:
+These are rejected by `scripts/policy_lint.py`:
 
 * Test carveouts in `clippy.toml`
   (`allow-unwrap-in-tests`, `allow-expect-in-tests`,
@@ -96,13 +96,13 @@ These are rejected by `scripts/check_lint_policy.py`:
 4. In source, attach
    `#[expect(clippy::<lint>, reason = "policy:no-panic:<id>")]`
    to the smallest enclosing item.
-5. Run `python scripts/check_no_panic_family.py` to verify no drift.
+5. Run `python scripts/policy_no_panic.py` to verify no drift.
 
 ## Promoting a lint
 
 To promote a lint from `warn` to `deny`:
 
-1. Run `python scripts/check_no_panic_family.py` and confirm zero
+1. Run `python scripts/policy_no_panic.py` and confirm zero
    unreceipted findings for that lint family.
 2. Remove the matching entry from `policy/clippy-debt.toml`.
 3. Update the level in `[workspace.lints]` in root `Cargo.toml` and in

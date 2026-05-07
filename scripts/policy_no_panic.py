@@ -27,9 +27,9 @@ Exit codes:
 
 CLI:
 
-  python scripts/check_no_panic_family.py
-  python scripts/check_no_panic_family.py --strict
-  python scripts/check_no_panic_family.py --propose
+  python scripts/policy_no_panic.py
+  python scripts/policy_no_panic.py --strict
+  python scripts/policy_no_panic.py --propose
 
 The script never mutates ``policy/no-panic-allowlist.toml``.
 """

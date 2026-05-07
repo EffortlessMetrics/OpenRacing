@@ -35,7 +35,7 @@ introduce fallible assertion helpers (`ensure_eq!`, `require_some!`,
   the relevant Clippy lints. During Stage A they are `warn`; they are
   promoted to `deny` after the semantic checker reports zero
   unreceipted findings.
-* **Rail B — semantic checker.** `scripts/check_no_panic_family.py`
+* **Rail B — semantic checker.** `scripts/policy_no_panic.py`
   walks the workspace, enumerates findings, and matches them against
   `policy/no-panic-allowlist.toml`. This is the **authoritative** source
   for intentional exceptions.
@@ -88,7 +88,7 @@ Recognized `classification` values:
 Every entry must have an `owner` and either an explicit `expires` ISO
 date or rely on the file-level `default_expires`. Stale entries (no
 matching finding seen in the most recent run) and expired entries are
-both reported by `check_no_panic_family.py` and become blocking after
+both reported by `policy_no_panic.py` and become blocking after
 Stage B.
 
 ## Stages
@@ -101,12 +101,12 @@ Stage B.
 
 ## Workflow
 
-1. Run `python scripts/check_no_panic_family.py` locally. It writes:
+1. Run `python scripts/policy_no_panic.py` locally. It writes:
    * `target/no-panic-report.json`
    * `target/no-panic-report.md`
 2. To regenerate proposed entries from current findings:
    ```
-   python scripts/check_no_panic_family.py --propose
+   python scripts/policy_no_panic.py --propose
    ```
    This writes `target/no-panic-proposed-allowlist.toml`. The script
    never mutates `policy/no-panic-allowlist.toml` automatically; you

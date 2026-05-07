@@ -34,12 +34,11 @@ crates/engine/property_test_failures.log
 **/*.proptest-regressions
 
 build_output*.log
-# Repo-root scratch / debug Python helpers; tracked tooling lives in scripts/.
-/check_*.py
-/fix_*.py
-/debug_*.py
-/setup_*.py
-/_addtests.py
+check_*.py
+fix_*.py
+debug_*.py
+setup_*.py
+_addtests.py
 
 # Temporary files and scripts
 run_steps.ps1

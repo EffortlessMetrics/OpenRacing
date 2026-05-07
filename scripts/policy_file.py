@@ -26,9 +26,9 @@ Exit codes:
 
 CLI:
 
-  python scripts/check_file_policy.py
-  python scripts/check_file_policy.py --strict
-  python scripts/check_file_policy.py --json target/file-policy.json
+  python scripts/policy_file.py
+  python scripts/policy_file.py --strict
+  python scripts/policy_file.py --json target/file-policy.json
 """
 from __future__ import annotations
 

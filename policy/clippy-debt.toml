@@ -9,7 +9,7 @@
 # flips (which are time-based) don't get mixed up with the burndown
 # ledger (which is debt-based).
 #
-# Validate with: python scripts/check_lint_policy.py
+# Validate with: python scripts/policy_lint.py
 #
 # Possible `level` values:
 #
@@ -17,7 +17,7 @@
 #   "warn"   -> lint is in [workspace.lints] at level = "warn".
 #   "absent" -> lint is intentionally NOT yet present in
 #               [workspace.lints]; it will be introduced by `target_pr`.
-#               check_lint_policy.py flags drift if it appears anyway.
+#               policy_lint.py flags drift if it appears anyway.
 #
 # Stage A: every entry below is at `absent` because Stage A introduces
 # NO new clippy enforcement at the workspace level (existing CI already

@@ -17,8 +17,8 @@ inheritance) is violated.
 
 CLI:
 
-  python scripts/check_lint_policy.py
-  python scripts/check_lint_policy.py --strict
+  python scripts/policy_lint.py
+  python scripts/policy_lint.py --strict
 
 Exit codes:
 

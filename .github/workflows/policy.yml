@@ -24,13 +24,13 @@ jobs:
       # workspace-lint inheritance, expired allowlist entry) is violated.
       # See docs/CLIPPY_POLICY.md, docs/NO_PANIC_POLICY.md, docs/FILE_POLICY.md.
       - name: Lint policy (workspace lint inheritance, no test carveouts)
-        run: python scripts/check_lint_policy.py
+        run: python scripts/policy_lint.py
 
       - name: File policy (non-Rust surface)
-        run: python scripts/check_file_policy.py
+        run: python scripts/policy_file.py
 
       - name: No-panic family checker (Stage A: report-only)
-        run: python scripts/check_no_panic_family.py
+        run: python scripts/policy_no_panic.py
 
       - name: Upload reports
         if: always()
