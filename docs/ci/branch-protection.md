@@ -1,5 +1,9 @@
 # Main Branch Protection
 
+`main` should require the Linux correctness lane before merge. Windows and macOS
+hosted runners are compatibility signals, not the default merge-safety gate for
+ordinary Rust, docs, schema, parser-fixture, or hardware-receipt changes.
+
 This document records the required merge policy for `main`. It exists because
 repository rulesets are configured in GitHub, not in this repository.
 
@@ -20,10 +24,10 @@ Findings:
 - The ruleset blocks branch deletion.
 - The ruleset blocks non-fast-forward updates.
 - The ruleset requires pull requests.
-- The ruleset does not currently require status checks to pass before merge.
+- The ruleset did not require status checks at the time of the audit.
 
-That last point is the operational gap: a pull request can merge while long CI
-jobs are still pending if a user or tool runs a merge command.
+That last point was the operational gap: a pull request could merge while long
+CI jobs were still pending if a user or tool ran a merge command.
 
 ## Required Policy
 
@@ -41,29 +45,80 @@ protection enabled. In the GitHub UI, configure:
 - Keep deletion and non-fast-forward protection enabled.
 - Do not grant bypass actors for routine project work.
 
-## Required Checks
+## Required PR Checks
 
-At minimum, the required checks for `main` should include:
+Configure the `main` ruleset so pull requests cannot merge until these checks
+complete successfully:
 
-- `CI`
-- `Code Coverage`
-- `Regression Prevention`
-- `Integration Tests`
-- `Schema Validation`
-- `YAML Sync Check`
-- `Compatibility Layer Usage Tracking`
+- `CHANGELOG Validation`
+- `MSRV Check`
+- `CLI Isolation Build (ubuntu-latest)`
+- `Service Isolation Build (ubuntu-latest)`
+- `Plugins Isolation Build (ubuntu-latest)`
+- `UI Isolation Build (ubuntu-22.04)`
+- `UI Isolation Build (ubuntu-24.04)`
+- `Schemas & Trybuild`
+- `Workspace Default Build (ubuntu-latest)`
+- `Feature Combinations`
+- `Dependency Governance`
+- `Comprehensive Lint Gates & Governance (ubuntu-latest)`
+- `Performance Gate`
 - `Security & License Audit`
+- `Final Workspace Validation (ubuntu-latest)`
+- `Smoke Tests`
+- `Performance Gates`
+- `User Journey Tests`
+- `Stress Tests`
+- `CI Soak Test`
+- `Acceptance Tests`
+- `Deprecated Field Detection`
+- `Trybuild Compile-Fail Tests`
+- `JSON Schema Validation`
+- `Lint Enforcement`
+- `Protobuf Breaking Changes`
+- `Comprehensive Validation`
+- `Game support matrix sync`
+- `track-compat-usage`
 
-If GitHub exposes only job-level contexts rather than workflow-level contexts,
-require the corresponding blocking jobs from those workflows. Do not require
-informational, skipped, or advisory bot checks unless the repository explicitly
-depends on them for merge safety.
+For hardware receipt pull requests, require `Moza Receipt Verification` through a
+path-scoped ruleset for `ci/hardware/**`, `crates/hid-moza-protocol/fixtures/**`,
+and `docs/hardware/**`. Do not make that check globally required unless the
+workflow is guaranteed to run on every pull request.
 
-## Hardware Receipt PRs
+## Non-Required Checks
 
-Hardware receipt PRs must follow the same merge policy as code PRs. A Moza R5
-receipt PR is not merge-ready while any required check is pending, even if the
-receipt verifier artifacts are present.
+Do not require these checks for ordinary pull requests:
+
+- `Windows Smoke`
+- `macOS Smoke`
+- `Cross-Platform Tests`
+- `Cross-Platform Performance`
+- `Windows Platform Smoke`
+- `macOS Platform Smoke`
+- `Linux UI Packaging Smoke`
+- bot review checks, including `droid-review`, `CodeRabbit`, and similar advisory signals
+- skipped coverage duplicates
+
+Windows and macOS checks still run when a PR is labeled `windows`, `macos`, or
+`platform`, when platform-sensitive paths change, or from manual/scheduled
+platform-confidence workflows.
+
+## Timing Policy
+
+Hosted-runner timing results are useful telemetry, but they are not release-grade
+real-time evidence. The normal PR lane keeps the Linux performance gate as a
+merge signal and uses warn-only validation where hosted-runner jitter would make
+strict RT assertions noisy. Strict jitter, missed-tick, and latency checks live
+in the manual/scheduled `Timing Gates` workflow and should move to a
+self-hosted perf-lab runner when one is available.
+
+## Hardware Receipts
+
+Moza hardware validation is evidence verification, not hosted-runner hardware
+emulation. The `Hardware Receipt Verification` workflow runs on Linux and checks
+dated receipt bundles, parser fixture replay, schemas, and claim boundaries. It
+must not open HID devices, send FFB reports, run serial configuration, or issue
+firmware/DFU commands.
 
 For hardware PR review, also confirm:
 
