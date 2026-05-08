@@ -82,10 +82,10 @@ python scripts/validate_performance.py bench_results.json --strict
 ### 3. Documentation
 ```bash
 # Validate ADRs
-python scripts/validate_adr.py --verbose
+cargo run -p wheelctl --bin validate-adr -- --verbose
 
 # Generate documentation index
-python scripts/generate_docs_index.py
+cargo run -p wheelctl --bin generate-docs-index --
 
 # Build docs
 cargo doc --all-features --workspace
@@ -345,9 +345,9 @@ Mitigation:
 ## Tools and Scripts
 
 - `scripts/validate_performance.py`: Performance gate validation
-- `scripts/validate_adr.py`: ADR format and reference validation
-- `scripts/generate_docs_index.py`: Documentation index generation
-- `scripts/sync_yaml.py`: Game support matrix YAML sync tool (see below)
+- `cargo run -p wheelctl --bin validate-adr --`: ADR format and reference validation
+- `cargo run -p wheelctl --bin generate-docs-index --`: Documentation index generation
+- `cargo run -p wheelctl --bin yaml-sync-check --`: Game support matrix YAML sync tool (see below)
 - `scripts/run_mutation_tests.sh`: Mutation testing runner (Linux/macOS)
 - `scripts/run_mutation_tests.ps1`: Mutation testing runner (Windows)
 - `benches/rt_timing.rs`: Real-time performance benchmarks
@@ -365,13 +365,13 @@ Two YAML files must always be identical:
 **Whenever you edit `crates/telemetry-config/src/game_support_matrix.yaml`, run:**
 
 ```bash
-python scripts/sync_yaml.py --fix
+cargo run -p wheelctl --bin yaml-sync-check -- --fix
 ```
 
 This copies the canonical file to the mirror. To check without writing:
 
 ```bash
-python scripts/sync_yaml.py --check   # exits 1 if files differ
+cargo run -p wheelctl --bin yaml-sync-check -- --check   # exits 1 if files differ
 ```
 
 The CI workflow (`.github/workflows/yaml-sync-check.yml`) enforces this on every push and PR.

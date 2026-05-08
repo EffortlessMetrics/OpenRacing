@@ -106,10 +106,10 @@ Documentation is validated as part of CI:
 
 ```bash
 # Validate ADRs
-python scripts/validate_adr.py --verbose
+cargo run -p wheelctl --bin validate-adr -- --verbose
 
 # Generate ADR index
-python scripts/generate_docs_index.py
+cargo run -p wheelctl --bin generate-docs-index --
 
 # Build API documentation
 cargo doc --all-features --workspace

@@ -136,7 +136,7 @@ owner = "release/ci"
 surface = "ci"
 classification = "config"
 reason = "GitHub Actions workflow definitions."
-covered_by = ["python scripts/check_yaml_sync.py"]
+covered_by = ["cargo run -p wheelctl --bin yaml-sync-check -- --check"]
 
 [[allow]]
 glob = ".github/**/*.md"
@@ -179,7 +179,7 @@ path = "docs/ci/coverage.md"
 kind = "ci_docs"
 owner = "release/ci"
 surface = "docs"
-classification = "docs"
+classification = "production"
 reason = "Documents Codecov claim boundaries and verification expectations."
 covered_by = ["git diff --check"]
 
@@ -205,7 +205,7 @@ owner = "core"
 surface = "docs"
 classification = "production"
 reason = "Architecture/design/ADR/policy documentation."
-covered_by = ["python scripts/validate_adr.py"]
+covered_by = ["cargo run -p wheelctl --bin validate-adr -- --verbose"]
 
 [[allow]]
 glob = "docs/adr/*.md"
@@ -214,7 +214,7 @@ owner = "core"
 surface = "docs"
 classification = "production"
 reason = "Architecture Decision Records."
-covered_by = ["python scripts/validate_adr.py"]
+covered_by = ["cargo run -p wheelctl --bin validate-adr -- --verbose"]
 
 [[allow]]
 glob = "docs/**/*.json"
@@ -550,7 +550,7 @@ classification = "production"
 reason = "Game support matrix consumed at runtime by the telemetry layer."
 covered_by = [
   "python scripts/validate_game_matrix.py",
-  "python scripts/check_yaml_sync.py",
+  "cargo run -p wheelctl --bin yaml-sync-check -- --check",
 ]
 
 # --- UI (Tauri + dist bundle) ----------------------------------------------
