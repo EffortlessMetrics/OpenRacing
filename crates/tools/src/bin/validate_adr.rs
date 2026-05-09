@@ -14,6 +14,7 @@
 use std::collections::HashSet;
 use std::env;
 use std::fs;
+use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
 #[derive(Debug)]
@@ -53,9 +54,9 @@ fn parse_args() -> Result<Args, String> {
             }
             "-v" | "--verbose" => args.verbose = true,
             "-h" | "--help" => {
-                println!(
+                stdout_line(format_args!(
                     "Usage: validate-adr [--adr-dir <path>] [--requirements <path>] [-v|--verbose]"
-                );
+                ));
                 std::process::exit(0);
             }
             other => return Err(format!("Unknown argument: {other}")),
@@ -63,6 +64,16 @@ fn parse_args() -> Result<Args, String> {
     }
 
     Ok(args)
+}
+
+fn stdout_line(args: std::fmt::Arguments<'_>) {
+    let mut stdout = io::stdout().lock();
+    let _ = writeln!(stdout, "{args}");
+}
+
+fn stderr_line(args: std::fmt::Arguments<'_>) {
+    let mut stderr = io::stderr().lock();
+    let _ = writeln!(stderr, "{args}");
 }
 
 fn is_adr_file_name(name: &str) -> bool {
@@ -246,27 +257,30 @@ fn main() -> std::process::ExitCode {
     let args = match parse_args() {
         Ok(args) => args,
         Err(e) => {
-            eprintln!("[ERROR] {e}");
+            stderr_line(format_args!("[ERROR] {e}"));
             return std::process::ExitCode::from(2);
         }
     };
 
     if !args.adr_dir.exists() {
-        eprintln!("[ERROR] ADR directory not found: {:?}", args.adr_dir);
+        stderr_line(format_args!(
+            "[ERROR] ADR directory not found: {:?}",
+            args.adr_dir
+        ));
         return std::process::ExitCode::from(1);
     }
 
-    println!("[INFO] Validating ADR files...");
+    stdout_line(format_args!("[INFO] Validating ADR files..."));
 
     let adr_files = find_adr_files(&args.adr_dir);
 
     if adr_files.is_empty() {
-        eprintln!("[ERROR] No ADR files found");
+        stderr_line(format_args!("[ERROR] No ADR files found"));
         return std::process::ExitCode::from(1);
     }
 
     if args.verbose {
-        println!("[INFO] Found {} ADR files", adr_files.len());
+        stdout_line(format_args!("[INFO] Found {} ADR files", adr_files.len()));
     }
 
     let mut total_errors = 0;
@@ -275,35 +289,40 @@ fn main() -> std::process::ExitCode {
         let errors = validate_adr_format(adr_path);
         if !errors.is_empty() {
             if let Some(name) = adr_path.file_name().and_then(|n| n.to_str()) {
-                eprintln!("\n[ERROR] {name}:");
+                stderr_line(format_args!("\n[ERROR] {name}:"));
                 for error in &errors {
-                    eprintln!("   - {error}");
+                    stderr_line(format_args!("   - {error}"));
                 }
             }
             total_errors += errors.len();
         } else if args.verbose
             && let Some(name) = adr_path.file_name().and_then(|n| n.to_str())
         {
-            println!("[OK] {name}: Format OK");
+            stdout_line(format_args!("[OK] {name}: Format OK"));
         }
     }
 
     let req_errors = validate_requirement_references(&adr_files, &args.requirements);
     for (file_name, errors) in &req_errors {
         if !errors.is_empty() {
-            eprintln!("\n[ERROR] {file_name} (requirements):");
+            stderr_line(format_args!("\n[ERROR] {file_name} (requirements):"));
             for error in errors {
-                eprintln!("   - {error}");
+                stderr_line(format_args!("   - {error}"));
             }
             total_errors += errors.len();
         }
     }
 
     if total_errors == 0 {
-        println!("\n[OK] All {} ADR files are valid!", adr_files.len());
+        stdout_line(format_args!(
+            "\n[OK] All {} ADR files are valid!",
+            adr_files.len()
+        ));
         std::process::ExitCode::from(0)
     } else {
-        eprintln!("\n[ERROR] Found {total_errors} validation errors");
+        stderr_line(format_args!(
+            "\n[ERROR] Found {total_errors} validation errors"
+        ));
         std::process::ExitCode::from(1)
     }
 }

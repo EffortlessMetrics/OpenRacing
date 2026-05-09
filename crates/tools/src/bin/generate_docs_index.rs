@@ -12,6 +12,7 @@
 use std::collections::HashMap;
 use std::env;
 use std::fs;
+use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
 #[derive(Debug)]
@@ -40,7 +41,9 @@ fn parse_args() -> Result<Args, String> {
                 args.adr_dir = PathBuf::from(value);
             }
             "-h" | "--help" => {
-                println!("Usage: generate-docs-index [--adr-dir <path>]");
+                stdout_line(format_args!(
+                    "Usage: generate-docs-index [--adr-dir <path>]"
+                ));
                 std::process::exit(0);
             }
             other => return Err(format!("Unknown argument: {other}")),
@@ -48,6 +51,16 @@ fn parse_args() -> Result<Args, String> {
     }
 
     Ok(args)
+}
+
+fn stdout_line(args: std::fmt::Arguments<'_>) {
+    let mut stdout = io::stdout().lock();
+    let _ = writeln!(stdout, "{args}");
+}
+
+fn stderr_line(args: std::fmt::Arguments<'_>) {
+    let mut stderr = io::stderr().lock();
+    let _ = writeln!(stderr, "{args}");
 }
 
 #[derive(Debug, Default)]
@@ -242,27 +255,30 @@ fn main() -> std::process::ExitCode {
     let args = match parse_args() {
         Ok(args) => args,
         Err(e) => {
-            eprintln!("[ERROR] {e}");
+            stderr_line(format_args!("[ERROR] {e}"));
             return std::process::ExitCode::from(2);
         }
     };
 
     if !args.adr_dir.exists() {
-        eprintln!("[ERROR] ADR directory not found: {:?}", args.adr_dir);
+        stderr_line(format_args!(
+            "[ERROR] ADR directory not found: {:?}",
+            args.adr_dir
+        ));
         return std::process::ExitCode::from(1);
     }
 
-    println!("[INFO] Generating documentation index...");
+    stdout_line(format_args!("[INFO] Generating documentation index..."));
 
     let index_content = generate_adr_index(&args.adr_dir);
     let index_file = args.adr_dir.join("INDEX.md");
 
     if let Err(e) = fs::write(&index_file, &index_content) {
-        eprintln!("[ERROR] Failed to write index file: {e}");
+        stderr_line(format_args!("[ERROR] Failed to write index file: {e}"));
         return std::process::ExitCode::from(1);
     }
 
-    println!("[OK] Generated ADR index: {:?}", index_file);
+    stdout_line(format_args!("[OK] Generated ADR index: {:?}", index_file));
     std::process::ExitCode::from(0)
 }
 
