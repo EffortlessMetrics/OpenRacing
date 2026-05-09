@@ -29,6 +29,11 @@ Findings:
 That last point was the operational gap: a pull request could merge while long
 CI jobs were still pending if a user or tool ran a merge command.
 
+Follow-up on 2026-05-08: ruleset `12099933` was updated to require the Linux
+correctness checks listed below with stale-check protection enabled. Hardware
+receipt enforcement remains separate because the Moza receipt workflow is
+path-filtered and should not be required globally for ordinary pull requests.
+
 ## Required Policy
 
 `main` must not accept a pull request until required checks have completed and
