@@ -16,7 +16,7 @@ use racing_wheel_hid_moza_protocol::report::looks_like_live_r5_v1_extended_repor
 use racing_wheel_hid_moza_protocol::{
     DeviceWriter, FfbMode, MOZA_VENDOR_ID, MozaDeviceCategory, MozaDirectTorqueEncoder,
     MozaInitState, MozaInputState, MozaProtocol, MozaTopologyHint, REPORT_LEN, VendorProtocol,
-    identify_device, input_report, is_wheelbase_product, parse_axis, product_ids, rim_ids,
+    identify_device, input_report, is_wheelbase_product, parse_axis, product_ids,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -5430,10 +5430,12 @@ fn verify_moza_topology_observed_gate(lane: &Path) -> BundleGateCheck {
     for endpoint in endpoints {
         let id = json_string(endpoint, "id").unwrap_or("<missing-id>");
         endpoint_ids.insert(id.to_string());
-        match json_string(endpoint, "product_id").and_then(parse_hex_selector) {
-            Some(pid) => endpoint_products.push((id.to_string(), pid)),
-            None => failures.push(format!("endpoint:{id}:missing-or-invalid-product-id")),
-        }
+        let vendor_id = json_string(endpoint, "vendor_id").and_then(parse_hex_selector);
+        let product_id = json_string(endpoint, "product_id").and_then(parse_hex_selector);
+        match (vendor_id, product_id) {
+            (Some(vid), Some(pid)) => endpoint_products.push((id.to_string(), vid, pid)),
+            _ => failures.push(format!("endpoint:{id}:missing-or-invalid-vid-pid")),
+        };
     }
 
     for (name, control) in controls {
@@ -5474,15 +5476,20 @@ fn verify_moza_topology_observed_gate(lane: &Path) -> BundleGateCheck {
     ] {
         match read_json_value(lane, path) {
             Ok(value) => {
-                for (endpoint_id, product_id) in &endpoint_products {
-                    let count = count_stack_product_devices(&value, &[*product_id]);
+                for (endpoint_id, vendor_id, product_id) in &endpoint_products {
+                    let count = count_vendor_product_devices(&value, *vendor_id, *product_id);
                     if count > 0 {
                         observed.push(format!(
-                            "{path}:{endpoint_id}:{}:{count}",
+                            "{path}:{endpoint_id}:{}:{}:{count}",
+                            hex_u16(*vendor_id),
                             hex_u16(*product_id)
                         ));
                     } else {
-                        failures.push(format!("{path}:{endpoint_id}:{}:0", hex_u16(*product_id)));
+                        failures.push(format!(
+                            "{path}:{endpoint_id}:{}:{}:0",
+                            hex_u16(*vendor_id),
+                            hex_u16(*product_id)
+                        ));
                     }
                 }
             }
@@ -6084,7 +6091,6 @@ fn passive_capture_requirements() -> &'static [PassiveCaptureRequirement] {
     const PEDALS: &[&str] = &["throttle_u16", "brake_u16"];
     const HANDBRAKE: &[&str] = &["handbrake_u16"];
     const NO_EXACT: &[(&str, u16)] = &[];
-    const ES_RIM: &[(&str, u16)] = &[("funky_u8", rim_ids::ES as u16)];
     const NO_ANY: &[(&str, &[&str])] = &[];
     const HUB_CONTROL_AXIS_ANY: &[&str] = &[
         "throttle_u16",
@@ -6100,7 +6106,6 @@ fn passive_capture_requirements() -> &'static [PassiveCaptureRequirement] {
     const HUB_CONTROL_GROUPS: &[(&str, &[&str])] = &[("hub_control_axis", HUB_CONTROL_AXIS_ANY)];
     const BUTTONS_ANY: &[&str] = &["buttons_any_u8"];
     const KS_BUTTONS_ANY: &[&str] = &["ks_buttons_any_u8", "buttons_any_u8"];
-    const HAT_ANY: &[&str] = &["hat_u8"];
     const KS_DIRECTION_ANY: &[&str] = &["ks_hat_u8", "hat_u8"];
     const KS_CONTROL_GROUPS: &[(&str, &[&str])] = &[
         ("buttons", KS_BUTTONS_ANY),
@@ -6108,7 +6113,7 @@ fn passive_capture_requirements() -> &'static [PassiveCaptureRequirement] {
         // the legacy rim/funky and rotary bytes stay zero on this layout.
         ("direction", KS_DIRECTION_ANY),
     ];
-    const ES_CONTROL_GROUPS: &[(&str, &[&str])] = &[("buttons", BUTTONS_ANY), ("hat", HAT_ANY)];
+    const ES_CONTROL_GROUPS: &[(&str, &[&str])] = &[("buttons", BUTTONS_ANY)];
     const REQUIREMENTS: &[PassiveCaptureRequirement] = &[
         PassiveCaptureRequirement {
             relative_path: "captures/r5-idle.jsonl",
@@ -6212,7 +6217,7 @@ fn passive_capture_requirements() -> &'static [PassiveCaptureRequirement] {
             required_category: "wheelbase",
             expected_products: PassiveCaptureProductRequirement::ManifestR5,
             required_axis_variation: NONE,
-            required_axis_values: ES_RIM,
+            required_axis_values: NO_EXACT,
             required_any_axis_variation: ES_CONTROL_GROUPS,
             min_report_len: Some(31),
             always_required: false,
@@ -10689,14 +10694,14 @@ fn count_r5_devices(value: &Value) -> usize {
         .unwrap_or(0)
 }
 
-fn count_stack_product_devices(value: &Value, product_ids: &[u16]) -> usize {
+fn count_vendor_product_devices(value: &Value, vendor_id: u16, product_id: u16) -> usize {
     value
         .get("devices")
         .and_then(Value::as_array)
         .map(|devices| {
             devices
                 .iter()
-                .filter(|device| is_moza_product_device_value(device, product_ids))
+                .filter(|device| is_vendor_product_device_value(device, vendor_id, product_id))
                 .count()
         })
         .unwrap_or(0)
@@ -10707,13 +10712,15 @@ fn is_r5_device_value(device: &Value) -> bool {
 }
 
 fn is_moza_product_device_value(device: &Value, product_ids: &[u16]) -> bool {
-    let vendor_id = json_string(device, "vendor_id");
-    let product_id = json_string(device, "product_id");
-    vendor_id == Some("0x346E")
-        && product_id
+    json_string(device, "vendor_id").and_then(parse_hex_selector) == Some(MOZA_VENDOR_ID)
+        && json_string(device, "product_id")
             .and_then(parse_hex_selector)
-            .map(|pid| product_ids.contains(&pid))
-            .unwrap_or(false)
+            .is_some_and(|pid| product_ids.contains(&pid))
+}
+
+fn is_vendor_product_device_value(device: &Value, vendor_id: u16, product_id: u16) -> bool {
+    json_string(device, "vendor_id").and_then(parse_hex_selector) == Some(vendor_id)
+        && json_string(device, "product_id").and_then(parse_hex_selector) == Some(product_id)
 }
 
 fn json_bool(value: &Value, key: &str) -> Option<bool> {
@@ -13821,6 +13828,7 @@ fn bytes_hex_array(bytes: &[u8]) -> Vec<String> {
 mod tests {
     use super::*;
     use clap::Parser;
+    use racing_wheel_hid_moza_protocol::rim_ids;
     use std::path::PathBuf;
 
     type TestResult<T = ()> = Result<T, Box<dyn std::error::Error>>;
@@ -14242,6 +14250,34 @@ mod tests {
         device["output_reports"] = serde_json::json!([{"report_id": "0x20", "report_len": 8}]);
         device["feature_report_ids"] = serde_json::json!(["0x03", "0x11"]);
         device
+    }
+
+    fn sample_trusted_r5_v1_json_device() -> Value {
+        let mut device = sample_trusted_r5_json_device();
+        device["product_id"] = serde_json::json!("0x0004");
+        device["product_name"] = serde_json::json!("Moza R5 V1");
+        device
+    }
+
+    fn sample_mixed_vendor_pedals_json_device() -> Value {
+        serde_json::json!({
+            "vendor_id": "0x1234",
+            "product_id": "0xABCD",
+            "product_name": "External Pedals",
+            "manufacturer": "Example",
+            "serial_number_present": true,
+            "interface_number": 0,
+            "usage_page": "0x0001",
+            "usage": "0x0004",
+            "descriptor_source": "operator_supplied_hex",
+            "report_descriptor_crc32": "0x456789AB",
+            "report_metadata_source": "report_descriptor_parsed",
+            "input_report_lengths": [8],
+            "output_report_ids": [],
+            "output_reports": [],
+            "feature_report_ids": [],
+            "output_capable": false
+        })
     }
 
     fn trusted_r5_descriptor_receipt() -> Value {
@@ -14991,11 +15027,11 @@ mod tests {
                 "{}\n{}",
                 capture_line(
                     product_ids::R5_V2,
-                    &wheelbase_full_report_hex(0x8000, 0, 0, 0, 0, 0, 8, rim_ids::ES, 0, 0),
+                    &wheelbase_full_report_hex(0x8000, 0, 0, 0, 0, 0, 0, 0, 0, 0),
                 ),
                 capture_line(
                     product_ids::R5_V2,
-                    &wheelbase_full_report_hex(0x8000, 0, 0, 0, 0, 0x02, 2, rim_ids::ES, 0, 0),
+                    &wheelbase_full_report_hex(0x8000, 0, 0, 0, 0, 0x02, 0, 0, 0, 0),
                 )
             ),
         )?;
@@ -15105,6 +15141,103 @@ mod tests {
             "evidence_capture": evidence_capture
         });
         write_test_json_file(&root.join("manifest.json"), &manifest)
+    }
+
+    fn add_topology_endpoint(
+        root: &Path,
+        endpoint_id: &str,
+        endpoint_kind: &str,
+        vendor_id: &str,
+        product_id: &str,
+        output_capable: bool,
+    ) -> TestResult {
+        let mut manifest = read_json_path(&root.join("manifest.json"))?;
+        let endpoints = manifest["topology"]["endpoints"]
+            .as_array_mut()
+            .ok_or("expected topology endpoints")?;
+        endpoints.push(serde_json::json!({
+            "id": endpoint_id,
+            "kind": endpoint_kind,
+            "vendor_id": vendor_id,
+            "product_id": product_id,
+            "interface_number": 0,
+            "usage_page": "0x0001",
+            "usage": "0x0004",
+            "output_capable": output_capable
+        }));
+        write_test_json_file(&root.join("manifest.json"), &manifest)
+    }
+
+    fn add_topology_control(
+        root: &Path,
+        control_key: &str,
+        role: &str,
+        endpoint_id: &str,
+        connection: &str,
+        evidence_capture: &str,
+    ) -> TestResult {
+        let mut manifest = read_json_path(&root.join("manifest.json"))?;
+        manifest["topology"]["logical_controls"][control_key] = serde_json::json!({
+            "role": role,
+            "source_endpoint": endpoint_id,
+            "connection": connection,
+            "required": true,
+            "evidence_capture": evidence_capture
+        });
+        write_test_json_file(&root.join("manifest.json"), &manifest)
+    }
+
+    fn set_required_hub_controls(
+        root: &Path,
+        controls: &[(&str, &str, Option<&str>, &str)],
+    ) -> TestResult {
+        let mut manifest = read_json_path(&root.join("manifest.json"))?;
+        let logical_controls = manifest
+            .pointer_mut("/topology/logical_controls")
+            .and_then(Value::as_object_mut)
+            .ok_or("expected topology logical_controls object")?;
+        logical_controls.clear();
+        for (key, role, rim, evidence_capture) in controls {
+            let mut control = serde_json::json!({
+                "role": role,
+                "source_endpoint": "moza-r5-if2",
+                "connection": "wheelbase_hub",
+                "required": true,
+                "evidence_capture": evidence_capture
+            });
+            if let Some(rim) = rim {
+                control["rim"] = serde_json::json!(rim);
+            }
+            logical_controls.insert((*key).to_string(), control);
+        }
+        write_test_json_file(&root.join("manifest.json"), &manifest)
+    }
+
+    fn append_device_to_observation_receipts(root: &Path, device: &Value) -> TestResult {
+        for artifact in [
+            "device-list.json",
+            "moza-probe.json",
+            "hid-list.json",
+            "descriptor.json",
+        ] {
+            let mut receipt = read_json_path(&root.join(artifact))?;
+            receipt["devices"]
+                .as_array_mut()
+                .ok_or("expected devices array")?
+                .push(device.clone());
+            write_test_json_file(&root.join(artifact), &receipt)?;
+        }
+        Ok(())
+    }
+
+    fn remove_optional_capture_files(root: &Path, captures: &[&str]) -> TestResult {
+        for capture in captures {
+            let path = root.join(capture);
+            if path.exists() {
+                fs::remove_file(path)?;
+            }
+        }
+        Ok(())
     }
 
     fn promoted_fixture_report_for_requirement(
@@ -21136,6 +21269,395 @@ mod tests {
     }
 
     #[test]
+    fn verify_bundle_passive_accepts_r5_ks_only_topology() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_minimal_passive_bundle(dir.path())?;
+        set_required_hub_controls(
+            dir.path(),
+            &[
+                (
+                    "steering",
+                    "steering",
+                    None,
+                    "captures/r5-steering-sweep.jsonl",
+                ),
+                (
+                    "ks_rim_controls",
+                    "rim_controls",
+                    Some("KS"),
+                    "captures/ks-controls.jsonl",
+                ),
+            ],
+        )?;
+        remove_optional_capture_files(
+            dir.path(),
+            &[
+                "captures/r5-throttle-only-sweep.jsonl",
+                "captures/r5-brake-only-sweep.jsonl",
+                "captures/r5-clutch-only-sweep.jsonl",
+                "captures/r5-handbrake-only-sweep.jsonl",
+                "captures/es-controls.jsonl",
+            ],
+        )?;
+        refresh_passive_parser_receipts(dir.path())?;
+
+        let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::Passive);
+
+        assert!(
+            receipt.success,
+            "{}",
+            serde_json::to_string_pretty(&receipt)?
+        );
+        assert!(
+            receipt
+                .artifacts
+                .iter()
+                .all(|artifact| artifact.path != "captures/es-controls.jsonl"
+                    && artifact.path != "captures/r5-throttle-only-sweep.jsonl")
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn verify_bundle_passive_accepts_r5_es_only_topology() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_minimal_passive_bundle(dir.path())?;
+        set_required_hub_controls(
+            dir.path(),
+            &[
+                (
+                    "steering",
+                    "steering",
+                    None,
+                    "captures/r5-steering-sweep.jsonl",
+                ),
+                (
+                    "es_rim_controls",
+                    "rim_controls",
+                    Some("ES"),
+                    "captures/es-controls.jsonl",
+                ),
+            ],
+        )?;
+        remove_optional_capture_files(
+            dir.path(),
+            &[
+                "captures/r5-throttle-only-sweep.jsonl",
+                "captures/r5-brake-only-sweep.jsonl",
+                "captures/r5-clutch-only-sweep.jsonl",
+                "captures/r5-handbrake-only-sweep.jsonl",
+                "captures/ks-controls.jsonl",
+            ],
+        )?;
+        refresh_passive_parser_receipts(dir.path())?;
+
+        let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::Passive);
+
+        assert!(
+            receipt.success,
+            "{}",
+            serde_json::to_string_pretty(&receipt)?
+        );
+        assert!(
+            receipt
+                .artifacts
+                .iter()
+                .all(|artifact| artifact.path != "captures/ks-controls.jsonl"
+                    && artifact.path != "captures/r5-clutch-only-sweep.jsonl")
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn verify_bundle_passive_accepts_r5_throttle_brake_only_topology() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_minimal_passive_bundle(dir.path())?;
+        set_required_hub_controls(
+            dir.path(),
+            &[
+                (
+                    "steering",
+                    "steering",
+                    None,
+                    "captures/r5-steering-sweep.jsonl",
+                ),
+                (
+                    "throttle",
+                    "throttle",
+                    None,
+                    "captures/r5-throttle-only-sweep.jsonl",
+                ),
+                ("brake", "brake", None, "captures/r5-brake-only-sweep.jsonl"),
+            ],
+        )?;
+        remove_optional_capture_files(
+            dir.path(),
+            &[
+                "captures/r5-clutch-only-sweep.jsonl",
+                "captures/r5-handbrake-only-sweep.jsonl",
+                "captures/ks-controls.jsonl",
+                "captures/es-controls.jsonl",
+            ],
+        )?;
+        refresh_passive_parser_receipts(dir.path())?;
+
+        let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::Passive);
+
+        assert!(
+            receipt.success,
+            "{}",
+            serde_json::to_string_pretty(&receipt)?
+        );
+        assert!(receipt.artifacts.iter().all(|artifact| artifact.path
+            != "captures/r5-clutch-only-sweep.jsonl"
+            && artifact.path != "captures/r5-handbrake-only-sweep.jsonl"));
+        Ok(())
+    }
+
+    #[test]
+    fn verify_bundle_passive_accepts_r5_hub_handbrake_without_standalone_hbp() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_minimal_passive_bundle(dir.path())?;
+        set_required_hub_controls(
+            dir.path(),
+            &[
+                (
+                    "steering",
+                    "steering",
+                    None,
+                    "captures/r5-steering-sweep.jsonl",
+                ),
+                (
+                    "handbrake",
+                    "handbrake",
+                    None,
+                    "captures/r5-handbrake-only-sweep.jsonl",
+                ),
+            ],
+        )?;
+        remove_optional_capture_files(
+            dir.path(),
+            &[
+                "captures/r5-throttle-only-sweep.jsonl",
+                "captures/r5-brake-only-sweep.jsonl",
+                "captures/r5-clutch-only-sweep.jsonl",
+                "captures/ks-controls.jsonl",
+                "captures/es-controls.jsonl",
+            ],
+        )?;
+        refresh_passive_parser_receipts(dir.path())?;
+
+        let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::Passive);
+
+        assert!(
+            receipt.success,
+            "{}",
+            serde_json::to_string_pretty(&receipt)?
+        );
+        assert!(
+            receipt
+                .artifacts
+                .iter()
+                .all(|artifact| artifact.path != "captures/hbp-standalone-sweep.jsonl")
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn verify_bundle_passive_accepts_standalone_hbp_when_topology_declares_it() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_minimal_passive_bundle(dir.path())?;
+        set_required_hub_controls(
+            dir.path(),
+            &[(
+                "steering",
+                "steering",
+                None,
+                "captures/r5-steering-sweep.jsonl",
+            )],
+        )?;
+        declare_standalone_control_topology(
+            dir.path(),
+            "standalone_handbrake",
+            "handbrake",
+            "moza-hbp-standalone",
+            "standalone_handbrake",
+            product_ids::HBP_HANDBRAKE,
+            "captures/hbp-standalone-sweep.jsonl",
+        )?;
+        write_text_file(
+            &dir.path().join("captures/hbp-standalone-sweep.jsonl"),
+            &format!(
+                "{}\n{}",
+                capture_line(product_ids::HBP_HANDBRAKE, "01000000"),
+                capture_line(product_ids::HBP_HANDBRAKE, "01FFFF01")
+            ),
+        )?;
+        remove_optional_capture_files(
+            dir.path(),
+            &[
+                "captures/r5-throttle-only-sweep.jsonl",
+                "captures/r5-brake-only-sweep.jsonl",
+                "captures/r5-clutch-only-sweep.jsonl",
+                "captures/r5-handbrake-only-sweep.jsonl",
+                "captures/ks-controls.jsonl",
+                "captures/es-controls.jsonl",
+            ],
+        )?;
+        refresh_passive_parser_receipts(dir.path())?;
+
+        let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::Passive);
+
+        assert!(
+            receipt.success,
+            "{}",
+            serde_json::to_string_pretty(&receipt)?
+        );
+        assert!(
+            passive_capture_requirements_for_lane(dir.path())
+                .iter()
+                .any(|requirement| requirement.relative_path
+                    == "captures/hbp-standalone-sweep.jsonl")
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn verify_bundle_passive_accepts_standalone_pedals_when_topology_declares_them() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_minimal_passive_bundle(dir.path())?;
+        set_required_hub_controls(
+            dir.path(),
+            &[(
+                "steering",
+                "steering",
+                None,
+                "captures/r5-steering-sweep.jsonl",
+            )],
+        )?;
+        declare_standalone_control_topology(
+            dir.path(),
+            "standalone_throttle",
+            "throttle",
+            "moza-srp-standalone",
+            "standalone_pedals",
+            product_ids::SR_P_PEDALS,
+            "captures/srp-standalone-sweep.jsonl",
+        )?;
+        add_topology_control(
+            dir.path(),
+            "standalone_brake",
+            "brake",
+            "moza-srp-standalone",
+            "standalone_usb",
+            "captures/srp-standalone-sweep.jsonl",
+        )?;
+        write_text_file(
+            &dir.path().join("captures/srp-standalone-sweep.jsonl"),
+            &format!(
+                "{}\n{}",
+                capture_line(product_ids::SR_P_PEDALS, "0100000000"),
+                capture_line(product_ids::SR_P_PEDALS, "01FFFFFFFF")
+            ),
+        )?;
+        remove_optional_capture_files(
+            dir.path(),
+            &[
+                "captures/r5-throttle-only-sweep.jsonl",
+                "captures/r5-brake-only-sweep.jsonl",
+                "captures/r5-clutch-only-sweep.jsonl",
+                "captures/r5-handbrake-only-sweep.jsonl",
+                "captures/ks-controls.jsonl",
+                "captures/es-controls.jsonl",
+            ],
+        )?;
+        refresh_passive_parser_receipts(dir.path())?;
+
+        let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::Passive);
+
+        assert!(
+            receipt.success,
+            "{}",
+            serde_json::to_string_pretty(&receipt)?
+        );
+        assert!(
+            passive_capture_requirements_for_lane(dir.path())
+                .iter()
+                .any(|requirement| requirement.relative_path
+                    == "captures/srp-standalone-sweep.jsonl")
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn verify_moza_topology_observed_accepts_mixed_vendor_endpoint() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_minimal_passive_bundle(dir.path())?;
+        let external_pedals = sample_mixed_vendor_pedals_json_device();
+        add_topology_endpoint(
+            dir.path(),
+            "external-pedals",
+            "standalone_pedals",
+            "0x1234",
+            "0xABCD",
+            false,
+        )?;
+        add_topology_control(
+            dir.path(),
+            "external_throttle",
+            "throttle",
+            "external-pedals",
+            "cross_device",
+            "captures/srp-standalone-sweep.jsonl",
+        )?;
+        append_device_to_observation_receipts(dir.path(), &external_pedals)?;
+
+        let gate = verify_moza_topology_observed_gate(dir.path());
+
+        assert_eq!(gate.status, "pass", "{}", gate.details);
+        assert!(
+            gate.details.contains("external-pedals:0x1234:0xABCD"),
+            "{}",
+            gate.details
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn verify_moza_topology_observed_accepts_multiple_r5_endpoints() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_minimal_passive_bundle(dir.path())?;
+        let r5_v1 = sample_trusted_r5_v1_json_device();
+        add_topology_endpoint(
+            dir.path(),
+            "moza-r5-v1-if2",
+            "wheelbase_hub",
+            MOZA_VENDOR_HEX,
+            "0x0004",
+            true,
+        )?;
+        add_topology_control(
+            dir.path(),
+            "v1_ks_rim_controls",
+            "rim_controls",
+            "moza-r5-v1-if2",
+            "wheelbase_hub",
+            "captures/ks-controls.jsonl",
+        )?;
+        append_device_to_observation_receipts(dir.path(), &r5_v1)?;
+
+        let gate = verify_moza_topology_observed_gate(dir.path());
+
+        assert_eq!(gate.status, "pass", "{}", gate.details);
+        assert!(
+            gate.details.contains("moza-r5-v1-if2:0x346E:0x0004"),
+            "{}",
+            gate.details
+        );
+        Ok(())
+    }
+
+    #[test]
     fn verify_bundle_passive_requires_device_list_no_ffb_writes() -> TestResult {
         let dir = tempfile::tempdir()?;
         write_minimal_passive_bundle(dir.path())?;
@@ -22005,7 +22527,7 @@ mod tests {
     }
 
     #[test]
-    fn verify_bundle_passive_requires_es_hat_and_button_variation() -> TestResult {
+    fn verify_bundle_passive_accepts_es_button_only_controls() -> TestResult {
         let dir = tempfile::tempdir()?;
         write_minimal_passive_bundle(dir.path())?;
         write_text_file(
@@ -22014,24 +22536,18 @@ mod tests {
                 "{}\n{}",
                 capture_line(
                     product_ids::R5_V2,
-                    &wheelbase_full_report_hex(0x8000, 0, 0, 0, 0, 0, 8, rim_ids::ES, 0, 0)
+                    &wheelbase_full_report_hex(0x8000, 0, 0, 0, 0, 0, 0, 0, 0, 0)
                 ),
                 capture_line(
                     product_ids::R5_V2,
-                    &wheelbase_full_report_hex(0x8000, 0, 0, 0, 0, 0x02, 8, rim_ids::ES, 0, 0)
+                    &wheelbase_full_report_hex(0x8000, 0, 0, 0, 0, 0x02, 0, 0, 0, 0)
                 )
             ),
         )?;
 
         let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::Passive);
 
-        assert!(!receipt.success);
-        assert!(
-            receipt
-                .gates
-                .iter()
-                .any(|gate| { gate.name == "passive_captures_parse" && gate.status == "fail" })
-        );
+        assert!(receipt.success);
         Ok(())
     }
 
@@ -22045,11 +22561,11 @@ mod tests {
                 "{}\n{}",
                 capture_line(
                     product_ids::R5_V2,
-                    &wheelbase_full_report_hex(0x8000, 0, 0, 0, 0, 0, 8, rim_ids::ES, 0, 0)
+                    &wheelbase_full_report_hex(0x8000, 0, 0, 0, 0, 0, 0, 0, 0, 0)
                 ),
                 capture_line(
                     product_ids::R5_V2,
-                    &wheelbase_full_report_hex(0x8000, 0, 0, 0, 0, 0x02, 8, rim_ids::ES, 0, 0)
+                    &wheelbase_full_report_hex(0x8000, 0, 0, 0, 0, 0, 0, 0, 0, 0)
                 )
             ),
         )?;
@@ -22060,23 +22576,18 @@ mod tests {
             .iter()
             .find(|entry| entry.capture == "captures/es-controls.jsonl")
             .ok_or("missing es-controls validation entry")?;
-        let hat_requirement = entry
+        let button_requirement = entry
             .required_any_axis_variation
             .iter()
-            .find(|requirement| requirement.group == "hat")
-            .ok_or("missing hat requirement")?;
-        let rim_requirement = entry
-            .required_axis_values
-            .iter()
-            .find(|requirement| requirement.axis == "funky_u8")
-            .ok_or("missing ES rim requirement")?;
+            .find(|requirement| requirement.group == "buttons")
+            .ok_or("missing ES button requirement")?;
 
         assert!(!receipt.success);
         assert!(!entry.success);
-        assert_eq!(hat_requirement.axes, vec!["hat_u8".to_string()]);
-        assert_eq!(rim_requirement.value, hex_u8(rim_ids::ES));
+        assert_eq!(button_requirement.axes, vec!["buttons_any_u8".to_string()]);
+        assert!(entry.required_axis_values.is_empty());
         assert!(entry.missing_requirements.iter().any(|requirement| {
-            requirement.contains("hat group") && requirement.contains("hat_u8")
+            requirement.contains("buttons group") && requirement.contains("buttons_any_u8")
         }));
         Ok(())
     }
