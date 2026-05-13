@@ -2,6 +2,8 @@
 
 Welcome to the OpenRacing documentation. This guide will help you navigate the available resources for using, developing, and extending OpenRacing.
 
+- [VERIFICATION.md](VERIFICATION.md) — README badge meanings, generated endpoints, and PR evidence boundaries
+
 ## Quick Links
 
 | I want to... | Go to |
