@@ -52,38 +52,40 @@ protection enabled. In the GitHub UI, configure:
 
 ## Required PR Checks
 
-Configure the `main` ruleset so pull requests cannot merge until these checks
-complete successfully:
+Configure the `main` ruleset so pull requests cannot merge until the baseline
+Linux correctness checks complete successfully. These checks should run for
+ordinary Rust and hardware-lane plumbing PRs:
 
 - `CHANGELOG Validation`
 - `MSRV Check`
+- `PR Change Filter`
 - `CLI Isolation Build (ubuntu-latest)`
 - `Service Isolation Build (ubuntu-latest)`
 - `Plugins Isolation Build (ubuntu-latest)`
-- `UI Isolation Build (ubuntu-22.04)`
-- `UI Isolation Build (ubuntu-24.04)`
 - `Schemas & Trybuild`
 - `Workspace Default Build (ubuntu-latest)`
-- `Feature Combinations`
-- `Dependency Governance`
-- `Comprehensive Lint Gates & Governance (ubuntu-latest)`
-- `Performance Gate`
-- `Security & License Audit`
-- `Final Workspace Validation (ubuntu-latest)`
 - `Smoke Tests`
-- `Performance Gates`
 - `User Journey Tests`
-- `Stress Tests`
-- `CI Soak Test`
 - `Acceptance Tests`
 - `Deprecated Field Detection`
 - `Trybuild Compile-Fail Tests`
 - `JSON Schema Validation`
-- `Lint Enforcement`
 - `Protobuf Breaking Changes`
-- `Comprehensive Validation`
 - `Game support matrix sync`
 - `track-compat-usage`
+
+Additional path-scoped or label-scoped checks should be required only when the
+matching PR surface is present:
+
+| PR surface | Required checks |
+| --- | --- |
+| Docs-only changes | `CHANGELOG Validation`, `PR Change Filter`, docs index/policy checks where touched; workspace, feature, dependency, UI, and performance checks should be skipped unless `full-ci` is requested |
+| Moza parser, verifier, hardware docs, or hardware receipt plumbing | `Moza Focused Checks`; `Moza Receipt Verification` for `ci/hardware/**`, `crates/hid-moza-protocol/fixtures/**`, and `docs/hardware/**` |
+| UI or packaging paths | `UI Isolation Build (ubuntu-22.04)`, `UI Isolation Build (ubuntu-24.04)` |
+| Dependency, `Cargo.lock`, workspace feature, or `deny.toml` changes | `Feature Combinations`, `Dependency Governance`, `Security & License Audit`, `Comprehensive Lint Gates & Governance (ubuntu-latest)` |
+| CI, workflow, scripts, or policy changes | `Feature Combinations`, `Dependency Governance`, `Comprehensive Lint Gates & Governance (ubuntu-latest)`, `Final Workspace Validation (ubuntu-latest)` |
+| Performance-sensitive engine or integration-test paths | `Performance Gate` |
+| Release-candidate or `full-ci` labeled PRs | `Feature Combinations`, `Dependency Governance`, `Comprehensive Lint Gates & Governance (ubuntu-latest)`, `Performance Gate`, `Security & License Audit`, `Final Workspace Validation (ubuntu-latest)`, `Stress Tests`, `CI Soak Test`, `Comprehensive Validation` |
 
 For hardware receipt pull requests, require `Moza Receipt Verification` through a
 path-scoped ruleset for `ci/hardware/**`, `crates/hid-moza-protocol/fixtures/**`,
@@ -101,6 +103,14 @@ Do not require these checks for ordinary pull requests:
 - `Windows Platform Smoke`
 - `macOS Platform Smoke`
 - `Linux UI Packaging Smoke`
+- `Feature Combinations` for non-dependency, non-CI, non-release PRs
+- `Dependency Governance` for non-dependency, non-CI, non-release PRs
+- `Comprehensive Lint Gates & Governance (ubuntu-latest)` for ordinary docs,
+  parser, receipt, and narrow CLI PRs where a focused check covers the touched
+  surface
+- `Performance Gate` for ordinary non-performance PRs
+- `Security & License Audit` for ordinary non-dependency PRs
+- `Final Workspace Validation (ubuntu-latest)` for ordinary PRs
 - bot review checks, including `droid-review`, `CodeRabbit`, and similar advisory signals
 - skipped coverage duplicates
 
