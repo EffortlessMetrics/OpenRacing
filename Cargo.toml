@@ -88,6 +88,7 @@ members = [
     "crates/telemetry-integration",
     "crates/telemetry-contracts",
     "workspace-hack",
+    "xtask",
   ]
 exclude = ["third_party/shared_memory", "fuzz"]
 resolver = "2"

@@ -272,6 +272,26 @@ covered_by = ["cargo test --workspace"]
 # intentionally NOT pre-allowlisted: they are expected to be empty in a
 # clean tree, and adding them would suppress drift signal if they appear.
 
+
+[[allow]]
+glob = "badges/*.json"
+kind = "generated_badge_endpoint"
+owner = "release/ci"
+surface = "docs"
+classification = "generated"
+reason = "Generated Shields endpoint JSON for public README badges."
+generated_by = "cargo xtask badges"
+covered_by = ["cargo xtask badges --check"]
+
+[[allow]]
+path = "badges/README.md"
+kind = "badge_endpoint_doc"
+owner = "release/ci"
+surface = "docs"
+classification = "production"
+reason = "Documents generated public badge endpoint regeneration and drift checks."
+covered_by = ["cargo xtask badges --check"]
+
 # --- Build / packaging ------------------------------------------------------
 
 [[allow]]
@@ -389,6 +409,16 @@ covered_by = []
 # by the broader **/fixtures/** entry above.
 
 # --- Editor / hakari / repo-local config -----------------------------------
+
+
+[[allow]]
+path = ".cargo/config.toml"
+kind = "cargo_alias_config"
+owner = "release/ci"
+surface = "tooling"
+classification = "config"
+reason = "Defines the cargo xtask alias for repository automation commands."
+covered_by = ["cargo xtask pr"]
 
 [[allow]]
 path = ".config/hakari.toml"
