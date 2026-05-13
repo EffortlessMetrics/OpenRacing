@@ -127,6 +127,16 @@ classification = "config"
 reason = "Reproducible dev shell via Nix flakes."
 covered_by = ["bash scripts/ci_nix.sh"]
 
+
+[[allow]]
+path = ".cargo/config.toml"
+kind = "cargo_config"
+owner = "core"
+surface = "tooling"
+classification = "config"
+reason = "Cargo workspace aliases for repository maintenance commands."
+covered_by = ["cargo xtask --help"]
+
 # --- CI / release workflows --------------------------------------------------
 
 [[allow]]
@@ -182,6 +192,17 @@ surface = "docs"
 classification = "production"
 reason = "Documents Codecov claim boundaries and verification expectations."
 covered_by = ["git diff --check"]
+
+
+[[allow]]
+glob = "badges/*.json"
+kind = "generated_badge_endpoint"
+owner = "release/ci"
+surface = "docs"
+classification = "generated"
+reason = "Generated Shields endpoint JSON for public README badges."
+generated_by = "cargo xtask badges"
+covered_by = ["cargo xtask badges --check"]
 
 # --- Policy / docs ----------------------------------------------------------
 
