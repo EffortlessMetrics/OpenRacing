@@ -30,6 +30,7 @@ Welcome to the OpenRacing documentation. This guide will help you navigate the a
 - **[Plugin Development](PLUGIN_DEVELOPMENT.md)** - Creating WASM and native plugins
 - **[Schema Governance](SCHEMA_GOVERNANCE.md)** - Schema versioning and evolution policies
 - **[Migration Patterns](MIGRATION_PATTERNS.md)** - Handling schema migrations and backward compatibility
+- **[Verification](VERIFICATION.md)** - README badge meanings, generated endpoints, and PR evidence boundaries
 
 ### Architecture & Design
 

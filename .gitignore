@@ -69,7 +69,8 @@ compat_current.json
 compat_usage_report.json
 
 # Machine-specific cargo config
-.cargo/
+.cargo/*
+!.cargo/config.toml
 
 # Python bytecode
 __pycache__/
