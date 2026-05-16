@@ -64,6 +64,7 @@ Run these before any capture work:
 
 ```powershell
 wheelctl device list `
+  --hid-observe-only `
   --json-out "$LANE/device-list.json"
 
 wheelctl moza probe `
@@ -74,7 +75,6 @@ hid-capture list `
   --json-out "$LANE/hid-list.json"
 
 wheelctl moza descriptor `
-  --vendor 0x346E `
   --json-out "$LANE/descriptor.json"
 ```
 
@@ -102,23 +102,148 @@ For passive work, multiple visible endpoints may be recorded. For any later
 output-capable work, more than one visible motor-capable endpoint must require an
 explicit operator-selected endpoint before output is allowed.
 
-## 5. Descriptor Hex Fallback
+## 5. Descriptor Fallback
 
 If Windows cannot expose the raw R5 HID report descriptor, collect the report
-descriptor bytes with USBTreeView or an equivalent USB descriptor tool.
+descriptor bytes with USBTreeView, USBPcap/Wireshark enumeration traffic, Linux
+sysfs, or an equivalent USB descriptor tool.
+The fallback needs the actual HID Report Descriptor byte block. A USBTreeView
+summary that only shows `wDescriptorLength`, or a descriptor read failure such
+as `ERROR_INVALID_PARAMETER`, is not enough to satisfy descriptor trust. A
+Windows `HidP KDR` collection/preparsed descriptor is also not the raw report
+descriptor and must not be imported as lane evidence.
+
+### Windows USBPcap enumeration fallback
+
+Use this only if installing a Windows USB capture driver is acceptable for the
+bench machine. It is passive USB observation, but it is still a system change.
+
+Allowed:
+
+- install/run USBPcap or Wireshark USB capture support
+- capture USB enumeration while unplugging and replugging the R5
+- extract the HID Report Descriptor bytes from the descriptor response
+
+Not allowed:
+
+- install Zadig
+- replace the MOZA HID driver
+- switch the R5 to WinUSB
+- open Pit House firmware or update flows
+- send HID output reports
+- send HID feature reports
+- touch serial configuration
+- run firmware or DFU tools
+
+Procedure:
+
+```text
+1. Close simulators and vendor update/configuration flows.
+2. Start USBPcap/Wireshark capture on the USB controller that contains the R5.
+3. Unplug and replug the R5 while capture is running.
+4. Stop capture after enumeration completes.
+5. Locate the HID Report Descriptor response for VID 0x346E, PID 0x0004 or
+   0x0014, interface 2, usage page 0x0001, usage 0x0004.
+6. Export only the HID Report Descriptor byte block as hex text or raw bytes.
+```
+
+The exported bytes must be the HID report descriptor payload, not the USB
+device/configuration/interface descriptor, not a `wDescriptorLength` summary,
+and not a Windows preparsed-data/KDR blob. If the capture cannot identify that
+payload unambiguously, do not import it.
+
+If the enumeration capture is saved as a `.pcapng`, extract the HID Report
+Descriptor response with the checked-in helper. The helper is read-only: it only
+asks `tshark` to read the capture file and write a compact hex text file.
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/extract_usbpcap_report_descriptor.ps1 `
+  -InputPcapng "target/moza-r5-usbpcap-enumeration.pcapng" `
+  -Output "target/moza-r5-report-descriptor.txt" `
+  -InterfaceNumber 2
+```
+
+The helper fails closed if there is no HID Report Descriptor response or if more
+than one response matches the selected interface. In that case, narrow the
+capture or inspect the Wireshark packet list before importing anything into the
+lane.
+
+`wheelctl hardware doctor` also records whether this Windows host has `tshark`
+and USBPcap capture interfaces available under
+`tools.usbpcap_descriptor_capture`. If `tshark_present` is true but
+`usbpcap_interfaces_present` is false, Wireshark is installed but USBPcap capture
+support is not available to this host yet; use native Linux/sysfs, install
+USBPcap intentionally, or move the R5 to a machine that can produce the raw HID
+Report Descriptor response. Do not import Windows HidP KDR/preparsed data as a
+substitute.
+
+`wheelctl hardware lane status` and `wheelctl moza verify-bundle` read that same
+hardware-doctor tooling status when they build descriptor-stage guidance. If the
+host explicitly lacks USBPcap capture interfaces, they keep the descriptor import
+commands but do not present the USBPcap extraction script as an immediately
+runnable local next step.
 
 Use the selected R5 device only for the supplied hex:
 
 ```powershell
 wheelctl moza descriptor `
   --device <r5-selector> `
-  --vendor 0x346E `
   --report-descriptor-hex "<hex bytes from USBTreeView>" `
   --json-out "$LANE/descriptor.json"
 ```
 
+If the descriptor bytes are easier to save as a text file, use the file form:
+
+```powershell
+wheelctl moza descriptor `
+  --device <r5-selector> `
+  --report-descriptor-hex-file "target/moza-r5-report-descriptor.txt" `
+  --json-out "$LANE/descriptor.json"
+```
+
+If the descriptor bytes come from Linux sysfs as a raw binary
+`report_descriptor` file, use native Linux or WSL2 with explicit USB
+passthrough. Ordinary WSL2 does not expose Windows host HID devices under
+`/sys/class/hidraw`. Use the binary file form:
+
+```bash
+mkdir -p target
+descriptor=$(
+  for node in /sys/class/hidraw/hidraw*; do
+    if grep -qi 'HID_ID=.*:0000346E:00000004' "$node/device/uevent"; then
+      printf '%s\n' "$node/device/report_descriptor"
+      break
+    fi
+  done
+)
+test -n "$descriptor"
+sudo cat "$descriptor" > target/moza-r5-report-descriptor.bin
+wc -c target/moza-r5-report-descriptor.bin
+```
+
+Then import that binary file:
+
+```powershell
+wheelctl moza descriptor `
+  --device <r5-selector> `
+  --report-descriptor-bin-file "target/moza-r5-report-descriptor.bin" `
+  --json-out "$LANE/descriptor.json"
+```
+
 Keep the vendor-wide Moza records in `descriptor.json`. The supplied descriptor
-hex should apply only to the selected R5 record.
+bytes should apply only to the selected R5 record.
+
+When passive verification and audit are later green, record the read-only
+pre-output ledger before starting any zero-torque work:
+
+```powershell
+wheelctl moza pre-output-readiness `
+  --lane "$LANE" `
+  --json-out "$LANE/pre-output-readiness.json"
+```
+
+If `ready_for_zero_torque` is false, stop. This receipt is a blocker summary,
+not permission to run FFB.
 
 ## 6. Passive Captures
 
@@ -158,6 +283,64 @@ wheelctl moza capture-input `
   --duration-ms 15000 `
   --json-out "$LANE/captures/r5-throttle-only-sweep.jsonl"
 ```
+
+If this capture still looks idle-like after one clean redo, stop recapturing
+and inspect the physical/vendor state first. If Pit House is installed, open it
+only in a normal non-update state and confirm whether the gas axis moves there.
+If Pit House is not installed or is unavailable, do not install firmware tools
+or enter update flows for this passive lane. Instead, power down the R5, reseat
+the throttle pedal cable and the pedal-set-to-R5 cable, confirm the throttle is
+on the expected SR-P throttle port or harness path, power the R5 back on, and
+run one target-only gas check before replacing the lane capture:
+
+```powershell
+New-Item -ItemType Directory -Force -Path "target/moza-gas-check" | Out-Null
+
+wheelctl moza capture-input `
+  --device <r5> `
+  --duration-ms 60000 `
+  --json-out "target/moza-gas-check/r5-gas-after-reseat-60s.jsonl" `
+  --json
+
+wheelctl moza analyze-capture `
+  --capture "target/moza-gas-check/r5-gas-after-reseat-60s.jsonl" `
+  --json-out "target/moza-gas-check/r5-gas-after-reseat-analysis.json" `
+  --json
+```
+
+Use the same gesture as the lane capture: 5 seconds idle, throttle
+0->100->0 slowly several times, then 5 seconds idle. Do not move the wheel,
+brake, clutch, handbrake, or rim controls. Replace
+`$LANE/captures/r5-throttle-only-sweep.jsonl` only if the target-only analysis
+shows parser-visible hub-control movement beyond the idle/trailer bytes. To
+inspect the stored lane capture without assigning semantics to unlabeled bytes,
+run:
+
+```powershell
+wheelctl moza analyze-capture `
+  --capture "$LANE/captures/r5-throttle-only-sweep.jsonl" `
+  --json-out "target/moza-passive-checks/r5-throttle-byte-delta.json" `
+  --json
+```
+
+`analyze-capture` reads JSONL artifacts only. It reports raw byte and
+little-endian word ranges without opening HID devices, sending output reports,
+or claiming that a changing byte is throttle, clutch, handbrake, or a rim
+control.
+
+After several isolated captures, compare the whole lane against idle before
+recapturing blindly:
+
+```powershell
+wheelctl moza analyze-lane `
+  --lane "$LANE" `
+  --json-out "target/moza-passive-checks/lane-analysis.json" `
+  --json
+```
+
+`analyze-lane` reads stored JSONL artifacts only. It reports which required
+captures decoded cleanly, which ones are missing, and which captures still lack
+parser-visible control evidence compared with the lane idle capture.
 
 ### Brake Through R5 Hub
 
@@ -248,8 +431,9 @@ wheelctl moza capture-input `
 
 ### ES Wheel Controls
 
-Gesture: mount ES, press representative buttons, move the hat/funky input, and
-exercise any available directional controls.
+Gesture: mount ES, press representative buttons one at a time, and exercise any
+available non-output controls. ES does not have a hat/funky control, so do not
+recapture solely to satisfy a hat/funky expectation.
 
 ```powershell
 wheelctl moza capture-input `

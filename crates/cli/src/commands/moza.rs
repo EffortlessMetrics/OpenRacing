@@ -9,6 +9,7 @@ use anyhow::{Context, Result, anyhow};
 use chrono::{SecondsFormat, Utc};
 use hidapi::{DeviceInfo, HidApi};
 use jsonschema::Validator;
+use openracing_pidff_common::{self as pidff, EffectOp, EffectType};
 use racing_wheel_hid_capture::{
     HidReportDescriptorMetadata, HidReportDescriptorReport, parse_hid_report_descriptor_metadata,
 };
@@ -16,7 +17,7 @@ use racing_wheel_hid_moza_protocol::report::looks_like_live_r5_v1_extended_repor
 use racing_wheel_hid_moza_protocol::{
     DeviceWriter, FfbMode, MOZA_VENDOR_ID, MozaDeviceCategory, MozaDirectTorqueEncoder,
     MozaInitState, MozaInputState, MozaProtocol, MozaTopologyHint, REPORT_LEN, VendorProtocol,
-    identify_device, input_report, is_wheelbase_product, parse_axis, product_ids, rim_ids,
+    identify_device, input_report, is_wheelbase_product, parse_axis, product_ids,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -27,8 +28,9 @@ use std::path::{Component, Path, PathBuf};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use crate::commands::{
-    MozaBundleStage, MozaCommands, MozaInitMode, MozaPitHouseEvidenceKind,
-    MozaPitHouseObservationCase, MozaReceiptTemplateKind,
+    MozaActuatorProfile, MozaBundleStage, MozaCommands, MozaInitMode, MozaLowTorqueStrategy,
+    MozaPitHouseEvidenceKind, MozaPitHouseObservationCase, MozaReceiptTemplateKind,
+    MozaZeroOutputStrategy,
 };
 use crate::error::CliError;
 
@@ -39,6 +41,49 @@ const MOZA_VENDOR_HEX: &str = "0x346E";
 const HIGH_TORQUE_FEATURE_REPORT_ID: &str = "0x02";
 const START_REPORTING_FEATURE_REPORT_ID: &str = "0x03";
 const FFB_MODE_FEATURE_REPORT_ID: &str = "0x11";
+const PIDFF_SET_EFFECT_REPORT_ID: &str = "0x01";
+const PIDFF_SET_EFFECT_REPORT_ID_BYTE: u8 = 0x01;
+const PIDFF_SET_EFFECT_GENERIC_REPORT_LEN: usize = 14;
+const PIDFF_SET_EFFECT_R5_V1_REPORT_LEN: usize = 22;
+const PIDFF_EFFECT_TYPE_CONSTANT_FORCE: u8 = 0x01;
+const PIDFF_TRIGGER_BUTTON_NONE: u8 = 0xFF;
+const PIDFF_SET_CONSTANT_FORCE_REPORT_ID: &str = "0x05";
+const PIDFF_SET_CONSTANT_FORCE_REPORT_LEN: usize = 4;
+const PIDFF_EFFECT_OPERATION_REPORT_ID: &str = "0x0A";
+const PIDFF_EFFECT_OPERATION_REPORT_LEN: usize = 4;
+const PIDFF_BLOCK_FREE_REPORT_ID: &str = "0x0B";
+const PIDFF_BLOCK_FREE_REPORT_LEN: usize = 2;
+const PIDFF_CREATE_NEW_EFFECT_FEATURE_REPORT_ID: &str = "0x11";
+const PIDFF_BLOCK_LOAD_FEATURE_REPORT_ID: &str = "0x12";
+const PIDFF_PID_POOL_FEATURE_REPORT_ID: &str = "0x13";
+const PIDFF_DEVICE_CONTROL_REPORT_ID: &str = "0x0C";
+const PIDFF_DEVICE_CONTROL_REPORT_LEN: usize = 2;
+const PIDFF_STOP_ALL_EFFECTS_COMMAND: u8 = 0x04;
+const PIDFF_STOP_ALL_EFFECTS_COMMAND_NAME: &str = "stop_all_effects";
+const PIDFF_LOW_TORQUE_EFFECT_BLOCK_INDEX: u8 = 1;
+const PIDFF_LOW_TORQUE_LOOP_COUNT: u8 = 1;
+const PIDFF_LOW_TORQUE_DIRECTION_X: u16 = 9000;
+const PIDFF_LOW_TORQUE_DIRECTION_Y: u16 = 0;
+const PIDFF_EFFECT_SETUP_CLASSIFICATION: &str = "pidff_effect_setup";
+const PIDFF_BOUNDED_EFFECT_CLASSIFICATION: &str = "bounded_low_torque_pidff";
+const PIDFF_STOP_ALL_CLEANUP_CLASSIFICATION: &str = "pidff_stop_all_cleanup";
+const PIDFF_PLANNED_STOP_ALL_CLASSIFICATION: &str = "planned_pidff_stop_all";
+const R5_V1_LIVE_OUTPUT_REPORTS: &[(&str, usize)] = &[
+    ("0x01", 22),
+    ("0x02", 14),
+    ("0x03", 15),
+    ("0x04", 12),
+    ("0x05", 4),
+    ("0x06", 6),
+    ("0x0A", 4),
+    ("0x0B", 2),
+    ("0x0C", 2),
+    ("0x0D", 2),
+    ("0x14", 51),
+    ("0x15", 21),
+    ("0xAF", 18),
+];
+const R5_V1_LIVE_FEATURE_REPORT_IDS: &[&str] = &["0x11", "0x12", "0x13", "0xAF"];
 const MOZA_R5_MANIFEST_SCHEMA_JSON: &str =
     include_str!("../../../../ci/hardware/moza-r5/manifest.schema.json");
 const SIMULATOR_FFB_PREREQUISITE_ARTIFACTS: [(&str, &str); 6] = [
@@ -56,6 +101,16 @@ fn short_hid_write_error(bytes_written: usize) -> Option<String> {
     } else {
         Some(format!(
             "short_hid_write: expected {REPORT_LEN} bytes, wrote {bytes_written}"
+        ))
+    }
+}
+
+fn short_zero_output_write_error(expected_len: usize, bytes_written: usize) -> Option<String> {
+    if bytes_written >= expected_len {
+        None
+    } else {
+        Some(format!(
+            "short_hid_write: expected {expected_len} bytes, wrote {bytes_written}"
         ))
     }
 }
@@ -78,6 +133,7 @@ struct TorqueTestRequest<'a> {
     lane: Option<&'a Path>,
     init_off: Option<&'a Path>,
     init_standard: Option<&'a Path>,
+    strategy: MozaLowTorqueStrategy,
     dry_run: bool,
     confirm_low_torque: bool,
     explicit_operator_override: bool,
@@ -85,6 +141,119 @@ struct TorqueTestRequest<'a> {
     duration_ms: u64,
     hz: u32,
     json_out: Option<&'a Path>,
+}
+
+struct ActuatorProfileSmokeRequest<'a> {
+    json: bool,
+    selector: &'a str,
+    lane: &'a Path,
+    low_torque_proof: Option<&'a Path>,
+    steering_proof: Option<&'a Path>,
+    profile: MozaActuatorProfile,
+    strategy: MozaLowTorqueStrategy,
+    dry_run: bool,
+    confirm_actuator_profile: bool,
+    max_percent: f32,
+    duration_ms: u64,
+    json_out: Option<&'a Path>,
+}
+
+struct ZeroOutputStagePreflight {
+    lane: PathBuf,
+    lane_display: String,
+    pre_output_readiness_generated_at: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+struct ZeroOutputPayload {
+    strategy: MozaZeroOutputStrategy,
+    bytes: Vec<u8>,
+    report_id: String,
+    report_len: usize,
+    torque_raw: i16,
+    flags: u8,
+    motor_enabled: bool,
+    pidff_device_control_command: Option<u8>,
+    pidff_device_control_command_name: Option<&'static str>,
+}
+
+impl ZeroOutputPayload {
+    fn direct(pid: u16) -> Self {
+        let bytes = zero_torque_payload_for_pid(pid).to_vec();
+        let torque_raw = i16::from_le_bytes([bytes[1], bytes[2]]);
+        let flags = bytes[3];
+        Self {
+            strategy: MozaZeroOutputStrategy::DirectReport0x20,
+            report_id: hex_u8(bytes[0]),
+            report_len: bytes.len(),
+            torque_raw,
+            flags,
+            motor_enabled: flags & 0x01 != 0,
+            bytes,
+            pidff_device_control_command: None,
+            pidff_device_control_command_name: None,
+        }
+    }
+
+    fn pidff_stop_all() -> Self {
+        let bytes = vec![0x0C, PIDFF_STOP_ALL_EFFECTS_COMMAND];
+        Self {
+            strategy: MozaZeroOutputStrategy::PidffStopAll,
+            report_id: PIDFF_DEVICE_CONTROL_REPORT_ID.to_string(),
+            report_len: bytes.len(),
+            torque_raw: 0,
+            flags: 0,
+            motor_enabled: false,
+            bytes,
+            pidff_device_control_command: Some(PIDFF_STOP_ALL_EFFECTS_COMMAND),
+            pidff_device_control_command_name: Some(PIDFF_STOP_ALL_EFFECTS_COMMAND_NAME),
+        }
+    }
+
+    fn for_strategy(strategy: MozaZeroOutputStrategy, pid: u16) -> Self {
+        match strategy {
+            MozaZeroOutputStrategy::DirectReport0x20 => Self::direct(pid),
+            MozaZeroOutputStrategy::PidffStopAll => Self::pidff_stop_all(),
+        }
+    }
+
+    fn strategy_name(&self) -> &'static str {
+        zero_output_strategy_name(self.strategy)
+    }
+
+    fn payload_hex(&self) -> String {
+        bytes_hex_compact(&self.bytes)
+    }
+
+    fn no_nonzero_torque(&self) -> bool {
+        !self.motor_enabled && self.torque_raw == 0 && self.flags == 0
+    }
+}
+
+fn zero_output_strategy_name(strategy: MozaZeroOutputStrategy) -> &'static str {
+    match strategy {
+        MozaZeroOutputStrategy::DirectReport0x20 => "direct_report_0x20",
+        MozaZeroOutputStrategy::PidffStopAll => "pidff_device_control_stop_all",
+    }
+}
+
+fn low_torque_strategy_name(strategy: MozaLowTorqueStrategy) -> &'static str {
+    match strategy {
+        MozaLowTorqueStrategy::DirectReport0x20 => "direct_report_0x20",
+        MozaLowTorqueStrategy::PidffBoundedEffect => "pidff_bounded_effect",
+    }
+}
+
+fn actuator_profile_name(profile: MozaActuatorProfile) -> &'static str {
+    match profile {
+        MozaActuatorProfile::ConstantLowForce => "constant_low_force",
+    }
+}
+
+struct InitStagePreflight {
+    lane_display: String,
+    zero_verification_generated_at: Option<String>,
+    zero_audit_generated_at: Option<String>,
 }
 
 struct PitHouseProofRequest<'a> {
@@ -127,6 +296,7 @@ struct SimulatorFfbSmokeRequest<'a> {
     game: &'a str,
     telemetry_source: &'a str,
     output_log_artifact: &'a Path,
+    strategy: MozaLowTorqueStrategy,
     descriptor_trusted: bool,
     explicit_operator_override: bool,
     watchdog_timeout_ms: u64,
@@ -163,6 +333,8 @@ pub async fn execute(cmd: &MozaCommands, json: bool) -> Result<()> {
             device,
             descriptor_hex,
             report_descriptor_hex,
+            report_descriptor_hex_file,
+            report_descriptor_bin_file,
             json_out,
         } => {
             descriptor(
@@ -170,6 +342,8 @@ pub async fn execute(cmd: &MozaCommands, json: bool) -> Result<()> {
                 device.as_deref(),
                 *descriptor_hex,
                 report_descriptor_hex.as_deref(),
+                report_descriptor_hex_file.as_deref(),
+                report_descriptor_bin_file.as_deref(),
                 json_out.as_deref(),
             )
             .await
@@ -189,13 +363,48 @@ pub async fn execute(cmd: &MozaCommands, json: bool) -> Result<()> {
             )
             .await
         }
+        MozaCommands::SteeringStreamProof {
+            device,
+            lane,
+            duration_ms,
+            read_timeout_ms,
+            degrees_of_rotation,
+            jsonl_out,
+            json_out,
+        } => {
+            steering_stream_proof(
+                json,
+                device,
+                lane,
+                *duration_ms,
+                *read_timeout_ms,
+                *degrees_of_rotation,
+                jsonl_out.as_deref(),
+                json_out.as_deref(),
+            )
+            .await
+        }
         MozaCommands::ValidateCapture {
             capture,
             pid,
             json_out,
         } => validate_capture(json, capture, pid.as_deref(), json_out.as_deref()).await,
+        MozaCommands::AnalyzeCapture { capture, json_out } => {
+            analyze_capture(json, capture, json_out.as_deref()).await
+        }
+        MozaCommands::AnalyzeLane { lane, json_out } => {
+            analyze_lane(json, lane, json_out.as_deref()).await
+        }
+        MozaCommands::SyncRoleStatus {
+            lane,
+            check,
+            json_out,
+        } => sync_role_status(json, lane, *check, json_out.as_deref()).await,
         MozaCommands::ValidateCaptures { lane, json_out } => {
             validate_captures(json, lane, json_out.as_deref()).await
+        }
+        MozaCommands::PreOutputReadiness { lane, json_out } => {
+            pre_output_readiness(json, lane, json_out.as_deref()).await
         }
         MozaCommands::PromoteFixture {
             capture,
@@ -237,8 +446,11 @@ pub async fn execute(cmd: &MozaCommands, json: bool) -> Result<()> {
         }
         MozaCommands::Zero {
             device,
+            lane,
             pid,
+            strategy,
             dry_run,
+            confirm_zero_torque,
             repeat,
             hz,
             watchdog_timeout_ms,
@@ -247,8 +459,11 @@ pub async fn execute(cmd: &MozaCommands, json: bool) -> Result<()> {
             zero_torque(
                 json,
                 device.as_deref(),
+                lane.as_deref(),
                 pid.as_deref(),
+                *strategy,
                 *dry_run,
+                *confirm_zero_torque,
                 *repeat,
                 *hz,
                 *watchdog_timeout_ms,
@@ -258,8 +473,11 @@ pub async fn execute(cmd: &MozaCommands, json: bool) -> Result<()> {
         }
         MozaCommands::WatchdogProof {
             device,
+            lane,
             pid,
+            strategy,
             dry_run,
+            confirm_watchdog_test,
             pre_zero_count,
             hz,
             watchdog_timeout_ms,
@@ -268,8 +486,11 @@ pub async fn execute(cmd: &MozaCommands, json: bool) -> Result<()> {
             watchdog_proof(
                 json,
                 device.as_deref(),
+                lane.as_deref(),
                 pid.as_deref(),
+                *strategy,
                 *dry_run,
+                *confirm_watchdog_test,
                 *pre_zero_count,
                 *hz,
                 *watchdog_timeout_ms,
@@ -279,7 +500,9 @@ pub async fn execute(cmd: &MozaCommands, json: bool) -> Result<()> {
         }
         MozaCommands::DisconnectProof {
             device,
+            lane,
             pid,
+            strategy,
             dry_run,
             confirm_disconnect_test,
             max_duration_ms,
@@ -289,7 +512,9 @@ pub async fn execute(cmd: &MozaCommands, json: bool) -> Result<()> {
             disconnect_proof(
                 json,
                 device.as_deref(),
+                lane.as_deref(),
                 pid.as_deref(),
+                *strategy,
                 *dry_run,
                 *confirm_disconnect_test,
                 *max_duration_ms,
@@ -300,17 +525,21 @@ pub async fn execute(cmd: &MozaCommands, json: bool) -> Result<()> {
         }
         MozaCommands::Init {
             device,
+            lane,
             pid,
             mode,
             dry_run,
+            confirm_init,
             json_out,
         } => {
             init(
                 json,
                 device.as_deref(),
+                lane.as_deref(),
                 pid.as_deref(),
                 *mode,
                 *dry_run,
+                *confirm_init,
                 json_out.as_deref(),
             )
             .await
@@ -323,6 +552,7 @@ pub async fn execute(cmd: &MozaCommands, json: bool) -> Result<()> {
             lane,
             init_off,
             init_standard,
+            strategy,
             dry_run,
             confirm_low_torque,
             explicit_operator_override,
@@ -340,12 +570,42 @@ pub async fn execute(cmd: &MozaCommands, json: bool) -> Result<()> {
                 lane: lane.as_deref(),
                 init_off: init_off.as_deref(),
                 init_standard: init_standard.as_deref(),
+                strategy: *strategy,
                 dry_run: *dry_run,
                 confirm_low_torque: *confirm_low_torque,
                 explicit_operator_override: *explicit_operator_override,
                 max_percent: *max_percent,
                 duration_ms: *duration_ms,
                 hz: *hz,
+                json_out: json_out.as_deref(),
+            })
+            .await
+        }
+        MozaCommands::ActuatorProfileSmoke {
+            device,
+            lane,
+            low_torque_proof,
+            steering_proof,
+            profile,
+            strategy,
+            dry_run,
+            confirm_actuator_profile,
+            max_percent,
+            duration_ms,
+            json_out,
+        } => {
+            actuator_profile_smoke(ActuatorProfileSmokeRequest {
+                json,
+                selector: device,
+                lane,
+                low_torque_proof: low_torque_proof.as_deref(),
+                steering_proof: steering_proof.as_deref(),
+                profile: *profile,
+                strategy: *strategy,
+                dry_run: *dry_run,
+                confirm_actuator_profile: *confirm_actuator_profile,
+                max_percent: *max_percent,
+                duration_ms: *duration_ms,
                 json_out: json_out.as_deref(),
             })
             .await
@@ -446,6 +706,7 @@ pub async fn execute(cmd: &MozaCommands, json: bool) -> Result<()> {
             game,
             telemetry_source,
             output_log_artifact,
+            strategy,
             descriptor_trusted,
             explicit_operator_override,
             watchdog_timeout_ms,
@@ -461,6 +722,7 @@ pub async fn execute(cmd: &MozaCommands, json: bool) -> Result<()> {
                 game,
                 telemetry_source,
                 output_log_artifact,
+                strategy: *strategy,
                 descriptor_trusted: *descriptor_trusted,
                 explicit_operator_override: *explicit_operator_override,
                 watchdog_timeout_ms: *watchdog_timeout_ms,
@@ -554,6 +816,8 @@ async fn probe(json: bool, json_out: Option<&Path>) -> Result<()> {
         vendor_id: hex_u16(MOZA_VENDOR_ID),
         no_hid_device_opened: true,
         no_ffb_writes: true,
+        no_output_reports: true,
+        no_feature_reports: true,
         no_serial_config_commands: true,
         no_firmware_or_dfu_commands: true,
         devices,
@@ -593,12 +857,19 @@ async fn descriptor(
     selector: Option<&str>,
     include_descriptor_hex: bool,
     report_descriptor_hex: Option<&str>,
+    report_descriptor_hex_file: Option<&Path>,
+    report_descriptor_bin_file: Option<&Path>,
     json_out: Option<&Path>,
 ) -> Result<()> {
     let api = HidApi::new().context("failed to initialize HID API")?;
     let mut devices: Vec<_> = enumerate_moza_devices(&api, true, include_descriptor_hex);
+    let operator_descriptor_hex = operator_report_descriptor_hex(
+        report_descriptor_hex,
+        report_descriptor_hex_file,
+        report_descriptor_bin_file,
+    )?;
 
-    if let Some(hex) = report_descriptor_hex {
+    if let Some(hex) = operator_descriptor_hex.as_deref() {
         apply_operator_report_descriptor_to_selected_device(&mut devices, selector, hex)?;
     } else {
         devices.retain(|device| selector_matches(device, selector));
@@ -618,13 +889,20 @@ async fn descriptor(
         selector: selector.map(str::to_string),
         no_hid_device_opened: true,
         no_ffb_writes: true,
+        no_output_reports: true,
+        no_feature_reports: true,
         no_serial_config_commands: true,
         no_firmware_or_dfu_commands: true,
         descriptor_hex_included: include_descriptor_hex,
-        operator_descriptor_hex_supplied: report_descriptor_hex.is_some(),
+        operator_descriptor_hex_supplied: operator_descriptor_hex.is_some(),
+        operator_descriptor_hex_source: operator_descriptor_source(
+            report_descriptor_hex,
+            report_descriptor_hex_file,
+            report_descriptor_bin_file,
+        ),
         devices,
         notes: vec![
-            "descriptor metadata is read from enumeration/sysfs or operator-supplied descriptor hex only; no HID reports are sent".to_string(),
+            "descriptor metadata is read from enumeration/sysfs or operator-supplied descriptor bytes only; no HID reports are sent".to_string(),
         ],
     };
 
@@ -645,7 +923,7 @@ fn apply_operator_report_descriptor_to_selected_device(
 
     if selected_indices.len() != 1 {
         return Err(anyhow!(
-            "--report-descriptor-hex requires exactly one selected Moza HID device, found {}",
+            "operator-supplied report descriptor requires exactly one selected Moza HID device, found {}",
             selected_indices.len()
         ));
     }
@@ -659,9 +937,282 @@ fn apply_operator_report_descriptor_to_selected_device(
         Ok(())
     } else {
         Err(anyhow!(
-            "--report-descriptor-hex selected device disappeared before descriptor metadata could be applied"
+            "operator-supplied report descriptor selected device disappeared before descriptor metadata could be applied"
         ))
     }
+}
+
+fn operator_report_descriptor_hex(
+    inline_hex: Option<&str>,
+    hex_file: Option<&Path>,
+    bin_file: Option<&Path>,
+) -> Result<Option<String>> {
+    match (inline_hex.is_some(), hex_file.is_some(), bin_file.is_some()) {
+        (false, false, false) => Ok(None),
+        (true, false, false) => Ok(inline_hex.map(str::to_string)),
+        (false, true, false) => hex_file.map(read_report_descriptor_hex_file).transpose(),
+        (false, false, true) => bin_file.map(read_report_descriptor_bin_file).transpose(),
+        _ => Err(anyhow!(
+            "use only one of --report-descriptor-hex, --report-descriptor-hex-file, or --report-descriptor-bin-file"
+        )),
+    }
+}
+
+fn operator_descriptor_source(
+    inline_hex: Option<&str>,
+    hex_file: Option<&Path>,
+    bin_file: Option<&Path>,
+) -> Option<&'static str> {
+    if inline_hex.is_some() {
+        Some("inline")
+    } else if hex_file.is_some() {
+        Some("file")
+    } else if bin_file.is_some() {
+        Some("binary_file")
+    } else {
+        None
+    }
+}
+
+fn read_report_descriptor_hex_file(path: &Path) -> Result<String> {
+    let raw = fs::read(path).with_context(|| format!("failed to read '{}'", path.display()))?;
+    let text = match String::from_utf8(raw) {
+        Ok(text) => text,
+        Err(err) => String::from_utf8_lossy(err.as_bytes()).into_owned(),
+    };
+    let bytes = extract_hex_bytes_from_descriptor_text(&text)?;
+    if bytes.is_empty() {
+        return Err(anyhow!(
+            "no HID report descriptor bytes found in '{}'; export or paste the actual Report Descriptor byte block, for example lines like '0000: 05 01 09 04 ...' or a compact hex descriptor. A USBTreeView device/interface summary, wDescriptorLength value, ERROR_INVALID_PARAMETER descriptor-read failure, or Windows HidP KDR collection/preparsed descriptor is not enough.",
+            path.display()
+        ));
+    }
+    Ok(bytes_hex_compact(&bytes))
+}
+
+fn read_report_descriptor_bin_file(path: &Path) -> Result<String> {
+    let bytes = fs::read(path).with_context(|| format!("failed to read '{}'", path.display()))?;
+    if bytes.is_empty() {
+        return Err(anyhow!(
+            "no HID report descriptor bytes found in '{}'; provide the raw binary HID report_descriptor file, for example Linux /sys/class/hidraw/<node>/device/report_descriptor.",
+            path.display()
+        ));
+    }
+    reject_unsupported_report_descriptor_bytes(&bytes)?;
+    Ok(bytes_hex_compact(&bytes))
+}
+
+fn extract_hex_bytes_from_descriptor_text(text: &str) -> Result<Vec<u8>> {
+    if let Some(bytes) = extract_explicit_report_descriptor_block(text)? {
+        return Ok(bytes);
+    }
+    if looks_like_usbtreeview_summary(text) {
+        return Ok(Vec::new());
+    }
+
+    let mut bytes = Vec::new();
+    for line in text.lines() {
+        if let Some(mut line_bytes) = extract_hex_bytes_from_descriptor_line(line)? {
+            bytes.append(&mut line_bytes);
+        }
+    }
+    Ok(bytes)
+}
+
+fn extract_explicit_report_descriptor_block(text: &str) -> Result<Option<Vec<u8>>> {
+    let mut in_report_descriptor = false;
+    let mut bytes = Vec::new();
+
+    for line in text.lines() {
+        let trimmed = line.trim();
+        if is_report_descriptor_heading(trimmed) {
+            in_report_descriptor = true;
+            continue;
+        }
+        if !in_report_descriptor {
+            continue;
+        }
+        if !bytes.is_empty() && starts_next_usbtreeview_descriptor_block(trimmed) {
+            break;
+        }
+        if let Some(mut line_bytes) =
+            extract_hex_bytes_from_descriptor_line_with_context(line, true)?
+        {
+            bytes.append(&mut line_bytes);
+        }
+    }
+
+    if in_report_descriptor {
+        Ok(Some(bytes))
+    } else {
+        Ok(None)
+    }
+}
+
+fn is_report_descriptor_heading(line: &str) -> bool {
+    let lower = line.to_ascii_lowercase();
+    lower.contains("report descriptor")
+}
+
+fn starts_next_usbtreeview_descriptor_block(line: &str) -> bool {
+    let lower = line.to_ascii_lowercase();
+    lower.contains("interface descriptor")
+        || lower.contains("endpoint descriptor")
+        || lower.contains("hid descriptor")
+        || lower.contains("string descriptor")
+        || lower.contains("device descriptor")
+        || lower.contains("configuration descriptor")
+}
+
+fn looks_like_usbtreeview_summary(text: &str) -> bool {
+    text.lines().any(|line| {
+        let lower = line.to_ascii_lowercase();
+        lower.contains("data (hexdump)")
+            || lower.contains("usb device")
+            || lower.contains("interface descriptor")
+            || lower.contains("hid descriptor")
+            || lower.contains("bdescriptortype")
+            || lower.contains("error reading descriptor")
+    })
+}
+
+fn extract_hex_bytes_from_descriptor_line(line: &str) -> Result<Option<Vec<u8>>> {
+    extract_hex_bytes_from_descriptor_line_with_context(line, false)
+}
+
+fn extract_hex_bytes_from_descriptor_line_with_context(
+    line: &str,
+    allow_hexdump_prefix: bool,
+) -> Result<Option<Vec<u8>>> {
+    let without_comments = line.split("//").next().unwrap_or_default().trim();
+    if without_comments.is_empty() {
+        return Ok(None);
+    }
+
+    let Some(candidate) = descriptor_byte_candidate(without_comments, allow_hexdump_prefix) else {
+        return Ok(None);
+    };
+    let tokens = candidate
+        .split(|c: char| c.is_whitespace() || c == ',')
+        .filter(|token| !token.trim().is_empty())
+        .collect::<Vec<_>>();
+    if tokens.is_empty() {
+        return Ok(None);
+    }
+
+    if tokens.len() == 1 && is_compact_hex_byte_string(tokens[0]) {
+        return parse_hex_bytes(tokens[0])
+            .map(Some)
+            .map_err(|e| anyhow!("invalid descriptor byte line '{without_comments}': {e}"));
+    }
+
+    if !tokens.iter().all(|token| is_hex_byte_token(token)) {
+        if allow_hexdump_prefix {
+            let prefix_tokens = tokens
+                .iter()
+                .copied()
+                .take_while(|token| is_hex_byte_token(token))
+                .collect::<Vec<_>>();
+            if !prefix_tokens.is_empty() {
+                return prefix_tokens
+                    .iter()
+                    .map(|token| {
+                        parse_hex_u8_token(token).map_err(|e| {
+                            anyhow!("invalid descriptor byte line '{without_comments}': {e}")
+                        })
+                    })
+                    .collect::<Result<Vec<_>>>()
+                    .map(Some);
+            }
+        }
+        return Ok(None);
+    }
+
+    tokens
+        .iter()
+        .map(|token| {
+            parse_hex_u8_token(token)
+                .map_err(|e| anyhow!("invalid descriptor byte line '{without_comments}': {e}"))
+        })
+        .collect::<Result<Vec<_>>>()
+        .map(Some)
+}
+
+fn descriptor_byte_candidate(line: &str, allow_hexdump_prefix: bool) -> Option<&str> {
+    if let Some((prefix, suffix)) = line.split_once(':') {
+        let prefix = prefix.trim();
+        let suffix = suffix.trim();
+        if is_hex_offset_token(prefix)
+            || prefix.to_ascii_lowercase().contains("report descriptor")
+            || (allow_hexdump_prefix && prefix.eq_ignore_ascii_case("data (hexdump)"))
+        {
+            return Some(suffix);
+        }
+        return None;
+    }
+
+    if allow_hexdump_prefix {
+        let mut parts = line.splitn(2, char::is_whitespace);
+        let first = parts.next().unwrap_or_default().trim();
+        let rest = parts.next().unwrap_or_default().trim();
+        if is_hexdump_offset_column_token(first) && !rest.is_empty() {
+            return Some(rest);
+        }
+    }
+
+    Some(line)
+}
+
+fn is_hex_offset_token(token: &str) -> bool {
+    let value = token
+        .trim()
+        .strip_prefix("0x")
+        .or_else(|| token.trim().strip_prefix("0X"))
+        .unwrap_or(token.trim());
+    !value.is_empty()
+        && token
+            .trim()
+            .chars()
+            .next()
+            .map(|c| c.is_ascii_digit())
+            .unwrap_or(false)
+        && value.len() <= 8
+        && value.chars().all(|c| c.is_ascii_hexdigit())
+}
+
+fn is_hexdump_offset_column_token(token: &str) -> bool {
+    let value = token
+        .trim()
+        .strip_prefix("0x")
+        .or_else(|| token.trim().strip_prefix("0X"))
+        .unwrap_or(token.trim());
+    value.len() >= 4
+        && value.len() <= 8
+        && token
+            .trim()
+            .chars()
+            .next()
+            .map(|c| c.is_ascii_digit())
+            .unwrap_or(false)
+        && value.chars().all(|c| c.is_ascii_hexdigit())
+}
+
+fn is_hex_byte_token(token: &str) -> bool {
+    let value = token
+        .trim()
+        .strip_prefix("0x")
+        .or_else(|| token.trim().strip_prefix("0X"))
+        .unwrap_or(token.trim());
+    value.len() == 2 && value.chars().all(|c| c.is_ascii_hexdigit())
+}
+
+fn is_compact_hex_byte_string(token: &str) -> bool {
+    let value = token
+        .trim()
+        .strip_prefix("0x")
+        .or_else(|| token.trim().strip_prefix("0X"))
+        .unwrap_or(token.trim());
+    value.len() > 2 && value.len().is_multiple_of(2) && value.chars().all(|c| c.is_ascii_hexdigit())
 }
 
 async fn capture_input(
@@ -753,6 +1304,202 @@ async fn capture_input(
     print_capture_summary(json, &summary)
 }
 
+async fn steering_stream_proof(
+    json: bool,
+    selector: &str,
+    lane: &Path,
+    duration_ms: u64,
+    read_timeout_ms: i32,
+    degrees_of_rotation: f64,
+    jsonl_out: Option<&Path>,
+    json_out: Option<&Path>,
+) -> Result<()> {
+    if duration_ms == 0 {
+        return Err(anyhow!("--duration-ms must be greater than zero"));
+    }
+    if read_timeout_ms < 0 {
+        return Err(anyhow!("--read-timeout-ms must be non-negative"));
+    }
+    if !degrees_of_rotation.is_finite() || degrees_of_rotation <= 0.0 {
+        return Err(anyhow!(
+            "--degrees-of-rotation must be a positive finite value"
+        ));
+    }
+    let expected_selector = lane_manifest_r5_hid_observe_selector(lane)
+        .ok_or_else(|| anyhow!("lane manifest does not declare an exact R5 HID endpoint"))?;
+    if !selector.eq_ignore_ascii_case(&expected_selector) {
+        return Err(anyhow!(
+            "--device must match the lane R5 endpoint exactly ({expected_selector}); got {selector}"
+        ));
+    }
+
+    let receipt_path = proof_output_path(lane, json_out, "steering-angle-stream-proof.json");
+    let api = HidApi::new().context("failed to initialize HID API")?;
+    let (device, snapshot) = open_single_moza_device(&api, Some(selector))?;
+    device
+        .set_blocking_mode(true)
+        .context("failed to set HID blocking mode")?;
+
+    let product_id = parse_hex_selector(&snapshot.product_id).ok_or_else(|| {
+        anyhow!(
+            "selected Moza device has invalid product_id {}",
+            snapshot.product_id
+        )
+    })?;
+    if !matches!(product_id, product_ids::R5_V1 | product_ids::R5_V2) {
+        return Err(anyhow!(
+            "steering-stream-proof requires an R5 wheelbase endpoint; selected {}",
+            snapshot.product_id
+        ));
+    }
+    let protocol = MozaProtocol::new(product_id);
+
+    let mut sample_writer = match jsonl_out {
+        Some(path) => {
+            if let Some(parent) = path.parent().filter(|p| !p.as_os_str().is_empty()) {
+                fs::create_dir_all(parent)
+                    .with_context(|| format!("failed to create '{}'", parent.display()))?;
+            }
+            Some(BufWriter::new(File::create(path).with_context(|| {
+                format!("failed to create '{}'", path.display())
+            })?))
+        }
+        None => None,
+    };
+
+    let started_at = Instant::now();
+    let deadline = started_at + Duration::from_millis(duration_ms);
+    let mut buf = [0u8; 256];
+    let mut sample_count = 0u64;
+    let mut rejected_reports = 0u64;
+    let mut raw_min: Option<u16> = None;
+    let mut raw_max: Option<u16> = None;
+    let mut angle_min: Option<f64> = None;
+    let mut angle_max: Option<f64> = None;
+    let mut previous_elapsed_us = 0u64;
+    let mut timestamps_monotonic = true;
+    let sequence_monotonic = true;
+    let mut baseline_sum = 0.0f64;
+    let mut baseline_count = 0u64;
+
+    while Instant::now() < deadline {
+        let n = device
+            .read_timeout(&mut buf, read_timeout_ms)
+            .context("HID read error")?;
+        if n == 0 {
+            continue;
+        }
+
+        let elapsed_us = started_at.elapsed().as_micros() as u64;
+        if sample_count > 0 && elapsed_us < previous_elapsed_us {
+            timestamps_monotonic = false;
+        }
+        previous_elapsed_us = elapsed_us;
+
+        let data = &buf[..n];
+        let Some(state) = protocol.parse_input_state(data) else {
+            rejected_reports = rejected_reports.saturating_add(1);
+            continue;
+        };
+
+        let steering_u16 = state.steering_u16;
+        let angle_degrees = steering_u16_to_degrees(steering_u16, degrees_of_rotation);
+        raw_min = Some(raw_min.map_or(steering_u16, |value| value.min(steering_u16)));
+        raw_max = Some(raw_max.map_or(steering_u16, |value| value.max(steering_u16)));
+        angle_min = Some(angle_min.map_or(angle_degrees, |value| value.min(angle_degrees)));
+        angle_max = Some(angle_max.map_or(angle_degrees, |value| value.max(angle_degrees)));
+        if baseline_count < 64 {
+            baseline_sum += angle_degrees;
+            baseline_count += 1;
+        }
+
+        if let Some(writer) = sample_writer.as_mut() {
+            let sample = serde_json::json!({
+                "sequence": sample_count,
+                "ts_ns": unix_now_ns(),
+                "elapsed_us": elapsed_us,
+                "steering_u16": steering_u16,
+                "angle_degrees": angle_degrees,
+                "product_id": snapshot.product_id.clone(),
+                "report_id": data.first().map(|id| hex_u8(*id)).unwrap_or_else(|| "0x00".to_string()),
+                "report_len": n,
+                "hardware_output_enabled": false,
+                "no_ffb_writes": true,
+                "no_output_reports": true,
+                "no_feature_reports": true,
+                "no_serial_config_commands": true,
+                "no_firmware_or_dfu_commands": true
+            });
+            writeln!(writer, "{}", serde_json::to_string(&sample)?)
+                .context("failed to write steering sample line")?;
+        }
+
+        sample_count = sample_count.saturating_add(1);
+    }
+
+    if let Some(writer) = sample_writer.as_mut() {
+        writer
+            .flush()
+            .context("failed to flush steering sample file")?;
+    }
+
+    let center_baseline = (baseline_count > 0).then_some(baseline_sum / baseline_count as f64);
+    let success = sample_count > 0;
+    let mut receipt = serde_json::json!({
+        "success": success,
+        "command": "wheelctl moza steering-stream-proof",
+        "generated_at_utc": now_utc(),
+        "receipt_path": receipt_path_string(&receipt_path),
+        "selector": selector,
+        "device": snapshot,
+        "duration_ms": duration_ms,
+        "read_timeout_ms": read_timeout_ms,
+        "sample_count": sample_count,
+        "parsed_reports": sample_count,
+        "rejected_reports": rejected_reports,
+        "sample_rate_hz": sample_count as f64 * 1000.0 / duration_ms as f64,
+        "angle_units": "degrees",
+        "degrees_of_rotation_assumption": degrees_of_rotation,
+        "center_baseline_degrees": center_baseline,
+        "steering_u16_min": raw_min,
+        "steering_u16_max": raw_max,
+        "angle_degrees_min": angle_min,
+        "angle_degrees_max": angle_max,
+        "movement_observed": raw_min.zip(raw_max).map(|(min, max)| min != max).unwrap_or(false),
+        "timestamps_monotonic": timestamps_monotonic,
+        "sequence_monotonic": sequence_monotonic,
+        "hardware_output_enabled": false,
+        "no_hid_device_opened": false,
+        "no_output_reports": true,
+        "no_feature_reports": true,
+        "no_ffb_writes": true,
+        "no_serial_config_commands": true,
+        "no_firmware_or_dfu_commands": true,
+        "notes": [
+            "steering-stream-proof opens the selected HID endpoint for input reads only",
+            "the command sends no output reports, feature reports, FFB writes, serial config, firmware, or DFU commands",
+            "degrees are scaled from the parsed steering_u16 range using the declared degrees_of_rotation assumption"
+        ]
+    });
+    if let Some(path) = jsonl_out {
+        receipt["sample_artifact"] = Value::String(receipt_path_string(path));
+        receipt["sample_artifact_records"] = Value::Number(sample_count.into());
+    }
+
+    write_json_receipt(Some(&receipt_path), &receipt)?;
+    print_proof_receipt(json, &receipt_path, "steering stream", &receipt)?;
+    if !success {
+        return Err(receipt_failure(format!(
+            "Moza steering stream proof failed: parsed_reports={sample_count}, rejected_reports={rejected_reports}"
+        )));
+    }
+    Ok(())
+}
+
+fn steering_u16_to_degrees(value: u16, degrees_of_rotation: f64) -> f64 {
+    (f64::from(value) / f64::from(u16::MAX) - 0.5) * degrees_of_rotation
+}
+
 async fn validate_capture(
     json: bool,
     capture: &Path,
@@ -772,6 +1519,49 @@ async fn validate_capture(
             "Moza capture validation failed: {} parsed, {} rejected",
             receipt.parsed_reports, receipt.rejected_reports
         )));
+    }
+    Ok(())
+}
+
+async fn analyze_capture(json: bool, capture: &Path, json_out: Option<&Path>) -> Result<()> {
+    let receipt = analyze_capture_file(capture)?;
+    write_json_receipt(json_out, &receipt)?;
+    print_capture_analysis_receipt(json, json_out, &receipt)?;
+    if !receipt.success {
+        return Err(receipt_failure(format!(
+            "Moza capture analysis failed: {} decoded, {} rejected",
+            receipt.decoded_reports, receipt.rejected_reports
+        )));
+    }
+    Ok(())
+}
+
+async fn analyze_lane(json: bool, lane: &Path, json_out: Option<&Path>) -> Result<()> {
+    let receipt = analyze_lane_captures(lane)?;
+    write_json_receipt(json_out, &receipt)?;
+    print_lane_capture_analysis_receipt(json, json_out, &receipt)?;
+    if !receipt.success {
+        return Err(receipt_failure(format!(
+            "Moza lane capture analysis failed: {} of {} capture(s) decoded cleanly",
+            receipt.analyzed_capture_count, receipt.required_capture_count
+        )));
+    }
+    Ok(())
+}
+
+async fn sync_role_status(
+    json: bool,
+    lane: &Path,
+    check: bool,
+    json_out: Option<&Path>,
+) -> Result<()> {
+    let receipt = sync_role_status_receipt(lane, check)?;
+    write_json_receipt(json_out, &receipt)?;
+    print_role_status_sync_receipt(json, json_out, &receipt)?;
+    if !json_bool(&receipt, "success").unwrap_or(false) {
+        return Err(receipt_failure(
+            "Moza manifest semantic_status fields are not in sync with lane capture analysis",
+        ));
     }
     Ok(())
 }
@@ -853,11 +1643,14 @@ async fn promote_fixtures(
     let mut fixtures = Vec::new();
 
     let requirements = passive_capture_requirements_for_lane(lane);
+    validate_required_passive_captures_for_fixture_promotion(lane, &requirements)?;
     for requirement in &requirements {
         let capture = lane.join(requirement.relative_path);
         let fixture_out = fixture_dir.join(format!("{}.json", requirement.fixture_id));
-        let fixture = build_capture_fixture(&capture, requirement.fixture_id, None, max_reports)
-            .with_context(|| format!("failed to promote {}", capture.display()))?;
+        let mut fixture =
+            build_capture_fixture(&capture, requirement.fixture_id, None, max_reports)
+                .with_context(|| format!("failed to promote {}", capture.display()))?;
+        fixture.source_capture = requirement.relative_path.to_string();
 
         if fixture_out.exists() && !overwrite {
             return Err(anyhow!(
@@ -868,8 +1661,8 @@ async fn promote_fixtures(
 
         write_json_file(&fixture_out, &fixture)?;
         fixtures.push(FixturePromotionEntry {
-            capture: capture.display().to_string(),
-            fixture_out: fixture_out.display().to_string(),
+            capture: requirement.relative_path.to_string(),
+            fixture_out: receipt_path_string(&fixture_out),
             fixture_id: requirement.fixture_id.to_string(),
             report_count: fixture.reports.len(),
             product_ids: fixture.product_ids,
@@ -884,7 +1677,7 @@ async fn promote_fixtures(
         command: "wheelctl moza promote-fixtures",
         generated_at_utc: now_utc(),
         lane: lane.display().to_string(),
-        fixture_dir: fixture_dir.display().to_string(),
+        fixture_dir: receipt_path_string(fixture_dir),
         no_ffb_writes: true,
         no_serial_config_commands: true,
         no_firmware_or_dfu_commands: true,
@@ -903,11 +1696,51 @@ async fn promote_fixtures(
     print_fixture_set_promotion_receipt(json, json_out, &receipt)
 }
 
+fn validate_required_passive_captures_for_fixture_promotion(
+    lane: &Path,
+    requirements: &[&PassiveCaptureRequirement],
+) -> Result<()> {
+    let mut failures = Vec::new();
+
+    for requirement in requirements {
+        let capture = lane.join(requirement.relative_path);
+        let receipt = validate_capture_file(&capture, None)
+            .with_context(|| format!("failed to validate {}", capture.display()))?;
+        let expected_product_ids = expected_product_ids_for_requirement(requirement, lane);
+        let evaluation =
+            evaluate_passive_capture_requirement(requirement, &receipt, &expected_product_ids);
+
+        if !receipt.success || !evaluation.success {
+            failures.push(format!(
+                "{}: success={}, expected_product_ids={:?}, product_ids={:?}, missing_requirements={:?}",
+                requirement.relative_path,
+                receipt.success,
+                product_id_hex_list(&expected_product_ids),
+                receipt.product_ids,
+                evaluation.missing_requirements
+            ));
+        }
+    }
+
+    if failures.is_empty() {
+        Ok(())
+    } else {
+        Err(anyhow!(
+            "refusing to promote passive fixtures until required captures validate: {}",
+            failures.join("; ")
+        ))
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
 async fn zero_torque(
     json: bool,
     selector: Option<&str>,
+    lane: Option<&Path>,
     pid_override: Option<&str>,
+    strategy: MozaZeroOutputStrategy,
     dry_run: bool,
+    confirm_zero_torque: bool,
     repeat: u32,
     hz: u32,
     watchdog_timeout_ms: u64,
@@ -923,7 +1756,7 @@ async fn zero_torque(
                 hex_u16(pid)
             ));
         }
-        let payload = zero_torque_payload_for_pid(pid);
+        let payload = ZeroOutputPayload::for_strategy(strategy, pid);
         let mut receipt = ZeroTorqueProofReceipt::new(
             "wheelctl moza zero",
             selector.map(str::to_string),
@@ -950,6 +1783,15 @@ async fn zero_torque(
         return Ok(());
     }
 
+    let preflight = validate_zero_output_stage_preflight(
+        lane,
+        json_out,
+        "zero-torque-proof.json",
+        strategy,
+        confirm_zero_torque,
+        "--confirm-zero-torque",
+    )?;
+
     let api = HidApi::new().context("failed to initialize HID API")?;
     let (device, snapshot) = open_single_moza_device(&api, selector)?;
     if !snapshot.output_capable {
@@ -961,7 +1803,7 @@ async fn zero_torque(
     }
 
     let pid = parse_required_hex_u16(&snapshot.product_id)?;
-    let payload = zero_torque_payload_for_pid(pid);
+    let payload = ZeroOutputPayload::for_strategy(strategy, pid);
     let mut receipt = ZeroTorqueProofReceipt::new(
         "wheelctl moza zero",
         selector.map(str::to_string),
@@ -972,6 +1814,11 @@ async fn zero_torque(
         payload,
         false,
     );
+    receipt.lane = Some(preflight.lane_display.clone());
+    receipt.pre_output_readiness_validated = true;
+    receipt.pre_output_readiness_generated_at = preflight.pre_output_readiness_generated_at;
+    receipt.operator_confirmed = confirm_zero_torque;
+    let zero_payload = receipt.zero_payload.clone();
 
     let period = Duration::from_micros(1_000_000 / u64::from(hz));
     let watchdog_timeout = Duration::from_millis(watchdog_timeout_ms);
@@ -994,17 +1841,17 @@ async fn zero_torque(
         }
 
         receipt.write_attempts += 1;
-        match device.write(&payload) {
+        match device.write(&zero_payload.bytes) {
             Ok(n) => {
                 receipt.bytes_written_total += n;
-                if let Some(error) = short_hid_write_error(n) {
+                if let Some(error) = short_zero_output_write_error(zero_payload.report_len, n) {
                     receipt.write_errors += 1;
                     receipt.abort_reason = Some(error.clone());
                     receipt.record_command(ZeroTorqueCommandRecord::partial(
                         sequence,
                         "scheduled_zero",
                         started_at,
-                        payload,
+                        &zero_payload,
                         n,
                         error,
                     ));
@@ -1015,7 +1862,7 @@ async fn zero_torque(
                     sequence,
                     "scheduled_zero",
                     started_at,
-                    payload,
+                    &zero_payload,
                     n,
                 ));
             }
@@ -1027,7 +1874,7 @@ async fn zero_torque(
                     sequence,
                     "scheduled_zero",
                     started_at,
-                    payload,
+                    &zero_payload,
                     error,
                 ));
                 break;
@@ -1039,17 +1886,17 @@ async fn zero_torque(
     }
 
     receipt.final_zero_attempted = true;
-    match device.write(&payload) {
+    match device.write(&zero_payload.bytes) {
         Ok(n) => {
             receipt.bytes_written_total += n;
-            if let Some(error) = short_hid_write_error(n) {
+            if let Some(error) = short_zero_output_write_error(zero_payload.report_len, n) {
                 receipt.write_errors += 1;
                 receipt.final_zero_error = Some(error.clone());
                 receipt.record_command(ZeroTorqueCommandRecord::partial(
                     repeat,
                     "final_zero",
                     started_at,
-                    payload,
+                    &zero_payload,
                     n,
                     error,
                 ));
@@ -1060,7 +1907,7 @@ async fn zero_torque(
                     repeat,
                     "final_zero",
                     started_at,
-                    payload,
+                    &zero_payload,
                     n,
                 ));
             }
@@ -1073,7 +1920,7 @@ async fn zero_torque(
                 repeat,
                 "final_zero",
                 started_at,
-                payload,
+                &zero_payload,
                 error,
             ));
         }
@@ -1097,11 +1944,15 @@ async fn zero_torque(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn watchdog_proof(
     json: bool,
     selector: Option<&str>,
+    lane: Option<&Path>,
     pid_override: Option<&str>,
+    strategy: MozaZeroOutputStrategy,
     dry_run: bool,
+    confirm_watchdog_test: bool,
     pre_zero_count: u32,
     hz: u32,
     watchdog_timeout_ms: u64,
@@ -1117,7 +1968,7 @@ async fn watchdog_proof(
                 hex_u16(pid)
             ));
         }
-        let payload = zero_torque_payload_for_pid(pid);
+        let payload = ZeroOutputPayload::for_strategy(strategy, pid);
         let mut receipt = ZeroTorqueProofReceipt::new(
             "wheelctl moza watchdog-proof",
             selector.map(str::to_string),
@@ -1143,6 +1994,23 @@ async fn watchdog_proof(
         return Ok(());
     }
 
+    let preflight = validate_zero_output_stage_preflight(
+        lane,
+        json_out,
+        "watchdog-proof.json",
+        strategy,
+        confirm_watchdog_test,
+        "--confirm-watchdog-test",
+    )?;
+    let zero_proof = validate_same_lane_zero_proof_for_zero_output(&preflight.lane)?;
+    if zero_proof.zero_output_strategy != zero_output_strategy_name(strategy) {
+        return Err(anyhow!(
+            "watchdog strategy {} must match same-lane zero proof strategy {}",
+            zero_output_strategy_name(strategy),
+            zero_proof.zero_output_strategy
+        ));
+    }
+
     let api = HidApi::new().context("failed to initialize HID API")?;
     let (device, snapshot) = open_single_moza_device(&api, selector)?;
     if !snapshot.output_capable {
@@ -1154,7 +2022,7 @@ async fn watchdog_proof(
     }
 
     let pid = parse_required_hex_u16(&snapshot.product_id)?;
-    let payload = zero_torque_payload_for_pid(pid);
+    let payload = ZeroOutputPayload::for_strategy(strategy, pid);
     let mut receipt = ZeroTorqueProofReceipt::new(
         "wheelctl moza watchdog-proof",
         selector.map(str::to_string),
@@ -1165,20 +2033,27 @@ async fn watchdog_proof(
         payload,
         false,
     );
+    receipt.lane = Some(preflight.lane_display.clone());
+    receipt.pre_output_readiness_validated = true;
+    receipt.pre_output_readiness_generated_at = preflight.pre_output_readiness_generated_at;
+    receipt.zero_torque_proof_validated = true;
+    receipt.zero_torque_proof_crc32 = Some(zero_proof.receipt_crc32);
+    receipt.operator_confirmed = confirm_watchdog_test;
     receipt.fault_injected = Some("watchdog_timeout");
     receipt.notes.push(
         "watchdog-proof intentionally waits past the watchdog timeout, then sends final zero"
             .to_string(),
     );
+    let zero_payload = receipt.zero_payload.clone();
 
     let period = Duration::from_micros(1_000_000 / u64::from(hz));
     let started_at = Instant::now();
     for sequence in 0..pre_zero_count {
         receipt.write_attempts += 1;
-        match device.write(&payload) {
+        match device.write(&zero_payload.bytes) {
             Ok(n) => {
                 receipt.bytes_written_total += n;
-                if let Some(error) = short_hid_write_error(n) {
+                if let Some(error) = short_zero_output_write_error(zero_payload.report_len, n) {
                     receipt.write_errors += 1;
                     receipt.abort_reason =
                         Some(format!("hid_write_error_before_watchdog: {error}"));
@@ -1186,7 +2061,7 @@ async fn watchdog_proof(
                         sequence,
                         "scheduled_zero",
                         started_at,
-                        payload,
+                        &zero_payload,
                         n,
                         error,
                     ));
@@ -1197,7 +2072,7 @@ async fn watchdog_proof(
                     sequence,
                     "scheduled_zero",
                     started_at,
-                    payload,
+                    &zero_payload,
                     n,
                 ));
             }
@@ -1209,7 +2084,7 @@ async fn watchdog_proof(
                     sequence,
                     "scheduled_zero",
                     started_at,
-                    payload,
+                    &zero_payload,
                     error,
                 ));
                 break;
@@ -1228,17 +2103,17 @@ async fn watchdog_proof(
     }
 
     receipt.final_zero_attempted = true;
-    match device.write(&payload) {
+    match device.write(&zero_payload.bytes) {
         Ok(n) => {
             receipt.bytes_written_total += n;
-            if let Some(error) = short_hid_write_error(n) {
+            if let Some(error) = short_zero_output_write_error(zero_payload.report_len, n) {
                 receipt.write_errors += 1;
                 receipt.final_zero_error = Some(error.clone());
                 receipt.record_command(ZeroTorqueCommandRecord::partial(
                     pre_zero_count,
                     "final_zero",
                     started_at,
-                    payload,
+                    &zero_payload,
                     n,
                     error,
                 ));
@@ -1249,7 +2124,7 @@ async fn watchdog_proof(
                     pre_zero_count,
                     "final_zero",
                     started_at,
-                    payload,
+                    &zero_payload,
                     n,
                 ));
             }
@@ -1262,7 +2137,7 @@ async fn watchdog_proof(
                 pre_zero_count,
                 "final_zero",
                 started_at,
-                payload,
+                &zero_payload,
                 error,
             ));
         }
@@ -1286,10 +2161,13 @@ async fn watchdog_proof(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn disconnect_proof(
     json: bool,
     selector: Option<&str>,
+    lane: Option<&Path>,
     pid_override: Option<&str>,
+    strategy: MozaZeroOutputStrategy,
     dry_run: bool,
     confirm_disconnect_test: bool,
     max_duration_ms: u64,
@@ -1311,7 +2189,7 @@ async fn disconnect_proof(
                 hex_u16(pid)
             ));
         }
-        let payload = zero_torque_payload_for_pid(pid);
+        let payload = ZeroOutputPayload::for_strategy(strategy, pid);
         let mut receipt = ZeroTorqueProofReceipt::new(
             "wheelctl moza disconnect-proof",
             selector.map(str::to_string),
@@ -1337,6 +2215,23 @@ async fn disconnect_proof(
         return Ok(());
     }
 
+    let preflight = validate_zero_output_stage_preflight(
+        lane,
+        json_out,
+        "disconnect-proof.json",
+        strategy,
+        confirm_disconnect_test,
+        "--confirm-disconnect-test",
+    )?;
+    let zero_proof = validate_same_lane_zero_proof_for_zero_output(&preflight.lane)?;
+    if zero_proof.zero_output_strategy != zero_output_strategy_name(strategy) {
+        return Err(anyhow!(
+            "disconnect strategy {} must match same-lane zero proof strategy {}",
+            zero_output_strategy_name(strategy),
+            zero_proof.zero_output_strategy
+        ));
+    }
+
     let api = HidApi::new().context("failed to initialize HID API")?;
     let (device, snapshot) = open_single_moza_device(&api, selector)?;
     if !snapshot.output_capable {
@@ -1348,7 +2243,7 @@ async fn disconnect_proof(
     }
 
     let pid = parse_required_hex_u16(&snapshot.product_id)?;
-    let payload = zero_torque_payload_for_pid(pid);
+    let payload = ZeroOutputPayload::for_strategy(strategy, pid);
     let max_writes = disconnect_max_writes(max_duration_ms, hz);
     let mut receipt = ZeroTorqueProofReceipt::new(
         "wheelctl moza disconnect-proof",
@@ -1360,6 +2255,11 @@ async fn disconnect_proof(
         payload,
         false,
     );
+    receipt.lane = Some(preflight.lane_display.clone());
+    receipt.pre_output_readiness_validated = true;
+    receipt.pre_output_readiness_generated_at = preflight.pre_output_readiness_generated_at;
+    receipt.zero_torque_proof_validated = true;
+    receipt.zero_torque_proof_crc32 = Some(zero_proof.receipt_crc32);
     receipt.operator_confirmed = confirm_disconnect_test;
     receipt.max_duration_ms = Some(max_duration_ms);
     receipt.fault_injected = Some("operator_disconnect");
@@ -1371,33 +2271,34 @@ async fn disconnect_proof(
         "final zero is attempted after disconnect; it may fail if the HID handle is already gone"
             .to_string(),
     );
+    let zero_payload = receipt.zero_payload.clone();
 
     let period = Duration::from_micros(1_000_000 / u64::from(hz));
     let started_at = Instant::now();
     for sequence in 0..max_writes {
         receipt.write_attempts += 1;
-        match device.write(&payload) {
+        match device.write(&zero_payload.bytes) {
             Ok(n) => {
                 receipt.bytes_written_total += n;
-                if let Some(error) = short_hid_write_error(n) {
+                if let Some(error) = short_zero_output_write_error(zero_payload.report_len, n) {
                     receipt.write_errors += 1;
                     receipt.abort_reason = Some(error.clone());
-                    receipt.record_command(ZeroTorqueCommandRecord::partial(
+                    receipt.record_disconnect_command(ZeroTorqueCommandRecord::partial(
                         sequence,
                         "scheduled_zero",
                         started_at,
-                        payload,
+                        &zero_payload,
                         n,
                         error,
                     ));
                     break;
                 }
                 receipt.writes_ok += 1;
-                receipt.record_command(ZeroTorqueCommandRecord::ok(
+                receipt.record_disconnect_command(ZeroTorqueCommandRecord::ok(
                     sequence,
                     "scheduled_zero",
                     started_at,
-                    payload,
+                    &zero_payload,
                     n,
                 ));
             }
@@ -1406,11 +2307,11 @@ async fn disconnect_proof(
                 receipt.disconnect_observed = true;
                 let error = e.to_string();
                 receipt.abort_reason = Some(format!("hid_write_error_disconnect_observed: {e}"));
-                receipt.record_command(ZeroTorqueCommandRecord::error(
+                receipt.record_disconnect_command(ZeroTorqueCommandRecord::error(
                     sequence,
                     "disconnect_probe",
                     started_at,
-                    payload,
+                    &zero_payload,
                     error,
                 ));
                 break;
@@ -1426,28 +2327,28 @@ async fn disconnect_proof(
     }
 
     receipt.final_zero_attempted = true;
-    match device.write(&payload) {
+    match device.write(&zero_payload.bytes) {
         Ok(n) => {
             receipt.bytes_written_total += n;
-            if let Some(error) = short_hid_write_error(n) {
+            if let Some(error) = short_zero_output_write_error(zero_payload.report_len, n) {
                 receipt.write_errors += 1;
                 receipt.final_zero_error = Some(error.clone());
-                receipt.record_command(ZeroTorqueCommandRecord::partial(
+                receipt.record_disconnect_command(ZeroTorqueCommandRecord::partial(
                     receipt.write_attempts,
                     "final_zero",
                     started_at,
-                    payload,
+                    &zero_payload,
                     n,
                     error,
                 ));
             } else {
                 receipt.final_zero_sent = true;
                 receipt.writes_ok += 1;
-                receipt.record_command(ZeroTorqueCommandRecord::ok(
+                receipt.record_disconnect_command(ZeroTorqueCommandRecord::ok(
                     receipt.write_attempts,
                     "final_zero",
                     started_at,
-                    payload,
+                    &zero_payload,
                     n,
                 ));
             }
@@ -1456,11 +2357,11 @@ async fn disconnect_proof(
             receipt.write_errors += 1;
             let error = e.to_string();
             receipt.final_zero_error = Some(error.clone());
-            receipt.record_command(ZeroTorqueCommandRecord::error(
+            receipt.record_disconnect_command(ZeroTorqueCommandRecord::error(
                 receipt.write_attempts,
                 "final_zero",
                 started_at,
-                payload,
+                &zero_payload,
                 error,
             ));
         }
@@ -1486,9 +2387,11 @@ async fn disconnect_proof(
 async fn init(
     json: bool,
     selector: Option<&str>,
+    lane: Option<&Path>,
     pid_override: Option<&str>,
     mode: MozaInitMode,
     dry_run: bool,
+    confirm_init: bool,
     json_out: Option<&Path>,
 ) -> Result<()> {
     let ffb_mode = init_mode_to_ffb_mode(mode);
@@ -1510,9 +2413,11 @@ async fn init(
         );
         {
             let mut writer = RecordingFeatureWriter::dry_run(&mut receipt.feature_reports);
-            protocol
-                .initialize_device(&mut writer)
-                .map_err(|e| anyhow!("Moza dry-run init failed: {e}"))?;
+            if let Err(error) = protocol.initialize_device(&mut writer) {
+                receipt
+                    .notes
+                    .push(format!("dry-run init protocol returned error: {error}"));
+            }
             receipt.output_report_attempts = writer.output_report_attempts;
         }
         receipt.finish_from_protocol(&protocol);
@@ -1525,6 +2430,8 @@ async fn init(
         print_init_receipt(json, json_out, &receipt)?;
         return Ok(());
     }
+
+    let preflight = validate_init_stage_preflight(lane, json_out, selector, mode, confirm_init)?;
 
     let api = HidApi::new().context("failed to initialize HID API")?;
     let (device, snapshot) = open_single_moza_device(&api, selector)?;
@@ -1539,11 +2446,19 @@ async fn init(
     let pid = parse_required_hex_u16(&snapshot.product_id)?;
     let protocol = MozaProtocol::new_with_config(pid, ffb_mode, false);
     let mut receipt = MozaInitReceipt::new(selector.map(str::to_string), snapshot, mode, false);
+    receipt.lane = Some(preflight.lane_display);
+    receipt.operator_confirmed = confirm_init;
+    receipt.zero_verification_validated = true;
+    receipt.zero_verification_generated_at = preflight.zero_verification_generated_at;
+    receipt.zero_audit_validated = true;
+    receipt.zero_audit_generated_at = preflight.zero_audit_generated_at;
     {
         let mut writer = RecordingFeatureWriter::new(device, &mut receipt.feature_reports);
-        protocol
-            .initialize_device(&mut writer)
-            .map_err(|e| anyhow!("Moza init failed: {e}"))?;
+        if let Err(error) = protocol.initialize_device(&mut writer) {
+            receipt
+                .notes
+                .push(format!("init protocol returned error: {error}"));
+        }
         receipt.output_report_attempts = writer.output_report_attempts;
     }
     receipt.finish_from_protocol(&protocol);
@@ -1573,6 +2488,7 @@ async fn torque_test(request: TorqueTestRequest<'_>) -> Result<()> {
         lane,
         init_off,
         init_standard,
+        strategy,
         dry_run,
         confirm_low_torque,
         explicit_operator_override,
@@ -1591,7 +2507,7 @@ async fn torque_test(request: TorqueTestRequest<'_>) -> Result<()> {
 
     if dry_run {
         let zero_proof_summary = zero_proof
-            .map(validate_zero_proof_for_torque_test)
+            .map(|path| validate_zero_proof_for_low_torque_strategy(path, strategy))
             .transpose()?;
         let init_proofs =
             validate_init_proofs_for_torque_test(lane, init_off, init_standard, true)?;
@@ -1607,16 +2523,19 @@ async fn torque_test(request: TorqueTestRequest<'_>) -> Result<()> {
             selector.map(str::to_string),
             device,
             zero_proof_summary,
+            strategy,
             max_percent,
             duration_ms,
             hz,
             true,
         );
         receipt.apply_init_proofs(init_proofs);
-        receipt.apply_direct_mode_gate(DirectModeGateSummary::dry_run(
-            descriptor.map(Path::to_path_buf),
-            explicit_operator_override,
-        ));
+        if strategy == MozaLowTorqueStrategy::DirectReport0x20 {
+            receipt.apply_direct_mode_gate(DirectModeGateSummary::dry_run(
+                descriptor.map(Path::to_path_buf),
+                explicit_operator_override,
+            ));
+        }
         receipt.plan_only();
         receipt.success = receipt.no_nonzero_above_limit
             && receipt.final_zero_sent
@@ -1628,6 +2547,91 @@ async fn torque_test(request: TorqueTestRequest<'_>) -> Result<()> {
 
         write_json_receipt(json_out, &receipt)?;
         print_low_torque_receipt(json, json_out, &receipt)?;
+        return Ok(());
+    }
+
+    if strategy == MozaLowTorqueStrategy::PidffBoundedEffect {
+        let preflight = validate_pidff_low_torque_real_hardware_preflight(
+            selector,
+            pid_override,
+            lane,
+            zero_proof,
+            init_off,
+            init_standard,
+        )?;
+        let api = HidApi::new().context("failed to initialize HID API")?;
+        let (device, snapshot) = open_single_moza_device(&api, selector)?;
+        if !snapshot.output_capable {
+            return Err(anyhow!(
+                "selected Moza device is not an output-capable wheelbase: {} {}",
+                snapshot.product_name,
+                snapshot.product_id
+            ));
+        }
+        if preflight.target_product_id != snapshot.product_id {
+            return Err(anyhow!(
+                "PIDFF preflight target PID {} does not match selected device PID {}",
+                preflight.target_product_id,
+                snapshot.product_id
+            ));
+        }
+        if preflight.zero_proof.product_id.as_deref() != Some(snapshot.product_id.as_str()) {
+            return Err(anyhow!(
+                "PIDFF zero proof PID {:?} does not match selected device PID {}",
+                preflight.zero_proof.product_id,
+                snapshot.product_id
+            ));
+        }
+        if !preflight.init_proofs.match_product_id(&snapshot.product_id) {
+            return Err(anyhow!(
+                "PIDFF init proof PID(s) {:?}/{:?} do not match selected device PID {}",
+                preflight.init_proofs.off.product_id,
+                preflight.init_proofs.standard.product_id,
+                snapshot.product_id
+            ));
+        }
+
+        let mut receipt = LowTorqueProofReceipt::new(
+            selector.map(str::to_string),
+            snapshot,
+            Some(preflight.zero_proof),
+            strategy,
+            max_percent,
+            duration_ms,
+            hz,
+            false,
+        );
+        receipt.apply_init_proofs(Some(preflight.init_proofs));
+        receipt.notes.push(
+            "pidff-bounded-effect writes descriptor-proven PIDFF output reports only and uses PIDFF Stop All as the final cleanup".to_string(),
+        );
+        let started_at = Instant::now();
+        execute_pidff_bounded_low_torque_sequence(&mut receipt, started_at, true, |payload| {
+            device.write(payload).map_err(|error| error.to_string())
+        });
+        receipt.success = receipt.zero_proof_validated
+            && receipt.confirmed
+            && receipt.init_proofs_validated
+            && receipt.no_high_torque
+            && receipt.high_torque == Some(false)
+            && receipt.no_direct_torque_reports
+            && receipt.pidff_effect_setup_proven
+            && receipt.no_nonzero_above_limit
+            && receipt.write_errors == 0
+            && receipt.final_stop_all_sent;
+        receipt.set_receipt_path(json_out);
+
+        write_json_receipt(json_out, &receipt)?;
+        print_low_torque_receipt(json, json_out, &receipt)?;
+        if !receipt.success {
+            return Err(receipt_failure(format!(
+                "Moza PIDFF low-torque proof failed: {} writes ok, {} write errors, effect_setup_proven={}, final_stop_all_sent={}",
+                receipt.writes_ok,
+                receipt.write_errors,
+                receipt.pidff_effect_setup_proven,
+                receipt.final_stop_all_sent
+            )));
+        }
         return Ok(());
     }
 
@@ -1677,6 +2681,7 @@ async fn torque_test(request: TorqueTestRequest<'_>) -> Result<()> {
         selector.map(str::to_string),
         snapshot,
         Some(preflight.zero_proof),
+        strategy,
         max_percent,
         duration_ms,
         hz,
@@ -1808,6 +2813,329 @@ async fn torque_test(request: TorqueTestRequest<'_>) -> Result<()> {
     Ok(())
 }
 
+async fn actuator_profile_smoke(request: ActuatorProfileSmokeRequest<'_>) -> Result<()> {
+    let ActuatorProfileSmokeRequest {
+        json,
+        selector,
+        lane,
+        low_torque_proof,
+        steering_proof,
+        profile,
+        strategy,
+        dry_run,
+        confirm_actuator_profile,
+        max_percent,
+        duration_ms,
+        json_out,
+    } = request;
+
+    validate_actuator_profile_smoke_args(strategy, max_percent, duration_ms)?;
+    if !dry_run && !confirm_actuator_profile {
+        return Err(anyhow!(
+            "--confirm-actuator-profile is required before actual native actuator-profile writes"
+        ));
+    }
+
+    let preflight = validate_native_actuator_profile_smoke_preflight(
+        selector,
+        lane,
+        low_torque_proof,
+        steering_proof,
+        json_out,
+        dry_run,
+    )?;
+
+    if dry_run {
+        let pid = parse_required_hex_u16(&preflight.target_product_id)?;
+        let device = synthetic_moza_device_record(pid);
+        let mut receipt = NativeActuatorProfileSmokeReceipt::new(
+            selector.to_string(),
+            lane,
+            device,
+            preflight,
+            profile,
+            max_percent,
+            duration_ms,
+            true,
+        );
+        receipt.plan_only();
+        receipt.success = receipt.no_nonzero_above_limit
+            && receipt.final_stop_all_sent
+            && receipt.no_high_torque
+            && !receipt.high_torque;
+        receipt
+            .notes
+            .push("dry-run mode opened no HID device and sent no reports".to_string());
+        receipt.set_receipt_path(json_out);
+        write_json_receipt(json_out, &receipt)?;
+        print_actuator_profile_smoke_receipt(json, json_out, &receipt)?;
+        return Ok(());
+    }
+
+    let api = HidApi::new().context("failed to initialize HID API")?;
+    let (device, snapshot) = open_single_moza_device(&api, Some(selector))?;
+    if !snapshot.output_capable {
+        return Err(anyhow!(
+            "selected Moza device is not an output-capable wheelbase: {} {}",
+            snapshot.product_name,
+            snapshot.product_id
+        ));
+    }
+    if preflight.target_product_id != snapshot.product_id {
+        return Err(anyhow!(
+            "native actuator-profile preflight target PID {} does not match selected device PID {}",
+            preflight.target_product_id,
+            snapshot.product_id
+        ));
+    }
+
+    let mut receipt = NativeActuatorProfileSmokeReceipt::new(
+        selector.to_string(),
+        lane,
+        snapshot,
+        preflight,
+        profile,
+        max_percent,
+        duration_ms,
+        false,
+    );
+    let started_at = Instant::now();
+    execute_pidff_bounded_actuator_profile_sequence(&mut receipt, started_at, true, |payload| {
+        device.write(payload).map_err(|error| error.to_string())
+    });
+    receipt.success = receipt.confirmed
+        && receipt.hardware_output_enabled
+        && !receipt.no_hid_device_opened
+        && receipt.low_torque_proof_validated
+        && receipt.steering_proof_validated
+        && receipt.no_feature_reports
+        && !receipt.no_ffb_writes
+        && receipt.no_direct_torque_reports
+        && receipt.no_high_torque
+        && !receipt.high_torque
+        && receipt.no_serial_config_commands
+        && receipt.no_firmware_or_dfu_commands
+        && receipt.no_nonzero_above_limit
+        && receipt.pidff_effect_setup_proven
+        && receipt.write_errors == 0
+        && receipt.final_stop_all_sent;
+    receipt.set_receipt_path(json_out);
+
+    write_json_receipt(json_out, &receipt)?;
+    print_actuator_profile_smoke_receipt(json, json_out, &receipt)?;
+    if !receipt.success {
+        return Err(receipt_failure(format!(
+            "Moza native actuator-profile smoke failed: {} writes ok, {} write errors, effect_setup_proven={}, final_stop_all_sent={}",
+            receipt.writes_ok,
+            receipt.write_errors,
+            receipt.pidff_effect_setup_proven,
+            receipt.final_stop_all_sent
+        )));
+    }
+    Ok(())
+}
+
+fn execute_pidff_bounded_low_torque_sequence<F>(
+    receipt: &mut LowTorqueProofReceipt,
+    started_at: Instant,
+    sleep_before_cleanup: bool,
+    mut write: F,
+) where
+    F: FnMut(&[u8]) -> std::result::Result<usize, String>,
+{
+    let mut sequence = receipt.command_log.len().min(u32::MAX as usize) as u32;
+    let mut setup_ok = true;
+    for report in pidff_low_torque_reports(receipt.max_percent, receipt.duration_ms) {
+        receipt.write_attempts = receipt.write_attempts.saturating_add(1);
+        match write(&report.payload) {
+            Ok(bytes_written) => {
+                receipt.bytes_written_total =
+                    receipt.bytes_written_total.saturating_add(bytes_written);
+                if let Some(error) = short_zero_output_write_error(report.report_len, bytes_written)
+                {
+                    setup_ok = false;
+                    receipt.write_errors = receipt.write_errors.saturating_add(1);
+                    receipt.abort_reason = Some(error.clone());
+                    receipt.record_command(LowTorqueCommandRecord::partial_pidff_output(
+                        sequence,
+                        &report,
+                        started_at,
+                        bytes_written,
+                        error,
+                    ));
+                    break;
+                }
+                receipt.writes_ok = receipt.writes_ok.saturating_add(1);
+                receipt.record_command(LowTorqueCommandRecord::ok_pidff_output(
+                    sequence,
+                    &report,
+                    started_at,
+                    bytes_written,
+                ));
+            }
+            Err(error) => {
+                setup_ok = false;
+                receipt.write_errors = receipt.write_errors.saturating_add(1);
+                receipt.abort_reason = Some(format!("hid_write_error: {error}"));
+                receipt.record_command(LowTorqueCommandRecord::error_pidff_output(
+                    sequence, &report, started_at, error,
+                ));
+                break;
+            }
+        }
+        sequence = sequence.saturating_add(1);
+    }
+
+    receipt.pidff_effect_setup_proven = setup_ok && receipt.write_errors == 0;
+    if receipt.pidff_effect_setup_proven {
+        receipt.pidff_effect_block_index = Some(PIDFF_LOW_TORQUE_EFFECT_BLOCK_INDEX);
+        if sleep_before_cleanup {
+            std::thread::sleep(Duration::from_millis(receipt.duration_ms.min(2_000)));
+        }
+    }
+
+    let stop_all = ZeroOutputPayload::pidff_stop_all();
+    receipt.final_zero_attempted = true;
+    receipt.final_stop_all_attempted = true;
+    match write(&stop_all.bytes) {
+        Ok(bytes_written) => {
+            receipt.bytes_written_total = receipt.bytes_written_total.saturating_add(bytes_written);
+            if let Some(error) = short_zero_output_write_error(stop_all.report_len, bytes_written) {
+                receipt.write_errors = receipt.write_errors.saturating_add(1);
+                receipt.final_zero_error = Some(error.clone());
+                receipt.record_command(LowTorqueCommandRecord::partial_pidff_stop_all(
+                    sequence,
+                    "final_stop_all",
+                    started_at,
+                    bytes_written,
+                    error,
+                ));
+            } else {
+                receipt.writes_ok = receipt.writes_ok.saturating_add(1);
+                receipt.final_zero_sent = true;
+                receipt.final_stop_all_sent = true;
+                receipt.record_command(LowTorqueCommandRecord::ok_pidff_stop_all(
+                    sequence,
+                    "final_stop_all",
+                    started_at,
+                    bytes_written,
+                ));
+            }
+        }
+        Err(error) => {
+            receipt.write_errors = receipt.write_errors.saturating_add(1);
+            receipt.final_zero_error = Some(error.clone());
+            receipt.record_command(LowTorqueCommandRecord::error_pidff_stop_all(
+                sequence,
+                "final_stop_all",
+                started_at,
+                error,
+            ));
+        }
+    }
+}
+
+fn execute_pidff_bounded_actuator_profile_sequence<F>(
+    receipt: &mut NativeActuatorProfileSmokeReceipt,
+    started_at: Instant,
+    sleep_before_cleanup: bool,
+    mut write: F,
+) where
+    F: FnMut(&[u8]) -> std::result::Result<usize, String>,
+{
+    let mut sequence = receipt.command_log.len().min(u32::MAX as usize) as u32;
+    let mut setup_ok = true;
+    for report in pidff_low_torque_reports(receipt.max_percent, receipt.duration_ms) {
+        receipt.write_attempts = receipt.write_attempts.saturating_add(1);
+        match write(&report.payload) {
+            Ok(bytes_written) => {
+                receipt.bytes_written_total =
+                    receipt.bytes_written_total.saturating_add(bytes_written);
+                if let Some(error) = short_zero_output_write_error(report.report_len, bytes_written)
+                {
+                    setup_ok = false;
+                    receipt.write_errors = receipt.write_errors.saturating_add(1);
+                    receipt.abort_reason = Some(error.clone());
+                    receipt.record_command(LowTorqueCommandRecord::partial_pidff_output(
+                        sequence,
+                        &report,
+                        started_at,
+                        bytes_written,
+                        error,
+                    ));
+                    break;
+                }
+                receipt.writes_ok = receipt.writes_ok.saturating_add(1);
+                receipt.record_command(LowTorqueCommandRecord::ok_pidff_output(
+                    sequence,
+                    &report,
+                    started_at,
+                    bytes_written,
+                ));
+            }
+            Err(error) => {
+                setup_ok = false;
+                receipt.write_errors = receipt.write_errors.saturating_add(1);
+                receipt.abort_reason = Some(format!("hid_write_error: {error}"));
+                receipt.record_command(LowTorqueCommandRecord::error_pidff_output(
+                    sequence, &report, started_at, error,
+                ));
+                break;
+            }
+        }
+        sequence = sequence.saturating_add(1);
+    }
+
+    receipt.pidff_effect_setup_proven = setup_ok && receipt.write_errors == 0;
+    if receipt.pidff_effect_setup_proven {
+        receipt.pidff_effect_block_index = Some(PIDFF_LOW_TORQUE_EFFECT_BLOCK_INDEX);
+        if sleep_before_cleanup {
+            std::thread::sleep(Duration::from_millis(receipt.duration_ms.min(2_000)));
+        }
+    }
+
+    let stop_all = ZeroOutputPayload::pidff_stop_all();
+    receipt.final_zero_attempted = true;
+    receipt.final_stop_all_attempted = true;
+    receipt.write_attempts = receipt.write_attempts.saturating_add(1);
+    match write(&stop_all.bytes) {
+        Ok(bytes_written) => {
+            receipt.bytes_written_total = receipt.bytes_written_total.saturating_add(bytes_written);
+            if let Some(error) = short_zero_output_write_error(stop_all.report_len, bytes_written) {
+                receipt.write_errors = receipt.write_errors.saturating_add(1);
+                receipt.final_zero_error = Some(error.clone());
+                receipt.record_command(LowTorqueCommandRecord::partial_pidff_stop_all(
+                    sequence,
+                    "final_stop_all",
+                    started_at,
+                    bytes_written,
+                    error,
+                ));
+            } else {
+                receipt.writes_ok = receipt.writes_ok.saturating_add(1);
+                receipt.final_zero_sent = true;
+                receipt.final_stop_all_sent = true;
+                receipt.record_command(LowTorqueCommandRecord::ok_pidff_stop_all(
+                    sequence,
+                    "final_stop_all",
+                    started_at,
+                    bytes_written,
+                ));
+            }
+        }
+        Err(error) => {
+            receipt.write_errors = receipt.write_errors.saturating_add(1);
+            receipt.final_zero_error = Some(error.clone());
+            receipt.record_command(LowTorqueCommandRecord::error_pidff_stop_all(
+                sequence,
+                "final_stop_all",
+                started_at,
+                error,
+            ));
+        }
+    }
+}
+
 async fn verify_bundle(
     json: bool,
     lane: &Path,
@@ -1821,6 +3149,19 @@ async fn verify_bundle(
         return Err(receipt_failure(format!(
             "Moza bundle verification failed: {} missing artifact(s), {} invalid artifact(s), {} failed gate(s)",
             receipt.missing_artifacts, receipt.invalid_artifacts, receipt.failed_gates
+        )));
+    }
+    Ok(())
+}
+
+async fn pre_output_readiness(json: bool, lane: &Path, json_out: Option<&Path>) -> Result<()> {
+    let receipt = pre_output_readiness_dir(lane);
+    write_json_receipt(json_out, &receipt)?;
+    print_pre_output_readiness_receipt(json, json_out, &receipt)?;
+    if !receipt.success {
+        return Err(receipt_failure(format!(
+            "Moza pre-output readiness failed: ready_for_zero_torque={}, ready_for_ffb={}, blocking_items={:?}",
+            receipt.ready_for_zero_torque, receipt.ready_for_ffb, receipt.blocking_items
         )));
     }
     Ok(())
@@ -2138,6 +3479,7 @@ async fn simulator_ffb_smoke(request: SimulatorFfbSmokeRequest<'_>) -> Result<()
         game,
         telemetry_source,
         output_log_artifact,
+        strategy,
         descriptor_trusted,
         explicit_operator_override,
         watchdog_timeout_ms,
@@ -2175,17 +3517,42 @@ async fn simulator_ffb_smoke(request: SimulatorFfbSmokeRequest<'_>) -> Result<()
     let mut nonzero_output_count = 0u64;
     let mut zero_output_count = 0u64;
     let mut max_abs_output_percent = 0.0f64;
-    let mut all_direct_records = true;
-    for record in &records {
-        let Some(output) = direct_torque_artifact_record(record) else {
-            all_direct_records = false;
-            continue;
-        };
-        max_abs_output_percent = max_abs_output_percent.max(output.percent.abs());
-        if output.torque_raw == 0 {
-            zero_output_count += 1;
-        } else {
-            nonzero_output_count += 1;
+    let mut output_records_match_strategy = true;
+    match strategy {
+        MozaLowTorqueStrategy::DirectReport0x20 => {
+            for record in &records {
+                let Some(output) = direct_torque_artifact_record(record) else {
+                    output_records_match_strategy = false;
+                    continue;
+                };
+                max_abs_output_percent = max_abs_output_percent.max(output.percent.abs());
+                if output.torque_raw == 0 {
+                    zero_output_count += 1;
+                } else {
+                    nonzero_output_count += 1;
+                }
+            }
+        }
+        MozaLowTorqueStrategy::PidffBoundedEffect => {
+            for record in &records {
+                let Some(output) = pidff_output_artifact_record(record) else {
+                    output_records_match_strategy = false;
+                    continue;
+                };
+                max_abs_output_percent = max_abs_output_percent.max(output.percent.abs());
+                match output.kind.as_str() {
+                    "pidff_set_constant_force" if output.torque_raw != 0 => {
+                        nonzero_output_count += 1;
+                    }
+                    "clear_zero" | "final_stop_all" | "final_zero"
+                        if pidff_stop_all_record_is_safe(record) =>
+                    {
+                        zero_output_count += 1;
+                    }
+                    "pidff_set_effect" | "pidff_effect_start" => {}
+                    _ => output_records_match_strategy = false,
+                }
+            }
         }
     }
     let output_provenance = simulator_ffb_output_provenance_for_records(lane, &records, output_pid);
@@ -2203,21 +3570,42 @@ async fn simulator_ffb_smoke(request: SimulatorFfbSmokeRequest<'_>) -> Result<()
     );
     let prerequisite_artifacts_value = serde_json::to_value(&prerequisite_artifacts)?;
     let last_record = records.last();
-    let final_zero_attempted =
-        last_record.and_then(|record| json_string(record, "kind")) == Some("final_zero");
+    let final_zero_attempted = matches!(
+        last_record.and_then(|record| json_string(record, "kind")),
+        Some("final_zero" | "final_stop_all")
+    );
     let final_zero_sent = last_record
         .map(|record| {
-            json_string(record, "result") == Some("ok") && zero_payload_record_is_safe(record)
+            json_string(record, "result") == Some("ok")
+                && match strategy {
+                    MozaLowTorqueStrategy::DirectReport0x20 => zero_payload_record_is_safe(record),
+                    MozaLowTorqueStrategy::PidffBoundedEffect => {
+                        pidff_stop_all_record_is_safe(record)
+                    }
+                }
         })
         .unwrap_or(false);
     let final_zero_payload_hex = last_record
         .and_then(|record| json_string(record, "payload_hex"))
         .unwrap_or_default();
+    let final_zero_report_id = last_record
+        .and_then(|record| json_string(record, "report_id"))
+        .unwrap_or_default();
+    let final_zero_torque_raw = last_record.and_then(|record| json_i64(record, "torque_raw"));
+    let final_zero_flags = last_record.and_then(|record| json_u64(record, "flags"));
     let mode_mismatch_cleared_output = simulator_ffb_clear_events_for_records(&records)
         .mode_mismatch
         .is_some();
     let source_ok = matches!(telemetry_source, "real_game" | "simhub_bridge");
-    let descriptor_trust_observed = lane_descriptor_trusted_for_pid(lane, &hex_u16(output_pid));
+    let direct_descriptor_trust_observed =
+        lane_descriptor_trusted_for_pid(lane, &hex_u16(output_pid));
+    let pidff_descriptor_trust_observed = validate_zero_output_pidff_stop_all_report_metadata(lane)
+        .is_ok()
+        && pidff_bounded_effect_descriptor_blockers(lane).is_empty();
+    let descriptor_trust_observed = match strategy {
+        MozaLowTorqueStrategy::DirectReport0x20 => direct_descriptor_trust_observed,
+        MozaLowTorqueStrategy::PidffBoundedEffect => pidff_descriptor_trust_observed,
+    };
     let descriptor_trust_valid = !descriptor_trusted || descriptor_trust_observed;
     let direct_mode_allowed = ((descriptor_trusted && descriptor_trust_observed)
         || explicit_operator_override)
@@ -2240,24 +3628,46 @@ async fn simulator_ffb_smoke(request: SimulatorFfbSmokeRequest<'_>) -> Result<()
         telemetry_source: telemetry_source.to_string(),
         ffb_scalars_by_sequence,
     };
-    let output_artifact_safe = all_direct_records
-        && simulator_ffb_output_artifact_is_safe(
-            lane,
-            &output_log_artifact,
-            output_report_count,
-            nonzero_output_count,
-            zero_output_count,
-            max_abs_output_percent,
-            output_pid,
-            &telemetry_link,
-        );
+    let output_artifact_safe = output_records_match_strategy
+        && match strategy {
+            MozaLowTorqueStrategy::DirectReport0x20 => simulator_ffb_output_artifact_is_safe(
+                lane,
+                &output_log_artifact,
+                output_report_count,
+                nonzero_output_count,
+                zero_output_count,
+                max_abs_output_percent,
+                output_pid,
+                &telemetry_link,
+            ),
+            MozaLowTorqueStrategy::PidffBoundedEffect => {
+                simulator_ffb_pidff_output_artifact_is_safe(
+                    lane,
+                    &output_log_artifact,
+                    output_report_count,
+                    nonzero_output_count,
+                    zero_output_count,
+                    max_abs_output_percent,
+                    &telemetry_link,
+                )
+            }
+        };
+    let output_strategy_allowed = match strategy {
+        MozaLowTorqueStrategy::DirectReport0x20 => direct_mode_allowed,
+        MozaLowTorqueStrategy::PidffBoundedEffect => {
+            descriptor_trusted
+                && descriptor_trust_observed
+                && descriptor_trust_valid
+                && !explicit_operator_override
+        }
+    };
     let success = !game.trim().is_empty()
         && source_ok
         && telemetry_receipt_ok
         && telemetry_receipt_matches_run
         && hardware_prerequisites_validated
         && prerequisite_artifacts_bound
-        && direct_mode_allowed
+        && output_strategy_allowed
         && watchdog_timeout_ms > 0
         && output_report_count > 0
         && nonzero_output_count > 0
@@ -2290,6 +3700,9 @@ async fn simulator_ffb_smoke(request: SimulatorFfbSmokeRequest<'_>) -> Result<()
     let writer_product_id = output_provenance
         .as_ref()
         .map(|provenance| provenance.product_id.as_str());
+    let writer_endpoint_selector = output_provenance
+        .as_ref()
+        .map(|provenance| provenance.endpoint_selector.as_str());
     let writer_hardware_lane = output_provenance
         .as_ref()
         .map(|provenance| provenance.hardware_lane.as_str());
@@ -2306,7 +3719,20 @@ async fn simulator_ffb_smoke(request: SimulatorFfbSmokeRequest<'_>) -> Result<()
         Value::String(telemetry_source.to_string()),
     );
     receipt.insert("hardware".to_string(), Value::String("moza-r5".to_string()));
-    receipt.insert("ffb_mode".to_string(), Value::String("direct".to_string()));
+    receipt.insert(
+        "ffb_mode".to_string(),
+        Value::String(
+            match strategy {
+                MozaLowTorqueStrategy::DirectReport0x20 => "direct",
+                MozaLowTorqueStrategy::PidffBoundedEffect => "pidff",
+            }
+            .to_string(),
+        ),
+    );
+    receipt.insert(
+        "output_strategy".to_string(),
+        Value::String(low_torque_strategy_name(strategy).to_string()),
+    );
     receipt.insert(
         "descriptor_trusted".to_string(),
         Value::Bool(descriptor_trusted),
@@ -2321,6 +3747,10 @@ async fn simulator_ffb_smoke(request: SimulatorFfbSmokeRequest<'_>) -> Result<()
     );
     receipt.insert("high_torque".to_string(), Value::Bool(false));
     receipt.insert("no_high_torque".to_string(), Value::Bool(true));
+    receipt.insert(
+        "no_direct_torque_reports".to_string(),
+        Value::Bool(strategy == MozaLowTorqueStrategy::PidffBoundedEffect),
+    );
     receipt.insert("no_hid_device_opened".to_string(), Value::Bool(false));
     receipt.insert("no_ffb_writes".to_string(), Value::Bool(false));
     receipt.insert("no_serial_config_commands".to_string(), Value::Bool(true));
@@ -2406,6 +3836,12 @@ async fn simulator_ffb_smoke(request: SimulatorFfbSmokeRequest<'_>) -> Result<()
         writer_product_id.map(Value::from).unwrap_or(Value::Null),
     );
     receipt.insert(
+        "writer_endpoint_selector".to_string(),
+        writer_endpoint_selector
+            .map(Value::from)
+            .unwrap_or(Value::Null),
+    );
+    receipt.insert(
         "writer_hardware_lane".to_string(),
         writer_hardware_lane.map(Value::from).unwrap_or(Value::Null),
     );
@@ -2429,6 +3865,22 @@ async fn simulator_ffb_smoke(request: SimulatorFfbSmokeRequest<'_>) -> Result<()
     receipt.insert(
         "final_zero_payload_hex".to_string(),
         Value::String(final_zero_payload_hex.to_string()),
+    );
+    receipt.insert(
+        "final_zero_report_id".to_string(),
+        Value::String(final_zero_report_id.to_string()),
+    );
+    receipt.insert(
+        "final_zero_torque_raw".to_string(),
+        final_zero_torque_raw
+            .map(|value| serde_json::json!(value))
+            .unwrap_or(Value::Null),
+    );
+    receipt.insert(
+        "final_zero_flags".to_string(),
+        final_zero_flags
+            .map(|value| serde_json::json!(value))
+            .unwrap_or(Value::Null),
     );
     receipt.insert(
         "stop_cleared_output".to_string(),
@@ -2536,6 +3988,40 @@ fn lane_manifest_r5_pid(lane: &Path) -> Option<u16> {
     let hardware = manifest.get("hardware")?;
     let pid = json_string(hardware, "wheelbase_pid").and_then(parse_hex_selector)?;
     matches!(pid, product_ids::R5_V1 | product_ids::R5_V2).then_some(pid)
+}
+
+fn lane_manifest_r5_hid_observe_selector(lane: &Path) -> Option<String> {
+    let manifest = read_json_value(lane, "manifest.json").ok()?;
+    let expected_pid = lane_manifest_r5_pid(lane);
+    let endpoints = manifest
+        .get("topology")?
+        .get("endpoints")
+        .and_then(Value::as_array)?;
+
+    endpoints.iter().find_map(|endpoint| {
+        if json_string(endpoint, "kind") != Some("wheelbase_hub") {
+            return None;
+        }
+        let vendor_id = json_string(endpoint, "vendor_id").and_then(parse_hex_selector)?;
+        let product_id = json_string(endpoint, "product_id").and_then(parse_hex_selector)?;
+        if vendor_id != MOZA_VENDOR_ID
+            || !matches!(product_id, product_ids::R5_V1 | product_ids::R5_V2)
+            || expected_pid.is_some_and(|expected| expected != product_id)
+        {
+            return None;
+        }
+        let interface_number = json_u64(endpoint, "interface_number")?;
+        let usage_page = json_string(endpoint, "usage_page").and_then(parse_hex_selector)?;
+        let usage = json_string(endpoint, "usage").and_then(parse_hex_selector)?;
+        Some(format!(
+            "hid-{}-{}-if{}-{}-{}",
+            hex_u16(vendor_id),
+            hex_u16(product_id),
+            interface_number,
+            hex_u16(usage_page),
+            hex_u16(usage)
+        ))
+    })
 }
 
 fn proof_output_path(lane: &Path, json_out: Option<&Path>, default_file: &str) -> PathBuf {
@@ -2679,7 +4165,13 @@ async fn promote_manifest(
         completion_state,
         hardware_validated,
         simulator_validated,
-        || verify_bundle_dir(lane, stage),
+        || {
+            verify_bundle_dir_with_support_validation(
+                lane,
+                stage,
+                SupportBundleValidationMode::ShapeOnly,
+            )
+        },
     )?;
 
     let receipt = serde_json::json!({
@@ -2705,6 +4197,7 @@ async fn promote_manifest(
         "verification_after": bundle_verification_summary_value(&verification_after),
         "notes": [
             "promote-manifest runs live bundle verification before changing manifest claims",
+            "post-promotion verification uses shape-only support bundle validation because manifest promotion intentionally changes the lane snapshot that support-bundle records",
             "release_ready and high_torque_validated remain false"
         ]
     });
@@ -2867,6 +4360,25 @@ fn validate_torque_test_args(max_percent: f32, duration_ms: u64, hz: u32) -> Res
     Ok(())
 }
 
+fn validate_actuator_profile_smoke_args(
+    strategy: MozaLowTorqueStrategy,
+    max_percent: f32,
+    duration_ms: u64,
+) -> Result<()> {
+    if strategy != MozaLowTorqueStrategy::PidffBoundedEffect {
+        return Err(anyhow!(
+            "native actuator-profile smoke only supports --strategy pidff-bounded-effect"
+        ));
+    }
+    if !max_percent.is_finite() || !(0.1..=1.0).contains(&max_percent) {
+        return Err(anyhow!("--max-percent must be in 0.1..=1.0"));
+    }
+    if duration_ms == 0 || duration_ms > 2_000 {
+        return Err(anyhow!("--duration-ms must be in 1..=2000"));
+    }
+    Ok(())
+}
+
 fn disconnect_max_writes(max_duration_ms: u64, hz: u32) -> u32 {
     max_duration_ms
         .saturating_mul(u64::from(hz))
@@ -2920,6 +4432,9 @@ fn zero_torque_dry_run_pid(selector: Option<&str>, pid_override: Option<&str>) -
         if let Some((_vid, pid)) = parse_vid_pid_selector(selector) {
             return Ok(pid);
         }
+        if let Some(identity) = parse_hid_observe_selector(selector) {
+            return Ok(identity.product_id);
+        }
         if let Some(pid) = parse_hex_selector(selector) {
             return Ok(pid);
         }
@@ -2945,6 +4460,88 @@ fn low_torque_payload_for_pid_percent(pid: u16, percent: f32) -> ([u8; REPORT_LE
     let mut payload = [0u8; REPORT_LEN];
     let _ = encoder.encode(torque_nm, 0, &mut payload);
     (payload, torque_nm)
+}
+
+fn r5_v1_pidff_set_effect_payload(
+    block_index: u8,
+    effect_type: u8,
+    duration_ms: u16,
+    gain: u8,
+    direction_x: u16,
+    direction_y: u16,
+) -> [u8; PIDFF_SET_EFFECT_R5_V1_REPORT_LEN] {
+    let mut payload = [0_u8; PIDFF_SET_EFFECT_R5_V1_REPORT_LEN];
+    payload[0] = PIDFF_SET_EFFECT_REPORT_ID_BYTE;
+    payload[1] = block_index;
+    payload[2] = effect_type;
+    payload[3..5].copy_from_slice(&duration_ms.to_le_bytes());
+    payload[11] = gain;
+    payload[12] = PIDFF_TRIGGER_BUTTON_NONE;
+    payload[13] = 0b0000_0101; // X axis enabled and direction enabled; other bits are padding.
+    payload[14..16].copy_from_slice(&direction_x.to_le_bytes());
+    payload[16..18].copy_from_slice(&direction_y.to_le_bytes());
+    payload
+}
+
+fn r5_v1_pidff_set_effect_encoder_available() -> bool {
+    let payload = r5_v1_pidff_set_effect_payload(1, PIDFF_EFFECT_TYPE_CONSTANT_FORCE, 150, 1, 0, 0);
+    payload.len() == PIDFF_SET_EFFECT_R5_V1_REPORT_LEN
+        && payload[0] == PIDFF_SET_EFFECT_REPORT_ID_BYTE
+        && payload[12] == PIDFF_TRIGGER_BUTTON_NONE
+}
+
+fn pidff_gain_for_percent(percent: f32) -> u8 {
+    ((255.0 * (percent / 100.0)).round() as u16).clamp(1, u16::from(u8::MAX)) as u8
+}
+
+fn pidff_constant_force_for_percent(percent: f32) -> i16 {
+    ((f32::from(i16::MAX) * (percent / 100.0)).round() as i32).clamp(1, i32::from(i16::MAX)) as i16
+}
+
+fn pidff_low_torque_reports(max_percent: f32, duration_ms: u64) -> Vec<PidffLowTorqueReport> {
+    let duration = duration_ms.min(u64::from(u16::MAX)) as u16;
+    let gain = pidff_gain_for_percent(max_percent);
+    let magnitude = pidff_constant_force_for_percent(max_percent);
+    vec![
+        PidffLowTorqueReport::new(
+            "pidff_set_effect",
+            max_percent,
+            r5_v1_pidff_set_effect_payload(
+                PIDFF_LOW_TORQUE_EFFECT_BLOCK_INDEX,
+                EffectType::Constant as u8,
+                duration,
+                gain,
+                PIDFF_LOW_TORQUE_DIRECTION_X,
+                PIDFF_LOW_TORQUE_DIRECTION_Y,
+            )
+            .to_vec(),
+            0,
+            false,
+            PIDFF_EFFECT_SETUP_CLASSIFICATION,
+        ),
+        PidffLowTorqueReport::new(
+            "pidff_set_constant_force",
+            max_percent,
+            pidff::encode_set_constant_force(PIDFF_LOW_TORQUE_EFFECT_BLOCK_INDEX, magnitude)
+                .to_vec(),
+            magnitude,
+            true,
+            PIDFF_BOUNDED_EFFECT_CLASSIFICATION,
+        ),
+        PidffLowTorqueReport::new(
+            "pidff_effect_start",
+            max_percent,
+            pidff::encode_effect_operation(
+                PIDFF_LOW_TORQUE_EFFECT_BLOCK_INDEX,
+                EffectOp::Start,
+                PIDFF_LOW_TORQUE_LOOP_COUNT,
+            )
+            .to_vec(),
+            0,
+            true,
+            PIDFF_BOUNDED_EFFECT_CLASSIFICATION,
+        ),
+    ]
 }
 
 fn low_torque_ladder_for_pid(
@@ -2986,6 +4583,18 @@ struct LowTorqueRealHardwarePreflight {
     target_product_id: String,
 }
 
+struct PidffLowTorqueRealHardwarePreflight {
+    zero_proof: ZeroProofSummary,
+    init_proofs: InitProofSet,
+    target_product_id: String,
+}
+
+struct NativeActuatorProfileSmokePreflight {
+    target_product_id: String,
+    low_torque_generated_at: Option<String>,
+    steering_generated_at: Option<String>,
+}
+
 #[allow(clippy::too_many_arguments)]
 fn validate_low_torque_real_hardware_preflight(
     selector: Option<&str>,
@@ -3017,6 +4626,7 @@ fn validate_low_torque_real_hardware_preflight(
     if let Some(path) = descriptor {
         require_lane_artifact_path(lane, path, "descriptor.json", "--descriptor")?;
     }
+    validate_lane_manifest_endpoint_selector(lane, selector, "actual low-torque writes")?;
 
     let preflight_at_utc = now_utc();
     let zero_receipt = read_json_value(lane, "zero-torque-proof.json")?;
@@ -3102,6 +4712,203 @@ fn validate_low_torque_real_hardware_preflight(
     })
 }
 
+fn validate_pidff_low_torque_real_hardware_preflight(
+    selector: Option<&str>,
+    pid_override: Option<&str>,
+    lane: Option<&Path>,
+    zero_proof: Option<&Path>,
+    init_off: Option<&Path>,
+    init_standard: Option<&Path>,
+) -> Result<PidffLowTorqueRealHardwarePreflight> {
+    let lane = lane.ok_or_else(|| {
+        anyhow!("--lane is required before actual PIDFF low-torque writes so prerequisites are resolved from the dated hardware lane")
+    })?;
+    let zero_proof_path = zero_proof
+        .ok_or_else(|| anyhow!("--zero-proof is required before actual PIDFF low-torque writes"))?;
+    require_lane_artifact_path(
+        lane,
+        zero_proof_path,
+        "zero-torque-proof.json",
+        "--zero-proof",
+    )?;
+    if let Some(path) = init_off {
+        require_lane_artifact_path(lane, path, "init-off.json", "--init-off")?;
+    }
+    if let Some(path) = init_standard {
+        require_lane_artifact_path(lane, path, "init-standard.json", "--init-standard")?;
+    }
+    validate_lane_manifest_endpoint_selector(lane, selector, "actual PIDFF low-torque writes")?;
+    validate_zero_output_pidff_stop_all_report_metadata(lane)?;
+    let descriptor_blockers = pidff_bounded_effect_descriptor_blockers(lane);
+    if !descriptor_blockers.is_empty() {
+        return Err(anyhow!(
+            "actual PIDFF low-torque writes require descriptor-proven bounded-effect reports: {}",
+            descriptor_blockers.join("; ")
+        ));
+    }
+
+    let preflight_at_utc = now_utc();
+    let zero_receipt = read_json_value(lane, "zero-torque-proof.json")?;
+    if !receipt_path_matches(lane, &zero_receipt, "zero-torque-proof.json") {
+        return Err(anyhow!(
+            "zero proof receipt_path must match lane artifact zero-torque-proof.json"
+        ));
+    }
+    let zero_proof = validate_zero_proof_for_low_torque_strategy(
+        zero_proof_path,
+        MozaLowTorqueStrategy::PidffBoundedEffect,
+    )?;
+    if !utc_timestamp_pair_is_ordered(&zero_proof.generated_at_utc, &preflight_at_utc) {
+        return Err(anyhow!(
+            "zero proof generated_at_utc must be before the PIDFF low-torque preflight timestamp"
+        ));
+    }
+
+    let init_proofs = validate_init_proofs_for_torque_test(
+        Some(lane),
+        init_off,
+        init_standard,
+        false,
+    )?
+    .ok_or_else(|| {
+        anyhow!("--lane or both --init-off and --init-standard are required before actual PIDFF low-torque writes")
+    })?;
+    require_lane_receipt_path(lane, "init-off.json")?;
+    require_lane_receipt_path(lane, "init-standard.json")?;
+    if !utc_timestamp_pair_is_ordered(&init_proofs.off.generated_at_utc, &preflight_at_utc)
+        || !utc_timestamp_pair_is_ordered(&init_proofs.standard.generated_at_utc, &preflight_at_utc)
+    {
+        return Err(anyhow!(
+            "init proof generated_at_utc values must be before the PIDFF low-torque preflight timestamp"
+        ));
+    }
+
+    let target_product_id = low_torque_preflight_target_product_id(
+        selector,
+        pid_override,
+        lane,
+        &zero_proof,
+        &init_proofs,
+    )?;
+    if zero_proof.product_id.as_deref() != Some(target_product_id.as_str()) {
+        return Err(anyhow!(
+            "zero proof PID {:?} does not match PIDFF low-torque preflight target PID {}",
+            zero_proof.product_id,
+            target_product_id
+        ));
+    }
+    if !init_proofs.match_product_id(&target_product_id) {
+        return Err(anyhow!(
+            "init proof PID(s) {:?}/{:?} do not match PIDFF low-torque preflight target PID {}",
+            init_proofs.off.product_id,
+            init_proofs.standard.product_id,
+            target_product_id
+        ));
+    }
+
+    Ok(PidffLowTorqueRealHardwarePreflight {
+        zero_proof,
+        init_proofs,
+        target_product_id,
+    })
+}
+
+fn validate_native_actuator_profile_smoke_preflight(
+    selector: &str,
+    lane: &Path,
+    low_torque_proof: Option<&Path>,
+    steering_proof: Option<&Path>,
+    json_out: Option<&Path>,
+    dry_run: bool,
+) -> Result<NativeActuatorProfileSmokePreflight> {
+    validate_lane_manifest_endpoint_selector(
+        lane,
+        Some(selector),
+        "native actuator-profile smoke",
+    )?;
+    if let Some(path) = low_torque_proof {
+        require_lane_artifact_path(lane, path, "low-torque-proof.json", "--low-torque-proof")?;
+    }
+    if let Some(path) = steering_proof {
+        require_lane_artifact_path(
+            lane,
+            path,
+            "steering-angle-stream-proof.json",
+            "--steering-proof",
+        )?;
+    }
+    if !dry_run {
+        let json_out = json_out.ok_or_else(|| {
+            anyhow!("--json-out is required before actual native actuator-profile smoke writes")
+        })?;
+        require_lane_artifact_path(
+            lane,
+            json_out,
+            "native-actuator-profile-smoke.json",
+            "--json-out",
+        )?;
+    }
+
+    validate_zero_output_pidff_stop_all_report_metadata(lane)?;
+    let descriptor_blockers = pidff_bounded_effect_descriptor_blockers(lane);
+    if !descriptor_blockers.is_empty() {
+        return Err(anyhow!(
+            "native actuator-profile smoke requires descriptor-proven PIDFF bounded-effect reports: {}",
+            descriptor_blockers.join("; ")
+        ));
+    }
+
+    let low_torque_gate = verify_low_torque_gate(lane);
+    if low_torque_gate.status != "pass" {
+        return Err(anyhow!(
+            "same-lane low-torque proof must pass before native actuator-profile smoke: {}",
+            low_torque_gate.details
+        ));
+    }
+    let steering_gate = verify_steering_angle_stream_gate(lane);
+    if steering_gate.status != "pass" {
+        return Err(anyhow!(
+            "same-lane steering stream proof must pass before native actuator-profile smoke: {}",
+            steering_gate.details
+        ));
+    }
+
+    let low_torque_receipt = read_json_value(lane, "low-torque-proof.json")?;
+    if json_string(&low_torque_receipt, "low_torque_strategy")
+        != Some(low_torque_strategy_name(
+            MozaLowTorqueStrategy::PidffBoundedEffect,
+        ))
+    {
+        return Err(anyhow!(
+            "native actuator-profile smoke requires a same-lane PIDFF low-torque proof"
+        ));
+    }
+    let target_product_id = low_torque_receipt
+        .get("device")
+        .and_then(|device| json_string(device, "product_id"))
+        .map(str::to_string)
+        .ok_or_else(|| anyhow!("low-torque proof device.product_id is missing"))?;
+    let steering_receipt = read_json_value(lane, "steering-angle-stream-proof.json")?;
+    let steering_product_id = steering_receipt
+        .get("device")
+        .and_then(|device| json_string(device, "product_id"));
+    if steering_product_id != Some(target_product_id.as_str()) {
+        return Err(anyhow!(
+            "steering proof PID {:?} does not match low-torque proof PID {}",
+            steering_product_id,
+            target_product_id
+        ));
+    }
+
+    Ok(NativeActuatorProfileSmokePreflight {
+        target_product_id,
+        low_torque_generated_at: json_string(&low_torque_receipt, "generated_at_utc")
+            .map(str::to_string),
+        steering_generated_at: json_string(&steering_receipt, "generated_at_utc")
+            .map(str::to_string),
+    })
+}
+
 fn require_lane_artifact_path(
     lane: &Path,
     path: &Path,
@@ -3129,6 +4936,214 @@ fn require_lane_receipt_path(lane: &Path, relative_path: &str) -> Result<()> {
             relative_path
         ))
     }
+}
+
+fn validate_zero_output_stage_preflight(
+    lane: Option<&Path>,
+    json_out: Option<&Path>,
+    relative_path: &str,
+    strategy: MozaZeroOutputStrategy,
+    confirmed: bool,
+    confirmation_arg: &'static str,
+) -> Result<ZeroOutputStagePreflight> {
+    if !confirmed {
+        return Err(anyhow!(
+            "{confirmation_arg} is required before actual zero-output proof writes"
+        ));
+    }
+    let lane =
+        lane.ok_or_else(|| anyhow!("--lane is required before actual zero-output proof writes"))?;
+    let json_out = json_out
+        .ok_or_else(|| anyhow!("--json-out is required before actual zero-output proof writes"))?;
+    require_lane_artifact_path(lane, json_out, relative_path, "--json-out")?;
+
+    let receipt = read_json_value(lane, "pre-output-readiness.json")?;
+    let command_ok = json_string(&receipt, "command") == Some("wheelctl moza pre-output-readiness");
+    let lane_ok = lane_path_value_matches(lane, json_string(&receipt, "lane"));
+    let success = json_bool(&receipt, "success") == Some(true);
+    let ready_for_zero_torque = json_bool(&receipt, "ready_for_zero_torque") == Some(true);
+    let ready_for_ffb = json_bool(&receipt, "ready_for_ffb") == Some(false);
+    let blocking_items_empty = receipt
+        .get("blocking_items")
+        .and_then(Value::as_array)
+        .map(Vec::is_empty)
+        == Some(true);
+    let status_receipts_ok = receipt
+        .get("status_receipts")
+        .and_then(Value::as_array)
+        .map(|checks| {
+            !checks.is_empty()
+                && checks
+                    .iter()
+                    .all(|check| json_string(check, "status") == Some("pass"))
+        })
+        == Some(true);
+    let no_output_receipt = json_bool(&receipt, "no_hid_device_opened") == Some(true)
+        && json_bool(&receipt, "no_ffb_writes") == Some(true)
+        && json_bool(&receipt, "no_output_reports") == Some(true)
+        && json_bool(&receipt, "no_feature_reports") == Some(true)
+        && no_out_of_scope_device_commands(&receipt);
+    let strategy_metadata = validate_zero_output_strategy_metadata(lane, strategy);
+    let strategy_metadata_ok = strategy_metadata.is_ok();
+
+    if command_ok
+        && lane_ok
+        && success
+        && ready_for_zero_torque
+        && ready_for_ffb
+        && blocking_items_empty
+        && status_receipts_ok
+        && no_output_receipt
+        && strategy_metadata_ok
+    {
+        Ok(ZeroOutputStagePreflight {
+            lane: lane.to_path_buf(),
+            lane_display: lane.display().to_string(),
+            pre_output_readiness_generated_at: json_string(&receipt, "generated_at_utc")
+                .map(str::to_string),
+        })
+    } else {
+        let strategy_metadata_error = strategy_metadata
+            .err()
+            .map(|error| error.to_string())
+            .unwrap_or_else(|| "ok".to_string());
+        Err(anyhow!(
+            "pre-output readiness receipt '{}' is not ready for zero-output writes with strategy {}: command_ok={command_ok}, lane_ok={lane_ok}, success={success}, ready_for_zero_torque={ready_for_zero_torque}, ready_for_ffb_false={ready_for_ffb}, blocking_items_empty={blocking_items_empty}, status_receipts_ok={status_receipts_ok}, no_output_receipt={no_output_receipt}, strategy_metadata={strategy_metadata_ok}; strategy_metadata_error={strategy_metadata_error}",
+            lane.join("pre-output-readiness.json").display(),
+            zero_output_strategy_name(strategy)
+        ))
+    }
+}
+
+fn validate_same_lane_zero_proof_for_zero_output(lane: &Path) -> Result<ZeroProofSummary> {
+    require_lane_receipt_path(lane, "zero-torque-proof.json")?;
+    validate_zero_proof_for_zero_output(&lane.join("zero-torque-proof.json"))
+}
+
+fn init_receipt_relative_path(mode: MozaInitMode) -> &'static str {
+    match mode {
+        MozaInitMode::Off => "init-off.json",
+        MozaInitMode::Standard => "init-standard.json",
+    }
+}
+
+fn validate_init_stage_preflight(
+    lane: Option<&Path>,
+    json_out: Option<&Path>,
+    selector: Option<&str>,
+    mode: MozaInitMode,
+    confirmed: bool,
+) -> Result<InitStagePreflight> {
+    if !confirmed {
+        return Err(anyhow!(
+            "--confirm-init is required before actual init feature-report writes"
+        ));
+    }
+    let lane =
+        lane.ok_or_else(|| anyhow!("--lane is required before actual init feature-report writes"))?;
+    let json_out = json_out.ok_or_else(|| {
+        anyhow!("--json-out is required before actual init feature-report writes")
+    })?;
+    require_lane_artifact_path(
+        lane,
+        json_out,
+        init_receipt_relative_path(mode),
+        "--json-out",
+    )?;
+
+    let zero_verification_relative_path = verification_receipt_path(MozaBundleStage::Zero);
+    let zero_verification_path = lane.join(zero_verification_relative_path);
+    let zero_verification = read_json_value(lane, zero_verification_relative_path).with_context(
+        || {
+            format!(
+                "zero-stage verification receipt '{}' is required before actual init feature-report writes",
+                zero_verification_path.display()
+            )
+        },
+    )?;
+    let zero_verification_ok =
+        lane_path_value_matches(lane, json_string(&zero_verification, "lane"))
+            && promotion_verification_summary_ok(Some(&zero_verification), "zero");
+    if !zero_verification_ok {
+        return Err(anyhow!(
+            "zero-stage verification receipt '{}' is not a passing same-lane zero verification",
+            zero_verification_path.display()
+        ));
+    }
+    let zero_verification_generated_at = require_valid_generated_at(
+        &zero_verification,
+        &zero_verification_path,
+        "zero-stage verification",
+    )?;
+
+    if !stored_lane_audit_receipt_passed(lane, MozaBundleStage::Zero) {
+        let zero_audit_path = lane.join(audit_receipt_path(MozaBundleStage::Zero));
+        return Err(anyhow!(
+            "zero-stage audit receipt '{}' is not a passing same-lane zero audit",
+            zero_audit_path.display()
+        ));
+    }
+    let zero_audit_path = lane.join(audit_receipt_path(MozaBundleStage::Zero));
+    let zero_audit = read_json_value(lane, audit_receipt_path(MozaBundleStage::Zero))?;
+    let zero_audit_generated_at =
+        require_valid_generated_at(&zero_audit, &zero_audit_path, "zero-stage audit")?;
+
+    validate_lane_manifest_endpoint_selector(lane, selector, "actual init feature-report writes")?;
+
+    if matches!(mode, MozaInitMode::Standard) {
+        let init_off_gate =
+            verify_init_receipt_gate(lane, "init_off_handshake", "init-off.json", "off");
+        if init_off_gate.status != "pass" {
+            return Err(anyhow!(
+                "same-lane init-off receipt '{}' must pass before standard init feature-report writes: {}",
+                lane.join("init-off.json").display(),
+                init_off_gate.details
+            ));
+        }
+    }
+
+    Ok(InitStagePreflight {
+        lane_display: lane.display().to_string(),
+        zero_verification_generated_at: Some(zero_verification_generated_at),
+        zero_audit_generated_at: Some(zero_audit_generated_at),
+    })
+}
+
+fn validate_lane_manifest_endpoint_selector(
+    lane: &Path,
+    selector: Option<&str>,
+    operation: &str,
+) -> Result<String> {
+    let expected = lane_manifest_r5_hid_observe_selector(lane).ok_or_else(|| {
+        anyhow!("manifest.json must declare an exact R5 wheelbase HID endpoint before {operation}")
+    })?;
+    let selector = selector.map(str::trim).filter(|selector| !selector.is_empty()).ok_or_else(|| {
+        anyhow!(
+            "--device must be the lane manifest wheelbase endpoint selector before {operation}: {expected}"
+        )
+    })?;
+    if !selector.eq_ignore_ascii_case(&expected) {
+        return Err(anyhow!(
+            "--device must match the lane manifest wheelbase endpoint selector before {operation}: expected {expected}, got {selector}"
+        ));
+    }
+    Ok(expected)
+}
+
+fn require_valid_generated_at(receipt: &Value, path: &Path, label: &str) -> Result<String> {
+    let generated_at = json_string(receipt, "generated_at_utc").ok_or_else(|| {
+        anyhow!(
+            "{label} receipt '{}' is missing generated_at_utc",
+            path.display()
+        )
+    })?;
+    if !utc_timestamp_pair_is_ordered(generated_at, generated_at) {
+        return Err(anyhow!(
+            "{label} receipt '{}' has invalid generated_at_utc",
+            path.display()
+        ));
+    }
+    Ok(generated_at.to_string())
 }
 
 fn low_torque_preflight_target_product_id(
@@ -3168,18 +5183,63 @@ fn low_torque_preflight_target_product_id(
 }
 
 fn validate_zero_proof_for_torque_test(path: &Path) -> Result<ZeroProofSummary> {
+    let summary = validate_zero_proof_for_zero_output(path)?;
+    if summary.zero_output_strategy
+        != zero_output_strategy_name(MozaZeroOutputStrategy::DirectReport0x20)
+    {
+        return Err(anyhow!(
+            "zero proof '{}' must use direct_report_0x20 before direct low-torque tests",
+            path.display()
+        ));
+    }
+    Ok(summary)
+}
+
+fn validate_zero_proof_for_low_torque_strategy(
+    path: &Path,
+    strategy: MozaLowTorqueStrategy,
+) -> Result<ZeroProofSummary> {
+    match strategy {
+        MozaLowTorqueStrategy::DirectReport0x20 => validate_zero_proof_for_torque_test(path),
+        MozaLowTorqueStrategy::PidffBoundedEffect => {
+            let summary = validate_zero_proof_for_zero_output(path)?;
+            if summary.zero_output_strategy
+                != zero_output_strategy_name(MozaZeroOutputStrategy::PidffStopAll)
+            {
+                return Err(anyhow!(
+                    "zero proof '{}' must use pidff_device_control_stop_all before PIDFF bounded low-torque tests",
+                    path.display()
+                ));
+            }
+            Ok(summary)
+        }
+    }
+}
+
+fn validate_zero_proof_for_zero_output(path: &Path) -> Result<ZeroProofSummary> {
     let receipt = read_json_path(path)?;
     let receipt_crc32 = receipt_file_crc32(path)?;
     let generated_at_utc = json_string(&receipt, "generated_at_utc").map(str::to_string);
     let repeat = json_u64(&receipt, "repeat").unwrap_or(0);
     let dry_run = json_bool(&receipt, "dry_run");
     let no_out_of_scope = no_out_of_scope_device_commands(&receipt);
+    let operator_confirmed = json_bool(&receipt, "operator_confirmed");
+    let lane_ok = path
+        .parent()
+        .map(|lane| lane_path_value_matches(lane, json_string(&receipt, "lane")))
+        .unwrap_or(false);
+    let pre_output_readiness_validated = json_bool(&receipt, "pre_output_readiness_validated");
+    let pre_output_readiness_generated_at =
+        json_string(&receipt, "pre_output_readiness_generated_at");
     let hz = json_u64(&receipt, "hz").unwrap_or(0);
     let write_attempts = json_u64(&receipt, "write_attempts").unwrap_or(0);
     let writes_ok = json_u64(&receipt, "writes_ok").unwrap_or(0);
     let write_errors = json_u64(&receipt, "write_errors").unwrap_or(u64::MAX);
     let watchdog_faults = json_u64(&receipt, "watchdog_faults").unwrap_or(u64::MAX);
     let writes_ok_exact = repeat.checked_add(1) == Some(writes_ok);
+    let zero_output_strategy = json_string(&receipt, "zero_output_strategy").unwrap_or(
+        zero_output_strategy_name(MozaZeroOutputStrategy::DirectReport0x20),
+    );
     let device = receipt.get("device");
     let product_id = device
         .and_then(|device| json_string(device, "product_id"))
@@ -3194,10 +5254,18 @@ fn validate_zero_proof_for_torque_test(path: &Path) -> Result<ZeroProofSummary> 
         && json_bool(&receipt, "no_feature_reports") == Some(true)
         && no_out_of_scope
         && json_bool(&receipt, "no_hid_device_opened") == Some(false)
-        && json_string(&receipt, "report_id") == Some(DIRECT_TORQUE_REPORT_ID)
-        && json_i64(&receipt, "torque_raw") == Some(0)
-        && json_u64(&receipt, "flags") == Some(0)
-        && json_bool(&receipt, "motor_enabled") == Some(false)
+        && operator_confirmed == Some(true)
+        && lane_ok
+        && pre_output_readiness_validated == Some(true)
+        && pre_output_readiness_generated_at
+            .map(|value| {
+                generated_at_utc
+                    .as_deref()
+                    .map(|generated_at| utc_timestamp_pair_is_ordered(value, generated_at))
+                    .unwrap_or(false)
+            })
+            .unwrap_or(false)
+        && zero_receipt_payload_is_safe(&receipt)
         && json_bool(&receipt, "final_zero_sent") == Some(true)
         && repeat >= 100
         && hz > 0
@@ -3231,6 +5299,7 @@ fn validate_zero_proof_for_torque_test(path: &Path) -> Result<ZeroProofSummary> 
         })?,
         receipt_crc32,
         product_id,
+        zero_output_strategy: zero_output_strategy.to_string(),
         repeat,
         writes_ok,
         final_zero_sent: true,
@@ -3280,10 +5349,38 @@ fn validate_init_proof_for_torque_test(
         .unwrap_or(0);
     let init_state = json_string(&receipt, "init_state").unwrap_or("unknown");
     let ready = json_bool(&receipt, "ready") == Some(true);
+    let lane_ok = path
+        .parent()
+        .map(|lane| lane_path_value_matches(lane, json_string(&receipt, "lane")))
+        .unwrap_or(false);
+    let selector_matches_lane_endpoint = path
+        .parent()
+        .map(|lane| receipt_selector_matches_lane_endpoint(lane, &receipt))
+        .unwrap_or(false);
+    let zero_verification_ordered = json_string(&receipt, "zero_verification_generated_at")
+        .and_then(|zero_at| {
+            generated_at_utc
+                .as_deref()
+                .map(|init_at| utc_timestamp_pair_is_ordered(zero_at, init_at))
+        })
+        .unwrap_or(false);
+    let zero_audit_ordered = json_string(&receipt, "zero_audit_generated_at")
+        .and_then(|zero_at| {
+            generated_at_utc
+                .as_deref()
+                .map(|init_at| utc_timestamp_pair_is_ordered(zero_at, init_at))
+        })
+        .unwrap_or(false);
     let safe = json_bool(&receipt, "success") == Some(true)
         && json_string(&receipt, "command") == Some("wheelctl moza init")
         && json_bool(&receipt, "dry_run") == Some(false)
         && json_bool(&receipt, "no_hid_device_opened") == Some(false)
+        && json_bool(&receipt, "operator_confirmed") == Some(true)
+        && lane_ok
+        && json_bool(&receipt, "zero_verification_validated") == Some(true)
+        && json_bool(&receipt, "zero_audit_validated") == Some(true)
+        && zero_verification_ordered
+        && zero_audit_ordered
         && json_bool(&receipt, "no_output_reports") == Some(true)
         && json_bool(&receipt, "no_direct_torque_reports") == Some(true)
         && no_out_of_scope_device_commands(&receipt)
@@ -3296,7 +5393,14 @@ fn validate_init_proof_for_torque_test(
         && json_u64(&receipt, "output_report_attempts").unwrap_or(u64::MAX) == 0
         && receipt
             .get("feature_reports")
-            .map(|reports| init_feature_reports_are_safe_value(reports, expected_mode, false))
+            .map(|reports| {
+                init_feature_reports_are_safe_value(
+                    reports,
+                    expected_mode,
+                    false,
+                    product_id.as_deref(),
+                )
+            })
             .unwrap_or(false)
         && generated_at_utc
             .as_deref()
@@ -3304,6 +5408,7 @@ fn validate_init_proof_for_torque_test(
             .unwrap_or(false)
         && device.map(is_r5_device_value).unwrap_or(false)
         && device.and_then(|device| json_bool(device, "output_capable")) == Some(true)
+        && selector_matches_lane_endpoint
         && product_id.is_some();
 
     if !safe {
@@ -3401,7 +5506,8 @@ fn synthetic_moza_device_record(pid: u16) -> MozaDeviceRecord {
         input_report_lengths: expected_input_report_lengths(pid),
         output_report_ids: expected_output_report_ids(output_capable),
         output_reports: expected_output_reports(output_capable),
-        feature_report_ids: expected_feature_report_ids(output_capable),
+        feature_report_ids: expected_feature_report_ids(pid, output_capable),
+        feature_reports: Vec::new(),
     }
 }
 
@@ -3446,6 +5552,8 @@ fn moza_status_receipt(
         "lane_status": lane_status,
         "no_hid_device_opened": true,
         "no_ffb_writes": true,
+        "no_output_reports": true,
+        "no_feature_reports": true,
         "no_serial_config_commands": true,
         "no_firmware_or_dfu_commands": true,
         "notes": [
@@ -3476,6 +5584,17 @@ fn verify_bundle_dir_with_support_validation(
         .filter(|requirement| stage_rank(requirement.stage) <= stage_rank(stage))
         .map(|requirement| check_bundle_artifact(lane, requirement))
         .collect();
+    // Missing stage artifacts already make the receipt fail; avoid recursively
+    // rebuilding fresh support status before writing that diagnostic receipt.
+    let support_validation = if matches!(support_validation, SupportBundleValidationMode::Fresh)
+        && artifact_checks
+            .iter()
+            .any(|check| check.status == "missing" || check.status == "invalid")
+    {
+        SupportBundleValidationMode::ShapeOnly
+    } else {
+        support_validation
+    };
 
     let mut gates = Vec::new();
     gates.push(if lane.is_dir() {
@@ -3496,7 +5615,9 @@ fn verify_bundle_dir_with_support_validation(
     );
     gates.push(verify_moza_r5_observed_gate(lane));
     gates.push(verify_moza_topology_observed_gate(lane));
+    gates.push(verify_topology_required_evidence_supported_gate(lane));
     gates.push(verify_descriptor_metadata_gate(lane));
+    gates.push(verify_passive_receipts_success_gate(lane));
     gates.push(verify_passive_no_writes_gate(lane));
     gates.push(verify_passive_capture_parse_gate(lane));
     gates.push(verify_parser_validation_gate(lane));
@@ -3508,7 +5629,7 @@ fn verify_bundle_dir_with_support_validation(
         gates.push(verify_disconnect_proof_gate(lane));
     }
 
-    if stage_rank(stage) >= stage_rank(MozaBundleStage::SmokeReady) {
+    if stage_rank(stage) >= stage_rank(MozaBundleStage::OpenRacingControlReady) {
         gates.push(verify_init_receipt_gate(
             lane,
             "init_off_handshake",
@@ -3526,6 +5647,11 @@ fn verify_bundle_dir_with_support_validation(
             support_validation,
         ));
         gates.push(verify_low_torque_gate(lane));
+        gates.push(verify_steering_angle_stream_gate(lane));
+        gates.push(verify_native_actuator_profile_smoke_gate(lane));
+    }
+
+    if stage_rank(stage) >= stage_rank(MozaBundleStage::SmokeReady) {
         gates.push(verify_pit_house_coexistence_gate_with_support_validation(
             lane,
             support_validation,
@@ -3544,6 +5670,9 @@ fn verify_bundle_dir_with_support_validation(
         .count();
     let failed_gates = gates.iter().filter(|check| check.status == "fail").count();
     let success = missing_artifacts == 0 && invalid_artifacts == 0 && failed_gates == 0;
+    let endpoint_observations = bundle_endpoint_observations(lane);
+    let role_evidence = bundle_role_evidence(lane);
+    let operator_actions = operator_actions_for_bundle_stage(lane, stage, &gates);
     let next_commands = next_commands_for_bundle_stage(lane, stage, &artifact_checks, &gates);
 
     BundleVerificationReceipt {
@@ -3557,6 +5686,9 @@ fn verify_bundle_dir_with_support_validation(
         failed_gates,
         artifacts: artifact_checks,
         gates,
+        endpoint_observations,
+        role_evidence,
+        operator_actions,
         next_commands,
         no_hid_device_opened: true,
         no_ffb_writes: true,
@@ -3567,7 +5699,331 @@ fn verify_bundle_dir_with_support_validation(
                 .to_string(),
             "a passing bundle is evidence for the requested lane stage only, not release readiness"
                 .to_string(),
+            "role_evidence is derived from stored capture analysis and does not promote lane receipts"
+                .to_string(),
         ],
+    }
+}
+
+fn bundle_role_evidence(lane: &Path) -> Vec<LaneRoleEvidenceEntry> {
+    analyze_lane_captures(lane)
+        .map(|analysis| analysis.role_evidence)
+        .unwrap_or_default()
+}
+
+fn bundle_endpoint_observations(lane: &Path) -> Vec<BundleEndpointObservation> {
+    let Ok(manifest) = read_json_value(lane, "manifest.json") else {
+        return Vec::new();
+    };
+    let Some(topology) = manifest.get("topology") else {
+        return Vec::new();
+    };
+    let Some(endpoints) = topology.get("endpoints").and_then(Value::as_array) else {
+        return Vec::new();
+    };
+    let controls = topology
+        .get("logical_controls")
+        .and_then(Value::as_object)
+        .cloned()
+        .unwrap_or_default();
+
+    endpoints
+        .iter()
+        .map(|endpoint| {
+            let id = json_string(endpoint, "id").unwrap_or("<missing-id>");
+            let required_logical_controls = endpoint_logical_controls(&controls, id, true);
+            let optional_logical_controls = endpoint_logical_controls(&controls, id, false);
+            let artifacts = [
+                "device-list.json",
+                "moza-probe.json",
+                "hid-list.json",
+                "descriptor.json",
+            ]
+            .into_iter()
+            .map(|path| endpoint_artifact_observation(lane, path, endpoint))
+            .collect::<Vec<_>>();
+            let observed_artifact_count = artifacts
+                .iter()
+                .filter(|artifact| artifact.vid_pid_count > 0)
+                .count();
+            let metadata_match_artifact_count = artifacts
+                .iter()
+                .filter(|artifact| artifact.metadata_match_count > 0)
+                .count();
+
+            BundleEndpointObservation {
+                id: id.to_string(),
+                kind: json_string(endpoint, "kind").map(str::to_string),
+                vendor_id: json_string(endpoint, "vendor_id").map(str::to_string),
+                product_id: json_string(endpoint, "product_id").map(str::to_string),
+                interface_number: json_u64(endpoint, "interface_number"),
+                usage_page: json_string(endpoint, "usage_page").map(str::to_string),
+                usage: json_string(endpoint, "usage").map(str::to_string),
+                output_capable: json_bool(endpoint, "output_capable"),
+                required_logical_controls,
+                optional_logical_controls,
+                observed_artifact_count,
+                metadata_match_artifact_count,
+                artifacts,
+            }
+        })
+        .collect()
+}
+
+fn endpoint_logical_controls(
+    controls: &serde_json::Map<String, Value>,
+    endpoint_id: &str,
+    required: bool,
+) -> Vec<String> {
+    let mut names = controls
+        .iter()
+        .filter(|(_, control)| json_string(control, "source_endpoint") == Some(endpoint_id))
+        .filter(|(_, control)| json_bool(control, "required").unwrap_or(true) == required)
+        .map(|(name, _)| name.to_string())
+        .collect::<Vec<_>>();
+    names.sort();
+    names
+}
+
+fn endpoint_artifact_observation(
+    lane: &Path,
+    path: &str,
+    endpoint: &Value,
+) -> BundleEndpointArtifactObservation {
+    match read_json_value(lane, path) {
+        Ok(receipt) => {
+            let vid_pid_count = count_topology_endpoint_vid_pid_devices(&receipt, endpoint);
+            let metadata_match_count = count_topology_endpoint_metadata_devices(&receipt, endpoint);
+            BundleEndpointArtifactObservation {
+                path: path.to_string(),
+                status: "read".to_string(),
+                vid_pid_count,
+                metadata_match_count,
+            }
+        }
+        Err(e) => BundleEndpointArtifactObservation {
+            path: path.to_string(),
+            status: format!("unavailable:{e}"),
+            vid_pid_count: 0,
+            metadata_match_count: 0,
+        },
+    }
+}
+
+fn count_topology_endpoint_vid_pid_devices(receipt: &Value, endpoint: &Value) -> usize {
+    let Some(vendor_id) = json_string(endpoint, "vendor_id").and_then(parse_hex_selector) else {
+        return 0;
+    };
+    let Some(product_id) = json_string(endpoint, "product_id").and_then(parse_hex_selector) else {
+        return 0;
+    };
+    count_vendor_product_devices(receipt, vendor_id, product_id)
+}
+
+fn count_topology_endpoint_metadata_devices(receipt: &Value, endpoint: &Value) -> usize {
+    receipt
+        .get("devices")
+        .and_then(Value::as_array)
+        .map(|devices| {
+            devices
+                .iter()
+                .filter(|device| topology_endpoint_metadata_matches_device(device, endpoint))
+                .count()
+        })
+        .unwrap_or(0)
+}
+
+fn topology_endpoint_metadata_matches_device(device: &Value, endpoint: &Value) -> bool {
+    let Some(vendor_id) = json_string(endpoint, "vendor_id").and_then(parse_hex_selector) else {
+        return false;
+    };
+    let Some(product_id) = json_string(endpoint, "product_id").and_then(parse_hex_selector) else {
+        return false;
+    };
+    if !is_vendor_product_device_value(device, vendor_id, product_id) {
+        return false;
+    }
+    if let Some(interface_number) = json_u64(endpoint, "interface_number")
+        && json_u64(device, "interface_number") != Some(interface_number)
+    {
+        return false;
+    }
+    if let Some(usage_page) = json_string(endpoint, "usage_page")
+        && json_string(device, "usage_page") != Some(usage_page)
+    {
+        return false;
+    }
+    if let Some(usage) = json_string(endpoint, "usage")
+        && json_string(device, "usage") != Some(usage)
+    {
+        return false;
+    }
+    true
+}
+
+fn operator_actions_for_bundle_stage(
+    lane: &Path,
+    stage: MozaBundleStage,
+    gates: &[BundleGateCheck],
+) -> Vec<String> {
+    let mut actions = Vec::new();
+    if !bundle_gate_check_passed(gates, "descriptor_metadata") {
+        actions.push(
+            "Export the R5 HID report descriptor byte block into target/moza-r5-report-descriptor.txt or target/moza-r5-report-descriptor.bin, then rerun the descriptor file fallback. A USBTreeView summary that only shows wDescriptorLength or ERROR_INVALID_PARAMETER is not enough, and a Windows HidP KDR collection/preparsed descriptor is not the raw report descriptor; use the actual Report Descriptor hex block, Linux sysfs report_descriptor bytes, or an equivalent descriptor tool. Do not run firmware or DFU flows."
+                .to_string(),
+        );
+    }
+
+    let throttle_missing = gates.iter().any(|gate| {
+        gate.name == "passive_captures_parse"
+            && gate.status == "fail"
+            && gate
+                .details
+                .contains("captures/r5-throttle-only-sweep.jsonl")
+            && gate.details.contains("any_axes_ok=false")
+    });
+    if throttle_missing {
+        let r5_selector =
+            lane_manifest_r5_hid_observe_selector(lane).unwrap_or_else(|| "<r5>".to_string());
+        let capture_command = format!(
+            "wheelctl moza capture-input --device {r5_selector} --duration-ms 60000 --json-out target/moza-gas-check/r5-gas-after-reseat-60s.jsonl --json"
+        );
+        let analyze_command = "wheelctl moza analyze-capture --capture target/moza-gas-check/r5-gas-after-reseat-60s.jsonl --json-out target/moza-gas-check/r5-gas-after-reseat-analysis.json --json";
+        let endpoint_context = if lane_has_single_observed_moza_hid_endpoint(lane) {
+            " Stored observe-only HID/PnP receipts already show only the R5 HID game-controller endpoint, so do not chase another Moza HID path; the visible Moza serial/COM interface is diagnostic topology only and must not be probed or configured in the passive lane."
+        } else {
+            " If Pit House is unavailable, use observe-only HID/PnP inspection to confirm endpoints; a visible Moza serial/COM interface is diagnostic topology only and must not be probed or configured in the passive lane."
+        };
+        actions.push(format!(
+            "Throttle capture parsed but no parser-visible hub-control axis moved; check throttle pedal cable, pedal-set-to-R5 routing, and vendor input state before replacing the lane capture. If Pit House is unavailable, keep the next check target-only: reseat and power-cycle the pedal path, then run `{capture_command}` followed by `{analyze_command}`. Replace the lane capture only if parser-visible hub-control movement appears.{endpoint_context}"
+        ));
+    }
+
+    let parser_validation_failed = !bundle_gate_check_passed(gates, "parser_fixture_validation");
+    let fixture_promotion_failed = !bundle_gate_check_passed(gates, "fixture_promotion");
+    if parser_validation_failed && fixture_promotion_failed {
+        actions.push(
+            "Do not run fixture promotion until validate-captures passes for every manifest-required logical role."
+                .to_string(),
+        );
+    }
+
+    if stage_rank(stage) >= stage_rank(MozaBundleStage::OpenRacingControlReady) {
+        push_openracing_control_frontier_operator_action(lane, gates, &mut actions);
+    }
+
+    if stage == MozaBundleStage::SmokeReady && openracing_control_stage_gates_passed(gates) {
+        push_smoke_ready_frontier_operator_action(gates, &mut actions);
+    }
+
+    actions
+}
+
+fn push_openracing_control_frontier_operator_action(
+    lane: &Path,
+    gates: &[BundleGateCheck],
+    actions: &mut Vec<String>,
+) {
+    if !zero_stage_gates_passed(gates) {
+        return;
+    }
+
+    let r5_selector = next_command_r5_selector(lane);
+    let init_off_report_text = if lane_manifest_r5_pid(lane) == Some(product_ids::R5_V1) {
+        "the bounded Moza init feature report 0x11, with payload 11FF0000"
+    } else {
+        "the bounded Moza init feature reports 0x03 and 0x11, with 0x11 payload 11FF0000"
+    };
+    if !bundle_gate_check_passed(gates, "init_off_handshake") {
+        actions.push(format!(
+            "Current OpenRacing-control frontier: staged init-off. This sends only {init_off_report_text}, and still sends no output reports or torque. Before running it, confirm the operator is at the bench, the wheel is clear, power cutoff is understood, no game/sim FFB source is active, and vendor firmware/update flows are closed or not installed. Run only the lane-bound `wheelctl moza init --device {r5_selector} --mode off --confirm-init ...` command; do not run standard init, low torque, simulator FFB, direct mode, serial config, firmware, or DFU until this receipt passes."
+        ));
+        return;
+    }
+
+    let init_standard_report_text = if lane_manifest_r5_pid(lane) == Some(product_ids::R5_V1) {
+        "the bounded Moza init feature report 0x11, with payload 11000000"
+    } else {
+        "the bounded Moza init feature reports 0x03 and 0x11, with 0x11 payload 11000000"
+    };
+    if !bundle_gate_check_passed(gates, "init_standard_handshake") {
+        actions.push(format!(
+            "Current OpenRacing-control frontier: staged init-standard. This sends only {init_standard_report_text}, after the same-lane init-off receipt has passed; it still must not send output reports or torque. Confirm the operator is at the bench, the wheel is clear, power cutoff is understood, and no game/sim FFB source or firmware/update flow is active. Run only the lane-bound `wheelctl moza init --device {r5_selector} --mode standard --confirm-init ...` command; do not run low torque, simulator FFB, direct mode, serial config, firmware, or DFU until this receipt passes."
+        ));
+        return;
+    }
+
+    if !bundle_gate_check_passed(gates, "service_status_receipts") {
+        actions.push(
+            "Current OpenRacing-control frontier: refresh service/status/support receipts after staged init. These are diagnostic/no-output receipts only; keep safe_to_send_torque=false, ffb_ready=false, high torque disabled, and no feature/output/serial/firmware actions while collecting moza-status.json, device-status.json, and support-bundle.json."
+                .to_string(),
+        );
+        return;
+    }
+
+    if !bundle_gate_check_passed(gates, "low_torque_bounded") {
+        let blockers = low_torque_frontier_blockers(lane);
+        if blockers.is_empty() {
+            actions.push(
+                "Current OpenRacing-control frontier: bounded low-torque proof. This is the first nonzero torque step; run it only with explicit operator confirmation, wheel clear, power cutoff understood, no game/sim FFB source active, no vendor firmware/update flow active, trusted direct report 0x20 metadata, a same-lane direct-report zero proof, and same-lane zero/off/standard init receipts passing. Keep the cap and duration bounded, and do not proceed to simulator FFB, direct-mode expansion, serial config, firmware, or DFU until low-torque-proof.json passes."
+                    .to_string(),
+            );
+        } else {
+            let pidff_blockers = pidff_low_torque_frontier_blockers(lane);
+            if pidff_blockers.is_empty() {
+                actions.push(
+                    "Current OpenRacing-control frontier: bounded PIDFF low-torque proof. This is the first nonzero torque step for the live R5 V1 lane; run it only with explicit operator confirmation, wheel clear, power cutoff understood, no game/sim FFB source active, no vendor firmware/update flow active, same-lane PIDFF Stop All zero proof, same-lane off/standard init receipts, and descriptor-proven PIDFF output reports. Keep the cap at 1% and duration at 150 ms for the first receipt, require final PIDFF Stop All cleanup, and do not proceed to simulator FFB, direct-mode expansion, serial config, firmware, or DFU until low-torque-proof.json passes."
+                        .to_string(),
+                );
+            } else {
+                actions.push(format!(
+                    "Current OpenRacing-control frontier: bounded low-torque proof is blocked before any write because direct path blockers are [{}] and PIDFF path blockers are [{}]. Resolve the PIDFF bounded-effect software/receipt path or prove the direct report 0x20 path before running `wheelctl moza torque-test`; generated guidance must not add `--explicit-operator-override`. No low torque, simulator FFB, direct-mode expansion, serial config, firmware, or DFU until low-torque-proof.json passes.",
+                    blockers.join("; "),
+                    pidff_blockers.join("; ")
+                ));
+            }
+        }
+        return;
+    }
+
+    if !bundle_gate_check_passed(gates, "steering_angle_stream_proof") {
+        actions.push(
+            "Current OpenRacing-control frontier: native steering angle stream proof. Record same-endpoint steering feedback with no output reports, no FFB writes, no feature reports, no serial config, and no firmware/DFU before any native movement-control claim."
+                .to_string(),
+        );
+        return;
+    }
+
+    if !bundle_gate_check_passed(gates, "native_actuator_profile_smoke") {
+        actions.push(
+            "Current OpenRacing-control frontier: native PIDFF actuator-profile smoke. Run only after steering feedback is proven, keep the force profile bounded, require final PIDFF Stop All cleanup, and keep SimHub and Pit House out of this native-control claim."
+                .to_string(),
+        );
+    }
+}
+
+fn push_smoke_ready_frontier_operator_action(gates: &[BundleGateCheck], actions: &mut Vec<String>) {
+    if !bundle_gate_check_passed(gates, "simulator_telemetry") {
+        actions.push(
+            "Current external-compatibility frontier: simulator telemetry proof. Capture one real simulator telemetry path only; this step must not send Moza output reports, feature reports, torque, serial config, firmware, or DFU commands."
+                .to_string(),
+        );
+        return;
+    }
+
+    if !bundle_gate_check_passed(gates, "simulator_ffb_bounded") {
+        actions.push(
+            "Current external-compatibility frontier: bounded simulator FFB smoke. Run it only after telemetry passes, with the operator at the bench, wheel clear, power cutoff understood, watchdog enabled, descriptor trusted, low-torque proof passing, and no vendor firmware/update flow active. Keep duration and force bounded, record stop/pause/game-exit final-zero behavior, and do not claim Pit House coexistence until the later Pit House mode-change proof links to this receipt."
+                .to_string(),
+        );
+        return;
+    }
+
+    if !bundle_gate_check_passed(gates, "pit_house_coexistence") {
+        actions.push(
+            "Current external-compatibility frontier: Pit House coexistence proof. If Pit House is not installed or we choose not to use it, leave smoke-ready blocked instead of fabricating coexistence evidence. If it is used, collect the closed, open-standard, direct-blocked, mode-change, and firmware/update-page observations as lane artifacts; firmware/update pages must be refused, and the mode-change case must prove output cleared and final zero was attempted after simulator FFB smoke."
+                .to_string(),
+        );
     }
 }
 
@@ -3611,6 +6067,868 @@ fn audit_lane_dir(lane: &Path, stage: MozaBundleStage) -> LaneAuditReceipt {
     }
 }
 
+fn pre_output_readiness_dir(lane: &Path) -> PreOutputReadinessReceipt {
+    let passive = pre_output_stored_verification_receipt(lane, MozaBundleStage::Passive);
+    let zero = pre_output_stored_verification_receipt(lane, MozaBundleStage::Zero);
+    let openracing_control =
+        pre_output_stored_verification_receipt(lane, MozaBundleStage::OpenRacingControlReady);
+    let smoke_ready = pre_output_stored_verification_receipt(lane, MozaBundleStage::SmokeReady);
+    let passive_audit_passed = stored_lane_audit_receipt_passed(lane, MozaBundleStage::Passive);
+    let zero_audit_passed = stored_lane_audit_receipt_passed(lane, MozaBundleStage::Zero);
+    let openracing_control_audit_passed =
+        stored_lane_audit_receipt_passed(lane, MozaBundleStage::OpenRacingControlReady);
+    let smoke_ready_audit_passed =
+        stored_lane_audit_receipt_passed(lane, MozaBundleStage::SmokeReady);
+    let status_receipts = pre_output_status_receipt_checks(lane);
+    let status_receipts_no_output = status_receipts.iter().all(|check| check.status == "pass");
+
+    let role_evidence_complete = required_role_evidence_complete(&passive);
+    let direct_zero_report_metadata = zero_output_direct_report_metadata_trusted(lane);
+    let zero_output_strategies = zero_output_strategy_candidates(lane, direct_zero_report_metadata);
+    let zero_output_strategy_ready = zero_output_strategies.iter().any(|strategy| strategy.ready);
+    let ready_for_zero_torque = passive.success
+        && passive_audit_passed
+        && status_receipts_no_output
+        && zero_output_strategy_ready;
+    let ready_for_ffb = ready_for_zero_torque
+        && zero.success
+        && zero_audit_passed
+        && pre_output_bounded_ffb_prerequisite_gates_passed(&smoke_ready);
+    let native_control_blocking_items = pre_output_native_control_blocking_items(
+        &zero,
+        &openracing_control,
+        zero_audit_passed,
+        openracing_control_audit_passed,
+    );
+    let ready_for_native_control = native_control_blocking_items.is_empty();
+    let external_compatibility_blocking_items =
+        pre_output_external_compatibility_blocking_items(&smoke_ready, smoke_ready_audit_passed);
+    let ready_for_external_compatibility = external_compatibility_blocking_items.is_empty();
+
+    let blocking_items = pre_output_zero_blocking_items(
+        &passive,
+        passive_audit_passed,
+        status_receipts_no_output,
+        zero_output_strategy_ready,
+    );
+    let ffb_blocking_items = pre_output_ffb_blocking_items(&zero, &smoke_ready, zero_audit_passed);
+    let passed_items = pre_output_passed_items(
+        &passive,
+        PreOutputPassedItemState {
+            role_evidence_complete,
+            passive_audit_passed,
+            status_receipts_no_output,
+            zero_output_strategy_ready,
+            ready_for_zero_torque,
+            ready_for_ffb,
+            ready_for_native_control,
+            ready_for_external_compatibility,
+        },
+    );
+
+    PreOutputReadinessReceipt {
+        success: ready_for_zero_torque,
+        command: "wheelctl moza pre-output-readiness",
+        generated_at_utc: now_utc(),
+        lane: lane.display().to_string(),
+        stage: "pre_output_readiness",
+        ready_for_zero_torque,
+        ready_for_ffb,
+        ready_for_native_control,
+        ready_for_external_compatibility,
+        blocking_items,
+        ffb_blocking_items,
+        native_control_blocking_items,
+        external_compatibility_blocking_items,
+        zero_output_strategies,
+        passed_items,
+        status_receipts,
+        passive_verification: pre_output_verification_summary(&passive),
+        zero_verification: pre_output_verification_summary(&zero),
+        openracing_control_verification: pre_output_verification_summary(&openracing_control),
+        smoke_ready_verification: pre_output_verification_summary(&smoke_ready),
+        passive_audit_passed,
+        zero_audit_passed,
+        openracing_control_audit_passed,
+        smoke_ready_audit_passed,
+        no_hid_device_opened: true,
+        no_ffb_writes: true,
+        no_output_reports: true,
+        no_feature_reports: true,
+        no_serial_config_commands: true,
+        no_firmware_or_dfu_commands: true,
+        hard_forbidden_until_ready: vec![
+            "ffb",
+            "direct_mode",
+            "nonzero_torque",
+            "output_reports",
+            "feature_reports",
+            "serial_config",
+            "firmware_dfu",
+        ],
+        notes: vec![
+            "pre-output-readiness reads existing lane receipts only; it opens no HID device and sends no reports".to_string(),
+            "ready_for_zero_torque is the first output-adjacent gate and still does not permit nonzero torque or FFB".to_string(),
+            "ready_for_native_control is the OpenRacing-owned movement path and does not require SimHub, Pit House, or direct report 0x20".to_string(),
+            "ready_for_external_compatibility tracks optional adapter/vendor-app surfaces such as simulator telemetry bridges and Pit House coexistence; it is not required for native control".to_string(),
+            "ready_for_ffb is the legacy bounded simulator FFB preflight; keep it separate from native-control and release-readiness claims".to_string(),
+        ],
+    }
+}
+
+struct PreOutputPassedItemState {
+    role_evidence_complete: bool,
+    passive_audit_passed: bool,
+    status_receipts_no_output: bool,
+    zero_output_strategy_ready: bool,
+    ready_for_zero_torque: bool,
+    ready_for_ffb: bool,
+    ready_for_native_control: bool,
+    ready_for_external_compatibility: bool,
+}
+
+fn pre_output_passed_items(
+    passive: &PreOutputVerificationReceipt,
+    state: PreOutputPassedItemState,
+) -> Vec<String> {
+    let mut passed = Vec::new();
+    if pre_output_gate_passed(passive, "moza_r5_observed") {
+        passed.push("r5_endpoint_observed".to_string());
+    }
+    if pre_output_gate_passed(passive, "moza_topology_observed") {
+        passed.push("topology_endpoint_observed".to_string());
+    }
+    if state.role_evidence_complete {
+        passed.push("role_evidence_complete".to_string());
+    }
+    if pre_output_gate_passed(passive, "passive_captures_parse") {
+        passed.push("passive_captures_parse".to_string());
+    }
+    if pre_output_gate_passed(passive, "parser_fixture_validation") {
+        passed.push("parser_fixture_validation".to_string());
+    }
+    if pre_output_gate_passed(passive, "descriptor_metadata") {
+        passed.push("descriptor_metadata".to_string());
+    }
+    if pre_output_gate_passed(passive, "fixture_promotion") {
+        passed.push("fixture_promotion".to_string());
+    }
+    if state.status_receipts_no_output {
+        passed.push("status_receipts_no_output".to_string());
+        passed.push("support_bundle_no_output".to_string());
+    }
+    if state.zero_output_strategy_ready {
+        passed.push("zero_output_strategy_ready".to_string());
+    }
+    if passive.success {
+        passed.push("passive_verification".to_string());
+    }
+    if state.passive_audit_passed {
+        passed.push("passive_audit".to_string());
+    }
+    if state.ready_for_zero_torque {
+        passed.push("ready_for_zero_torque".to_string());
+    }
+    if state.ready_for_ffb {
+        passed.push("ready_for_ffb".to_string());
+    }
+    if state.ready_for_native_control {
+        passed.push("ready_for_native_control".to_string());
+    }
+    if state.ready_for_external_compatibility {
+        passed.push("ready_for_external_compatibility".to_string());
+    }
+    passed
+}
+
+fn pre_output_zero_blocking_items(
+    passive: &PreOutputVerificationReceipt,
+    passive_audit_passed: bool,
+    status_receipts_no_output: bool,
+    zero_output_strategy_ready: bool,
+) -> Vec<String> {
+    let mut blockers = Vec::new();
+    append_verification_blocking_items(&mut blockers, passive);
+    if !passive_audit_passed {
+        blockers.push("passive_audit".to_string());
+    }
+    if !status_receipts_no_output {
+        blockers.push("status_receipts_no_output".to_string());
+    }
+    if !zero_output_strategy_ready {
+        blockers.push("zero_output_strategy_ready".to_string());
+    }
+    blockers.sort();
+    blockers.dedup();
+    blockers
+}
+
+fn zero_output_direct_report_metadata_trusted(lane: &Path) -> bool {
+    validate_zero_output_direct_report_metadata(lane).is_ok()
+}
+
+fn validate_zero_output_strategy_metadata(
+    lane: &Path,
+    strategy: MozaZeroOutputStrategy,
+) -> Result<()> {
+    match strategy {
+        MozaZeroOutputStrategy::DirectReport0x20 => {
+            validate_zero_output_direct_report_metadata(lane)
+        }
+        MozaZeroOutputStrategy::PidffStopAll => {
+            validate_zero_output_pidff_stop_all_report_metadata(lane)
+        }
+    }
+}
+
+fn validate_zero_output_direct_report_metadata(lane: &Path) -> Result<()> {
+    let pid = lane_manifest_r5_pid(lane).ok_or_else(|| {
+        anyhow!("zero-output writes require a lane manifest with a supported R5 wheelbase PID")
+    })?;
+    let target_product_id = hex_u16(pid);
+    let descriptor_path = lane.join("descriptor.json");
+    validate_direct_mode_gate_for_torque_test(Some(&descriptor_path), &target_product_id, false)
+        .map(|_| ())
+        .with_context(|| {
+            format!(
+                "zero-output writes require trusted descriptor-derived direct output report metadata for PID {} in '{}'",
+                target_product_id,
+                descriptor_path.display()
+            )
+        })
+}
+
+fn validate_zero_output_pidff_stop_all_report_metadata(lane: &Path) -> Result<()> {
+    let pid = lane_manifest_r5_pid(lane).ok_or_else(|| {
+        anyhow!("PIDFF stop-all zero-output writes require a lane manifest with a supported R5 wheelbase PID")
+    })?;
+    let target_product_id = hex_u16(pid);
+    let descriptor_path = lane.join("descriptor.json");
+    let receipt = read_json_path(&descriptor_path)?;
+    let Some(devices) = receipt.get("devices").and_then(Value::as_array) else {
+        return Err(anyhow!(
+            "descriptor receipt '{}' is missing devices[]",
+            descriptor_path.display()
+        ));
+    };
+
+    if devices.iter().any(|device| {
+        is_r5_device_value(device)
+            && json_string(device, "product_id") == Some(target_product_id.as_str())
+            && r5_descriptor_metadata_trusted(device)
+            && json_report_record_contains(
+                device,
+                "output_reports",
+                PIDFF_DEVICE_CONTROL_REPORT_ID,
+                PIDFF_DEVICE_CONTROL_REPORT_LEN,
+            )
+    }) {
+        Ok(())
+    } else {
+        Err(anyhow!(
+            "PIDFF stop-all zero-output writes require trusted descriptor-derived Device Control output report metadata for PID {} in '{}'",
+            target_product_id,
+            descriptor_path.display()
+        ))
+    }
+}
+
+fn zero_output_strategy_candidates(
+    lane: &Path,
+    direct_zero_report_metadata: bool,
+) -> Vec<ZeroOutputStrategyCandidate> {
+    let descriptor_metadata_trusted =
+        zero_output_r5_descriptor_metadata_trusted(lane).unwrap_or(false);
+    let direct_report_observed = zero_output_direct_report_observed(lane).unwrap_or(false);
+    let pidff_stop_all_report_observed =
+        zero_output_pidff_stop_all_report_observed(lane).unwrap_or(false);
+
+    vec![
+        zero_output_direct_strategy_candidate(
+            direct_report_observed,
+            descriptor_metadata_trusted,
+            direct_zero_report_metadata,
+        ),
+        zero_output_pidff_stop_all_strategy_candidate(
+            pidff_stop_all_report_observed,
+            descriptor_metadata_trusted,
+        ),
+    ]
+}
+
+fn zero_output_direct_strategy_candidate(
+    descriptor_report_observed: bool,
+    descriptor_metadata_trusted: bool,
+    ready: bool,
+) -> ZeroOutputStrategyCandidate {
+    let mut blocking_items = Vec::new();
+    if !descriptor_metadata_trusted {
+        blocking_items.push("direct_zero_descriptor_trust");
+    }
+    if !descriptor_report_observed {
+        blocking_items.push("direct_zero_report_metadata");
+    }
+
+    ZeroOutputStrategyCandidate {
+        name: "direct_report_0x20",
+        description: "Moza proprietary direct zero-torque report",
+        implemented: true,
+        descriptor_report_observed,
+        descriptor_metadata_trusted,
+        ready,
+        required_output_reports: vec![HidReportRecord {
+            report_id: DIRECT_TORQUE_REPORT_ID.to_string(),
+            report_len: REPORT_LEN,
+        }],
+        blocking_items,
+        notes: vec![
+            "implemented by wheelctl moza zero".to_string(),
+            "requires descriptor-derived output report 0x20 with the expected 8-byte shape"
+                .to_string(),
+        ],
+    }
+}
+
+fn zero_output_pidff_stop_all_strategy_candidate(
+    descriptor_report_observed: bool,
+    descriptor_metadata_trusted: bool,
+) -> ZeroOutputStrategyCandidate {
+    let mut blocking_items = Vec::new();
+    if !descriptor_report_observed {
+        blocking_items.push("pidff_device_control_report_metadata");
+    }
+    if !descriptor_metadata_trusted {
+        blocking_items.push("pidff_device_control_descriptor_trust");
+    }
+    let ready = descriptor_report_observed && descriptor_metadata_trusted;
+
+    ZeroOutputStrategyCandidate {
+        name: "pidff_device_control_stop_all",
+        description: "standard HID PIDFF Device Control Stop All Effects zero-output candidate",
+        implemented: true,
+        descriptor_report_observed,
+        descriptor_metadata_trusted,
+        ready,
+        required_output_reports: vec![HidReportRecord {
+            report_id: PIDFF_DEVICE_CONTROL_REPORT_ID.to_string(),
+            report_len: PIDFF_DEVICE_CONTROL_REPORT_LEN,
+        }],
+        blocking_items,
+        notes: vec![
+            "implemented by wheelctl moza zero --strategy pidff-stop-all".to_string(),
+            "the candidate report carries a stop-all-effects command, not a force magnitude"
+                .to_string(),
+        ],
+    }
+}
+
+fn zero_output_r5_descriptor_metadata_trusted(lane: &Path) -> Result<bool> {
+    let pid = lane_manifest_r5_pid(lane).ok_or_else(|| {
+        anyhow!("zero-output inventory requires a lane manifest with a supported R5 PID")
+    })?;
+    let target_product_id = hex_u16(pid);
+    let descriptor_path = lane.join("descriptor.json");
+    let receipt = read_json_path(&descriptor_path)?;
+    let Some(devices) = receipt.get("devices").and_then(Value::as_array) else {
+        return Err(anyhow!(
+            "descriptor receipt '{}' is missing devices[]",
+            descriptor_path.display()
+        ));
+    };
+
+    Ok(devices.iter().any(|device| {
+        is_r5_device_value(device)
+            && json_string(device, "product_id") == Some(target_product_id.as_str())
+            && r5_descriptor_metadata_trusted(device)
+    }))
+}
+
+fn zero_output_direct_report_observed(lane: &Path) -> Result<bool> {
+    let pid = lane_manifest_r5_pid(lane).ok_or_else(|| {
+        anyhow!("direct zero-output inventory requires a lane manifest with a supported R5 PID")
+    })?;
+    let target_product_id = hex_u16(pid);
+    let descriptor_path = lane.join("descriptor.json");
+    let receipt = read_json_path(&descriptor_path)?;
+    let Some(devices) = receipt.get("devices").and_then(Value::as_array) else {
+        return Err(anyhow!(
+            "descriptor receipt '{}' is missing devices[]",
+            descriptor_path.display()
+        ));
+    };
+
+    Ok(devices.iter().any(|device| {
+        is_r5_device_value(device)
+            && json_string(device, "product_id") == Some(target_product_id.as_str())
+            && json_report_record_contains(
+                device,
+                "output_reports",
+                DIRECT_TORQUE_REPORT_ID,
+                REPORT_LEN,
+            )
+    }))
+}
+
+fn zero_output_pidff_stop_all_report_observed(lane: &Path) -> Result<bool> {
+    let pid = lane_manifest_r5_pid(lane).ok_or_else(|| {
+        anyhow!("PIDFF zero-output inventory requires a lane manifest with a supported R5 PID")
+    })?;
+    let target_product_id = hex_u16(pid);
+    let descriptor_path = lane.join("descriptor.json");
+    let receipt = read_json_path(&descriptor_path)?;
+    let Some(devices) = receipt.get("devices").and_then(Value::as_array) else {
+        return Err(anyhow!(
+            "descriptor receipt '{}' is missing devices[]",
+            descriptor_path.display()
+        ));
+    };
+
+    Ok(devices.iter().any(|device| {
+        is_r5_device_value(device)
+            && json_string(device, "product_id") == Some(target_product_id.as_str())
+            && json_report_record_contains(
+                device,
+                "output_reports",
+                PIDFF_DEVICE_CONTROL_REPORT_ID,
+                PIDFF_DEVICE_CONTROL_REPORT_LEN,
+            )
+    }))
+}
+
+fn pre_output_ffb_blocking_items(
+    zero: &PreOutputVerificationReceipt,
+    smoke_ready: &PreOutputVerificationReceipt,
+    zero_audit_passed: bool,
+) -> Vec<String> {
+    let mut blockers = Vec::new();
+    append_verification_blocking_items(&mut blockers, zero);
+    if !zero.success || !zero_audit_passed {
+        if !zero_audit_passed {
+            blockers.push("zero_audit".to_string());
+        }
+        blockers.sort();
+        blockers.dedup();
+        return blockers;
+    }
+    if smoke_ready.gates.is_empty() {
+        append_verification_blocking_items(&mut blockers, smoke_ready);
+        blockers.sort();
+        blockers.dedup();
+        return blockers;
+    }
+    for gate in [
+        "init_off_handshake",
+        "init_standard_handshake",
+        "service_status_receipts",
+        "low_torque_bounded",
+        "simulator_telemetry",
+    ] {
+        if !pre_output_gate_passed(smoke_ready, gate) {
+            blockers.push(gate.to_string());
+        }
+    }
+    blockers.sort();
+    blockers.dedup();
+    blockers
+}
+
+fn pre_output_native_control_blocking_items(
+    zero: &PreOutputVerificationReceipt,
+    openracing_control: &PreOutputVerificationReceipt,
+    zero_audit_passed: bool,
+    openracing_control_audit_passed: bool,
+) -> Vec<String> {
+    let mut blockers = Vec::new();
+    append_verification_blocking_items(&mut blockers, zero);
+    if !zero.success || !zero_audit_passed {
+        if !zero_audit_passed {
+            blockers.push("zero_audit".to_string());
+        }
+        blockers.sort();
+        blockers.dedup();
+        return blockers;
+    }
+    if openracing_control.gates.is_empty() {
+        append_verification_blocking_items(&mut blockers, openracing_control);
+        blockers.sort();
+        blockers.dedup();
+        return blockers;
+    }
+    for gate in [
+        "init_off_handshake",
+        "init_standard_handshake",
+        "service_status_receipts",
+        "low_torque_bounded",
+        "steering_angle_stream_proof",
+        "native_actuator_profile_smoke",
+    ] {
+        if !pre_output_gate_passed(openracing_control, gate) {
+            blockers.push(gate.to_string());
+        }
+    }
+    if blockers.is_empty() && !openracing_control.success {
+        append_verification_blocking_items(&mut blockers, openracing_control);
+    }
+    if blockers.is_empty() && !openracing_control_audit_passed {
+        blockers.push("openracing_control_audit".to_string());
+    }
+    blockers.sort();
+    blockers.dedup();
+    blockers
+}
+
+fn pre_output_external_compatibility_blocking_items(
+    smoke_ready: &PreOutputVerificationReceipt,
+    smoke_ready_audit_passed: bool,
+) -> Vec<String> {
+    let mut blockers = Vec::new();
+    if smoke_ready.gates.is_empty() {
+        append_verification_blocking_items(&mut blockers, smoke_ready);
+        blockers.sort();
+        blockers.dedup();
+        return blockers;
+    }
+    for gate in [
+        "simulator_telemetry",
+        "simulator_ffb_bounded",
+        "pit_house_coexistence",
+    ] {
+        if !pre_output_gate_passed(smoke_ready, gate) {
+            blockers.push(gate.to_string());
+        }
+    }
+    if blockers.is_empty() && !smoke_ready_audit_passed {
+        blockers.push("smoke_ready_audit".to_string());
+    }
+    blockers.sort();
+    blockers.dedup();
+    blockers
+}
+
+fn append_verification_blocking_items(
+    blockers: &mut Vec<String>,
+    receipt: &PreOutputVerificationReceipt,
+) {
+    blockers.extend(
+        receipt
+            .artifacts
+            .iter()
+            .filter(|artifact| artifact.status != "pass")
+            .map(|artifact| artifact.path.clone()),
+    );
+    blockers.extend(
+        receipt
+            .gates
+            .iter()
+            .filter(|gate| gate.status == "fail")
+            .map(|gate| gate.name.to_string()),
+    );
+}
+
+fn pre_output_bounded_ffb_prerequisite_gates_passed(
+    receipt: &PreOutputVerificationReceipt,
+) -> bool {
+    pre_output_zero_stage_gates_passed(receipt)
+        && pre_output_gate_checks_passed(
+            receipt,
+            &[
+                "init_off_handshake",
+                "init_standard_handshake",
+                "service_status_receipts",
+                "low_torque_bounded",
+                "simulator_telemetry",
+            ],
+        )
+}
+
+fn pre_output_zero_stage_gates_passed(receipt: &PreOutputVerificationReceipt) -> bool {
+    pre_output_passive_stage_gates_passed(receipt)
+        && pre_output_gate_checks_passed(
+            receipt,
+            &[
+                "zero_torque_real_hardware",
+                "watchdog_zero_output",
+                "disconnect_final_zero",
+            ],
+        )
+}
+
+fn pre_output_passive_stage_gates_passed(receipt: &PreOutputVerificationReceipt) -> bool {
+    pre_output_gate_checks_passed(
+        receipt,
+        &[
+            "lane_directory",
+            "manifest_no_overclaim",
+            "manifest_r5_pid_consistency",
+            "moza_r5_observed",
+            "moza_topology_observed",
+            "descriptor_metadata",
+            "passive_receipts_successful",
+            "passive_receipts_no_ffb_writes",
+            "passive_captures_parse",
+            "parser_fixture_validation",
+            "fixture_promotion",
+        ],
+    )
+}
+
+fn pre_output_gate_checks_passed(receipt: &PreOutputVerificationReceipt, names: &[&str]) -> bool {
+    names
+        .iter()
+        .all(|name| pre_output_gate_passed(receipt, name))
+}
+
+fn pre_output_gate_passed(receipt: &PreOutputVerificationReceipt, name: &str) -> bool {
+    receipt
+        .gates
+        .iter()
+        .any(|gate| gate.name == name && gate.status == "pass")
+}
+
+fn required_role_evidence_complete(receipt: &PreOutputVerificationReceipt) -> bool {
+    !receipt.role_evidence.is_empty()
+        && receipt
+            .role_evidence
+            .iter()
+            .filter(|role| role.required)
+            .all(|role| role.parser_visible && role.missing_requirements.is_empty())
+}
+
+fn pre_output_stored_verification_receipt(
+    lane: &Path,
+    stage: MozaBundleStage,
+) -> PreOutputVerificationReceipt {
+    let relative_path = verification_receipt_path(stage);
+    let receipt = match read_json_value(lane, relative_path) {
+        Ok(receipt) => receipt,
+        Err(e) => {
+            return PreOutputVerificationReceipt::missing(
+                stage,
+                relative_path,
+                format!("failed to read {relative_path}: {e}"),
+            );
+        }
+    };
+
+    if !stored_verification_identity_safe(lane, stage, &receipt) {
+        return PreOutputVerificationReceipt::invalid(
+            stage,
+            relative_path,
+            format!("{relative_path} is not a trusted observe-only verify-bundle receipt"),
+        );
+    }
+
+    PreOutputVerificationReceipt {
+        success: json_bool(&receipt, "success") == Some(true)
+            && json_u64(&receipt, "missing_artifacts") == Some(0)
+            && json_u64(&receipt, "invalid_artifacts") == Some(0)
+            && json_u64(&receipt, "failed_gates") == Some(0),
+        requested_stage: json_string(&receipt, "requested_stage")
+            .unwrap_or(stage_label(stage))
+            .to_string(),
+        missing_artifacts: json_u64(&receipt, "missing_artifacts")
+            .map(|value| value as usize)
+            .unwrap_or_else(|| pre_output_artifact_status_count(&receipt, "missing")),
+        invalid_artifacts: json_u64(&receipt, "invalid_artifacts")
+            .map(|value| value as usize)
+            .unwrap_or_else(|| pre_output_artifact_status_count(&receipt, "invalid")),
+        failed_gates: json_u64(&receipt, "failed_gates")
+            .map(|value| value as usize)
+            .unwrap_or_else(|| pre_output_gate_status_count(&receipt, "fail")),
+        artifacts: pre_output_artifacts_from_receipt(&receipt),
+        gates: pre_output_gates_from_receipt(&receipt),
+        role_evidence: pre_output_role_evidence_from_receipt(&receipt),
+    }
+}
+
+fn pre_output_artifact_status_count(receipt: &Value, status: &str) -> usize {
+    receipt
+        .get("artifacts")
+        .and_then(Value::as_array)
+        .map(|artifacts| {
+            artifacts
+                .iter()
+                .filter(|artifact| json_string(artifact, "status") == Some(status))
+                .count()
+        })
+        .unwrap_or_default()
+}
+
+fn pre_output_gate_status_count(receipt: &Value, status: &str) -> usize {
+    receipt
+        .get("gates")
+        .and_then(Value::as_array)
+        .map(|gates| {
+            gates
+                .iter()
+                .filter(|gate| json_string(gate, "status") == Some(status))
+                .count()
+        })
+        .unwrap_or_default()
+}
+
+fn pre_output_artifacts_from_receipt(receipt: &Value) -> Vec<PreOutputVerificationArtifact> {
+    receipt
+        .get("artifacts")
+        .and_then(Value::as_array)
+        .map(|artifacts| {
+            artifacts
+                .iter()
+                .map(|artifact| PreOutputVerificationArtifact {
+                    path: json_string(artifact, "path")
+                        .unwrap_or("<missing-path>")
+                        .to_string(),
+                    status: json_string(artifact, "status")
+                        .unwrap_or("invalid")
+                        .to_string(),
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn pre_output_gates_from_receipt(receipt: &Value) -> Vec<PreOutputVerificationGate> {
+    receipt
+        .get("gates")
+        .and_then(Value::as_array)
+        .map(|gates| {
+            gates
+                .iter()
+                .map(|gate| PreOutputVerificationGate {
+                    name: json_string(gate, "name")
+                        .unwrap_or("<missing-name>")
+                        .to_string(),
+                    status: json_string(gate, "status").unwrap_or("fail").to_string(),
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn pre_output_role_evidence_from_receipt(receipt: &Value) -> Vec<PreOutputRoleEvidence> {
+    receipt
+        .get("role_evidence")
+        .and_then(Value::as_array)
+        .map(|roles| {
+            roles
+                .iter()
+                .map(|role| PreOutputRoleEvidence {
+                    required: json_bool(role, "required").unwrap_or(false),
+                    parser_visible: json_bool(role, "parser_visible").unwrap_or(false),
+                    missing_requirements: role
+                        .get("missing_requirements")
+                        .and_then(Value::as_array)
+                        .map(|requirements| {
+                            requirements
+                                .iter()
+                                .filter_map(Value::as_str)
+                                .map(str::to_string)
+                                .collect()
+                        })
+                        .unwrap_or_default(),
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn pre_output_verification_summary(receipt: &PreOutputVerificationReceipt) -> Value {
+    let missing_artifacts: Vec<_> = receipt
+        .artifacts
+        .iter()
+        .filter(|artifact| artifact.status == "missing")
+        .map(|artifact| artifact.path.clone())
+        .collect();
+    let invalid_artifacts: Vec<_> = receipt
+        .artifacts
+        .iter()
+        .filter(|artifact| artifact.status == "invalid")
+        .map(|artifact| artifact.path.clone())
+        .collect();
+    let failed_gates: Vec<_> = receipt
+        .gates
+        .iter()
+        .filter(|gate| gate.status == "fail")
+        .map(|gate| gate.name.clone())
+        .collect();
+
+    serde_json::json!({
+        "success": receipt.success,
+        "requested_stage": receipt.requested_stage,
+        "missing_artifacts": receipt.missing_artifacts,
+        "invalid_artifacts": receipt.invalid_artifacts,
+        "failed_gates": receipt.failed_gates,
+        "missing_artifact_paths": missing_artifacts,
+        "invalid_artifact_paths": invalid_artifacts,
+        "failed_gate_names": failed_gates
+    })
+}
+
+fn pre_output_status_receipt_checks(lane: &Path) -> Vec<PreOutputReadinessCheck> {
+    [
+        ("moza_status", "moza-status.json", "wheelctl moza status"),
+        (
+            "device_status",
+            "device-status.json",
+            "wheelctl device status",
+        ),
+        (
+            "support_bundle",
+            "support-bundle.json",
+            "wheelctl support-bundle",
+        ),
+    ]
+    .into_iter()
+    .map(|(name, path, command)| pre_output_status_receipt_check(lane, name, path, command))
+    .collect()
+}
+
+fn pre_output_status_receipt_check(
+    lane: &Path,
+    name: &'static str,
+    path: &'static str,
+    command: &'static str,
+) -> PreOutputReadinessCheck {
+    let receipt = match read_json_value(lane, path) {
+        Ok(value) => value,
+        Err(e) => {
+            return PreOutputReadinessCheck::fail(name, format!("{path}: {e}"));
+        }
+    };
+
+    let command_ok = json_string(&receipt, "command") == Some(command);
+    let no_output = receipt_observe_only_no_output_flags_ok(&receipt);
+    let lane_ok = match path {
+        "moza-status.json" => lane_path_value_matches(lane, json_string(&receipt, "lane")),
+        "device-status.json" => lane_path_value_matches(lane, json_string(&receipt, "moza_lane")),
+        "support-bundle.json" => receipt
+            .get("moza_lane")
+            .map(|status| lane_path_value_matches(lane, json_string(status, "lane")))
+            .unwrap_or(false),
+        _ => false,
+    };
+    if command_ok && lane_ok && no_output {
+        PreOutputReadinessCheck::pass(
+            name,
+            format!("{path} is observe-only and bound to {}", lane.display()),
+        )
+    } else {
+        PreOutputReadinessCheck::fail(
+            name,
+            format!("command_ok={command_ok}, lane_ok={lane_ok}, no_output={no_output}"),
+        )
+    }
+}
+
+fn receipt_observe_only_no_output_flags_ok(receipt: &Value) -> bool {
+    json_bool(receipt, "success") == Some(true)
+        && json_bool(receipt, "no_hid_device_opened") == Some(true)
+        && json_bool(receipt, "no_ffb_writes") == Some(true)
+        && json_bool(receipt, "no_output_reports") == Some(true)
+        && json_bool(receipt, "no_feature_reports") == Some(true)
+        && no_out_of_scope_device_commands(receipt)
+}
+
 fn next_commands_for_bundle_stage(
     lane: &Path,
     stage: MozaBundleStage,
@@ -3624,15 +6942,30 @@ fn next_commands_for_bundle_stage(
     }
 
     let lane = next_command_lane(lane);
+    let wheelbase_pid = lane_manifest_r5_pid(&lane)
+        .map(hex_u16)
+        .unwrap_or_else(|| "0x0014".to_string());
     let mut commands = Vec::new();
-    push_passive_next_commands(&lane, &mut commands);
+    push_passive_next_commands(&lane, &wheelbase_pid, artifact_checks, gates, &mut commands);
 
-    if stage_rank(stage) >= stage_rank(MozaBundleStage::Zero) {
-        push_zero_next_commands(&lane, &mut commands);
+    let passive_ready = passive_stage_gates_passed(gates);
+    let zero_ready = zero_stage_gates_passed(gates);
+
+    if stage_rank(stage) >= stage_rank(MozaBundleStage::Zero) && passive_ready && !zero_ready {
+        push_zero_next_commands(&lane, gates, &mut commands);
     }
 
-    if stage_rank(stage) >= stage_rank(MozaBundleStage::SmokeReady) {
-        push_smoke_ready_next_commands(&lane, &mut commands);
+    let openracing_control_ready = openracing_control_stage_gates_passed(gates);
+
+    if stage_rank(stage) >= stage_rank(MozaBundleStage::OpenRacingControlReady)
+        && zero_ready
+        && !openracing_control_ready
+    {
+        push_openracing_control_next_commands(&lane, gates, &mut commands);
+    }
+
+    if stage_rank(stage) >= stage_rank(MozaBundleStage::SmokeReady) && openracing_control_ready {
+        push_smoke_ready_next_commands(&lane, gates, &mut commands);
     }
 
     commands
@@ -3655,7 +6988,13 @@ fn is_moza_lane_root(lane: &Path) -> bool {
         && !lane.join("manifest.json").is_file()
 }
 
-fn push_passive_next_commands(lane: &Path, commands: &mut Vec<String>) {
+fn push_passive_next_commands(
+    lane: &Path,
+    wheelbase_pid: &str,
+    artifact_checks: &[BundleArtifactCheck],
+    gates: &[BundleGateCheck],
+    commands: &mut Vec<String>,
+) {
     let lane_arg = command_arg(&lane.display().to_string());
     let fixture_dir = Path::new("crates/hid-moza-protocol/fixtures").join(format!(
         "moza-r5-{}",
@@ -3665,59 +7004,308 @@ fn push_passive_next_commands(lane: &Path, commands: &mut Vec<String>) {
             .unwrap_or("YYYY-MM-DD")
     ));
     let fixture_dir_arg = command_arg(&fixture_dir.display().to_string());
+    let r5_selector = lane_manifest_r5_hid_observe_selector(lane)
+        .unwrap_or_else(|| format!("0x346E:{wheelbase_pid}"));
 
-    commands.push(format!(
-        "wheelctl moza init-lane --lane {lane_arg} --wheelbase-pid 0x0014 --operator Steven"
-    ));
-    commands.push(format!(
-        "wheelctl device list --json-out {}",
-        lane_path_arg(lane, "device-list.json")
-    ));
-    commands.push(format!(
-        "wheelctl moza probe --json-out {}",
-        lane_path_arg(lane, "moza-probe.json")
-    ));
-    commands.push(format!(
-        "hid-capture list --vendor 0x346E --json-out {}",
-        lane_path_arg(lane, "hid-list.json")
-    ));
-    commands.push(format!(
-        "wheelctl moza descriptor --json-out {}",
-        lane_path_arg(lane, "descriptor.json")
-    ));
-
-    for requirement in passive_capture_requirements_for_lane(lane) {
-        let (device, duration_ms) = passive_capture_next_command_hint(requirement.relative_path);
+    if bundle_artifact_needs_regeneration(artifact_checks, "manifest.json")
+        || !bundle_gate_check_passed(gates, "manifest_no_overclaim")
+    {
         commands.push(format!(
-            "wheelctl moza capture-input --device {device} --duration-ms {duration_ms} --json-out {}",
-            lane_path_arg(lane, requirement.relative_path)
+            "wheelctl moza init-lane --lane {lane_arg} --wheelbase-pid {wheelbase_pid} --operator Steven"
+        ));
+    }
+    if bundle_artifacts_need_regeneration(
+        artifact_checks,
+        &["device-list.json", "moza-probe.json", "hid-list.json"],
+    ) || !bundle_gate_check_passed(gates, "moza_r5_observed")
+        || !bundle_gate_check_passed(gates, "moza_topology_observed")
+    {
+        commands.push(format!(
+            "wheelctl device list --hid-observe-only --json-out {}",
+            lane_path_arg(lane, "device-list.json")
+        ));
+        commands.push(format!(
+            "wheelctl moza probe --json-out {}",
+            lane_path_arg(lane, "moza-probe.json")
+        ));
+        commands.push(format!(
+            "hid-capture list --vendor 0x346E --json-out {}",
+            lane_path_arg(lane, "hid-list.json")
+        ));
+    }
+    if bundle_artifact_needs_regeneration(artifact_checks, "hardware-doctor.json") {
+        commands.push(format!(
+            "wheelctl hardware doctor --json-out {}",
+            lane_path_arg(lane, "hardware-doctor.json")
+        ));
+    }
+    if bundle_artifact_needs_regeneration(artifact_checks, "descriptor.json")
+        || !bundle_gate_check_passed(gates, "descriptor_metadata")
+    {
+        commands.push(format!(
+            "wheelctl moza descriptor --json-out {}",
+            lane_path_arg(lane, "descriptor.json")
+        ));
+        if usbpcap_descriptor_extractor_next_command_allowed(lane) {
+            commands.push(
+                "powershell -ExecutionPolicy Bypass -File scripts/extract_usbpcap_report_descriptor.ps1 -InputPcapng target/moza-r5-usbpcap-enumeration.pcapng -Output target/moza-r5-report-descriptor.txt -InterfaceNumber 2".to_string()
+            );
+        }
+        commands.push(format!(
+            "wheelctl moza descriptor --device {r5_selector} --report-descriptor-hex-file target/moza-r5-report-descriptor.txt --json-out {}",
+            lane_path_arg(lane, "descriptor.json")
+        ));
+        commands.push(format!(
+            "wheelctl moza descriptor --device {r5_selector} --report-descriptor-bin-file target/moza-r5-report-descriptor.bin --json-out {}",
+            lane_path_arg(lane, "descriptor.json")
         ));
     }
 
-    commands.push(format!(
-        "wheelctl moza validate-captures --lane {lane_arg} --json-out {}",
-        lane_path_arg(lane, "parser-fixture-validation.json")
-    ));
-    commands.push(format!(
-        "wheelctl moza promote-fixtures --lane {lane_arg} --fixture-dir {fixture_dir_arg} --json-out {}",
-        lane_path_arg(lane, "fixture-promotion.json")
-    ));
-    commands.push(
-        "cargo test -p racing-wheel-hid-moza-protocol promoted_capture_fixtures_replay_through_moza_parser"
-            .to_string(),
-    );
-    commands.push(format!(
-        "wheelctl moza verify-bundle --lane {lane_arg} --stage passive --json-out {}",
-        lane_path_arg(lane, verification_receipt_path(MozaBundleStage::Passive))
-    ));
-    commands.push(format!(
-        "wheelctl moza promote-manifest --lane {lane_arg} --stage passive --json-out {}",
-        lane_path_arg(lane, promotion_receipt_path(MozaBundleStage::Passive))
-    ));
-    commands.push(format!(
-        "wheelctl moza audit-lane --lane {lane_arg} --stage passive --json-out {}",
-        lane_path_arg(lane, audit_receipt_path(MozaBundleStage::Passive))
-    ));
+    for requirement in passive_capture_requirements_for_lane(lane) {
+        if bundle_artifact_needs_regeneration(artifact_checks, requirement.relative_path) {
+            let (device, duration_ms) =
+                passive_capture_next_command_hint(requirement.relative_path);
+            commands.push(format!(
+                "wheelctl moza capture-input --device {device} --duration-ms {duration_ms} --json-out {}",
+                lane_path_arg(lane, requirement.relative_path)
+            ));
+        }
+    }
+
+    if bundle_artifact_needs_regeneration(artifact_checks, "parser-fixture-validation.json")
+        || !bundle_gate_check_passed(gates, "passive_captures_parse")
+        || !bundle_gate_check_passed(gates, "parser_fixture_validation")
+    {
+        commands.push(format!(
+            "wheelctl moza analyze-lane --lane {lane_arg} --json-out target/moza-lane-analysis.json"
+        ));
+        commands.push(format!(
+            "wheelctl moza sync-role-status --lane {lane_arg} --json-out target/moza-role-status-sync.json"
+        ));
+        commands.push(format!(
+            "wheelctl moza sync-role-status --lane {lane_arg} --check --json-out target/moza-role-status-check.json"
+        ));
+        commands.push(format!(
+            "wheelctl moza validate-captures --lane {lane_arg} --json-out {}",
+            lane_path_arg(lane, "parser-fixture-validation.json")
+        ));
+    }
+    if bundle_gate_check_passed(gates, "passive_captures_parse")
+        && bundle_gate_check_passed(gates, "parser_fixture_validation")
+        && bundle_gate_check_passed(gates, "descriptor_metadata")
+        && !bundle_gate_check_passed(gates, "fixture_promotion")
+    {
+        commands.push(format!(
+            "wheelctl moza promote-fixtures --lane {lane_arg} --fixture-dir {fixture_dir_arg} --json-out {}",
+            lane_path_arg(lane, "fixture-promotion.json")
+        ));
+        commands.push(
+            "cargo test -p racing-wheel-hid-moza-protocol promoted_capture_fixtures_replay_through_moza_parser"
+                .to_string(),
+        );
+    }
+    if !stored_verification_receipt_success(lane, MozaBundleStage::Passive) {
+        commands.push(format!(
+            "wheelctl moza verify-bundle --lane {lane_arg} --stage passive --json-out {}",
+            lane_path_arg(lane, verification_receipt_path(MozaBundleStage::Passive))
+        ));
+    }
+    if bundle_gate_checks_passed(
+        gates,
+        &[
+            "lane_directory",
+            "manifest_no_overclaim",
+            "manifest_r5_pid_consistency",
+            "moza_r5_observed",
+            "moza_topology_observed",
+            "descriptor_metadata",
+            "passive_receipts_no_ffb_writes",
+            "passive_captures_parse",
+            "parser_fixture_validation",
+            "fixture_promotion",
+        ],
+    ) {
+        if !stored_manifest_promotion_receipt_success(lane, MozaBundleStage::Passive) {
+            commands.push(format!(
+                "wheelctl moza promote-manifest --lane {lane_arg} --stage passive --json-out {}",
+                lane_path_arg(lane, promotion_receipt_path(MozaBundleStage::Passive))
+            ));
+        }
+        if !stored_lane_audit_receipt_success(lane, MozaBundleStage::Passive) {
+            commands.push(format!(
+                "wheelctl moza audit-lane --lane {lane_arg} --stage passive --json-out {}",
+                lane_path_arg(lane, audit_receipt_path(MozaBundleStage::Passive))
+            ));
+        }
+    }
+}
+
+fn usbpcap_descriptor_extractor_next_command_allowed(lane: &Path) -> bool {
+    let Ok(receipt) = read_json_path(&lane.join("hardware-doctor.json")) else {
+        return true;
+    };
+    receipt
+        .get("tools")
+        .and_then(|tools| tools.get("usbpcap_descriptor_capture"))
+        .and_then(|capture| capture.get("ready_for_usbpcap_descriptor_capture"))
+        .and_then(Value::as_bool)
+        != Some(false)
+}
+
+fn bundle_gate_check_passed(gates: &[BundleGateCheck], name: &str) -> bool {
+    gates
+        .iter()
+        .any(|gate| gate.name == name && gate.status == "pass")
+}
+
+fn bundle_gate_checks_passed(gates: &[BundleGateCheck], names: &[&str]) -> bool {
+    names
+        .iter()
+        .all(|name| bundle_gate_check_passed(gates, name))
+}
+
+fn stored_verification_receipt_success(lane: &Path, stage: MozaBundleStage) -> bool {
+    let Ok(receipt) = read_json_value(lane, verification_receipt_path(stage)) else {
+        return false;
+    };
+
+    json_bool(&receipt, "success") == Some(true)
+        && json_string(&receipt, "command") == Some("wheelctl moza verify-bundle")
+        && json_string(&receipt, "requested_stage") == Some(stage_label(stage))
+        && json_u64(&receipt, "missing_artifacts") == Some(0)
+        && json_u64(&receipt, "invalid_artifacts") == Some(0)
+        && json_u64(&receipt, "failed_gates") == Some(0)
+        && json_bool(&receipt, "no_hid_device_opened") == Some(true)
+        && json_bool(&receipt, "no_ffb_writes") == Some(true)
+        && no_out_of_scope_device_commands(&receipt)
+}
+
+fn stored_manifest_promotion_receipt_success(lane: &Path, stage: MozaBundleStage) -> bool {
+    let Ok(receipt) = read_json_value(lane, promotion_receipt_path(stage)) else {
+        return false;
+    };
+
+    let (completion_state, hardware_validated, simulator_validated) =
+        manifest_promotion_values(stage);
+    json_bool(&receipt, "success") == Some(true)
+        && json_string(&receipt, "command") == Some("wheelctl moza promote-manifest")
+        && json_string(&receipt, "stage") == Some(stage_label(stage))
+        && json_string(&receipt, "completion_state") == Some(completion_state)
+        && json_bool(&receipt, "hardware_validated") == Some(hardware_validated)
+        && json_bool(&receipt, "simulator_validated") == Some(simulator_validated)
+        && json_bool(&receipt, "high_torque_validated") == Some(false)
+        && json_bool(&receipt, "release_ready") == Some(false)
+        && json_bool(&receipt, "no_hid_device_opened") == Some(true)
+        && json_bool(&receipt, "no_ffb_writes") == Some(true)
+        && no_out_of_scope_device_commands(&receipt)
+        && promotion_verification_summary_ok(receipt.get("verification_before"), stage_label(stage))
+        && promotion_verification_summary_ok(receipt.get("verification_after"), stage_label(stage))
+}
+
+fn stored_lane_audit_receipt_success(lane: &Path, stage: MozaBundleStage) -> bool {
+    let Ok(receipt) = read_json_value(lane, audit_receipt_path(stage)) else {
+        return false;
+    };
+
+    let receipt_checks_ok = receipt
+        .get("receipt_checks")
+        .and_then(Value::as_array)
+        .map(|checks| {
+            let expected_check_count = audit_stages_through(stage).len() * 2;
+            checks.len() == expected_check_count
+                && checks
+                    .iter()
+                    .all(|check| json_string(check, "status") == Some("pass"))
+        })
+        .unwrap_or(false);
+
+    json_bool(&receipt, "success") == Some(true)
+        && json_string(&receipt, "command") == Some("wheelctl moza audit-lane")
+        && json_string(&receipt, "requested_stage") == Some(stage_label(stage))
+        && json_bool(&receipt, "live_verification_success") == Some(true)
+        && json_u64(&receipt, "missing_receipts") == Some(0)
+        && json_u64(&receipt, "invalid_receipts") == Some(0)
+        && receipt_checks_ok
+        && json_bool(&receipt, "no_hid_device_opened") == Some(true)
+        && json_bool(&receipt, "no_ffb_writes") == Some(true)
+        && no_out_of_scope_device_commands(&receipt)
+}
+
+fn passive_stage_gates_passed(gates: &[BundleGateCheck]) -> bool {
+    bundle_gate_checks_passed(
+        gates,
+        &[
+            "lane_directory",
+            "manifest_no_overclaim",
+            "manifest_r5_pid_consistency",
+            "moza_r5_observed",
+            "moza_topology_observed",
+            "descriptor_metadata",
+            "passive_receipts_successful",
+            "passive_receipts_no_ffb_writes",
+            "passive_captures_parse",
+            "parser_fixture_validation",
+            "fixture_promotion",
+        ],
+    )
+}
+
+fn zero_stage_gates_passed(gates: &[BundleGateCheck]) -> bool {
+    passive_stage_gates_passed(gates)
+        && bundle_gate_checks_passed(
+            gates,
+            &[
+                "zero_torque_real_hardware",
+                "watchdog_zero_output",
+                "disconnect_final_zero",
+            ],
+        )
+}
+
+fn openracing_control_stage_gates_passed(gates: &[BundleGateCheck]) -> bool {
+    zero_stage_gates_passed(gates)
+        && bundle_gate_checks_passed(
+            gates,
+            &[
+                "init_off_handshake",
+                "init_standard_handshake",
+                "service_status_receipts",
+                "low_torque_bounded",
+                "steering_angle_stream_proof",
+                "native_actuator_profile_smoke",
+            ],
+        )
+}
+
+fn smoke_ready_stage_gates_passed(gates: &[BundleGateCheck]) -> bool {
+    openracing_control_stage_gates_passed(gates)
+        && bundle_gate_checks_passed(
+            gates,
+            &[
+                "pit_house_coexistence",
+                "simulator_telemetry",
+                "simulator_ffb_bounded",
+            ],
+        )
+}
+
+fn bundle_artifact_needs_regeneration(
+    artifact_checks: &[BundleArtifactCheck],
+    relative_path: &str,
+) -> bool {
+    artifact_checks
+        .iter()
+        .find(|check| check.path == relative_path)
+        .is_none_or(|check| check.status != "pass")
+}
+
+fn bundle_artifacts_need_regeneration(
+    artifact_checks: &[BundleArtifactCheck],
+    relative_paths: &[&str],
+) -> bool {
+    relative_paths
+        .iter()
+        .any(|path| bundle_artifact_needs_regeneration(artifact_checks, path))
 }
 
 fn passive_capture_next_command_hint(relative_path: &str) -> (&'static str, u64) {
@@ -3735,63 +7323,367 @@ fn passive_capture_next_command_hint(relative_path: &str) -> (&'static str, u64)
     }
 }
 
-fn push_zero_next_commands(lane: &Path, commands: &mut Vec<String>) {
+fn push_zero_next_commands(lane: &Path, gates: &[BundleGateCheck], commands: &mut Vec<String>) {
     let lane_arg = command_arg(&lane.display().to_string());
-    commands.push(format!(
-        "wheelctl moza zero --device <r5> --repeat 100 --hz 1000 --json-out {}",
-        lane_path_arg(lane, "zero-torque-proof.json")
-    ));
-    commands.push(format!(
-        "wheelctl moza watchdog-proof --device <r5> --pre-zero-count 3 --watchdog-timeout-ms 100 --json-out {}",
-        lane_path_arg(lane, "watchdog-proof.json")
-    ));
-    commands.push(format!(
-        "wheelctl moza disconnect-proof --device <r5> --confirm-disconnect-test --max-duration-ms 10000 --json-out {}",
-        lane_path_arg(lane, "disconnect-proof.json")
-    ));
+    let r5_selector = next_command_r5_selector(lane);
+    let strategy = zero_next_command_strategy(lane);
+    let strategy_arg = zero_output_strategy_command_arg(strategy);
+    if !bundle_gate_check_passed(gates, "zero_torque_real_hardware") {
+        commands.push(format!(
+            "wheelctl moza zero --device {r5_selector} --lane {lane_arg} --strategy {strategy_arg} --confirm-zero-torque --repeat 100 --hz 1000 --json-out {}",
+            lane_path_arg(lane, "zero-torque-proof.json")
+        ));
+    }
+    if !bundle_gate_check_passed(gates, "watchdog_zero_output") {
+        commands.push(format!(
+            "wheelctl moza watchdog-proof --device {r5_selector} --lane {lane_arg} --strategy {strategy_arg} --confirm-watchdog-test --pre-zero-count 3 --watchdog-timeout-ms 100 --json-out {}",
+            lane_path_arg(lane, "watchdog-proof.json")
+        ));
+    }
+    if !bundle_gate_check_passed(gates, "disconnect_final_zero") {
+        commands.push(format!(
+            "wheelctl moza disconnect-proof --device {r5_selector} --lane {lane_arg} --strategy {strategy_arg} --confirm-disconnect-test --max-duration-ms 10000 --json-out {}",
+            lane_path_arg(lane, "disconnect-proof.json")
+        ));
+    }
     commands.push(format!(
         "wheelctl moza verify-bundle --lane {lane_arg} --stage zero --json-out {}",
         lane_path_arg(lane, verification_receipt_path(MozaBundleStage::Zero))
     ));
-    commands.push(format!(
-        "wheelctl moza promote-manifest --lane {lane_arg} --stage zero --json-out {}",
-        lane_path_arg(lane, promotion_receipt_path(MozaBundleStage::Zero))
-    ));
-    commands.push(format!(
-        "wheelctl moza audit-lane --lane {lane_arg} --stage zero --json-out {}",
-        lane_path_arg(lane, audit_receipt_path(MozaBundleStage::Zero))
-    ));
+    if zero_stage_gates_passed(gates) {
+        commands.push(format!(
+            "wheelctl moza promote-manifest --lane {lane_arg} --stage zero --json-out {}",
+            lane_path_arg(lane, promotion_receipt_path(MozaBundleStage::Zero))
+        ));
+        commands.push(format!(
+            "wheelctl moza audit-lane --lane {lane_arg} --stage zero --json-out {}",
+            lane_path_arg(lane, audit_receipt_path(MozaBundleStage::Zero))
+        ));
+    }
 }
 
-fn push_smoke_ready_next_commands(lane: &Path, commands: &mut Vec<String>) {
+fn zero_next_command_strategy(lane: &Path) -> MozaZeroOutputStrategy {
+    if let Ok(summary) = validate_zero_proof_for_zero_output(&lane.join("zero-torque-proof.json")) {
+        match summary.zero_output_strategy.as_str() {
+            "pidff_device_control_stop_all" => {
+                return MozaZeroOutputStrategy::PidffStopAll;
+            }
+            "direct_report_0x20" => {
+                return MozaZeroOutputStrategy::DirectReport0x20;
+            }
+            _ => {}
+        }
+    }
+
+    if validate_zero_output_strategy_metadata(lane, MozaZeroOutputStrategy::DirectReport0x20)
+        .is_ok()
+    {
+        MozaZeroOutputStrategy::DirectReport0x20
+    } else if validate_zero_output_strategy_metadata(lane, MozaZeroOutputStrategy::PidffStopAll)
+        .is_ok()
+    {
+        MozaZeroOutputStrategy::PidffStopAll
+    } else {
+        MozaZeroOutputStrategy::DirectReport0x20
+    }
+}
+
+fn zero_output_strategy_command_arg(strategy: MozaZeroOutputStrategy) -> &'static str {
+    match strategy {
+        MozaZeroOutputStrategy::DirectReport0x20 => "direct-report0x20",
+        MozaZeroOutputStrategy::PidffStopAll => "pidff-stop-all",
+    }
+}
+
+fn next_command_r5_selector(lane: &Path) -> String {
+    lane_manifest_r5_hid_observe_selector(lane).unwrap_or_else(|| "<r5>".to_string())
+}
+
+fn low_torque_frontier_blockers(lane: &Path) -> Vec<&'static str> {
+    let mut blockers = Vec::new();
+    if !zero_output_direct_report_metadata_trusted(lane) {
+        blockers.push("descriptor.json does not prove trusted direct report 0x20 metadata");
+    }
+    if !low_torque_direct_zero_proof_ready(lane) {
+        blockers.push("zero-torque-proof.json is not a same-lane direct_report_0x20 proof accepted by torque-test");
+    }
+    blockers
+}
+
+fn pidff_low_torque_frontier_blockers(lane: &Path) -> Vec<&'static str> {
+    let mut blockers = Vec::new();
+    if validate_zero_output_pidff_stop_all_report_metadata(lane).is_err() {
+        blockers.push(
+            "descriptor.json does not prove trusted PIDFF Device Control report 0x0C metadata",
+        );
+    }
+    if !low_torque_pidff_zero_proof_ready(lane) {
+        blockers
+            .push("zero-torque-proof.json is not a same-lane pidff_device_control_stop_all proof");
+    }
+    blockers.extend(pidff_bounded_effect_descriptor_blockers(lane));
+    blockers
+}
+
+fn pidff_bounded_effect_descriptor_blockers(lane: &Path) -> Vec<&'static str> {
+    let mut blockers = Vec::new();
+    if !lane_descriptor_has_output_report(
+        lane,
+        PIDFF_SET_CONSTANT_FORCE_REPORT_ID,
+        PIDFF_SET_CONSTANT_FORCE_REPORT_LEN,
+    ) {
+        blockers
+            .push("descriptor.json does not prove PIDFF Set Constant Force report 0x05 metadata");
+    }
+    if !lane_descriptor_has_output_report(
+        lane,
+        PIDFF_EFFECT_OPERATION_REPORT_ID,
+        PIDFF_EFFECT_OPERATION_REPORT_LEN,
+    ) {
+        blockers.push("descriptor.json does not prove PIDFF Effect Operation report 0x0A metadata");
+    }
+    if !lane_descriptor_has_output_report(
+        lane,
+        PIDFF_BLOCK_FREE_REPORT_ID,
+        PIDFF_BLOCK_FREE_REPORT_LEN,
+    ) {
+        blockers.push("descriptor.json does not prove PIDFF Block Free report 0x0B metadata");
+    }
+    if !lane_descriptor_has_pidff_set_effect_encoder(lane) {
+        blockers.push("descriptor.json does not prove a descriptor-compatible PIDFF Set Effect encoder; expected generic report 0x01 len 14 or live R5 V1 report 0x01 len 22 metadata");
+    }
+    for (report_id, label) in [
+        (
+            PIDFF_CREATE_NEW_EFFECT_FEATURE_REPORT_ID,
+            "PIDFF Create New Effect feature report 0x11 length metadata",
+        ),
+        (
+            PIDFF_BLOCK_LOAD_FEATURE_REPORT_ID,
+            "PIDFF Block Load feature report 0x12 length metadata",
+        ),
+        (
+            PIDFF_PID_POOL_FEATURE_REPORT_ID,
+            "PIDFF PID Pool feature report 0x13 length metadata",
+        ),
+    ] {
+        if !lane_descriptor_has_feature_report_metadata(lane, report_id) {
+            blockers.push(match report_id {
+                PIDFF_CREATE_NEW_EFFECT_FEATURE_REPORT_ID => {
+                    "descriptor.json does not include PIDFF Create New Effect feature report 0x11 length metadata"
+                }
+                PIDFF_BLOCK_LOAD_FEATURE_REPORT_ID => {
+                    "descriptor.json does not include PIDFF Block Load feature report 0x12 length metadata"
+                }
+                PIDFF_PID_POOL_FEATURE_REPORT_ID => {
+                    "descriptor.json does not include PIDFF PID Pool feature report 0x13 length metadata"
+                }
+                _ => label,
+            });
+        }
+    }
+    blockers
+}
+
+fn simulator_ffb_smoke_strategy_arg(lane: &Path) -> &'static str {
+    if lane_low_torque_strategy_is_pidff(lane) {
+        " --strategy pidff-bounded-effect"
+    } else {
+        ""
+    }
+}
+
+fn lane_low_torque_strategy_is_pidff(lane: &Path) -> bool {
+    let Ok(receipt) = read_json_value(lane, "low-torque-proof.json") else {
+        return false;
+    };
+    json_string(&receipt, "low_torque_strategy")
+        == Some(low_torque_strategy_name(
+            MozaLowTorqueStrategy::PidffBoundedEffect,
+        ))
+}
+
+fn low_torque_direct_zero_proof_ready(lane: &Path) -> bool {
+    let proof_path = lane.join("zero-torque-proof.json");
+    read_json_path(&proof_path)
+        .map(|receipt| receipt_path_matches(lane, &receipt, "zero-torque-proof.json"))
+        .unwrap_or(false)
+        && validate_zero_proof_for_torque_test(&proof_path).is_ok()
+}
+
+fn low_torque_pidff_zero_proof_ready(lane: &Path) -> bool {
+    let proof_path = lane.join("zero-torque-proof.json");
+    read_json_path(&proof_path)
+        .map(|receipt| receipt_path_matches(lane, &receipt, "zero-torque-proof.json"))
+        .unwrap_or(false)
+        && validate_zero_proof_for_low_torque_strategy(
+            &proof_path,
+            MozaLowTorqueStrategy::PidffBoundedEffect,
+        )
+        .is_ok()
+}
+
+fn push_openracing_control_next_commands(
+    lane: &Path,
+    gates: &[BundleGateCheck],
+    commands: &mut Vec<String>,
+) {
     let lane_arg = command_arg(&lane.display().to_string());
+    let r5_selector = next_command_r5_selector(lane);
+
+    if !bundle_gate_check_passed(gates, "init_off_handshake") {
+        commands.push(format!(
+            "wheelctl moza init --device {r5_selector} --lane {lane_arg} --mode off --confirm-init --json-out {}",
+            lane_path_arg(lane, "init-off.json")
+        ));
+        return;
+    }
+
+    if !bundle_gate_check_passed(gates, "init_standard_handshake") {
+        commands.push(format!(
+            "wheelctl moza init --device {r5_selector} --lane {lane_arg} --mode standard --confirm-init --json-out {}",
+            lane_path_arg(lane, "init-standard.json")
+        ));
+        return;
+    }
+
+    if !bundle_gate_check_passed(gates, "service_status_receipts") {
+        commands.push(format!("wheeld --hardware-lane {lane_arg}"));
+        commands.push(format!(
+            "wheelctl moza status --device {r5_selector} --lane {lane_arg} --json-out {}",
+            lane_path_arg(lane, "moza-status.json")
+        ));
+        commands.push(format!(
+            "wheelctl device status {r5_selector} --moza-lane {lane_arg} --json-out {} --json",
+            lane_path_arg(lane, "device-status.json")
+        ));
+        commands.push(format!(
+            "wheelctl --json support-bundle --device {r5_selector} --moza-lane {lane_arg} --output {}",
+            lane_path_arg(lane, "support-bundle.json")
+        ));
+        return;
+    }
+
+    if !bundle_gate_check_passed(gates, "low_torque_bounded") {
+        if low_torque_frontier_blockers(lane).is_empty() {
+            commands.push(format!(
+                "wheelctl moza torque-test --device {r5_selector} --lane {lane_arg} --zero-proof {} --descriptor {} --max-percent 2 --duration-ms 250 --confirm-low-torque --json-out {}",
+                lane_path_arg(lane, "zero-torque-proof.json"),
+                lane_path_arg(lane, "descriptor.json"),
+                lane_path_arg(lane, "low-torque-proof.json")
+            ));
+        } else if pidff_low_torque_frontier_blockers(lane).is_empty() {
+            commands.push(format!(
+                "wheelctl moza torque-test --device {r5_selector} --lane {lane_arg} --strategy pidff-bounded-effect --zero-proof {} --init-off {} --init-standard {} --max-percent 1 --duration-ms 150 --confirm-low-torque --json-out {} --json",
+                lane_path_arg(lane, "zero-torque-proof.json"),
+                lane_path_arg(lane, "init-off.json"),
+                lane_path_arg(lane, "init-standard.json"),
+                lane_path_arg(lane, "low-torque-proof.json")
+            ));
+        } else {
+            commands.push(format!(
+                "wheelctl moza pre-output-readiness --lane {lane_arg} --json-out {} --json",
+                lane_path_arg(lane, "pre-output-readiness.json")
+            ));
+        }
+        return;
+    }
+
+    if !bundle_gate_check_passed(gates, "steering_angle_stream_proof") {
+        commands.push(format!(
+            "wheelctl moza pre-output-readiness --lane {lane_arg} --json-out {} --json",
+            lane_path_arg(lane, "pre-output-readiness.json")
+        ));
+        return;
+    }
+
+    if !bundle_gate_check_passed(gates, "native_actuator_profile_smoke") {
+        if lane_low_torque_strategy_is_pidff(lane) {
+            commands.push(format!(
+                "wheelctl moza actuator-profile-smoke --device {r5_selector} --lane {lane_arg} --low-torque-proof {} --steering-proof {} --profile constant-low-force --strategy pidff-bounded-effect --max-percent 1 --duration-ms 2000 --confirm-actuator-profile --json-out {} --json",
+                lane_path_arg(lane, "low-torque-proof.json"),
+                lane_path_arg(lane, "steering-angle-stream-proof.json"),
+                lane_path_arg(lane, "native-actuator-profile-smoke.json")
+            ));
+        } else {
+            commands.push(format!(
+                "wheelctl moza pre-output-readiness --lane {lane_arg} --json-out {} --json",
+                lane_path_arg(lane, "pre-output-readiness.json")
+            ));
+        }
+        return;
+    }
+
     commands.push(format!(
-        "wheelctl moza init --device <r5> --mode off --json-out {}",
-        lane_path_arg(lane, "init-off.json")
+        "wheelctl moza verify-bundle --lane {lane_arg} --stage openracing-control-ready --json-out {}",
+        lane_path_arg(
+            lane,
+            verification_receipt_path(MozaBundleStage::OpenRacingControlReady)
+        )
     ));
-    commands.push(format!(
-        "wheelctl moza init --device <r5> --mode standard --json-out {}",
-        lane_path_arg(lane, "init-standard.json")
-    ));
-    commands.push(format!("wheeld --hardware-lane {lane_arg}"));
-    commands.push(format!(
-        "wheelctl moza status --device <r5> --lane {lane_arg} --json-out {}",
-        lane_path_arg(lane, "moza-status.json")
-    ));
-    commands.push(format!(
-        "wheelctl device status <r5> --moza-lane {lane_arg} --json-out {} --json",
-        lane_path_arg(lane, "device-status.json")
-    ));
-    commands.push(format!(
-        "wheelctl --json support-bundle --device <r5> --moza-lane {lane_arg} --output {}",
-        lane_path_arg(lane, "support-bundle.json")
-    ));
-    commands.push(format!(
-        "wheelctl moza torque-test --device <r5> --lane {lane_arg} --zero-proof {} --descriptor {} --max-percent 2 --duration-ms 250 --confirm-low-torque --json-out {}",
-        lane_path_arg(lane, "zero-torque-proof.json"),
-        lane_path_arg(lane, "descriptor.json"),
-        lane_path_arg(lane, "low-torque-proof.json")
-    ));
+    if openracing_control_stage_gates_passed(gates) {
+        commands.push(format!(
+            "wheelctl moza promote-manifest --lane {lane_arg} --stage openracing-control-ready --json-out {}",
+            lane_path_arg(
+                lane,
+                promotion_receipt_path(MozaBundleStage::OpenRacingControlReady)
+            )
+        ));
+        commands.push(format!(
+            "wheelctl moza audit-lane --lane {lane_arg} --stage openracing-control-ready --json-out {}",
+            lane_path_arg(
+                lane,
+                audit_receipt_path(MozaBundleStage::OpenRacingControlReady)
+            )
+        ));
+    }
+}
+
+fn push_smoke_ready_next_commands(
+    lane: &Path,
+    gates: &[BundleGateCheck],
+    commands: &mut Vec<String>,
+) {
+    let lane_arg = command_arg(&lane.display().to_string());
+
+    if !bundle_gate_check_passed(gates, "simulator_telemetry") {
+        commands.push(format!(
+            "wheelctl telemetry record --game simhub-bridge --telemetry-source simhub_bridge --live-simhub --port 5555 --out {} --duration-ms 30000",
+            lane_path_arg(lane, "simulator-telemetry-recording.jsonl")
+        ));
+        commands.push(format!(
+            "wheelctl moza simulator-telemetry-proof --lane {lane_arg} --game simhub-bridge --telemetry-source simhub_bridge --recorder-artifact simulator-telemetry-recording.jsonl --duration-ms 30000 --json-out {}",
+            lane_path_arg(lane, "simulator-telemetry-proof.json")
+        ));
+        return;
+    }
+
+    if !bundle_gate_check_passed(gates, "simulator_ffb_bounded") {
+        let strategy_arg = simulator_ffb_smoke_strategy_arg(lane);
+        commands.push(format!("wheeld --hardware-lane {lane_arg}"));
+        commands.push(format!(
+            "wheelctl moza simulator-ffb-smoke --lane {lane_arg} --game <sim> --telemetry-source real_game --output-log-artifact simulator-ffb-output.jsonl{strategy_arg} --descriptor-trusted --watchdog-timeout-ms 100 --stop-cleared-output --pause-cleared-output --game-exit-cleared-output --json-out {}",
+            lane_path_arg(lane, "simulator-ffb-smoke.json")
+        ));
+        return;
+    }
+
+    if bundle_gate_check_passed(gates, "pit_house_coexistence") {
+        commands.push(format!(
+            "wheelctl moza verify-bundle --lane {lane_arg} --stage smoke-ready --json-out {}",
+            lane_path_arg(lane, verification_receipt_path(MozaBundleStage::SmokeReady))
+        ));
+        if smoke_ready_stage_gates_passed(gates) {
+            commands.push(format!(
+                "wheelctl moza promote-manifest --lane {lane_arg} --stage smoke-ready --json-out {}",
+                lane_path_arg(lane, promotion_receipt_path(MozaBundleStage::SmokeReady))
+            ));
+            commands.push(format!(
+                "wheelctl moza audit-lane --lane {lane_arg} --stage smoke-ready --json-out {}",
+                lane_path_arg(lane, audit_receipt_path(MozaBundleStage::SmokeReady))
+            ));
+        }
+        return;
+    }
 
     for (case, evidence_artifact, artifact, evidence) in [
         (
@@ -3857,20 +7749,6 @@ fn push_smoke_ready_next_commands(lane: &Path, commands: &mut Vec<String>) {
     ] {
         push_pit_house_case_next_command(lane, commands, case, observation, artifact, evidence);
     }
-
-    commands.push(format!(
-        "wheelctl telemetry record --game <sim> --telemetry-source real_game --input <normalized-telemetry-source.jsonl> --out {} --duration-ms 30000",
-        lane_path_arg(lane, "simulator-telemetry-recording.jsonl")
-    ));
-    commands.push(format!(
-        "wheelctl moza simulator-telemetry-proof --lane {lane_arg} --game <sim> --telemetry-source real_game --recorder-artifact simulator-telemetry-recording.jsonl --duration-ms 30000 --json-out {}",
-        lane_path_arg(lane, "simulator-telemetry-proof.json")
-    ));
-    commands.push(format!("wheeld --hardware-lane {lane_arg}"));
-    commands.push(format!(
-        "wheelctl moza simulator-ffb-smoke --lane {lane_arg} --game <sim> --telemetry-source real_game --output-log-artifact simulator-ffb-output.jsonl --descriptor-trusted --watchdog-timeout-ms 100 --stop-cleared-output --pause-cleared-output --game-exit-cleared-output --json-out {}",
-        lane_path_arg(lane, "simulator-ffb-smoke.json")
-    ));
     push_pit_house_observation_next_command(
         lane,
         commands,
@@ -3894,14 +7772,6 @@ fn push_smoke_ready_next_commands(lane: &Path, commands: &mut Vec<String>) {
     commands.push(format!(
         "wheelctl moza verify-bundle --lane {lane_arg} --stage smoke-ready --json-out {}",
         lane_path_arg(lane, verification_receipt_path(MozaBundleStage::SmokeReady))
-    ));
-    commands.push(format!(
-        "wheelctl moza promote-manifest --lane {lane_arg} --stage smoke-ready --json-out {}",
-        lane_path_arg(lane, promotion_receipt_path(MozaBundleStage::SmokeReady))
-    ));
-    commands.push(format!(
-        "wheelctl moza audit-lane --lane {lane_arg} --stage smoke-ready --json-out {}",
-        lane_path_arg(lane, audit_receipt_path(MozaBundleStage::SmokeReady))
     ));
 }
 
@@ -3960,9 +7830,15 @@ fn audit_stages_through(stage: MozaBundleStage) -> Vec<MozaBundleStage> {
     match stage {
         MozaBundleStage::Passive => vec![MozaBundleStage::Passive],
         MozaBundleStage::Zero => vec![MozaBundleStage::Passive, MozaBundleStage::Zero],
+        MozaBundleStage::OpenRacingControlReady => vec![
+            MozaBundleStage::Passive,
+            MozaBundleStage::Zero,
+            MozaBundleStage::OpenRacingControlReady,
+        ],
         MozaBundleStage::SmokeReady => vec![
             MozaBundleStage::Passive,
             MozaBundleStage::Zero,
+            MozaBundleStage::OpenRacingControlReady,
             MozaBundleStage::SmokeReady,
         ],
     }
@@ -3980,7 +7856,7 @@ fn audit_stored_verification_receipt(lane: &Path, stage: MozaBundleStage) -> Lan
 
     let success = json_bool(&receipt, "success") == Some(true);
     let command_ok = json_string(&receipt, "command") == Some("wheelctl moza verify-bundle");
-    let lane_ok = path_value_matches(lane, json_string(&receipt, "lane"));
+    let lane_ok = lane_path_value_matches(lane, json_string(&receipt, "lane"));
     let stage_ok = json_string(&receipt, "requested_stage") == Some(stage_label);
     let missing_artifacts = json_u64(&receipt, "missing_artifacts").unwrap_or(u64::MAX);
     let invalid_artifacts = json_u64(&receipt, "invalid_artifacts").unwrap_or(u64::MAX);
@@ -4032,8 +7908,8 @@ fn audit_manifest_promotion_receipt(lane: &Path, stage: MozaBundleStage) -> Lane
         manifest_promotion_values(stage);
     let success = json_bool(&receipt, "success") == Some(true);
     let command_ok = json_string(&receipt, "command") == Some("wheelctl moza promote-manifest");
-    let lane_ok = path_value_matches(lane, json_string(&receipt, "lane"));
-    let manifest_ok = path_value_matches(
+    let lane_ok = lane_path_value_matches(lane, json_string(&receipt, "lane"));
+    let manifest_ok = artifact_path_value_matches(
         &lane.join("manifest.json"),
         json_string(&receipt, "manifest"),
     );
@@ -4102,17 +7978,52 @@ fn path_value_matches(expected: &Path, recorded: Option<&str>) -> bool {
     }
 }
 
+fn lane_path_value_matches(expected: &Path, recorded: Option<&str>) -> bool {
+    let Some(recorded) = recorded.map(str::trim).filter(|value| !value.is_empty()) else {
+        return false;
+    };
+    if path_value_matches(expected, Some(recorded)) {
+        return true;
+    }
+
+    relative_path_value_matches(expected, recorded)
+}
+
+fn artifact_path_value_matches(expected: &Path, recorded: Option<&str>) -> bool {
+    let Some(recorded) = recorded.map(str::trim).filter(|value| !value.is_empty()) else {
+        return false;
+    };
+    path_value_matches(expected, Some(recorded)) || relative_path_value_matches(expected, recorded)
+}
+
+fn relative_path_value_matches(expected: &Path, recorded: &str) -> bool {
+    let recorded_path = Path::new(recorded);
+    if recorded_path.is_absolute() || recorded.contains(':') {
+        return false;
+    }
+
+    let expected = normalized_path_string(&expected.display().to_string());
+    let recorded = normalized_path_string(recorded);
+    expected == recorded || expected.ends_with(&format!("/{recorded}"))
+}
+
+fn normalized_path_string(path: &str) -> String {
+    path.replace('\\', "/").trim_end_matches('/').to_string()
+}
+
 fn receipt_path_matches(lane: &Path, receipt: &Value, relative_path: &str) -> bool {
-    path_value_matches(
-        &lane.join(relative_path),
-        json_string(receipt, "receipt_path"),
-    )
+    let expected = lane.join(relative_path);
+    let Some(recorded) = json_string(receipt, "receipt_path") else {
+        return false;
+    };
+    artifact_path_value_matches(&expected, Some(recorded))
 }
 
 fn verification_receipt_path(stage: MozaBundleStage) -> &'static str {
     match stage {
         MozaBundleStage::Passive => "passive-verification.json",
         MozaBundleStage::Zero => "zero-verification.json",
+        MozaBundleStage::OpenRacingControlReady => "openracing-control-verification.json",
         MozaBundleStage::SmokeReady => "smoke-ready-verification.json",
     }
 }
@@ -4137,6 +8048,7 @@ fn promotion_receipt_path(stage: MozaBundleStage) -> &'static str {
     match stage {
         MozaBundleStage::Passive => "manifest-promotion-passive.json",
         MozaBundleStage::Zero => "manifest-promotion-zero.json",
+        MozaBundleStage::OpenRacingControlReady => "manifest-promotion-openracing-control.json",
         MozaBundleStage::SmokeReady => "manifest-promotion-smoke-ready.json",
     }
 }
@@ -4145,6 +8057,7 @@ fn audit_receipt_path(stage: MozaBundleStage) -> &'static str {
     match stage {
         MozaBundleStage::Passive => "lane-audit-passive.json",
         MozaBundleStage::Zero => "lane-audit-zero.json",
+        MozaBundleStage::OpenRacingControlReady => "lane-audit-openracing-control.json",
         MozaBundleStage::SmokeReady => "lane-audit-smoke-ready.json",
     }
 }
@@ -4184,6 +8097,11 @@ fn support_bundle_status_with_support_validation(
     );
     let zero =
         verify_bundle_dir_with_support_validation(lane, MozaBundleStage::Zero, support_validation);
+    let openracing_control = verify_bundle_dir_with_support_validation(
+        lane,
+        MozaBundleStage::OpenRacingControlReady,
+        support_validation,
+    );
     let smoke_ready = verify_bundle_dir_with_support_validation(
         lane,
         MozaBundleStage::SmokeReady,
@@ -4191,16 +8109,23 @@ fn support_bundle_status_with_support_validation(
     );
     let passive_audit_passed = stored_lane_audit_receipt_passed(lane, MozaBundleStage::Passive);
     let zero_audit_passed = stored_lane_audit_receipt_passed(lane, MozaBundleStage::Zero);
+    let openracing_control_audit_passed =
+        stored_lane_audit_receipt_passed(lane, MozaBundleStage::OpenRacingControlReady);
     let smoke_ready_audit_passed =
         stored_lane_audit_receipt_passed(lane, MozaBundleStage::SmokeReady);
-    let readiness = support_readiness_summary(
-        &passive,
-        &zero,
-        &smoke_ready,
-        passive_audit_passed,
-        zero_audit_passed,
-        smoke_ready_audit_passed,
-    );
+    let readiness = support_readiness_summary(SupportReadinessInputs {
+        lane,
+        passive: &passive,
+        zero: &zero,
+        openracing_control: &openracing_control,
+        smoke_ready: &smoke_ready,
+        audits: SupportReadinessAudits {
+            passive: passive_audit_passed,
+            zero: zero_audit_passed,
+            openracing_control: openracing_control_audit_passed,
+            smoke_ready: smoke_ready_audit_passed,
+        },
+    });
     let artifact_index: Vec<_> = lane_artifact_index_requirements()
         .map(|requirement| check_bundle_artifact(lane, &requirement))
         .collect();
@@ -4215,6 +8140,7 @@ fn support_bundle_status_with_support_validation(
         "verifications": {
             "passive": support_verification_summary(&passive),
             "zero": support_verification_summary(&zero),
+            "openracing_control_ready": support_verification_summary(&openracing_control),
             "smoke_ready": support_verification_summary(&smoke_ready)
         },
         "notes": [
@@ -4224,20 +8150,45 @@ fn support_bundle_status_with_support_validation(
     })
 }
 
-fn support_readiness_summary(
-    passive: &BundleVerificationReceipt,
-    zero: &BundleVerificationReceipt,
-    smoke_ready: &BundleVerificationReceipt,
-    passive_audit_passed: bool,
-    zero_audit_passed: bool,
-    smoke_ready_audit_passed: bool,
-) -> Value {
-    let init_handshakes_pass = bundle_gate_passed(smoke_ready, "init_off_handshake")
-        && bundle_gate_passed(smoke_ready, "init_standard_handshake");
+struct SupportReadinessAudits {
+    passive: bool,
+    zero: bool,
+    openracing_control: bool,
+    smoke_ready: bool,
+}
+
+struct SupportReadinessInputs<'a> {
+    lane: &'a Path,
+    passive: &'a BundleVerificationReceipt,
+    zero: &'a BundleVerificationReceipt,
+    openracing_control: &'a BundleVerificationReceipt,
+    smoke_ready: &'a BundleVerificationReceipt,
+    audits: SupportReadinessAudits,
+}
+
+fn support_readiness_summary(inputs: SupportReadinessInputs<'_>) -> Value {
+    let SupportReadinessInputs {
+        lane,
+        passive,
+        zero,
+        openracing_control,
+        smoke_ready,
+        audits,
+    } = inputs;
+    let init_handshakes_pass = bundle_gate_passed(openracing_control, "init_off_handshake")
+        && bundle_gate_passed(openracing_control, "init_standard_handshake");
     let (highest_passing_stage, next_required_stage) = if smoke_ready.success {
         ("smoke_ready", Value::Null)
+    } else if openracing_control.success {
+        (
+            "openracing_control_ready",
+            Value::String("smoke_ready".to_string()),
+        )
     } else if zero.success {
-        ("zero", Value::String("smoke_ready".to_string()))
+        (
+            "zero",
+            Value::String("openracing_control_ready".to_string()),
+        )
     } else if passive.success {
         ("passive", Value::String("zero".to_string()))
     } else {
@@ -4248,25 +8199,122 @@ fn support_readiness_summary(
         support_verification_summary(passive)
     } else if !zero.success {
         support_verification_summary(zero)
+    } else if !openracing_control.success {
+        support_verification_summary(openracing_control)
     } else if !smoke_ready.success {
         support_verification_summary(smoke_ready)
     } else {
         Value::Null
     };
+    let native_control_blocking_items = support_native_control_blocking_items(
+        zero.success,
+        audits.zero,
+        openracing_control,
+        audits.openracing_control,
+    );
+    let ready_for_native_control = native_control_blocking_items.is_empty();
 
     serde_json::json!({
         "highest_passing_stage": highest_passing_stage,
         "next_required_stage": next_required_stage,
-        "ready_for_zero_torque": passive.success && passive_audit_passed,
-        "ready_for_low_torque": zero.success && zero_audit_passed && init_handshakes_pass,
-        "ready_for_real_hardware_smoke": smoke_ready.success && smoke_ready_audit_passed,
-        "passive_lane_audit_passed": passive_audit_passed,
-        "zero_lane_audit_passed": zero_audit_passed,
-        "smoke_ready_lane_audit_passed": smoke_ready_audit_passed,
+        "ready_for_zero_torque": passive.success && audits.passive,
+        "ready_for_low_torque": support_ready_for_low_torque(lane, zero.success, audits.zero, init_handshakes_pass),
+        "ready_for_native_control": ready_for_native_control,
+        "native_control_blocking_items": native_control_blocking_items,
+        "ready_for_external_compatibility": smoke_ready.success && audits.smoke_ready,
+        "external_compatibility_blocking_items": support_external_compatibility_blocking_items(smoke_ready, audits.smoke_ready),
+        "ready_for_real_hardware_smoke": smoke_ready.success && audits.smoke_ready,
+        "passive_lane_audit_passed": audits.passive,
+        "zero_lane_audit_passed": audits.zero,
+        "openracing_control_lane_audit_passed": audits.openracing_control,
+        "smoke_ready_lane_audit_passed": audits.smoke_ready,
         "release_ready": false,
         "first_blocking_stage": first_blocking,
         "claim_scope": "diagnostic_context_only"
     })
+}
+
+fn support_native_control_blocking_items(
+    zero_success: bool,
+    zero_audit_passed: bool,
+    openracing_control: &BundleVerificationReceipt,
+    openracing_control_audit_passed: bool,
+) -> Vec<String> {
+    let zero = PreOutputVerificationReceipt {
+        success: zero_success,
+        requested_stage: "zero".to_string(),
+        missing_artifacts: 0,
+        invalid_artifacts: 0,
+        failed_gates: if zero_success { 0 } else { 1 },
+        artifacts: Vec::new(),
+        gates: Vec::new(),
+        role_evidence: Vec::new(),
+    };
+    let native = pre_output_receipt_from_bundle(openracing_control);
+    pre_output_native_control_blocking_items(
+        &zero,
+        &native,
+        zero_audit_passed,
+        openracing_control_audit_passed,
+    )
+}
+
+fn support_external_compatibility_blocking_items(
+    smoke_ready: &BundleVerificationReceipt,
+    smoke_ready_audit_passed: bool,
+) -> Vec<String> {
+    let smoke = pre_output_receipt_from_bundle(smoke_ready);
+    pre_output_external_compatibility_blocking_items(&smoke, smoke_ready_audit_passed)
+}
+
+fn pre_output_receipt_from_bundle(
+    receipt: &BundleVerificationReceipt,
+) -> PreOutputVerificationReceipt {
+    PreOutputVerificationReceipt {
+        success: receipt.success,
+        requested_stage: receipt.requested_stage.clone(),
+        missing_artifacts: receipt.missing_artifacts,
+        invalid_artifacts: receipt.invalid_artifacts,
+        failed_gates: receipt.failed_gates,
+        artifacts: receipt
+            .artifacts
+            .iter()
+            .map(|artifact| PreOutputVerificationArtifact {
+                path: artifact.path.clone(),
+                status: artifact.status.clone(),
+            })
+            .collect(),
+        gates: receipt
+            .gates
+            .iter()
+            .map(|gate| PreOutputVerificationGate {
+                name: gate.name.to_string(),
+                status: gate.status.to_string(),
+            })
+            .collect(),
+        role_evidence: receipt
+            .role_evidence
+            .iter()
+            .map(|role| PreOutputRoleEvidence {
+                required: role.required,
+                parser_visible: role.parser_visible,
+                missing_requirements: role.missing_requirements.clone(),
+            })
+            .collect(),
+    }
+}
+
+fn support_ready_for_low_torque(
+    lane: &Path,
+    zero_success: bool,
+    zero_audit_passed: bool,
+    init_handshakes_pass: bool,
+) -> bool {
+    zero_success
+        && zero_audit_passed
+        && init_handshakes_pass
+        && (low_torque_frontier_blockers(lane).is_empty()
+            || pidff_low_torque_frontier_blockers(lane).is_empty())
 }
 
 fn stored_lane_audit_receipt_passed(lane: &Path, stage: MozaBundleStage) -> bool {
@@ -4454,6 +8502,7 @@ fn bundle_artifact_requirements() -> &'static [BundleArtifactRequirement] {
         BundleArtifactRequirement::json("device-list.json", MozaBundleStage::Passive),
         BundleArtifactRequirement::json("moza-probe.json", MozaBundleStage::Passive),
         BundleArtifactRequirement::json("hid-list.json", MozaBundleStage::Passive),
+        BundleArtifactRequirement::json("hardware-doctor.json", MozaBundleStage::Passive),
         BundleArtifactRequirement::json("descriptor.json", MozaBundleStage::Passive),
         BundleArtifactRequirement::jsonl("captures/r5-idle.jsonl", MozaBundleStage::Passive),
         BundleArtifactRequirement::jsonl(
@@ -4484,15 +8533,38 @@ fn bundle_artifact_requirements() -> &'static [BundleArtifactRequirement] {
         BundleArtifactRequirement::jsonl("captures/es-controls.jsonl", MozaBundleStage::Passive),
         BundleArtifactRequirement::json("parser-fixture-validation.json", MozaBundleStage::Passive),
         BundleArtifactRequirement::json("fixture-promotion.json", MozaBundleStage::Passive),
-        BundleArtifactRequirement::json("init-off.json", MozaBundleStage::SmokeReady),
-        BundleArtifactRequirement::json("init-standard.json", MozaBundleStage::SmokeReady),
-        BundleArtifactRequirement::json("moza-status.json", MozaBundleStage::SmokeReady),
-        BundleArtifactRequirement::json("device-status.json", MozaBundleStage::SmokeReady),
-        BundleArtifactRequirement::json("support-bundle.json", MozaBundleStage::SmokeReady),
+        BundleArtifactRequirement::json("init-off.json", MozaBundleStage::OpenRacingControlReady),
+        BundleArtifactRequirement::json(
+            "init-standard.json",
+            MozaBundleStage::OpenRacingControlReady,
+        ),
+        BundleArtifactRequirement::json(
+            "moza-status.json",
+            MozaBundleStage::OpenRacingControlReady,
+        ),
+        BundleArtifactRequirement::json(
+            "device-status.json",
+            MozaBundleStage::OpenRacingControlReady,
+        ),
+        BundleArtifactRequirement::json(
+            "support-bundle.json",
+            MozaBundleStage::OpenRacingControlReady,
+        ),
         BundleArtifactRequirement::json("zero-torque-proof.json", MozaBundleStage::Zero),
         BundleArtifactRequirement::json("watchdog-proof.json", MozaBundleStage::Zero),
         BundleArtifactRequirement::json("disconnect-proof.json", MozaBundleStage::Zero),
-        BundleArtifactRequirement::json("low-torque-proof.json", MozaBundleStage::SmokeReady),
+        BundleArtifactRequirement::json(
+            "low-torque-proof.json",
+            MozaBundleStage::OpenRacingControlReady,
+        ),
+        BundleArtifactRequirement::json(
+            "steering-angle-stream-proof.json",
+            MozaBundleStage::OpenRacingControlReady,
+        ),
+        BundleArtifactRequirement::json(
+            "native-actuator-profile-smoke.json",
+            MozaBundleStage::OpenRacingControlReady,
+        ),
         BundleArtifactRequirement::json("pit-house-coexistence.json", MozaBundleStage::SmokeReady),
         BundleArtifactRequirement::json(
             "simulator-telemetry-proof.json",
@@ -4542,6 +8614,18 @@ fn stored_receipt_artifact_requirements() -> &'static [BundleArtifactRequirement
         BundleArtifactRequirement::json("zero-verification.json", MozaBundleStage::Zero),
         BundleArtifactRequirement::json("manifest-promotion-zero.json", MozaBundleStage::Zero),
         BundleArtifactRequirement::json("lane-audit-zero.json", MozaBundleStage::Zero),
+        BundleArtifactRequirement::json(
+            "openracing-control-verification.json",
+            MozaBundleStage::OpenRacingControlReady,
+        ),
+        BundleArtifactRequirement::json(
+            "manifest-promotion-openracing-control.json",
+            MozaBundleStage::OpenRacingControlReady,
+        ),
+        BundleArtifactRequirement::json(
+            "lane-audit-openracing-control.json",
+            MozaBundleStage::OpenRacingControlReady,
+        ),
         BundleArtifactRequirement::json(
             "smoke-ready-verification.json",
             MozaBundleStage::SmokeReady,
@@ -4671,14 +8755,20 @@ fn verify_manifest_gate(lane: &Path, stage: MozaBundleStage) -> BundleGateCheck 
             completion_state,
             Some("not_started" | "passive_capture_ready" | "zero_torque_ready")
         );
+    let openracing_control_manifest = completion_state == Some("openracing_control_ready")
+        && hardware_validated == Some(true)
+        && simulator_validated == Some(false);
+    let smoke_ready_manifest = completion_state == Some("real_hardware_smoke_ready")
+        && hardware_validated == Some(true)
+        && simulator_validated == Some(true);
+    let safe_progressed_manifest =
+        non_claiming_manifest || openracing_control_manifest || smoke_ready_manifest;
     let stage_ok = match stage {
-        MozaBundleStage::Passive | MozaBundleStage::Zero => non_claiming_manifest,
-        MozaBundleStage::SmokeReady => {
-            non_claiming_manifest
-                || (completion_state == Some("real_hardware_smoke_ready")
-                    && hardware_validated == Some(true)
-                    && simulator_validated == Some(true))
+        MozaBundleStage::Passive | MozaBundleStage::Zero => safe_progressed_manifest,
+        MozaBundleStage::OpenRacingControlReady => {
+            non_claiming_manifest || openracing_control_manifest || smoke_ready_manifest
         }
+        MozaBundleStage::SmokeReady => safe_progressed_manifest,
     };
 
     if schema_ok && contract_ok && base_ok && stage_ok {
@@ -4707,7 +8797,7 @@ fn verify_manifest_gate(lane: &Path, stage: MozaBundleStage) -> BundleGateCheck 
 fn verify_manifest_r5_pid_consistency_gate_with_support_validation(
     lane: &Path,
     stage: MozaBundleStage,
-    support_validation: SupportBundleValidationMode,
+    _support_validation: SupportBundleValidationMode,
 ) -> BundleGateCheck {
     let Some(expected_pid) = lane_manifest_r5_pid(lane) else {
         return BundleGateCheck::fail(
@@ -4717,7 +8807,8 @@ fn verify_manifest_r5_pid_consistency_gate_with_support_validation(
     };
     let expected = hex_u16(expected_pid);
     let mut observed = Vec::new();
-    let mut failures = Vec::new();
+    let mut mismatches = Vec::new();
+    let mut unavailable = Vec::new();
 
     for path in [
         "device-list.json",
@@ -4729,8 +8820,8 @@ fn verify_manifest_r5_pid_consistency_gate_with_support_validation(
             Ok(counts) if pid_counts_only_expected(&counts, &expected) => {
                 observed.push(format!("{path}:{}", pid_counts_details(&counts)));
             }
-            Ok(counts) => failures.push(format!("{path}:{}", pid_counts_details(&counts))),
-            Err(error) => failures.push(format!("{path}:{error}")),
+            Ok(counts) => mismatches.push(format!("{path}:{}", pid_counts_details(&counts))),
+            Err(error) => unavailable.push(format!("{path}:{error}")),
         }
     }
 
@@ -4748,8 +8839,8 @@ fn verify_manifest_r5_pid_consistency_gate_with_support_validation(
             Ok(counts) if pid_counts_only_expected(&counts, &expected) => {
                 observed.push(format!("{path}:{}", pid_counts_details(&counts)));
             }
-            Ok(counts) => failures.push(format!("{path}:{}", pid_counts_details(&counts))),
-            Err(error) => failures.push(format!("{path}:{error}")),
+            Ok(counts) => mismatches.push(format!("{path}:{}", pid_counts_details(&counts))),
+            Err(error) => unavailable.push(format!("{path}:{error}")),
         }
     }
 
@@ -4765,12 +8856,12 @@ fn verify_manifest_r5_pid_consistency_gate_with_support_validation(
                     pid_counts_details(&counts)
                 ));
             }
-            Ok(counts) => failures.push(format!(
+            Ok(counts) => mismatches.push(format!(
                 "fixture:{}:{}",
                 requirement.fixture_id,
                 pid_counts_details(&counts)
             )),
-            Err(error) => failures.push(format!("fixture:{}:{error}", requirement.fixture_id)),
+            Err(error) => unavailable.push(format!("fixture:{}:{error}", requirement.fixture_id)),
         }
     }
 
@@ -4782,52 +8873,70 @@ fn verify_manifest_r5_pid_consistency_gate_with_support_validation(
         ] {
             match manifest_pid_receipt_device_pid(lane, path) {
                 Ok(pid) if pid == expected => observed.push(format!("{path}:{pid}")),
-                Ok(pid) => failures.push(format!("{path}:{pid}")),
-                Err(error) => failures.push(format!("{path}:{error}")),
+                Ok(pid) => mismatches.push(format!("{path}:{pid}")),
+                Err(error) => unavailable.push(format!("{path}:{error}")),
             }
         }
     }
 
-    if stage_rank(stage) >= stage_rank(MozaBundleStage::SmokeReady) {
+    if stage_rank(stage) >= stage_rank(MozaBundleStage::OpenRacingControlReady) {
         for path in [
             "init-off.json",
             "init-standard.json",
             "low-torque-proof.json",
-            "simulator-ffb-smoke.json",
         ] {
             match manifest_pid_receipt_device_pid(lane, path) {
                 Ok(pid) if pid == expected => observed.push(format!("{path}:{pid}")),
-                Ok(pid) => failures.push(format!("{path}:{pid}")),
-                Err(error) => failures.push(format!("{path}:{error}")),
+                Ok(pid) => mismatches.push(format!("{path}:{pid}")),
+                Err(error) => unavailable.push(format!("{path}:{error}")),
             }
         }
-        match manifest_pid_simulator_writer_pid(lane) {
-            Ok(pid) if pid == expected => observed.push(format!("simulator-ffb-writer:{pid}")),
-            Ok(pid) => failures.push(format!("simulator-ffb-writer:{pid}")),
-            Err(error) => failures.push(format!("simulator-ffb-writer:{error}")),
-        }
-        match manifest_pid_service_receipts_with_support_validation(lane, support_validation) {
+        // PID consistency only needs the observed service receipt product IDs. Fresh
+        // support-bundle validation recursively rebuilds lane status and is covered
+        // by the dedicated service_status_receipts gate below.
+        match manifest_pid_service_receipts_with_support_validation(
+            lane,
+            SupportBundleValidationMode::ShapeOnly,
+        ) {
             Ok(pids) if pids.iter().all(|pid| pid == &expected) => {
                 observed.push(format!("service-status:{}", pids.join(",")));
             }
-            Ok(pids) => failures.push(format!("service-status:{}", pids.join(","))),
-            Err(error) => failures.push(format!("service-status:{error}")),
+            Ok(pids) => mismatches.push(format!("service-status:{}", pids.join(","))),
+            Err(error) => unavailable.push(format!("service-status:{error}")),
         }
     }
 
-    if failures.is_empty() {
-        BundleGateCheck::pass(
-            "manifest_r5_pid_consistency",
-            format!(
-                "manifest hardware.wheelbase_pid {expected} matches lane R5 receipts: {}",
-                observed.join(", ")
-            ),
-        )
+    if stage_rank(stage) >= stage_rank(MozaBundleStage::SmokeReady) {
+        match manifest_pid_receipt_device_pid(lane, "simulator-ffb-smoke.json") {
+            Ok(pid) if pid == expected => {
+                observed.push(format!("simulator-ffb-smoke.json:{pid}"));
+            }
+            Ok(pid) => mismatches.push(format!("simulator-ffb-smoke.json:{pid}")),
+            Err(error) => unavailable.push(format!("simulator-ffb-smoke.json:{error}")),
+        }
+        match manifest_pid_simulator_writer_pid(lane) {
+            Ok(pid) if pid == expected => observed.push(format!("simulator-ffb-writer:{pid}")),
+            Ok(pid) => mismatches.push(format!("simulator-ffb-writer:{pid}")),
+            Err(error) => unavailable.push(format!("simulator-ffb-writer:{error}")),
+        }
+    }
+
+    if mismatches.is_empty() {
+        let mut details = format!(
+            "manifest hardware.wheelbase_pid {expected} matches available lane R5 receipts: {}",
+            observed.join(", ")
+        );
+        if !unavailable.is_empty() {
+            details.push_str(&format!(
+                "; unavailable PID evidence is covered by stage artifact gates: {unavailable:?}"
+            ));
+        }
+        BundleGateCheck::pass("manifest_r5_pid_consistency", details)
     } else {
         BundleGateCheck::fail(
             "manifest_r5_pid_consistency",
             format!(
-                "manifest hardware.wheelbase_pid {expected} does not match lane R5 receipt PID evidence: {failures:?}"
+                "manifest hardware.wheelbase_pid {expected} does not match available lane R5 receipt PID evidence: {mismatches:?}; unavailable PID evidence: {unavailable:?}"
             ),
         )
     }
@@ -5020,7 +9129,7 @@ fn manifest_contract_is_moza_r5_lane(manifest: &Value) -> bool {
             .map(|operator| !operator.trim().is_empty())
             .unwrap_or(false)
         && manifest_platform_is_windows_hid(manifest.get("platform"))
-        && manifest_hardware_is_steven_moza_stack(manifest.get("hardware"))
+        && manifest_hardware_is_declared_moza_r5(manifest.get("hardware"))
         && manifest_topology_is_logical_role_model(manifest)
         && manifest_claims_are_staged(manifest.get("claims"))
         && manifest_artifacts_match_lane_contract(manifest.get("artifacts"))
@@ -5040,7 +9149,7 @@ fn manifest_platform_is_windows_hid(platform: Option<&Value>) -> bool {
             .unwrap_or(false)
 }
 
-fn manifest_hardware_is_steven_moza_stack(hardware: Option<&Value>) -> bool {
+fn manifest_hardware_is_declared_moza_r5(hardware: Option<&Value>) -> bool {
     let Some(hardware) = hardware else {
         return false;
     };
@@ -5049,9 +9158,25 @@ fn manifest_hardware_is_steven_moza_stack(hardware: Option<&Value>) -> bool {
             json_string(hardware, "wheelbase_pid"),
             Some("0x0004" | "0x0014")
         )
-        && json_array_contains_strings(hardware, "rims", &["KS", "ES"])
-        && json_array_contains_strings(hardware, "pedals", &["SR-P"])
-        && json_string(hardware, "handbrake") == Some("HBP")
+        && optional_json_array_only_contains_strings(hardware, "rims", &["KS", "ES"])
+        && optional_json_array_only_contains_strings(hardware, "pedals", &["SR-P"])
+        && json_string(hardware, "handbrake")
+            .map(|handbrake| handbrake == "HBP")
+            .unwrap_or(true)
+}
+
+fn optional_json_array_only_contains_strings(value: &Value, key: &str, allowed: &[&str]) -> bool {
+    let Some(items) = value.get(key) else {
+        return true;
+    };
+    let Some(items) = items.as_array() else {
+        return false;
+    };
+    items.iter().all(|item| {
+        item.as_str()
+            .map(|item| allowed.contains(&item))
+            .unwrap_or(false)
+    })
 }
 
 fn manifest_topology_is_logical_role_model(manifest: &Value) -> bool {
@@ -5122,6 +9247,7 @@ fn topology_control_is_declared_role(control: &Value, endpoint_ids: &BTreeSet<&s
             json_string(control, "connection"),
             Some("wheelbase_hub" | "standalone_usb" | "cross_device" | "unknown")
         )
+        && topology_control_semantic_status_is_valid(control)
         && json_string(control, "evidence_capture")
             .map(|path| {
                 passive_capture_requirements()
@@ -5129,6 +9255,13 @@ fn topology_control_is_declared_role(control: &Value, endpoint_ids: &BTreeSet<&s
                     .any(|req| req.relative_path == path)
             })
             .unwrap_or(false)
+}
+
+fn topology_control_semantic_status_is_valid(control: &Value) -> bool {
+    matches!(
+        json_string(control, "semantic_status"),
+        Some("proven" | "generic_aux" | "missing" | "unavailable" | "deferred")
+    )
 }
 
 fn manifest_claims_are_staged(claims: Option<&Value>) -> bool {
@@ -5149,6 +9282,7 @@ fn manifest_artifacts_match_lane_contract(artifacts: Option<&Value>) -> bool {
         ("device_list", "device-list.json"),
         ("hid_list", "hid-list.json"),
         ("moza_probe", "moza-probe.json"),
+        ("hardware_doctor", "hardware-doctor.json"),
         ("descriptor", "descriptor.json"),
         ("captures_dir", "captures"),
         ("capture_r5_idle", "captures/r5-idle.jsonl"),
@@ -5201,6 +9335,26 @@ fn manifest_artifacts_match_lane_contract(artifacts: Option<&Value>) -> bool {
         ("zero_manifest_promotion", "manifest-promotion-zero.json"),
         ("zero_lane_audit", "lane-audit-zero.json"),
         ("low_torque_proof", "low-torque-proof.json"),
+        (
+            "steering_angle_stream_proof",
+            "steering-angle-stream-proof.json",
+        ),
+        (
+            "native_actuator_profile_smoke",
+            "native-actuator-profile-smoke.json",
+        ),
+        (
+            "openracing_control_verification",
+            "openracing-control-verification.json",
+        ),
+        (
+            "openracing_control_manifest_promotion",
+            "manifest-promotion-openracing-control.json",
+        ),
+        (
+            "openracing_control_lane_audit",
+            "lane-audit-openracing-control.json",
+        ),
         ("pit_house_coexistence", "pit-house-coexistence.json"),
         (
             "simulator_telemetry_proof",
@@ -5216,28 +9370,6 @@ fn manifest_artifacts_match_lane_contract(artifacts: Option<&Value>) -> bool {
     ]
     .iter()
     .all(|(key, expected)| json_string(artifacts, key) == Some(*expected))
-}
-
-fn json_array_contains_strings(value: &Value, key: &str, required: &[&str]) -> bool {
-    let Some(values) = value.get(key).and_then(Value::as_array) else {
-        return false;
-    };
-    required.iter().all(|required_value| {
-        values
-            .iter()
-            .any(|value| value.as_str() == Some(*required_value))
-    })
-}
-
-fn json_usize_array_contains_all(value: &Value, key: &str, required: &[usize]) -> bool {
-    let Some(values) = value.get(key).and_then(Value::as_array) else {
-        return false;
-    };
-    required.iter().all(|required_value| {
-        values
-            .iter()
-            .any(|value| value.as_u64() == Some(*required_value as u64))
-    })
 }
 
 fn json_string_array_contains_all(value: &Value, key: &str, required: &[&str]) -> bool {
@@ -5317,13 +9449,18 @@ fn verify_moza_topology_observed_gate(lane: &Path) -> BundleGateCheck {
     for endpoint in endpoints {
         let id = json_string(endpoint, "id").unwrap_or("<missing-id>");
         endpoint_ids.insert(id.to_string());
-        match json_string(endpoint, "product_id").and_then(parse_hex_selector) {
-            Some(pid) => endpoint_products.push((id.to_string(), pid)),
-            None => failures.push(format!("endpoint:{id}:missing-or-invalid-product-id")),
-        }
+        let vendor_id = json_string(endpoint, "vendor_id").and_then(parse_hex_selector);
+        let product_id = json_string(endpoint, "product_id").and_then(parse_hex_selector);
+        match (vendor_id, product_id) {
+            (Some(vid), Some(pid)) => endpoint_products.push((id.to_string(), vid, pid)),
+            _ => failures.push(format!("endpoint:{id}:missing-or-invalid-vid-pid")),
+        };
     }
 
     for (name, control) in controls {
+        if !topology_control_semantic_status_is_valid(control) {
+            failures.push(format!("control:{name}:invalid-semantic-status"));
+        }
         let required = json_bool(control, "required").unwrap_or(true);
         if !required {
             continue;
@@ -5361,15 +9498,20 @@ fn verify_moza_topology_observed_gate(lane: &Path) -> BundleGateCheck {
     ] {
         match read_json_value(lane, path) {
             Ok(value) => {
-                for (endpoint_id, product_id) in &endpoint_products {
-                    let count = count_stack_product_devices(&value, &[*product_id]);
+                for (endpoint_id, vendor_id, product_id) in &endpoint_products {
+                    let count = count_vendor_product_devices(&value, *vendor_id, *product_id);
                     if count > 0 {
                         observed.push(format!(
-                            "{path}:{endpoint_id}:{}:{count}",
+                            "{path}:{endpoint_id}:{}:{}:{count}",
+                            hex_u16(*vendor_id),
                             hex_u16(*product_id)
                         ));
                     } else {
-                        failures.push(format!("{path}:{endpoint_id}:{}:0", hex_u16(*product_id)));
+                        failures.push(format!(
+                            "{path}:{endpoint_id}:{}:{}:0",
+                            hex_u16(*vendor_id),
+                            hex_u16(*product_id)
+                        ));
                     }
                 }
             }
@@ -5423,24 +9565,49 @@ fn verify_descriptor_metadata_gate(lane: &Path) -> BundleGateCheck {
             format!("found complete descriptor metadata on {valid_count} R5 record(s)"),
         )
     } else {
+        let diagnostics = r5_devices
+            .iter()
+            .enumerate()
+            .map(|(index, device)| {
+                let product_id = json_string(device, "product_id").unwrap_or("<missing>");
+                let descriptor_source =
+                    json_string(device, "descriptor_source").unwrap_or("<missing>");
+                let report_metadata_source =
+                    json_string(device, "report_metadata_source").unwrap_or("<missing>");
+                let missing = r5_descriptor_metadata_missing_requirements(device);
+                format!(
+                    "r5[{index}] product_id={product_id} descriptor_source={descriptor_source} report_metadata_source={report_metadata_source} missing={missing:?}"
+                )
+            })
+            .collect::<Vec<_>>();
         BundleGateCheck::fail(
             "descriptor_metadata",
             format!(
-                "descriptor.json has {} R5 record(s), but none have trusted descriptor source, CRC, identity metadata, and R5 input/output/feature report metadata",
-                r5_devices.len()
+                "descriptor.json has {} R5 record(s), but none have trusted descriptor source, CRC, identity metadata, and R5 input/output/feature report metadata; diagnostics={diagnostics:?}",
+                r5_devices.len(),
             ),
         )
     }
 }
 
 fn r5_descriptor_metadata_is_complete(device: &Value) -> bool {
-    let source_ok = matches!(
+    r5_descriptor_metadata_missing_requirements(device).is_empty()
+}
+
+fn r5_descriptor_metadata_missing_requirements(device: &Value) -> Vec<&'static str> {
+    let mut missing = Vec::new();
+    if !matches!(
         json_string(device, "descriptor_source"),
         Some("linux_sysfs" | "operator_supplied_hex")
-    );
-    let crc_ok = json_string(device, "report_descriptor_crc32")
+    ) {
+        missing.push("descriptor_source");
+    }
+    if !json_string(device, "report_descriptor_crc32")
         .map(|value| value.starts_with("0x") && value.len() == 10)
-        .unwrap_or(false);
+        .unwrap_or(false)
+    {
+        missing.push("report_descriptor_crc32");
+    }
     let identity_ok = json_bool(device, "serial_number_present") == Some(true)
         && json_string(device, "product_name")
             .or_else(|| json_string(device, "product_string"))
@@ -5449,6 +9616,9 @@ fn r5_descriptor_metadata_is_complete(device: &Value) -> bool {
         && json_string(device, "manufacturer")
             .map(|value| !value.trim().is_empty())
             .unwrap_or(false);
+    if !identity_ok {
+        missing.push("identity_metadata");
+    }
     let interface_ok = device
         .get("interface_number")
         .and_then(Value::as_i64)
@@ -5456,75 +9626,144 @@ fn r5_descriptor_metadata_is_complete(device: &Value) -> bool {
         && json_string(device, "usage_page")
             .map(|value| !value.trim().is_empty())
             .unwrap_or(false);
-    let input_ok = json_usize_array_contains_all(device, "input_report_lengths", &[7, 31]);
-    let output_ok = json_string_array_contains_all(device, "output_report_ids", &["0x20"])
-        && json_report_record_contains(device, "output_reports", "0x20", REPORT_LEN);
-    let feature_ok =
-        json_string_array_contains_all(device, "feature_report_ids", &["0x03", "0x11"]);
-
-    source_ok && crc_ok && identity_ok && interface_ok && input_ok && output_ok && feature_ok
+    if !interface_ok {
+        missing.push("interface_usage_metadata");
+    }
+    let input_ok = json_usize_array(device, "input_report_lengths")
+        .map(|lengths| r5_input_report_lengths_supported(device, &lengths))
+        .unwrap_or(false);
+    if !input_ok {
+        missing.push("input_report_lengths");
+    }
+    if !r5_output_report_metadata_supported(device) {
+        missing.push(r5_output_report_metadata_missing_label(device));
+    }
+    if !r5_feature_report_metadata_supported(device) {
+        missing.push(r5_feature_report_metadata_missing_label(device));
+    }
+    missing
 }
 
 fn r5_descriptor_trusted_for_direct_mode(device: &Value) -> bool {
+    r5_descriptor_metadata_trusted(device)
+        && report_descriptor_hex_matches_r5_metadata(device)
+            .map(|metadata| {
+                metadata
+                    .output_reports
+                    .iter()
+                    .any(|report| report.report_id == 0x20 && report.report_len == REPORT_LEN)
+            })
+            .unwrap_or(false)
+}
+
+fn r5_descriptor_metadata_trusted(device: &Value) -> bool {
     r5_descriptor_metadata_is_complete(device)
         && matches!(
             json_string(device, "report_metadata_source"),
             Some("report_descriptor_parsed" | "descriptor_parsed")
         )
-        && report_descriptor_hex_proves_r5_metadata(device)
+        && report_descriptor_hex_matches_r5_metadata(device).is_some()
 }
 
-fn report_descriptor_hex_proves_r5_metadata(device: &Value) -> bool {
-    let Some(hex) = json_string(device, "report_descriptor_hex") else {
-        return false;
-    };
+fn report_descriptor_hex_matches_r5_metadata(
+    device: &Value,
+) -> Option<HidReportDescriptorMetadata> {
+    let hex = json_string(device, "report_descriptor_hex")?;
     let Ok(bytes) = parse_hex_bytes(hex) else {
-        return false;
+        return None;
     };
     if bytes.is_empty() {
-        return false;
+        return None;
     }
     if json_u64(device, "report_descriptor_len") != Some(bytes.len() as u64) {
-        return false;
+        return None;
     }
 
     let mut hasher = crc32fast::Hasher::new();
     hasher.update(&bytes);
     let expected_crc = format!("0x{:08X}", hasher.finalize());
     if json_string(device, "report_descriptor_crc32") != Some(expected_crc.as_str()) {
-        return false;
+        return None;
     }
 
-    parse_hid_report_descriptor_metadata(&bytes)
-        .map(|metadata| {
-            let direct_output_report_shape_ok = metadata
-                .output_reports
-                .iter()
-                .any(|report| report.report_id == 0x20 && report.report_len == REPORT_LEN);
-            metadata.input_report_lengths == vec![7, 31]
-                && direct_output_report_shape_ok
-                && json_usize_array_equals(
-                    device,
-                    "input_report_lengths",
-                    &metadata.input_report_lengths,
-                )
-                && json_string_array_equals_u8_hex(
-                    device,
-                    "output_report_ids",
-                    &metadata.output_report_ids,
-                )
-                && json_report_records_equal_u8_hex(
-                    device,
-                    "output_reports",
-                    &metadata.output_reports,
-                )
-                && json_string_array_equals_u8_hex(
-                    device,
-                    "feature_report_ids",
-                    &metadata.feature_report_ids,
-                )
-        })
-        .unwrap_or(false)
+    parse_hid_report_descriptor_metadata(&bytes).filter(|metadata| {
+        r5_input_report_lengths_supported(device, &metadata.input_report_lengths)
+            && json_usize_array_equals(
+                device,
+                "input_report_lengths",
+                &metadata.input_report_lengths,
+            )
+            && json_string_array_equals_u8_hex(
+                device,
+                "output_report_ids",
+                &metadata.output_report_ids,
+            )
+            && json_report_records_equal_u8_hex(device, "output_reports", &metadata.output_reports)
+            && json_string_array_equals_u8_hex(
+                device,
+                "feature_report_ids",
+                &metadata.feature_report_ids,
+            )
+    })
+}
+
+fn r5_input_report_lengths_supported(device: &Value, lengths: &[usize]) -> bool {
+    let product_id = json_string(device, "product_id").and_then(parse_hex_selector);
+    r5_supported_input_report_length_sets(product_id).contains(&lengths)
+}
+
+fn r5_supported_input_report_length_sets(product_id: Option<u16>) -> &'static [&'static [usize]] {
+    match product_id {
+        Some(product_ids::R5_V1) => &[&[42], &[3, 18, 42], &[7, 31], &[7, 31, 42]],
+        Some(product_ids::R5_V2) => &[&[7, 31]],
+        _ => &[&[7, 31], &[42], &[3, 18, 42], &[7, 31, 42]],
+    }
+}
+
+fn r5_output_report_metadata_supported(device: &Value) -> bool {
+    let product_id = json_string(device, "product_id").and_then(parse_hex_selector);
+    match product_id {
+        Some(product_ids::R5_V1) => R5_V1_LIVE_OUTPUT_REPORTS.iter().all(|(report_id, len)| {
+            json_string_array_contains_all(device, "output_report_ids", &[*report_id])
+                && json_report_record_contains(device, "output_reports", report_id, *len)
+        }),
+        Some(product_ids::R5_V2) => {
+            json_string_array_contains_all(device, "output_report_ids", &["0x20"])
+                && json_report_record_contains(device, "output_reports", "0x20", REPORT_LEN)
+        }
+        _ => {
+            json_string_array_contains_all(device, "output_report_ids", &["0x20"])
+                && json_report_record_contains(device, "output_reports", "0x20", REPORT_LEN)
+        }
+    }
+}
+
+fn r5_output_report_metadata_missing_label(device: &Value) -> &'static str {
+    let product_id = json_string(device, "product_id").and_then(parse_hex_selector);
+    match product_id {
+        Some(product_ids::R5_V1) => "live_r5_v1_output_reports",
+        _ => "output_report_0x20_len_8",
+    }
+}
+
+fn r5_feature_report_metadata_supported(device: &Value) -> bool {
+    let product_id = json_string(device, "product_id").and_then(parse_hex_selector);
+    match product_id {
+        Some(product_ids::R5_V1) => json_string_array_contains_all(
+            device,
+            "feature_report_ids",
+            R5_V1_LIVE_FEATURE_REPORT_IDS,
+        ),
+        _ => json_string_array_contains_all(device, "feature_report_ids", &["0x03", "0x11"]),
+    }
+}
+
+fn r5_feature_report_metadata_missing_label(device: &Value) -> &'static str {
+    let product_id = json_string(device, "product_id").and_then(parse_hex_selector);
+    match product_id {
+        Some(product_ids::R5_V1) => "live_r5_v1_feature_report_ids",
+        _ => "feature_report_ids_0x03_0x11",
+    }
 }
 
 fn json_report_record_contains(
@@ -5543,6 +9782,15 @@ fn json_report_record_contains(
             })
         })
         .unwrap_or(false)
+}
+
+fn json_usize_array(value: &Value, key: &str) -> Option<Vec<usize>> {
+    let values = value.get(key).and_then(Value::as_array)?;
+    let mut parsed = Vec::with_capacity(values.len());
+    for value in values {
+        parsed.push(value.as_u64()? as usize);
+    }
+    Some(parsed)
 }
 
 fn json_usize_array_equals(value: &Value, key: &str, expected: &[usize]) -> bool {
@@ -5660,15 +9908,19 @@ fn apply_lane_verification_stage(readiness: &mut crate::client::MozaReadinessSta
 struct StoredLaneVerificationStage {
     passive_success: bool,
     zero_success: bool,
+    openracing_control_success: bool,
     smoke_ready_success: bool,
     init_off_success: bool,
     init_standard_success: bool,
+    low_torque_ready: bool,
 }
 
 impl StoredLaneVerificationStage {
     fn highest_passing_stage(&self) -> &'static str {
         if self.smoke_ready_success {
             "smoke_ready"
+        } else if self.openracing_control_success {
+            "openracing_control_ready"
         } else if self.zero_success {
             "zero"
         } else if self.passive_success {
@@ -5681,8 +9933,10 @@ impl StoredLaneVerificationStage {
     fn next_required_stage(&self) -> &'static str {
         if self.smoke_ready_success {
             "none"
-        } else if self.zero_success {
+        } else if self.openracing_control_success {
             "smoke_ready"
+        } else if self.zero_success {
+            "openracing_control_ready"
         } else if self.passive_success {
             "zero"
         } else {
@@ -5693,8 +9947,12 @@ impl StoredLaneVerificationStage {
     fn safety_state(&self) -> &'static str {
         if self.smoke_ready_success {
             "lane_smoke_ready_receipts_observed"
-        } else if self.zero_success && self.init_off_success && self.init_standard_success {
+        } else if self.openracing_control_success {
+            "lane_openracing_control_receipts_observed"
+        } else if self.low_torque_ready {
             "lane_low_torque_gate_receipts_observed"
+        } else if self.zero_success && self.init_off_success && self.init_standard_success {
+            "lane_init_handshakes_observed"
         } else if self.zero_success {
             "lane_zero_torque_verified"
         } else if self.passive_success {
@@ -5708,6 +9966,8 @@ impl StoredLaneVerificationStage {
 fn stored_lane_verification_stage(lane: &Path) -> StoredLaneVerificationStage {
     let passive = read_stored_verification_receipt(lane, MozaBundleStage::Passive);
     let zero = read_stored_verification_receipt(lane, MozaBundleStage::Zero);
+    let openracing_control =
+        read_stored_verification_receipt(lane, MozaBundleStage::OpenRacingControlReady);
     let smoke_ready = read_stored_verification_receipt(lane, MozaBundleStage::SmokeReady);
     let init_off_observed =
         verify_init_receipt_gate(lane, "init_off_handshake", "init-off.json", "off").status
@@ -5720,30 +9980,55 @@ fn stored_lane_verification_stage(lane: &Path) -> StoredLaneVerificationStage {
     )
     .status
         == "pass";
+    let passive_success = passive
+        .as_ref()
+        .map(|receipt| receipt.success)
+        .unwrap_or(false);
+    let zero_success = zero
+        .as_ref()
+        .map(|receipt| receipt.success)
+        .unwrap_or(false);
+    let smoke_ready_success = smoke_ready
+        .as_ref()
+        .map(|receipt| receipt.success)
+        .unwrap_or(false);
+    let openracing_control_success = openracing_control
+        .as_ref()
+        .map(|receipt| receipt.success)
+        .unwrap_or(false);
+    let init_off_success = init_off_observed
+        || openracing_control
+            .as_ref()
+            .map(|receipt| receipt.gate_passed("init_off_handshake"))
+            .unwrap_or(false)
+        || smoke_ready
+            .as_ref()
+            .map(|receipt| receipt.gate_passed("init_off_handshake"))
+            .unwrap_or(false);
+    let init_standard_success = init_standard_observed
+        || openracing_control
+            .as_ref()
+            .map(|receipt| receipt.gate_passed("init_standard_handshake"))
+            .unwrap_or(false)
+        || smoke_ready
+            .as_ref()
+            .map(|receipt| receipt.gate_passed("init_standard_handshake"))
+            .unwrap_or(false);
+    let low_torque_ready = support_ready_for_low_torque(
+        lane,
+        zero_success,
+        stored_lane_audit_receipt_passed(lane, MozaBundleStage::Zero),
+        init_off_success && init_standard_success,
+    );
 
     StoredLaneVerificationStage {
-        passive_success: passive
-            .as_ref()
-            .map(|receipt| receipt.success)
-            .unwrap_or(false),
-        zero_success: zero
-            .as_ref()
-            .map(|receipt| receipt.success)
-            .unwrap_or(false),
-        smoke_ready_success: smoke_ready
-            .as_ref()
-            .map(|receipt| receipt.success)
-            .unwrap_or(false),
-        init_off_success: init_off_observed
-            || smoke_ready
-                .as_ref()
-                .map(|receipt| receipt.gate_passed("init_off_handshake"))
-                .unwrap_or(false),
-        init_standard_success: init_standard_observed
-            || smoke_ready
-                .as_ref()
-                .map(|receipt| receipt.gate_passed("init_standard_handshake"))
-                .unwrap_or(false),
+        passive_success,
+        zero_success,
+        openracing_control_success,
+        smoke_ready_success,
+        init_off_success,
+        init_standard_success,
+        low_torque_ready,
     }
 }
 
@@ -5773,20 +10058,7 @@ fn read_stored_verification_receipt(
 ) -> Option<StoredVerificationReceipt> {
     let relative_path = verification_receipt_path(stage);
     let receipt = read_json_value(lane, relative_path).ok()?;
-    let command_ok = json_string(&receipt, "command") == Some("wheelctl moza verify-bundle");
-    let lane_ok = path_value_matches(lane, json_string(&receipt, "lane"));
-    let stage_ok = json_string(&receipt, "requested_stage") == Some(stage_label(stage));
-    let no_hid_device_opened = json_bool(&receipt, "no_hid_device_opened") == Some(true);
-    let no_ffb_writes = json_bool(&receipt, "no_ffb_writes") == Some(true);
-    let no_out_of_scope = no_out_of_scope_device_commands(&receipt);
-    let identity_safe = command_ok
-        && lane_ok
-        && stage_ok
-        && no_hid_device_opened
-        && no_ffb_writes
-        && no_out_of_scope;
-
-    if !identity_safe {
+    if !stored_verification_identity_safe(lane, stage, &receipt) {
         return None;
     }
 
@@ -5813,10 +10085,18 @@ fn read_stored_verification_receipt(
     })
 }
 
+fn stored_verification_identity_safe(lane: &Path, stage: MozaBundleStage, receipt: &Value) -> bool {
+    json_string(receipt, "command") == Some("wheelctl moza verify-bundle")
+        && lane_path_value_matches(lane, json_string(receipt, "lane"))
+        && json_string(receipt, "requested_stage") == Some(stage_label(stage))
+        && json_bool(receipt, "no_hid_device_opened") == Some(true)
+        && json_bool(receipt, "no_ffb_writes") == Some(true)
+        && no_out_of_scope_device_commands(receipt)
+}
+
 fn verify_passive_no_writes_gate(lane: &Path) -> BundleGateCheck {
     let mut missing = Vec::new();
     let mut wrong_command = Vec::new();
-    let mut unsuccessful = Vec::new();
     let mut unsafe_receipts = Vec::new();
     let mut opened_hid = Vec::new();
     let mut out_of_scope_receipts = Vec::new();
@@ -5830,9 +10110,6 @@ fn verify_passive_no_writes_gate(lane: &Path) -> BundleGateCheck {
                     .any(|allowed| command == Some(*allowed))
                 {
                     wrong_command.push(requirement.path.to_string());
-                }
-                if json_bool(&value, "success") != Some(true) {
-                    unsuccessful.push(requirement.path.to_string());
                 }
                 if requirement.no_hid_device_opened
                     && json_bool(&value, "no_hid_device_opened") != Some(true)
@@ -5852,20 +10129,57 @@ fn verify_passive_no_writes_gate(lane: &Path) -> BundleGateCheck {
 
     if missing.is_empty()
         && wrong_command.is_empty()
-        && unsuccessful.is_empty()
         && unsafe_receipts.is_empty()
         && opened_hid.is_empty()
         && out_of_scope_receipts.is_empty()
     {
         BundleGateCheck::pass(
             "passive_receipts_no_ffb_writes",
-            "passive receipts come from expected successful observe-only commands, declare no_ffb_writes=true, keep pure observation receipts no_hid_device_opened=true, and declare no serial/firmware/DFU commands".to_string(),
+            "passive receipts come from expected observe-only commands, declare no_ffb_writes=true, keep pure observation receipts no_hid_device_opened=true, and declare no serial/firmware/DFU commands".to_string(),
         )
     } else {
         BundleGateCheck::fail(
             "passive_receipts_no_ffb_writes",
             format!(
-                "missing={missing:?}, wrong_command={wrong_command:?}, unsuccessful={unsuccessful:?}, not_no_ffb_writes={unsafe_receipts:?}, opened_hid={opened_hid:?}, missing_no_serial_firmware_dfu={out_of_scope_receipts:?}"
+                "missing={missing:?}, wrong_command={wrong_command:?}, not_no_ffb_writes={unsafe_receipts:?}, opened_hid={opened_hid:?}, missing_no_serial_firmware_dfu={out_of_scope_receipts:?}"
+            ),
+        )
+    }
+}
+
+fn verify_passive_receipts_success_gate(lane: &Path) -> BundleGateCheck {
+    let mut missing = Vec::new();
+    let mut wrong_command = Vec::new();
+    let mut unsuccessful = Vec::new();
+    for requirement in passive_receipt_requirements() {
+        match read_json_value(lane, requirement.path) {
+            Ok(value) => {
+                let command = json_string(&value, "command");
+                if !requirement
+                    .allowed_commands
+                    .iter()
+                    .any(|allowed| command == Some(*allowed))
+                {
+                    wrong_command.push(requirement.path.to_string());
+                }
+                if json_bool(&value, "success") != Some(true) {
+                    unsuccessful.push(requirement.path.to_string());
+                }
+            }
+            Err(_) => missing.push(requirement.path.to_string()),
+        }
+    }
+
+    if missing.is_empty() && wrong_command.is_empty() && unsuccessful.is_empty() {
+        BundleGateCheck::pass(
+            "passive_receipts_successful",
+            "passive receipts come from expected successful observe-only commands".to_string(),
+        )
+    } else {
+        BundleGateCheck::fail(
+            "passive_receipts_successful",
+            format!(
+                "missing={missing:?}, wrong_command={wrong_command:?}, unsuccessful={unsuccessful:?}"
             ),
         )
     }
@@ -5877,7 +10191,7 @@ struct PassiveReceiptRequirement {
     no_hid_device_opened: bool,
 }
 
-fn passive_receipt_requirements() -> [PassiveReceiptRequirement; 6] {
+fn passive_receipt_requirements() -> [PassiveReceiptRequirement; 7] {
     [
         PassiveReceiptRequirement {
             path: "device-list.json",
@@ -5892,6 +10206,11 @@ fn passive_receipt_requirements() -> [PassiveReceiptRequirement; 6] {
         PassiveReceiptRequirement {
             path: "hid-list.json",
             allowed_commands: &["hid-capture list"],
+            no_hid_device_opened: true,
+        },
+        PassiveReceiptRequirement {
+            path: "hardware-doctor.json",
+            allowed_commands: &["wheelctl hardware doctor"],
             no_hid_device_opened: true,
         },
         PassiveReceiptRequirement {
@@ -5961,7 +10280,14 @@ fn verify_passive_capture_parse_gate(lane: &Path) -> BundleGateCheck {
             format!("replayed {total_reports} passive capture report(s) through Moza parsers"),
         )
     } else {
-        BundleGateCheck::fail("passive_captures_parse", failures.join("; "))
+        let mut details = failures.join("; ");
+        if let Ok(analysis) = analyze_lane_captures(lane)
+            && !analysis.safe_diagnostics.is_empty()
+        {
+            details.push_str("; safe_diagnostics=");
+            details.push_str(&format!("{:?}", analysis.safe_diagnostics));
+        }
+        BundleGateCheck::fail("passive_captures_parse", details)
     }
 }
 
@@ -5971,7 +10297,6 @@ fn passive_capture_requirements() -> &'static [PassiveCaptureRequirement] {
     const PEDALS: &[&str] = &["throttle_u16", "brake_u16"];
     const HANDBRAKE: &[&str] = &["handbrake_u16"];
     const NO_EXACT: &[(&str, u16)] = &[];
-    const ES_RIM: &[(&str, u16)] = &[("funky_u8", rim_ids::ES as u16)];
     const NO_ANY: &[(&str, &[&str])] = &[];
     const HUB_CONTROL_AXIS_ANY: &[&str] = &[
         "throttle_u16",
@@ -5987,7 +10312,6 @@ fn passive_capture_requirements() -> &'static [PassiveCaptureRequirement] {
     const HUB_CONTROL_GROUPS: &[(&str, &[&str])] = &[("hub_control_axis", HUB_CONTROL_AXIS_ANY)];
     const BUTTONS_ANY: &[&str] = &["buttons_any_u8"];
     const KS_BUTTONS_ANY: &[&str] = &["ks_buttons_any_u8", "buttons_any_u8"];
-    const HAT_ANY: &[&str] = &["hat_u8"];
     const KS_DIRECTION_ANY: &[&str] = &["ks_hat_u8", "hat_u8"];
     const KS_CONTROL_GROUPS: &[(&str, &[&str])] = &[
         ("buttons", KS_BUTTONS_ANY),
@@ -5995,7 +10319,7 @@ fn passive_capture_requirements() -> &'static [PassiveCaptureRequirement] {
         // the legacy rim/funky and rotary bytes stay zero on this layout.
         ("direction", KS_DIRECTION_ANY),
     ];
-    const ES_CONTROL_GROUPS: &[(&str, &[&str])] = &[("buttons", BUTTONS_ANY), ("hat", HAT_ANY)];
+    const ES_CONTROL_GROUPS: &[(&str, &[&str])] = &[("buttons", BUTTONS_ANY)];
     const REQUIREMENTS: &[PassiveCaptureRequirement] = &[
         PassiveCaptureRequirement {
             relative_path: "captures/r5-idle.jsonl",
@@ -6099,7 +10423,7 @@ fn passive_capture_requirements() -> &'static [PassiveCaptureRequirement] {
             required_category: "wheelbase",
             expected_products: PassiveCaptureProductRequirement::ManifestR5,
             required_axis_variation: NONE,
-            required_axis_values: ES_RIM,
+            required_axis_values: NO_EXACT,
             required_any_axis_variation: ES_CONTROL_GROUPS,
             min_report_len: Some(31),
             always_required: false,
@@ -6193,6 +10517,67 @@ fn manifest_topology_required_capture_paths(manifest: &Value) -> Option<BTreeSet
     }
 
     if paths.is_empty() { None } else { Some(paths) }
+}
+
+fn verify_topology_required_evidence_supported_gate(lane: &Path) -> BundleGateCheck {
+    let manifest = match read_json_value(lane, "manifest.json") {
+        Ok(value) => value,
+        Err(e) => {
+            return BundleGateCheck::fail("topology_required_evidence_supported", e.to_string());
+        }
+    };
+    let unsupported = unsupported_required_topology_evidence(&manifest);
+
+    if unsupported.is_empty() {
+        BundleGateCheck::pass(
+            "topology_required_evidence_supported",
+            "every required topology evidence capture is covered by passive verifier requirements"
+                .to_string(),
+        )
+    } else {
+        BundleGateCheck::fail(
+            "topology_required_evidence_supported",
+            format!(
+                "required topology evidence is declared but not covered by passive verifier requirements: {}; add a parser/fixture requirement for that role before it can satisfy passive verification",
+                unsupported.join("; ")
+            ),
+        )
+    }
+}
+
+fn unsupported_required_topology_evidence(manifest: &Value) -> Vec<String> {
+    let known_paths = passive_capture_requirements()
+        .iter()
+        .map(|requirement| requirement.relative_path)
+        .collect::<BTreeSet<_>>();
+    let Some(controls) = manifest
+        .get("topology")
+        .and_then(|topology| topology.get("logical_controls"))
+        .and_then(Value::as_object)
+    else {
+        return Vec::new();
+    };
+
+    controls
+        .iter()
+        .filter_map(|(name, control)| {
+            let required = json_bool(control, "required").unwrap_or(true);
+            if !required {
+                return None;
+            }
+            let evidence_capture = json_string(control, "evidence_capture")?;
+            if known_paths.contains(evidence_capture) {
+                return None;
+            }
+
+            let role = json_string(control, "role").unwrap_or("missing");
+            let connection = json_string(control, "connection").unwrap_or("missing");
+            let source_endpoint = json_string(control, "source_endpoint").unwrap_or("missing");
+            Some(format!(
+                "{name}: role={role}, connection={connection}, source_endpoint={source_endpoint}, evidence_capture={evidence_capture}"
+            ))
+        })
+        .collect()
 }
 
 fn axis_has_variation(ranges: &BTreeMap<String, AxisRange>, axis: &str) -> bool {
@@ -6423,6 +10808,16 @@ fn verify_parser_validation_gate(lane: &Path) -> BundleGateCheck {
         .get("captures")
         .and_then(Value::as_array)
         .map(Vec::as_slice);
+    let safe_diagnostics = receipt
+        .get("safe_diagnostics")
+        .and_then(Value::as_array)
+        .map(|diagnostics| {
+            diagnostics
+                .iter()
+                .filter_map(Value::as_str)
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
     let requirements = passive_capture_requirements_for_lane(lane);
     let coverage_ok = captures
         .map(|captures| {
@@ -6448,12 +10843,14 @@ fn verify_parser_validation_gate(lane: &Path) -> BundleGateCheck {
             ),
         )
     } else {
-        BundleGateCheck::fail(
-            "parser_fixture_validation",
-            format!(
-                "success={success}, command_ok={command_ok}, no_out_of_scope={no_out_of_scope}, no_hid_device_opened={no_hid_device_opened}, required_capture_count={required_capture_count}, validated_capture_count={validated_capture_count}, total_reports={total_reports}, parsed_reports={parsed_reports}, rejected_reports={rejected_reports}, coverage_ok={coverage_ok}"
-            ),
-        )
+        let mut details = format!(
+            "success={success}, command_ok={command_ok}, no_out_of_scope={no_out_of_scope}, no_hid_device_opened={no_hid_device_opened}, required_capture_count={required_capture_count}, validated_capture_count={validated_capture_count}, total_reports={total_reports}, parsed_reports={parsed_reports}, rejected_reports={rejected_reports}, coverage_ok={coverage_ok}"
+        );
+        if !safe_diagnostics.is_empty() {
+            details.push_str(", safe_diagnostics=");
+            details.push_str(&format!("{safe_diagnostics:?}"));
+        }
+        BundleGateCheck::fail("parser_fixture_validation", details)
     }
 }
 
@@ -6876,14 +11273,15 @@ fn verify_zero_torque_gate(lane: &Path) -> BundleGateCheck {
     let dry_run = json_bool(&receipt, "dry_run");
     let no_high_torque = json_bool(&receipt, "no_high_torque") == Some(true);
     let no_nonzero_torque = json_bool(&receipt, "no_nonzero_torque") == Some(true);
-    let report_id = json_string(&receipt, "report_id");
-    let torque_raw = json_i64(&receipt, "torque_raw");
-    let flags = json_u64(&receipt, "flags");
-    let motor_enabled = json_bool(&receipt, "motor_enabled");
+    let zero_payload_safe = zero_receipt_payload_is_safe(&receipt);
     let final_zero_sent = json_bool(&receipt, "final_zero_sent");
     let no_feature_reports = json_bool(&receipt, "no_feature_reports") == Some(true);
     let no_out_of_scope = no_out_of_scope_device_commands(&receipt);
     let no_hid_device_opened = json_bool(&receipt, "no_hid_device_opened");
+    let operator_confirmed = json_bool(&receipt, "operator_confirmed");
+    let lane_ok = lane_path_value_matches(lane, json_string(&receipt, "lane"));
+    let pre_output_readiness_validated =
+        json_bool(&receipt, "pre_output_readiness_validated") == Some(true);
     let repeat = json_u64(&receipt, "repeat").unwrap_or(0);
     let hz = json_u64(&receipt, "hz").unwrap_or(0);
     let write_attempts = json_u64(&receipt, "write_attempts").unwrap_or(0);
@@ -6900,14 +11298,14 @@ fn verify_zero_torque_gate(lane: &Path) -> BundleGateCheck {
         && generated_at_valid
         && dry_run == Some(false)
         && no_hid_device_opened == Some(false)
+        && operator_confirmed == Some(true)
+        && lane_ok
+        && pre_output_readiness_validated
         && no_feature_reports
         && no_out_of_scope
         && no_high_torque
         && no_nonzero_torque
-        && report_id == Some(DIRECT_TORQUE_REPORT_ID)
-        && torque_raw == Some(0)
-        && flags == Some(0)
-        && motor_enabled == Some(false)
+        && zero_payload_safe
         && final_zero_sent == Some(true)
         && repeat >= 100
         && hz > 0
@@ -6930,7 +11328,7 @@ fn verify_zero_torque_gate(lane: &Path) -> BundleGateCheck {
         BundleGateCheck::fail(
             "zero_torque_real_hardware",
             format!(
-                "success={success}, command_ok={command_ok}, receipt_path_ok={receipt_path_ok}, generated_at_valid={generated_at_valid}, dry_run={dry_run:?}, no_hid_device_opened={no_hid_device_opened:?}, no_feature_reports={no_feature_reports}, no_out_of_scope={no_out_of_scope}, no_high_torque={no_high_torque}, no_nonzero_torque={no_nonzero_torque}, report_id={report_id:?}, torque_raw={torque_raw:?}, flags={flags:?}, motor_enabled={motor_enabled:?}, final_zero_sent={final_zero_sent:?}, repeat={repeat}, hz={hz}, write_attempts={write_attempts}, writes_ok={writes_ok}, writes_ok_exact={writes_ok_exact}, write_errors={write_errors}, watchdog_faults={watchdog_faults}, command_log_safe={command_log_safe}, r5_output_device={r5_output_device}"
+                "success={success}, command_ok={command_ok}, receipt_path_ok={receipt_path_ok}, generated_at_valid={generated_at_valid}, dry_run={dry_run:?}, no_hid_device_opened={no_hid_device_opened:?}, operator_confirmed={operator_confirmed:?}, lane_ok={lane_ok}, pre_output_readiness_validated={pre_output_readiness_validated}, no_feature_reports={no_feature_reports}, no_out_of_scope={no_out_of_scope}, no_high_torque={no_high_torque}, no_nonzero_torque={no_nonzero_torque}, zero_payload_safe={zero_payload_safe}, final_zero_sent={final_zero_sent:?}, repeat={repeat}, hz={hz}, write_attempts={write_attempts}, writes_ok={writes_ok}, writes_ok_exact={writes_ok_exact}, write_errors={write_errors}, watchdog_faults={watchdog_faults}, command_log_safe={command_log_safe}, r5_output_device={r5_output_device}"
             ),
         )
     }
@@ -6958,13 +11356,9 @@ fn zero_command_log_is_safe(receipt: &Value, repeat: u64) -> bool {
     let mut scheduled_ok = 0u64;
     let mut final_zero_ok = false;
     for (index, record) in records.iter().enumerate() {
-        let safe_zero = json_string(record, "payload_hex") == Some("2000000000000000")
-            && json_string(record, "report_id") == Some(DIRECT_TORQUE_REPORT_ID)
-            && json_i64(record, "torque_raw") == Some(0)
-            && json_u64(record, "flags") == Some(0)
-            && json_bool(record, "motor_enabled") == Some(false)
+        let safe_zero = zero_payload_record_is_safe(record)
             && json_string(record, "result") == Some("ok")
-            && json_u64(record, "bytes_written") == Some(REPORT_LEN as u64)
+            && zero_payload_write_len_is_accepted(record)
             && record_sequence_matches_index(record, index);
         if !safe_zero {
             return false;
@@ -6990,12 +11384,82 @@ fn zero_command_log_is_safe(receipt: &Value, repeat: u64) -> bool {
     scheduled_ok == repeat && final_zero_ok
 }
 
+fn zero_payload_write_len_is_accepted(value: &Value) -> bool {
+    let Some(bytes_written) = json_u64(value, "bytes_written") else {
+        return false;
+    };
+    let Some(report_len) = zero_payload_report_len(value) else {
+        return false;
+    };
+    bytes_written >= report_len
+}
+
+fn zero_payload_report_len(value: &Value) -> Option<u64> {
+    json_u64(value, "report_len").or_else(|| {
+        let strategy = json_string(value, "zero_output_strategy").unwrap_or(
+            zero_output_strategy_name(MozaZeroOutputStrategy::DirectReport0x20),
+        );
+        match strategy {
+            "direct_report_0x20" => Some(REPORT_LEN as u64),
+            _ => None,
+        }
+    })
+}
+
+fn zero_receipt_payload_is_safe(receipt: &Value) -> bool {
+    let strategy = json_string(receipt, "zero_output_strategy").unwrap_or(
+        zero_output_strategy_name(MozaZeroOutputStrategy::DirectReport0x20),
+    );
+    match strategy {
+        "direct_report_0x20" => {
+            json_string(receipt, "payload_hex") == Some("2000000000000000")
+                && json_string(receipt, "report_id") == Some(DIRECT_TORQUE_REPORT_ID)
+                && zero_payload_report_len(receipt) == Some(REPORT_LEN as u64)
+                && json_i64(receipt, "torque_raw") == Some(0)
+                && json_u64(receipt, "flags") == Some(0)
+                && json_bool(receipt, "motor_enabled") == Some(false)
+        }
+        "pidff_device_control_stop_all" => {
+            json_string(receipt, "payload_hex") == Some("0C04")
+                && json_string(receipt, "report_id") == Some(PIDFF_DEVICE_CONTROL_REPORT_ID)
+                && json_u64(receipt, "report_len") == Some(PIDFF_DEVICE_CONTROL_REPORT_LEN as u64)
+                && json_i64(receipt, "torque_raw") == Some(0)
+                && json_u64(receipt, "flags") == Some(0)
+                && json_bool(receipt, "motor_enabled") == Some(false)
+                && json_string(receipt, "pidff_device_control_command") == Some("0x04")
+                && json_string(receipt, "pidff_device_control_command_name")
+                    == Some(PIDFF_STOP_ALL_EFFECTS_COMMAND_NAME)
+        }
+        _ => false,
+    }
+}
+
 fn zero_payload_record_is_safe(record: &Value) -> bool {
-    json_string(record, "payload_hex") == Some("2000000000000000")
-        && json_string(record, "report_id") == Some(DIRECT_TORQUE_REPORT_ID)
-        && json_i64(record, "torque_raw") == Some(0)
-        && json_u64(record, "flags") == Some(0)
-        && json_bool(record, "motor_enabled") == Some(false)
+    let strategy = json_string(record, "zero_output_strategy").unwrap_or(
+        zero_output_strategy_name(MozaZeroOutputStrategy::DirectReport0x20),
+    );
+    match strategy {
+        "direct_report_0x20" => {
+            json_string(record, "payload_hex") == Some("2000000000000000")
+                && json_string(record, "report_id") == Some(DIRECT_TORQUE_REPORT_ID)
+                && zero_payload_report_len(record) == Some(REPORT_LEN as u64)
+                && json_i64(record, "torque_raw") == Some(0)
+                && json_u64(record, "flags") == Some(0)
+                && json_bool(record, "motor_enabled") == Some(false)
+        }
+        "pidff_device_control_stop_all" => {
+            json_string(record, "payload_hex") == Some("0C04")
+                && json_string(record, "report_id") == Some(PIDFF_DEVICE_CONTROL_REPORT_ID)
+                && json_u64(record, "report_len") == Some(PIDFF_DEVICE_CONTROL_REPORT_LEN as u64)
+                && json_i64(record, "torque_raw") == Some(0)
+                && json_u64(record, "flags") == Some(0)
+                && json_bool(record, "motor_enabled") == Some(false)
+                && json_string(record, "pidff_device_control_command") == Some("0x04")
+                && json_string(record, "pidff_device_control_command_name")
+                    == Some(PIDFF_STOP_ALL_EFFECTS_COMMAND_NAME)
+        }
+        _ => false,
+    }
 }
 
 fn verify_watchdog_proof_gate(lane: &Path) -> BundleGateCheck {
@@ -7012,6 +11476,10 @@ fn verify_watchdog_proof_gate(lane: &Path) -> BundleGateCheck {
         .unwrap_or(false);
     let dry_run = json_bool(&receipt, "dry_run");
     let no_hid_device_opened = json_bool(&receipt, "no_hid_device_opened");
+    let operator_confirmed = json_bool(&receipt, "operator_confirmed");
+    let lane_ok = lane_path_value_matches(lane, json_string(&receipt, "lane"));
+    let pre_output_readiness_validated = json_bool(&receipt, "pre_output_readiness_validated");
+    let zero_torque_proof_validated = json_bool(&receipt, "zero_torque_proof_validated");
     let no_feature_reports = json_bool(&receipt, "no_feature_reports");
     let no_out_of_scope = no_out_of_scope_device_commands(&receipt);
     let no_high_torque = json_bool(&receipt, "no_high_torque");
@@ -7036,6 +11504,10 @@ fn verify_watchdog_proof_gate(lane: &Path) -> BundleGateCheck {
         && generated_at_valid
         && dry_run == Some(false)
         && no_hid_device_opened == Some(false)
+        && operator_confirmed == Some(true)
+        && lane_ok
+        && pre_output_readiness_validated == Some(true)
+        && zero_torque_proof_validated == Some(true)
         && no_feature_reports == Some(true)
         && no_out_of_scope
         && no_high_torque == Some(true)
@@ -7065,7 +11537,7 @@ fn verify_watchdog_proof_gate(lane: &Path) -> BundleGateCheck {
         BundleGateCheck::fail(
             "watchdog_zero_output",
             format!(
-                "success={success}, command_ok={command_ok}, receipt_path_ok={receipt_path_ok}, generated_at_valid={generated_at_valid}, dry_run={dry_run:?}, no_hid_device_opened={no_hid_device_opened:?}, no_feature_reports={no_feature_reports:?}, no_out_of_scope={no_out_of_scope}, no_high_torque={no_high_torque:?}, no_nonzero_torque={no_nonzero_torque:?}, watchdog_faults={watchdog_faults}, watchdog_triggered={watchdog_triggered:?}, final_zero_attempted={final_zero_attempted:?}, final_zero_sent={final_zero_sent:?}, write_attempts={write_attempts}, writes_ok={writes_ok}, writes_ok_exact={writes_ok_exact}, write_errors={write_errors}, repeat={repeat}, hz={hz}, watchdog_timeout_ms={watchdog_timeout_ms}, command_log_safe={command_log_safe}, r5_output_device={r5_output_device}"
+                "success={success}, command_ok={command_ok}, receipt_path_ok={receipt_path_ok}, generated_at_valid={generated_at_valid}, dry_run={dry_run:?}, no_hid_device_opened={no_hid_device_opened:?}, operator_confirmed={operator_confirmed:?}, lane_ok={lane_ok}, pre_output_readiness_validated={pre_output_readiness_validated:?}, zero_torque_proof_validated={zero_torque_proof_validated:?}, no_feature_reports={no_feature_reports:?}, no_out_of_scope={no_out_of_scope}, no_high_torque={no_high_torque:?}, no_nonzero_torque={no_nonzero_torque:?}, watchdog_faults={watchdog_faults}, watchdog_triggered={watchdog_triggered:?}, final_zero_attempted={final_zero_attempted:?}, final_zero_sent={final_zero_sent:?}, write_attempts={write_attempts}, writes_ok={writes_ok}, writes_ok_exact={writes_ok_exact}, write_errors={write_errors}, repeat={repeat}, hz={hz}, watchdog_timeout_ms={watchdog_timeout_ms}, command_log_safe={command_log_safe}, r5_output_device={r5_output_device}"
             ),
         )
     }
@@ -7085,7 +11557,7 @@ fn watchdog_command_log_is_safe(receipt: &Value, repeat: u64) -> bool {
     for (index, record) in records.iter().enumerate() {
         if !zero_payload_record_is_safe(record)
             || json_string(record, "result") != Some("ok")
-            || json_u64(record, "bytes_written") != Some(REPORT_LEN as u64)
+            || !zero_payload_write_len_is_accepted(record)
             || !record_sequence_matches_index(record, index)
         {
             return false;
@@ -7125,6 +11597,9 @@ fn verify_disconnect_proof_gate(lane: &Path) -> BundleGateCheck {
     let dry_run = json_bool(&receipt, "dry_run");
     let no_hid_device_opened = json_bool(&receipt, "no_hid_device_opened");
     let operator_confirmed = json_bool(&receipt, "operator_confirmed");
+    let lane_ok = lane_path_value_matches(lane, json_string(&receipt, "lane"));
+    let pre_output_readiness_validated = json_bool(&receipt, "pre_output_readiness_validated");
+    let zero_torque_proof_validated = json_bool(&receipt, "zero_torque_proof_validated");
     let no_feature_reports = json_bool(&receipt, "no_feature_reports");
     let no_out_of_scope = no_out_of_scope_device_commands(&receipt);
     let no_high_torque = json_bool(&receipt, "no_high_torque");
@@ -7167,6 +11642,9 @@ fn verify_disconnect_proof_gate(lane: &Path) -> BundleGateCheck {
         && dry_run == Some(false)
         && no_hid_device_opened == Some(false)
         && operator_confirmed == Some(true)
+        && lane_ok
+        && pre_output_readiness_validated == Some(true)
+        && zero_torque_proof_validated == Some(true)
         && no_feature_reports == Some(true)
         && no_out_of_scope
         && no_high_torque == Some(true)
@@ -7193,7 +11671,7 @@ fn verify_disconnect_proof_gate(lane: &Path) -> BundleGateCheck {
         BundleGateCheck::fail(
             "disconnect_final_zero",
             format!(
-                "success={success}, command_ok={command_ok}, receipt_path_ok={receipt_path_ok}, generated_at_valid={generated_at_valid}, dry_run={dry_run:?}, no_hid_device_opened={no_hid_device_opened:?}, operator_confirmed={operator_confirmed:?}, no_feature_reports={no_feature_reports:?}, no_out_of_scope={no_out_of_scope}, no_high_torque={no_high_torque:?}, no_nonzero_torque={no_nonzero_torque:?}, disconnect_observed={disconnect_observed:?}, final_zero_attempted={final_zero_attempted:?}, final_zero_sent={final_zero_sent:?}, final_zero_log_sent={final_zero_log_sent}, final_zero_log_error={final_zero_log_error}, final_zero_sent_match={final_zero_sent_match}, write_errors={write_errors}, expected_write_errors={expected_write_errors}, write_errors_match={write_errors_match}, write_attempts={write_attempts}, expected_write_attempts={expected_write_attempts}, write_attempts_match={write_attempts_match}, writes_ok={writes_ok}, expected_writes_ok={expected_writes_ok}, writes_ok_match={writes_ok_match}, hz={hz}, max_duration_ms={max_duration_ms}, command_log_safe={command_log_safe}, r5_output_device={r5_output_device}"
+                "success={success}, command_ok={command_ok}, receipt_path_ok={receipt_path_ok}, generated_at_valid={generated_at_valid}, dry_run={dry_run:?}, no_hid_device_opened={no_hid_device_opened:?}, operator_confirmed={operator_confirmed:?}, lane_ok={lane_ok}, pre_output_readiness_validated={pre_output_readiness_validated:?}, zero_torque_proof_validated={zero_torque_proof_validated:?}, no_feature_reports={no_feature_reports:?}, no_out_of_scope={no_out_of_scope}, no_high_torque={no_high_torque:?}, no_nonzero_torque={no_nonzero_torque:?}, disconnect_observed={disconnect_observed:?}, final_zero_attempted={final_zero_attempted:?}, final_zero_sent={final_zero_sent:?}, final_zero_log_sent={final_zero_log_sent}, final_zero_log_error={final_zero_log_error}, final_zero_sent_match={final_zero_sent_match}, write_errors={write_errors}, expected_write_errors={expected_write_errors}, write_errors_match={write_errors_match}, write_attempts={write_attempts}, expected_write_attempts={expected_write_attempts}, write_attempts_match={write_attempts_match}, writes_ok={writes_ok}, expected_writes_ok={expected_writes_ok}, writes_ok_match={writes_ok_match}, hz={hz}, max_duration_ms={max_duration_ms}, command_log_safe={command_log_safe}, r5_output_device={r5_output_device}"
             ),
         )
     }
@@ -7206,6 +11684,10 @@ struct DisconnectCommandLogSummary {
 }
 
 fn disconnect_command_log_summary(receipt: &Value) -> Option<DisconnectCommandLogSummary> {
+    if receipt.get("command_log_summary").is_some() {
+        return bounded_disconnect_command_log_summary(receipt);
+    }
+
     let records = receipt.get("command_log").and_then(Value::as_array)?;
     if records.len() < 2 {
         return None;
@@ -7226,7 +11708,7 @@ fn disconnect_command_log_summary(receipt: &Value) -> Option<DisconnectCommandLo
         match json_string(record, "kind") {
             Some("scheduled_zero") => {
                 if json_string(record, "result") != Some("ok")
-                    || json_u64(record, "bytes_written") != Some(REPORT_LEN as u64)
+                    || !zero_payload_write_len_is_accepted(record)
                     || disconnect_error_seen
                     || final_zero_seen
                 {
@@ -7252,7 +11734,7 @@ fn disconnect_command_log_summary(receipt: &Value) -> Option<DisconnectCommandLo
                 }
                 match json_string(record, "result") {
                     Some("ok") => {
-                        if json_u64(record, "bytes_written") != Some(REPORT_LEN as u64) {
+                        if !zero_payload_write_len_is_accepted(record) {
                             return None;
                         }
                         final_zero_sent = true;
@@ -7270,6 +11752,105 @@ fn disconnect_command_log_summary(receipt: &Value) -> Option<DisconnectCommandLo
     }
 
     if disconnect_error_seen && final_zero_seen {
+        Some(DisconnectCommandLogSummary {
+            scheduled_zero_writes,
+            final_zero_sent,
+            final_zero_error,
+        })
+    } else {
+        None
+    }
+}
+
+fn bounded_disconnect_command_log_summary(receipt: &Value) -> Option<DisconnectCommandLogSummary> {
+    let summary = receipt.get("command_log_summary")?;
+    let total_records = json_u64(summary, "total_records")?;
+    let logged_records = json_u64(summary, "logged_records")?;
+    let omitted_records = json_u64(summary, "omitted_records")?;
+    let scheduled_zero_writes = json_u64(summary, "scheduled_zero_writes")?;
+    let disconnect_probe_seen = json_bool(summary, "disconnect_probe_seen")?;
+    let final_zero_seen = json_bool(summary, "final_zero_seen")?;
+    let final_zero_sent = json_bool(summary, "final_zero_sent")?;
+    let final_zero_error = json_bool(summary, "final_zero_error")?;
+    let records = receipt.get("command_log").and_then(Value::as_array)?;
+
+    let logged_records_len = u64::try_from(records.len()).ok()?;
+    if logged_records != logged_records_len
+        || total_records != logged_records.saturating_add(omitted_records)
+        || total_records != scheduled_zero_writes.saturating_add(2)
+        || !disconnect_probe_seen
+        || !final_zero_seen
+        || final_zero_sent == final_zero_error
+    {
+        return None;
+    }
+
+    let mut disconnect_error_seen = false;
+    let mut final_zero_log_seen = false;
+    let mut final_zero_log_sent = false;
+    let mut final_zero_log_error = false;
+    let mut previous_sequence = None;
+    let mut logged_scheduled_zero_writes = 0u64;
+    for (index, record) in records.iter().enumerate() {
+        if !zero_payload_record_is_safe(record) {
+            return None;
+        }
+        let sequence = json_u64(record, "sequence")?;
+        if previous_sequence.is_some_and(|previous| sequence <= previous) {
+            return None;
+        }
+        previous_sequence = Some(sequence);
+
+        match json_string(record, "kind") {
+            Some("scheduled_zero") => {
+                if json_string(record, "result") != Some("ok")
+                    || !zero_payload_write_len_is_accepted(record)
+                    || disconnect_error_seen
+                    || final_zero_log_seen
+                    || logged_scheduled_zero_writes >= scheduled_zero_writes
+                {
+                    return None;
+                }
+                logged_scheduled_zero_writes = logged_scheduled_zero_writes.saturating_add(1);
+            }
+            Some("disconnect_probe") => {
+                if json_string(record, "result") != Some("error")
+                    || record.get("error").and_then(Value::as_str).is_none()
+                    || disconnect_error_seen
+                    || final_zero_log_seen
+                {
+                    return None;
+                }
+                disconnect_error_seen = true;
+            }
+            Some("final_zero") => {
+                if index + 1 != records.len() || !disconnect_error_seen || final_zero_log_seen {
+                    return None;
+                }
+                match json_string(record, "result") {
+                    Some("ok") => {
+                        if !zero_payload_write_len_is_accepted(record) {
+                            return None;
+                        }
+                        final_zero_log_sent = true;
+                    }
+                    Some("error") => {
+                        record.get("error").and_then(Value::as_str)?;
+                        final_zero_log_error = true;
+                    }
+                    _ => return None,
+                }
+                final_zero_log_seen = true;
+            }
+            _ => return None,
+        }
+    }
+
+    if disconnect_error_seen
+        && final_zero_log_seen
+        && final_zero_log_sent == final_zero_sent
+        && final_zero_log_error == final_zero_error
+    {
         Some(DisconnectCommandLogSummary {
             scheduled_zero_writes,
             final_zero_sent,
@@ -7299,21 +11880,40 @@ fn verify_init_receipt_gate(
         .unwrap_or(false);
     let dry_run = json_bool(&receipt, "dry_run");
     let no_hid_device_opened = json_bool(&receipt, "no_hid_device_opened");
+    let operator_confirmed = json_bool(&receipt, "operator_confirmed");
+    let lane_ok = lane_path_value_matches(lane, json_string(&receipt, "lane"));
+    let zero_verification_validated = json_bool(&receipt, "zero_verification_validated");
+    let zero_audit_validated = json_bool(&receipt, "zero_audit_validated");
+    let generated_at = json_string(&receipt, "generated_at_utc");
+    let zero_verification_ordered = json_string(&receipt, "zero_verification_generated_at")
+        .zip(generated_at)
+        .map(|(zero_at, init_at)| utc_timestamp_pair_is_ordered(zero_at, init_at))
+        .unwrap_or(false);
+    let zero_audit_ordered = json_string(&receipt, "zero_audit_generated_at")
+        .zip(generated_at)
+        .map(|(zero_at, init_at)| utc_timestamp_pair_is_ordered(zero_at, init_at))
+        .unwrap_or(false);
     let no_output_reports = json_bool(&receipt, "no_output_reports");
     let no_direct_torque_reports = json_bool(&receipt, "no_direct_torque_reports");
     let no_out_of_scope = no_out_of_scope_device_commands(&receipt);
     let no_high_torque = json_bool(&receipt, "no_high_torque");
     let high_torque = json_bool(&receipt, "high_torque");
     let mode = json_string(&receipt, "mode");
+    let product_id = receipt
+        .get("device")
+        .and_then(|device| json_string(device, "product_id"));
     let init_state = json_string(&receipt, "init_state");
     let ready = json_bool(&receipt, "ready");
     let feature_write_errors = json_u64(&receipt, "feature_write_errors").unwrap_or(u64::MAX);
     let output_report_attempts = json_u64(&receipt, "output_report_attempts").unwrap_or(u64::MAX);
     let feature_reports_safe = receipt
         .get("feature_reports")
-        .map(|reports| init_feature_reports_are_safe_value(reports, expected_mode, false))
+        .map(|reports| {
+            init_feature_reports_are_safe_value(reports, expected_mode, false, product_id)
+        })
         .unwrap_or(false);
     let r5_output_device = receipt_targets_r5_output_device(&receipt);
+    let selector_matches_lane_endpoint = receipt_selector_matches_lane_endpoint(lane, &receipt);
 
     let safe = success
         && command_ok
@@ -7321,6 +11921,12 @@ fn verify_init_receipt_gate(
         && generated_at_valid
         && dry_run == Some(false)
         && no_hid_device_opened == Some(false)
+        && operator_confirmed == Some(true)
+        && lane_ok
+        && zero_verification_validated == Some(true)
+        && zero_audit_validated == Some(true)
+        && zero_verification_ordered
+        && zero_audit_ordered
         && no_output_reports == Some(true)
         && no_direct_torque_reports == Some(true)
         && no_out_of_scope
@@ -7332,7 +11938,8 @@ fn verify_init_receipt_gate(
         && feature_write_errors == 0
         && output_report_attempts == 0
         && feature_reports_safe
-        && r5_output_device;
+        && r5_output_device
+        && selector_matches_lane_endpoint;
 
     if safe {
         BundleGateCheck::pass(
@@ -7345,7 +11952,7 @@ fn verify_init_receipt_gate(
         BundleGateCheck::fail(
             name,
             format!(
-                "success={success}, command_ok={command_ok}, receipt_path_ok={receipt_path_ok}, generated_at_valid={generated_at_valid}, dry_run={dry_run:?}, no_hid_device_opened={no_hid_device_opened:?}, no_output_reports={no_output_reports:?}, no_direct_torque_reports={no_direct_torque_reports:?}, no_out_of_scope={no_out_of_scope}, no_high_torque={no_high_torque:?}, high_torque={high_torque:?}, mode={mode:?}, init_state={init_state:?}, ready={ready:?}, feature_write_errors={feature_write_errors}, output_report_attempts={output_report_attempts}, feature_reports_safe={feature_reports_safe}, r5_output_device={r5_output_device}"
+                "success={success}, command_ok={command_ok}, receipt_path_ok={receipt_path_ok}, generated_at_valid={generated_at_valid}, dry_run={dry_run:?}, no_hid_device_opened={no_hid_device_opened:?}, operator_confirmed={operator_confirmed:?}, lane_ok={lane_ok}, zero_verification_validated={zero_verification_validated:?}, zero_audit_validated={zero_audit_validated:?}, zero_verification_ordered={zero_verification_ordered}, zero_audit_ordered={zero_audit_ordered}, no_output_reports={no_output_reports:?}, no_direct_torque_reports={no_direct_torque_reports:?}, no_out_of_scope={no_out_of_scope}, no_high_torque={no_high_torque:?}, high_torque={high_torque:?}, mode={mode:?}, init_state={init_state:?}, ready={ready:?}, feature_write_errors={feature_write_errors}, output_report_attempts={output_report_attempts}, feature_reports_safe={feature_reports_safe}, r5_output_device={r5_output_device}, selector_matches_lane_endpoint={selector_matches_lane_endpoint}"
             ),
         )
     }
@@ -7355,13 +11962,11 @@ fn init_feature_reports_are_safe_value(
     reports: &Value,
     expected_mode: &str,
     allow_planned: bool,
+    product_id: Option<&str>,
 ) -> bool {
     let Some(records) = reports.as_array() else {
         return false;
     };
-    if records.len() != 2 {
-        return false;
-    }
 
     let expected_mode_payload = match expected_mode {
         "off" => "11FF0000",
@@ -7369,21 +11974,35 @@ fn init_feature_reports_are_safe_value(
         _ => return false,
     };
 
-    init_feature_report_record_is_safe(
-        &records[0],
-        0,
-        "start_input_reports",
-        START_REPORTING_FEATURE_REPORT_ID,
-        "03000000",
-        allow_planned,
-    ) && init_feature_report_record_is_safe(
-        &records[1],
-        1,
-        "ffb_mode",
-        FFB_MODE_FEATURE_REPORT_ID,
-        expected_mode_payload,
-        allow_planned,
-    )
+    if product_id.and_then(parse_hex_selector) == Some(product_ids::R5_V1) {
+        return records.len() == 1
+            && init_feature_report_record_is_safe(
+                &records[0],
+                0,
+                "ffb_mode",
+                FFB_MODE_FEATURE_REPORT_ID,
+                expected_mode_payload,
+                allow_planned,
+            );
+    }
+
+    records.len() == 2
+        && init_feature_report_record_is_safe(
+            &records[0],
+            0,
+            "start_input_reports",
+            START_REPORTING_FEATURE_REPORT_ID,
+            "03000000",
+            allow_planned,
+        )
+        && init_feature_report_record_is_safe(
+            &records[1],
+            1,
+            "ffb_mode",
+            FFB_MODE_FEATURE_REPORT_ID,
+            expected_mode_payload,
+            allow_planned,
+        )
 }
 
 fn init_feature_report_record_is_safe(
@@ -7441,22 +12060,24 @@ fn verify_service_status_gate_with_support_validation(
         device.product_id.as_deref(),
         support.product_id.as_deref(),
     ]);
-    let safe = moza.ok && device.ok && support.ok && same_pid;
+    let post_init_context =
+        service_status_post_init_context(lane, &moza_status, &device_status, &support_bundle);
+    let safe = moza.ok && device.ok && support.ok && same_pid && post_init_context.ok;
 
     if safe {
         BundleGateCheck::pass(
             "service_status_receipts",
             format!(
-                "moza-status.json, device-status.json, and support-bundle.json all report the same observe-only R5 service lane PID {:?}",
-                device.product_id
+                "moza-status.json, device-status.json, and support-bundle.json all report the same observe-only R5 service lane PID {:?}; {}",
+                device.product_id, post_init_context.details
             ),
         )
     } else {
         BundleGateCheck::fail(
             "service_status_receipts",
             format!(
-                "moza_status=({}), device_status=({}), support_bundle=({}), same_pid={same_pid}",
-                moza.details, device.details, support.details
+                "moza_status=({}), device_status=({}), support_bundle=({}), same_pid={same_pid}, post_init_context=({})",
+                moza.details, device.details, support.details, post_init_context.details
             ),
         )
     }
@@ -7469,13 +12090,90 @@ struct ServiceReceiptSummary {
     details: String,
 }
 
+fn service_status_post_init_context(
+    lane: &Path,
+    moza_status: &Value,
+    device_status: &Value,
+    support_bundle: &Value,
+) -> ServiceReceiptSummary {
+    let init_off_passed =
+        verify_init_receipt_gate(lane, "init_off_handshake", "init-off.json", "off").status
+            == "pass";
+    let init_standard_passed = verify_init_receipt_gate(
+        lane,
+        "init_standard_handshake",
+        "init-standard.json",
+        "standard",
+    )
+    .status
+        == "pass";
+    let requires_post_init = init_off_passed && init_standard_passed;
+    if !requires_post_init {
+        return ServiceReceiptSummary {
+            ok: true,
+            product_id: None,
+            details: format!(
+                "post-init status refresh not required yet; init_off_passed={init_off_passed}, init_standard_passed={init_standard_passed}"
+            ),
+        };
+    }
+
+    let moza_status_ready = lane_status_reflects_init_receipts(moza_status.get("lane_status"));
+    let device_status_ready = device_status
+        .get("status")
+        .and_then(|status| status.get("moza"))
+        .map(moza_status_reports_post_init_safe_state)
+        .unwrap_or(false);
+    let support_status_ready = lane_status_reflects_init_receipts(support_bundle.get("moza_lane"));
+    ServiceReceiptSummary {
+        ok: moza_status_ready && device_status_ready && support_status_ready,
+        product_id: None,
+        details: format!(
+            "post-init status refresh required after off/standard init receipts; moza_status_init_receipts={moza_status_ready}, device_status_post_init_safe_state={device_status_ready}, support_bundle_init_receipts={support_status_ready}"
+        ),
+    }
+}
+
+fn lane_status_reflects_init_receipts(status: Option<&Value>) -> bool {
+    let Some(artifacts) = status
+        .and_then(|status| status.get("artifact_index"))
+        .and_then(Value::as_array)
+    else {
+        return false;
+    };
+
+    artifact_index_has_pass(artifacts, "init-off.json")
+        && artifact_index_has_pass(artifacts, "init-standard.json")
+}
+
+fn artifact_index_has_pass(artifacts: &[Value], path: &str) -> bool {
+    artifacts.iter().any(|artifact| {
+        json_string(artifact, "path") == Some(path)
+            && json_bool(artifact, "exists") == Some(true)
+            && json_bool(artifact, "valid") == Some(true)
+            && json_string(artifact, "status") == Some("pass")
+    })
+}
+
+fn moza_status_reports_post_init_safe_state(moza: &Value) -> bool {
+    matches!(
+        json_string(moza, "safety_state"),
+        Some(
+            "lane_init_handshakes_observed"
+                | "lane_low_torque_gate_receipts_observed"
+                | "lane_openracing_control_receipts_observed"
+        )
+    ) && json_bool(moza, "ffb_ready") == Some(false)
+        && json_bool(moza, "safe_to_send_torque") == Some(false)
+        && json_bool(moza, "direct_mode_allowed") == Some(false)
+        && json_bool(moza, "high_torque_allowed") == Some(false)
+}
+
 fn moza_status_receipt_summary(receipt: &Value, lane: &Path) -> ServiceReceiptSummary {
     let success = json_bool(receipt, "success") == Some(true);
     let command_ok = json_string(receipt, "command") == Some("wheelctl moza status");
     let lane_ok = path_value_matches(lane, json_string(receipt, "lane"));
-    let no_hid_device_opened = json_bool(receipt, "no_hid_device_opened") == Some(true);
-    let no_ffb_writes = json_bool(receipt, "no_ffb_writes") == Some(true);
-    let no_out_of_scope = no_out_of_scope_device_commands(receipt);
+    let no_output = receipt_observe_only_no_output_flags_ok(receipt);
     let device_count = json_u64(receipt, "device_count").unwrap_or(0);
     let r5_entry = receipt
         .get("devices")
@@ -7492,20 +12190,13 @@ fn moza_status_receipt_summary(receipt: &Value, lane: &Path) -> ServiceReceiptSu
             .map(str::to_string)
     });
     let r5_observe_only = r5_entry.is_some();
-    let ok = success
-        && command_ok
-        && lane_ok
-        && no_hid_device_opened
-        && no_ffb_writes
-        && no_out_of_scope
-        && device_count > 0
-        && r5_observe_only;
+    let ok = success && command_ok && lane_ok && no_output && device_count > 0 && r5_observe_only;
 
     ServiceReceiptSummary {
         ok,
         product_id,
         details: format!(
-            "success={success}, command_ok={command_ok}, lane_ok={lane_ok}, no_hid_device_opened={no_hid_device_opened}, no_ffb_writes={no_ffb_writes}, no_out_of_scope={no_out_of_scope}, device_count={device_count}, r5_observe_only={r5_observe_only}"
+            "success={success}, command_ok={command_ok}, lane_ok={lane_ok}, no_output={no_output}, device_count={device_count}, r5_observe_only={r5_observe_only}"
         ),
     }
 }
@@ -7527,9 +12218,7 @@ fn moza_status_device_is_observe_only(entry: &Value) -> bool {
 fn device_status_receipt_summary(receipt: &Value, lane: &Path) -> ServiceReceiptSummary {
     let success = json_bool(receipt, "success") == Some(true);
     let command_ok = json_string(receipt, "command") == Some("wheelctl device status");
-    let no_hid_device_opened = json_bool(receipt, "no_hid_device_opened") == Some(true);
-    let no_ffb_writes = json_bool(receipt, "no_ffb_writes") == Some(true);
-    let no_out_of_scope = no_out_of_scope_device_commands(receipt);
+    let no_output = receipt_observe_only_no_output_flags_ok(receipt);
     let moza_lane_ok = path_value_matches(lane, json_string(receipt, "moza_lane"));
     let status = receipt.get("status");
     let observe_only = status
@@ -7539,19 +12228,13 @@ fn device_status_receipt_summary(receipt: &Value, lane: &Path) -> ServiceReceipt
         .and_then(|status| status.get("device"))
         .and_then(|device| json_string(device, "product_id"))
         .map(str::to_string);
-    let ok = success
-        && command_ok
-        && no_hid_device_opened
-        && no_ffb_writes
-        && no_out_of_scope
-        && moza_lane_ok
-        && observe_only;
+    let ok = success && command_ok && no_output && moza_lane_ok && observe_only;
 
     ServiceReceiptSummary {
         ok,
         product_id,
         details: format!(
-            "success={success}, command_ok={command_ok}, no_hid_device_opened={no_hid_device_opened}, no_ffb_writes={no_ffb_writes}, no_out_of_scope={no_out_of_scope}, moza_lane_ok={moza_lane_ok}, observe_only={observe_only}"
+            "success={success}, command_ok={command_ok}, no_output={no_output}, moza_lane_ok={moza_lane_ok}, observe_only={observe_only}"
         ),
     }
 }
@@ -7563,9 +12246,7 @@ fn support_bundle_receipt_summary_with_validation(
 ) -> ServiceReceiptSummary {
     let success = json_bool(receipt, "success") == Some(true);
     let command_ok = json_string(receipt, "command") == Some("wheelctl support-bundle");
-    let no_hid_device_opened = json_bool(receipt, "no_hid_device_opened") == Some(true);
-    let no_ffb_writes = json_bool(receipt, "no_ffb_writes") == Some(true);
-    let no_out_of_scope = no_out_of_scope_device_commands(receipt);
+    let no_output = receipt_observe_only_no_output_flags_ok(receipt);
     let device_filter_present = json_string(receipt, "device_filter")
         .map(|value| !value.trim().is_empty())
         .unwrap_or(false);
@@ -7619,9 +12300,7 @@ fn support_bundle_receipt_summary_with_validation(
         .unwrap_or(false);
     let ok = success
         && command_ok
-        && no_hid_device_opened
-        && no_ffb_writes
-        && no_out_of_scope
+        && no_output
         && device_filter_present
         && moza_lane_status_ok
         && observe_only
@@ -7632,7 +12311,7 @@ fn support_bundle_receipt_summary_with_validation(
         ok,
         product_id,
         details: format!(
-            "success={success}, command_ok={command_ok}, no_hid_device_opened={no_hid_device_opened}, no_ffb_writes={no_ffb_writes}, no_out_of_scope={no_out_of_scope}, device_filter_present={device_filter_present}, moza_lane_status_ok={moza_lane_status_ok}, moza_lane_lane_ok={moza_lane_lane_ok}, moza_lane_readiness_ok={moza_lane_readiness_ok}, moza_lane_artifact_index_ok={moza_lane_artifact_index_ok}, moza_lane_notes_ok={moza_lane_notes_ok}, observe_only={observe_only}, top_level_r5_present={top_level_r5_present}, top_level_pid_matches_status={top_level_pid_matches_status}, top_level_r5_product_ids={top_level_r5_product_ids:?}"
+            "success={success}, command_ok={command_ok}, no_output={no_output}, device_filter_present={device_filter_present}, moza_lane_status_ok={moza_lane_status_ok}, moza_lane_lane_ok={moza_lane_lane_ok}, moza_lane_readiness_ok={moza_lane_readiness_ok}, moza_lane_artifact_index_ok={moza_lane_artifact_index_ok}, moza_lane_notes_ok={moza_lane_notes_ok}, observe_only={observe_only}, top_level_r5_present={top_level_r5_present}, top_level_pid_matches_status={top_level_pid_matches_status}, top_level_r5_product_ids={top_level_r5_product_ids:?}"
         ),
     }
 }
@@ -7749,9 +12428,12 @@ fn support_readiness_matches_expected(actual: Option<&Value>, expected: Option<&
     let booleans_do_not_overclaim = [
         "ready_for_zero_torque",
         "ready_for_low_torque",
+        "ready_for_native_control",
+        "ready_for_external_compatibility",
         "ready_for_real_hardware_smoke",
         "passive_lane_audit_passed",
         "zero_lane_audit_passed",
+        "openracing_control_lane_audit_passed",
         "smoke_ready_lane_audit_passed",
     ]
     .iter()
@@ -7771,7 +12453,8 @@ fn support_readiness_stage_rank(stage: Option<&str>) -> Option<u8> {
         Some("none") => Some(0),
         Some("passive") => Some(1),
         Some("zero") => Some(2),
-        Some("smoke_ready") => Some(3),
+        Some("openracing_control_ready") => Some(3),
+        Some("smoke_ready") => Some(4),
         _ => None,
     }
 }
@@ -7838,24 +12521,44 @@ fn support_readiness_is_diagnostic(readiness: &Value) -> bool {
     let next = readiness.get("next_required_stage");
     let ready_zero = json_bool(readiness, "ready_for_zero_torque");
     let ready_low = json_bool(readiness, "ready_for_low_torque");
+    let ready_native = json_bool(readiness, "ready_for_native_control");
+    let ready_external = json_bool(readiness, "ready_for_external_compatibility");
     let ready_smoke = json_bool(readiness, "ready_for_real_hardware_smoke");
     let passive_audit = json_bool(readiness, "passive_lane_audit_passed");
     let zero_audit = json_bool(readiness, "zero_lane_audit_passed");
+    let openracing_audit = json_bool(readiness, "openracing_control_lane_audit_passed");
     let smoke_audit = json_bool(readiness, "smoke_ready_lane_audit_passed");
     let first_blocking = readiness.get("first_blocking_stage");
-    let highest_ok = matches!(highest, Some("none" | "passive" | "zero" | "smoke_ready"));
+    let highest_ok = matches!(
+        highest,
+        Some("none" | "passive" | "zero" | "openracing_control_ready" | "smoke_ready")
+    );
     let next_ok = next.map(|value| {
-        value.is_null() || matches!(value.as_str(), Some("passive" | "zero" | "smoke_ready"))
+        value.is_null()
+            || matches!(
+                value.as_str(),
+                Some("passive" | "zero" | "openracing_control_ready" | "smoke_ready")
+            )
     }) == Some(true);
     let first_blocking_ok = first_blocking.is_some();
-    let readiness_fields_present =
-        ready_zero.is_some() && ready_low.is_some() && ready_smoke.is_some();
-    let audit_fields_present =
-        passive_audit.is_some() && zero_audit.is_some() && smoke_audit.is_some();
+    let readiness_fields_present = ready_zero.is_some()
+        && ready_low.is_some()
+        && ready_native.is_some()
+        && ready_external.is_some()
+        && ready_smoke.is_some();
+    let audit_fields_present = passive_audit.is_some()
+        && zero_audit.is_some()
+        && openracing_audit.is_some()
+        && smoke_audit.is_some();
     let readiness_progression_ok = ready_low != Some(true) || ready_zero == Some(true);
-    let smoke_progression_ok = ready_smoke != Some(true) || ready_low == Some(true);
+    let native_progression_ok = ready_native != Some(true) || ready_low == Some(true);
+    let external_progression_ok = ready_external != Some(true) || ready_low == Some(true);
+    let smoke_progression_ok =
+        ready_smoke != Some(true) || (ready_low == Some(true) && ready_external == Some(true));
     let audit_gate_consistency_ok = (ready_zero != Some(true) || passive_audit == Some(true))
         && (ready_low != Some(true) || zero_audit == Some(true))
+        && (ready_native != Some(true) || openracing_audit == Some(true))
+        && (ready_external != Some(true) || smoke_audit == Some(true))
         && (ready_smoke != Some(true) || smoke_audit == Some(true));
 
     highest_ok
@@ -7864,6 +12567,8 @@ fn support_readiness_is_diagnostic(readiness: &Value) -> bool {
         && readiness_fields_present
         && audit_fields_present
         && readiness_progression_ok
+        && native_progression_ok
+        && external_progression_ok
         && smoke_progression_ok
         && audit_gate_consistency_ok
         && json_bool(readiness, "release_ready") == Some(false)
@@ -7918,41 +12623,53 @@ fn verify_low_torque_gate(lane: &Path) -> BundleGateCheck {
         Err(e) => return BundleGateCheck::fail("low_torque_bounded", e.to_string()),
     };
 
-    let success = json_bool(&receipt, "success") == Some(true);
-    let command_ok = json_string(&receipt, "command") == Some("wheelctl moza torque-test");
-    let receipt_path_ok = receipt_path_matches(lane, &receipt, "low-torque-proof.json");
-    let dry_run = json_bool(&receipt, "dry_run");
-    let no_hid_device_opened = json_bool(&receipt, "no_hid_device_opened");
-    let confirmed = json_bool(&receipt, "confirmed");
-    let zero_proof_validated = json_bool(&receipt, "zero_proof_validated");
-    let init_proofs_validated = json_bool(&receipt, "init_proofs_validated");
-    let no_feature_reports = json_bool(&receipt, "no_feature_reports");
-    let no_ffb_writes = json_bool(&receipt, "no_ffb_writes");
-    let no_out_of_scope = no_out_of_scope_device_commands(&receipt);
-    let high_torque = json_bool(&receipt, "high_torque");
-    let no_high_torque = json_bool(&receipt, "no_high_torque");
-    let direct_mode_gate_satisfied = json_bool(&receipt, "direct_mode_gate_satisfied");
-    let descriptor_trusted = json_bool(&receipt, "descriptor_trusted");
-    let explicit_operator_override = json_bool(&receipt, "explicit_operator_override");
-    let no_nonzero_above_limit = json_bool(&receipt, "no_nonzero_above_limit");
-    let final_zero_attempted = json_bool(&receipt, "final_zero_attempted");
-    let final_zero_sent = json_bool(&receipt, "final_zero_sent");
-    let generated_at_utc = json_string(&receipt, "generated_at_utc");
+    if json_string(&receipt, "low_torque_strategy")
+        == Some(low_torque_strategy_name(
+            MozaLowTorqueStrategy::PidffBoundedEffect,
+        ))
+    {
+        return verify_pidff_low_torque_gate(lane, &receipt);
+    }
+    verify_direct_low_torque_gate(lane, &receipt)
+}
+
+fn verify_direct_low_torque_gate(lane: &Path, receipt: &Value) -> BundleGateCheck {
+    let success = json_bool(receipt, "success") == Some(true);
+    let command_ok = json_string(receipt, "command") == Some("wheelctl moza torque-test");
+    let receipt_path_ok = receipt_path_matches(lane, receipt, "low-torque-proof.json");
+    let dry_run = json_bool(receipt, "dry_run");
+    let no_hid_device_opened = json_bool(receipt, "no_hid_device_opened");
+    let confirmed = json_bool(receipt, "confirmed");
+    let zero_proof_validated = json_bool(receipt, "zero_proof_validated");
+    let init_proofs_validated = json_bool(receipt, "init_proofs_validated");
+    let no_feature_reports = json_bool(receipt, "no_feature_reports");
+    let no_ffb_writes = json_bool(receipt, "no_ffb_writes");
+    let no_out_of_scope = no_out_of_scope_device_commands(receipt);
+    let high_torque = json_bool(receipt, "high_torque");
+    let no_high_torque = json_bool(receipt, "no_high_torque");
+    let direct_mode_gate_satisfied = json_bool(receipt, "direct_mode_gate_satisfied");
+    let descriptor_trusted = json_bool(receipt, "descriptor_trusted");
+    let explicit_operator_override = json_bool(receipt, "explicit_operator_override");
+    let no_nonzero_above_limit = json_bool(receipt, "no_nonzero_above_limit");
+    let final_zero_attempted = json_bool(receipt, "final_zero_attempted");
+    let final_zero_sent = json_bool(receipt, "final_zero_sent");
+    let generated_at_utc = json_string(receipt, "generated_at_utc");
     let generated_at_valid = generated_at_utc
         .map(|value| utc_timestamp_pair_is_ordered(value, value))
         .unwrap_or(false);
-    let max_percent = json_f64(&receipt, "max_percent")
-        .or_else(|| json_f64(&receipt, "max_output_percent"))
-        .or_else(|| json_f64(&receipt, "max_command_percent"));
-    let duration_ms = json_u64(&receipt, "duration_ms").unwrap_or(0);
-    let hz = json_u64(&receipt, "hz").unwrap_or(0);
-    let write_attempts = json_u64(&receipt, "write_attempts").unwrap_or(0);
-    let writes_ok = json_u64(&receipt, "writes_ok").unwrap_or(0);
-    let write_errors = json_u64(&receipt, "write_errors").unwrap_or(u64::MAX);
+    let max_percent = json_f64(receipt, "max_percent")
+        .or_else(|| json_f64(receipt, "max_output_percent"))
+        .or_else(|| json_f64(receipt, "max_command_percent"));
+    let duration_ms = json_u64(receipt, "duration_ms").unwrap_or(0);
+    let hz = json_u64(receipt, "hz").unwrap_or(0);
+    let write_attempts = json_u64(receipt, "write_attempts").unwrap_or(0);
+    let writes_ok = json_u64(receipt, "writes_ok").unwrap_or(0);
+    let write_errors = json_u64(receipt, "write_errors").unwrap_or(u64::MAX);
     let device = receipt.get("device");
     let r5_device = device.map(is_r5_device_value).unwrap_or(false);
     let output_capable =
         device.and_then(|device| json_bool(device, "output_capable")) == Some(true);
+    let selector_matches_lane_endpoint = receipt_selector_matches_lane_endpoint(lane, receipt);
     let device_pid = device.and_then(|device| json_string(device, "product_id"));
     let device_pid_value = device_pid.and_then(parse_hex_selector);
     let zero_proof_pid = receipt
@@ -7960,7 +12677,7 @@ fn verify_low_torque_gate(lane: &Path) -> BundleGateCheck {
         .and_then(|proof| json_string(proof, "product_id"));
     let zero_proof_pid_matches = zero_proof_pid.is_some() && zero_proof_pid == device_pid;
     let zero_proof_lane_match =
-        low_torque_zero_proof_matches_lane(lane, &receipt, device_pid, generated_at_utc);
+        low_torque_zero_proof_matches_lane(lane, receipt, device_pid, generated_at_utc);
     let descriptor_trust_observed = device_pid
         .map(|pid| lane_descriptor_trusted_for_pid(lane, pid))
         .unwrap_or(false);
@@ -7968,7 +12685,7 @@ fn verify_low_torque_gate(lane: &Path) -> BundleGateCheck {
     let direct_mode_allowed = (descriptor_trusted == Some(true) && descriptor_trust_observed)
         || explicit_operator_override == Some(true);
     let init_proofs_match =
-        low_torque_init_proofs_match(lane, &receipt, device_pid, generated_at_utc);
+        low_torque_init_proofs_match(lane, receipt, device_pid, generated_at_utc);
     let no_abort_reason = receipt
         .get("abort_reason")
         .map(Value::is_null)
@@ -7982,13 +12699,13 @@ fn verify_low_torque_gate(lane: &Path) -> BundleGateCheck {
         .map(|value| value.is_finite() && value > 0.0 && value <= 2.0)
         .unwrap_or(false);
     let expected_low_torque_writes = max_percent.and_then(|limit| {
-        device_pid_value.and_then(|pid| low_torque_ladder_is_safe(&receipt, pid, limit))
+        device_pid_value.and_then(|pid| low_torque_ladder_is_safe(receipt, pid, limit))
     });
     let command_log_safe = max_percent
         .and_then(|limit| {
             device_pid_value.and_then(|pid| {
                 expected_low_torque_writes
-                    .map(|expected| low_torque_command_log_is_safe(&receipt, pid, limit, expected))
+                    .map(|expected| low_torque_command_log_is_safe(receipt, pid, limit, expected))
             })
         })
         .unwrap_or(false);
@@ -8029,6 +12746,7 @@ fn verify_low_torque_gate(lane: &Path) -> BundleGateCheck {
         && no_final_zero_error
         && r5_device
         && output_capable
+        && selector_matches_lane_endpoint
         && expected_writes_match
         && command_log_safe;
 
@@ -8044,10 +12762,325 @@ fn verify_low_torque_gate(lane: &Path) -> BundleGateCheck {
         BundleGateCheck::fail(
             "low_torque_bounded",
             format!(
-                "success={success}, command_ok={command_ok}, receipt_path_ok={receipt_path_ok}, dry_run={dry_run:?}, no_hid_device_opened={no_hid_device_opened:?}, confirmed={confirmed:?}, zero_proof_validated={zero_proof_validated:?}, zero_proof_pid_matches={zero_proof_pid_matches}, zero_proof_lane_match={zero_proof_lane_match}, init_proofs_validated={init_proofs_validated:?}, init_proofs_match={init_proofs_match}, no_feature_reports={no_feature_reports:?}, no_ffb_writes={no_ffb_writes:?}, no_out_of_scope={no_out_of_scope}, high_torque={high_torque:?}, direct_mode_gate_satisfied={direct_mode_gate_satisfied:?}, descriptor_trusted={descriptor_trusted:?}, descriptor_trust_observed={descriptor_trust_observed}, descriptor_trust_valid={descriptor_trust_valid}, explicit_operator_override={explicit_operator_override:?}, direct_mode_allowed={direct_mode_allowed}, no_high_torque={no_high_torque:?}, no_nonzero_above_limit={no_nonzero_above_limit:?}, final_zero_attempted={final_zero_attempted:?}, final_zero_sent={final_zero_sent:?}, generated_at_valid={generated_at_valid}, max_percent={max_percent:?}, duration_ms={duration_ms}, hz={hz}, write_attempts={write_attempts}, writes_ok={writes_ok}, write_errors={write_errors}, r5_device={r5_device}, output_capable={output_capable}, expected_low_torque_writes={expected_low_torque_writes:?}, expected_writes_match={expected_writes_match}, command_log_safe={command_log_safe}, no_abort_reason={no_abort_reason}, no_final_zero_error={no_final_zero_error}"
+                "success={success}, command_ok={command_ok}, receipt_path_ok={receipt_path_ok}, dry_run={dry_run:?}, no_hid_device_opened={no_hid_device_opened:?}, confirmed={confirmed:?}, zero_proof_validated={zero_proof_validated:?}, zero_proof_pid_matches={zero_proof_pid_matches}, zero_proof_lane_match={zero_proof_lane_match}, init_proofs_validated={init_proofs_validated:?}, init_proofs_match={init_proofs_match}, no_feature_reports={no_feature_reports:?}, no_ffb_writes={no_ffb_writes:?}, no_out_of_scope={no_out_of_scope}, high_torque={high_torque:?}, direct_mode_gate_satisfied={direct_mode_gate_satisfied:?}, descriptor_trusted={descriptor_trusted:?}, descriptor_trust_observed={descriptor_trust_observed}, descriptor_trust_valid={descriptor_trust_valid}, explicit_operator_override={explicit_operator_override:?}, direct_mode_allowed={direct_mode_allowed}, no_high_torque={no_high_torque:?}, no_nonzero_above_limit={no_nonzero_above_limit:?}, final_zero_attempted={final_zero_attempted:?}, final_zero_sent={final_zero_sent:?}, generated_at_valid={generated_at_valid}, max_percent={max_percent:?}, duration_ms={duration_ms}, hz={hz}, write_attempts={write_attempts}, writes_ok={writes_ok}, write_errors={write_errors}, r5_device={r5_device}, output_capable={output_capable}, selector_matches_lane_endpoint={selector_matches_lane_endpoint}, expected_low_torque_writes={expected_low_torque_writes:?}, expected_writes_match={expected_writes_match}, command_log_safe={command_log_safe}, no_abort_reason={no_abort_reason}, no_final_zero_error={no_final_zero_error}"
             ),
         )
     }
+}
+
+fn verify_pidff_low_torque_gate(lane: &Path, receipt: &Value) -> BundleGateCheck {
+    let success = json_bool(receipt, "success") == Some(true);
+    let command_ok = json_string(receipt, "command") == Some("wheelctl moza torque-test");
+    let receipt_path_ok = receipt_path_matches(lane, receipt, "low-torque-proof.json");
+    let dry_run = json_bool(receipt, "dry_run");
+    let no_hid_device_opened = json_bool(receipt, "no_hid_device_opened");
+    let confirmed = json_bool(receipt, "confirmed");
+    let zero_proof_validated = json_bool(receipt, "zero_proof_validated");
+    let init_proofs_validated = json_bool(receipt, "init_proofs_validated");
+    let no_feature_reports = json_bool(receipt, "no_feature_reports");
+    let no_ffb_writes = json_bool(receipt, "no_ffb_writes");
+    let no_direct_torque_reports = json_bool(receipt, "no_direct_torque_reports");
+    let no_out_of_scope = no_out_of_scope_device_commands(receipt);
+    let high_torque = json_bool(receipt, "high_torque");
+    let no_high_torque = json_bool(receipt, "no_high_torque");
+    let no_nonzero_above_limit = json_bool(receipt, "no_nonzero_above_limit");
+    let final_stop_all_attempted = json_bool(receipt, "final_stop_all_attempted");
+    let final_stop_all_sent = json_bool(receipt, "final_stop_all_sent");
+    let generated_at_utc = json_string(receipt, "generated_at_utc");
+    let generated_at_valid = generated_at_utc
+        .map(|value| utc_timestamp_pair_is_ordered(value, value))
+        .unwrap_or(false);
+    let max_percent = json_f64(receipt, "max_percent")
+        .or_else(|| json_f64(receipt, "max_output_percent"))
+        .or_else(|| json_f64(receipt, "max_command_percent"));
+    let duration_ms = json_u64(receipt, "duration_ms").unwrap_or(0);
+    let hz = json_u64(receipt, "hz").unwrap_or(0);
+    let write_attempts = json_u64(receipt, "write_attempts").unwrap_or(0);
+    let writes_ok = json_u64(receipt, "writes_ok").unwrap_or(0);
+    let write_errors = json_u64(receipt, "write_errors").unwrap_or(u64::MAX);
+    let device = receipt.get("device");
+    let r5_device = device.map(is_r5_device_value).unwrap_or(false);
+    let output_capable =
+        device.and_then(|device| json_bool(device, "output_capable")) == Some(true);
+    let selector_matches_lane_endpoint = receipt_selector_matches_lane_endpoint(lane, receipt);
+    let device_pid = device.and_then(|device| json_string(device, "product_id"));
+    let zero_proof_pid = receipt
+        .get("zero_proof")
+        .and_then(|proof| json_string(proof, "product_id"));
+    let zero_proof_pid_matches = zero_proof_pid.is_some() && zero_proof_pid == device_pid;
+    let zero_proof_lane_match =
+        low_torque_zero_proof_matches_lane(lane, receipt, device_pid, generated_at_utc);
+    let zero_proof_strategy_ok = receipt
+        .get("zero_proof")
+        .and_then(|proof| json_string(proof, "zero_output_strategy"))
+        == Some(zero_output_strategy_name(
+            MozaZeroOutputStrategy::PidffStopAll,
+        ));
+    let pidff_descriptor_observed =
+        validate_zero_output_pidff_stop_all_report_metadata(lane).is_ok();
+    let pidff_effect_setup_proven = json_bool(receipt, "pidff_effect_setup_proven");
+    let pidff_effect_frontier_clear = pidff_bounded_effect_descriptor_blockers(lane).is_empty();
+    let init_proofs_match =
+        low_torque_init_proofs_match(lane, receipt, device_pid, generated_at_utc);
+    let no_abort_reason = receipt
+        .get("abort_reason")
+        .map(Value::is_null)
+        .unwrap_or(true);
+    let no_final_zero_error = receipt
+        .get("final_zero_error")
+        .map(Value::is_null)
+        .unwrap_or(true);
+
+    let bounded = max_percent
+        .map(|value| value.is_finite() && value > 0.0 && value <= 2.0)
+        .unwrap_or(false);
+    let command_log_safe = max_percent
+        .map(|limit| pidff_low_torque_command_log_is_safe(lane, receipt, limit, write_attempts))
+        .unwrap_or(false);
+    let expected_writes_match = write_attempts > 0 && writes_ok == write_attempts.saturating_add(1);
+
+    let safe = success
+        && command_ok
+        && receipt_path_ok
+        && json_string(receipt, "low_torque_strategy")
+            == Some(low_torque_strategy_name(
+                MozaLowTorqueStrategy::PidffBoundedEffect,
+            ))
+        && dry_run == Some(false)
+        && no_hid_device_opened == Some(false)
+        && confirmed == Some(true)
+        && zero_proof_validated == Some(true)
+        && zero_proof_pid_matches
+        && zero_proof_lane_match
+        && zero_proof_strategy_ok
+        && init_proofs_validated == Some(true)
+        && init_proofs_match
+        && no_feature_reports == Some(true)
+        && no_ffb_writes == Some(false)
+        && no_direct_torque_reports == Some(true)
+        && no_out_of_scope
+        && high_torque == Some(false)
+        && no_high_torque == Some(true)
+        && no_nonzero_above_limit == Some(true)
+        && final_stop_all_attempted == Some(true)
+        && final_stop_all_sent == Some(true)
+        && generated_at_valid
+        && bounded
+        && duration_ms > 0
+        && duration_ms <= 1000
+        && hz > 0
+        && hz <= 1000
+        && write_errors == 0
+        && no_abort_reason
+        && no_final_zero_error
+        && r5_device
+        && output_capable
+        && selector_matches_lane_endpoint
+        && pidff_descriptor_observed
+        && pidff_effect_setup_proven == Some(true)
+        && pidff_effect_frontier_clear
+        && expected_writes_match
+        && command_log_safe;
+
+    if safe {
+        BundleGateCheck::pass(
+            "low_torque_bounded",
+            format!(
+                "real PIDFF low-torque proof logged {write_attempts} bounded command(s) plus final Stop All"
+            ),
+        )
+    } else {
+        BundleGateCheck::fail(
+            "low_torque_bounded",
+            format!(
+                "success={success}, command_ok={command_ok}, receipt_path_ok={receipt_path_ok}, dry_run={dry_run:?}, no_hid_device_opened={no_hid_device_opened:?}, confirmed={confirmed:?}, zero_proof_validated={zero_proof_validated:?}, zero_proof_pid_matches={zero_proof_pid_matches}, zero_proof_lane_match={zero_proof_lane_match}, zero_proof_strategy_ok={zero_proof_strategy_ok}, init_proofs_validated={init_proofs_validated:?}, init_proofs_match={init_proofs_match}, no_feature_reports={no_feature_reports:?}, no_ffb_writes={no_ffb_writes:?}, no_direct_torque_reports={no_direct_torque_reports:?}, no_out_of_scope={no_out_of_scope}, high_torque={high_torque:?}, no_high_torque={no_high_torque:?}, no_nonzero_above_limit={no_nonzero_above_limit:?}, final_stop_all_attempted={final_stop_all_attempted:?}, final_stop_all_sent={final_stop_all_sent:?}, generated_at_valid={generated_at_valid}, max_percent={max_percent:?}, duration_ms={duration_ms}, hz={hz}, write_attempts={write_attempts}, writes_ok={writes_ok}, write_errors={write_errors}, r5_device={r5_device}, output_capable={output_capable}, selector_matches_lane_endpoint={selector_matches_lane_endpoint}, pidff_descriptor_observed={pidff_descriptor_observed}, pidff_effect_setup_proven={pidff_effect_setup_proven:?}, pidff_effect_frontier_clear={pidff_effect_frontier_clear}, expected_writes_match={expected_writes_match}, command_log_safe={command_log_safe}, no_abort_reason={no_abort_reason}, no_final_zero_error={no_final_zero_error}"
+            ),
+        )
+    }
+}
+
+fn verify_steering_angle_stream_gate(lane: &Path) -> BundleGateCheck {
+    let receipt = match read_json_value(lane, "steering-angle-stream-proof.json") {
+        Ok(value) => value,
+        Err(e) => return BundleGateCheck::fail("steering_angle_stream_proof", e.to_string()),
+    };
+
+    let success = json_bool(&receipt, "success") == Some(true);
+    let command_ok =
+        json_string(&receipt, "command") == Some("wheelctl moza steering-stream-proof");
+    let receipt_path_ok = receipt_path_matches(lane, &receipt, "steering-angle-stream-proof.json");
+    let selector_matches_lane_endpoint = receipt_selector_matches_lane_endpoint(lane, &receipt);
+    let no_output_reports = json_bool(&receipt, "no_output_reports");
+    let no_feature_reports = json_bool(&receipt, "no_feature_reports");
+    let no_ffb_writes = json_bool(&receipt, "no_ffb_writes");
+    let hardware_output_enabled = json_bool(&receipt, "hardware_output_enabled");
+    let no_out_of_scope = no_out_of_scope_device_commands(&receipt);
+    let generated_at_utc = json_string(&receipt, "generated_at_utc");
+    let generated_at_valid = generated_at_utc
+        .map(|value| utc_timestamp_pair_is_ordered(value, value))
+        .unwrap_or(false);
+    let duration_ms = json_u64(&receipt, "duration_ms").unwrap_or(0);
+    let sample_count = json_u64(&receipt, "sample_count").unwrap_or(0);
+    let timestamps_monotonic = json_bool(&receipt, "timestamps_monotonic");
+    let sequence_monotonic = json_bool(&receipt, "sequence_monotonic");
+    let angle_units_ok = json_string(&receipt, "angle_units") == Some("degrees");
+    let center_baseline_present = receipt.get("center_baseline_degrees").is_some();
+    let device = receipt.get("device");
+    let r5_device = device.map(is_r5_device_value).unwrap_or(false);
+
+    let safe = success
+        && command_ok
+        && receipt_path_ok
+        && selector_matches_lane_endpoint
+        && no_output_reports == Some(true)
+        && no_feature_reports == Some(true)
+        && no_ffb_writes == Some(true)
+        && hardware_output_enabled == Some(false)
+        && no_out_of_scope
+        && generated_at_valid
+        && duration_ms > 0
+        && sample_count > 0
+        && timestamps_monotonic == Some(true)
+        && sequence_monotonic == Some(true)
+        && angle_units_ok
+        && center_baseline_present
+        && r5_device;
+
+    if safe {
+        BundleGateCheck::pass(
+            "steering_angle_stream_proof",
+            format!(
+                "native steering angle stream recorded {sample_count} sample(s) with no output"
+            ),
+        )
+    } else {
+        BundleGateCheck::fail(
+            "steering_angle_stream_proof",
+            format!(
+                "success={success}, command_ok={command_ok}, receipt_path_ok={receipt_path_ok}, selector_matches_lane_endpoint={selector_matches_lane_endpoint}, no_output_reports={no_output_reports:?}, no_feature_reports={no_feature_reports:?}, no_ffb_writes={no_ffb_writes:?}, hardware_output_enabled={hardware_output_enabled:?}, no_out_of_scope={no_out_of_scope}, generated_at_valid={generated_at_valid}, duration_ms={duration_ms}, sample_count={sample_count}, timestamps_monotonic={timestamps_monotonic:?}, sequence_monotonic={sequence_monotonic:?}, angle_units_ok={angle_units_ok}, center_baseline_present={center_baseline_present}, r5_device={r5_device}"
+            ),
+        )
+    }
+}
+
+fn verify_native_actuator_profile_smoke_gate(lane: &Path) -> BundleGateCheck {
+    let receipt = match read_json_value(lane, "native-actuator-profile-smoke.json") {
+        Ok(value) => value,
+        Err(e) => return BundleGateCheck::fail("native_actuator_profile_smoke", e.to_string()),
+    };
+
+    let success = json_bool(&receipt, "success") == Some(true);
+    let command_ok =
+        json_string(&receipt, "command") == Some("wheelctl moza actuator-profile-smoke");
+    let receipt_path_ok =
+        receipt_path_matches(lane, &receipt, "native-actuator-profile-smoke.json");
+    let selector_matches_lane_endpoint = receipt_selector_matches_lane_endpoint(lane, &receipt);
+    let confirmed = json_bool(&receipt, "confirmed");
+    let no_hid_device_opened = json_bool(&receipt, "no_hid_device_opened");
+    let hardware_output_enabled = json_bool(&receipt, "hardware_output_enabled");
+    let no_feature_reports = json_bool(&receipt, "no_feature_reports");
+    let no_ffb_writes = json_bool(&receipt, "no_ffb_writes");
+    let no_direct_torque_reports = json_bool(&receipt, "no_direct_torque_reports");
+    let no_high_torque = json_bool(&receipt, "no_high_torque");
+    let high_torque = json_bool(&receipt, "high_torque");
+    let no_nonzero_above_limit = json_bool(&receipt, "no_nonzero_above_limit");
+    let no_out_of_scope = no_out_of_scope_device_commands(&receipt);
+    let pidff_effect_setup_proven = json_bool(&receipt, "pidff_effect_setup_proven");
+    let final_stop_all_attempted = json_bool(&receipt, "final_stop_all_attempted");
+    let final_stop_all_sent = json_bool(&receipt, "final_stop_all_sent");
+    let generated_at_utc = json_string(&receipt, "generated_at_utc");
+    let generated_at_valid = generated_at_utc
+        .map(|value| utc_timestamp_pair_is_ordered(value, value))
+        .unwrap_or(false);
+    let strategy_ok = json_string(&receipt, "output_strategy")
+        == Some(low_torque_strategy_name(
+            MozaLowTorqueStrategy::PidffBoundedEffect,
+        ));
+    let profile_present = json_string(&receipt, "profile").is_some();
+    let max_percent = json_f64(&receipt, "max_percent").unwrap_or(f64::NAN);
+    let duration_ms = json_u64(&receipt, "duration_ms").unwrap_or(0);
+    let write_attempts = json_u64(&receipt, "write_attempts").unwrap_or(0);
+    let writes_ok = json_u64(&receipt, "writes_ok").unwrap_or(0);
+    let write_errors = json_u64(&receipt, "write_errors").unwrap_or(u64::MAX);
+    let command_log_entries = receipt
+        .get("command_log")
+        .and_then(Value::as_array)
+        .map(|records| records.len().min(u64::MAX as usize) as u64)
+        .unwrap_or(0);
+    let command_log_no_direct_report =
+        command_log_omits_report_id(&receipt, DIRECT_TORQUE_REPORT_ID);
+    let device = receipt.get("device");
+    let r5_device = device.map(is_r5_device_value).unwrap_or(false);
+
+    let bounded = max_percent.is_finite() && max_percent > 0.0 && max_percent <= 1.0;
+    let safe = success
+        && command_ok
+        && receipt_path_ok
+        && selector_matches_lane_endpoint
+        && confirmed == Some(true)
+        && no_hid_device_opened == Some(false)
+        && hardware_output_enabled == Some(true)
+        && no_feature_reports == Some(true)
+        && no_ffb_writes == Some(false)
+        && no_direct_torque_reports == Some(true)
+        && no_high_torque == Some(true)
+        && high_torque == Some(false)
+        && no_nonzero_above_limit == Some(true)
+        && no_out_of_scope
+        && pidff_effect_setup_proven == Some(true)
+        && final_stop_all_attempted == Some(true)
+        && final_stop_all_sent == Some(true)
+        && generated_at_valid
+        && strategy_ok
+        && profile_present
+        && bounded
+        && duration_ms > 0
+        && duration_ms <= 2000
+        && write_attempts > 0
+        && write_attempts == command_log_entries
+        && writes_ok == write_attempts
+        && write_errors == 0
+        && command_log_no_direct_report
+        && r5_device;
+
+    if safe {
+        BundleGateCheck::pass(
+            "native_actuator_profile_smoke",
+            format!(
+                "native PIDFF actuator profile recorded {write_attempts} write attempt(s), including Stop All cleanup"
+            ),
+        )
+    } else {
+        BundleGateCheck::fail(
+            "native_actuator_profile_smoke",
+            format!(
+                "success={success}, command_ok={command_ok}, receipt_path_ok={receipt_path_ok}, selector_matches_lane_endpoint={selector_matches_lane_endpoint}, confirmed={confirmed:?}, no_hid_device_opened={no_hid_device_opened:?}, hardware_output_enabled={hardware_output_enabled:?}, no_feature_reports={no_feature_reports:?}, no_ffb_writes={no_ffb_writes:?}, no_direct_torque_reports={no_direct_torque_reports:?}, no_high_torque={no_high_torque:?}, high_torque={high_torque:?}, no_nonzero_above_limit={no_nonzero_above_limit:?}, no_out_of_scope={no_out_of_scope}, pidff_effect_setup_proven={pidff_effect_setup_proven:?}, final_stop_all_attempted={final_stop_all_attempted:?}, final_stop_all_sent={final_stop_all_sent:?}, generated_at_valid={generated_at_valid}, strategy_ok={strategy_ok}, profile_present={profile_present}, max_percent={max_percent}, duration_ms={duration_ms}, write_attempts={write_attempts}, writes_ok={writes_ok}, write_errors={write_errors}, command_log_entries={command_log_entries}, command_log_no_direct_report={command_log_no_direct_report}, r5_device={r5_device}"
+            ),
+        )
+    }
+}
+
+fn command_log_omits_report_id(receipt: &Value, forbidden_report_id: &str) -> bool {
+    receipt
+        .get("command_log")
+        .and_then(Value::as_array)
+        .map(|records| {
+            !records.iter().any(|record| {
+                json_string(record, "report_id")
+                    .map(|report_id| report_id.eq_ignore_ascii_case(forbidden_report_id))
+                    .unwrap_or(false)
+            })
+        })
+        .unwrap_or(false)
+}
+
+fn receipt_selector_matches_lane_endpoint(lane: &Path, receipt: &Value) -> bool {
+    let Some(expected) = lane_manifest_r5_hid_observe_selector(lane) else {
+        return false;
+    };
+    json_string(receipt, "selector")
+        .map(|selector| selector.eq_ignore_ascii_case(&expected))
+        .unwrap_or(false)
 }
 
 fn low_torque_zero_proof_matches_lane(
@@ -8149,7 +13182,9 @@ fn init_proof_summary_matches(
         && json_string(proof, "mode") == Some(expected_mode)
         && json_string(proof, "init_state") == Some("ready")
         && json_bool(proof, "ready") == Some(true)
-        && json_u64(proof, "feature_report_count") == Some(2)
+        && json_u64(proof, "feature_report_count")
+            .map(|count| count > 0)
+            .unwrap_or(false)
         && proof_generated_at == actual_generated_at
         && proof_generated_at
             .map(|value| utc_timestamp_pair_is_ordered(value, low_torque_generated_at))
@@ -8296,6 +13331,202 @@ fn low_torque_command_log_is_safe(
     }
 
     low_torque_ok == expected_writes
+}
+
+fn pidff_low_torque_command_log_is_safe(
+    lane: &Path,
+    receipt: &Value,
+    max_percent: f64,
+    expected_writes: u64,
+) -> bool {
+    let Some(records) = receipt.get("command_log").and_then(Value::as_array) else {
+        return false;
+    };
+    let Ok(expected_len) = usize::try_from(expected_writes.saturating_add(1)) else {
+        return false;
+    };
+    if records.len() != expected_len {
+        return false;
+    }
+
+    let mut pidff_writes = 0u64;
+    let mut set_effect_seen = false;
+    let mut constant_force_seen = false;
+    let mut effect_start_seen = false;
+    for (index, record) in records.iter().enumerate() {
+        if json_string(record, "result") != Some("ok")
+            || json_string(record, "low_torque_strategy")
+                != Some(low_torque_strategy_name(
+                    MozaLowTorqueStrategy::PidffBoundedEffect,
+                ))
+            || !record_sequence_matches_index(record, index)
+        {
+            return false;
+        }
+
+        match json_string(record, "kind") {
+            Some(
+                kind @ ("pidff_set_effect" | "pidff_set_constant_force" | "pidff_effect_start"),
+            ) => {
+                if index + 1 == records.len() {
+                    return false;
+                }
+                let Some(percent) = json_f64(record, "effect_magnitude_percent")
+                    .or_else(|| json_f64(record, "percent"))
+                else {
+                    return false;
+                };
+                let Some(report_id) = json_string(record, "report_id") else {
+                    return false;
+                };
+                let Some(report_len) =
+                    json_u64(record, "report_len").and_then(|value| usize::try_from(value).ok())
+                else {
+                    return false;
+                };
+                let Some(bytes_written) = json_u64(record, "bytes_written") else {
+                    return false;
+                };
+                let Some(payload_hex) = json_string(record, "payload_hex") else {
+                    return false;
+                };
+                let safety_classification = json_string(record, "safety_classification");
+                let report_shape_safe = match kind {
+                    "pidff_set_effect" => {
+                        set_effect_seen = true;
+                        report_id == PIDFF_SET_EFFECT_REPORT_ID
+                            && safety_classification == Some(PIDFF_EFFECT_SETUP_CLASSIFICATION)
+                    }
+                    "pidff_set_constant_force" => {
+                        constant_force_seen = true;
+                        report_id == PIDFF_SET_CONSTANT_FORCE_REPORT_ID
+                            && safety_classification == Some(PIDFF_BOUNDED_EFFECT_CLASSIFICATION)
+                            && json_i64(record, "torque_raw")
+                                .map(|value| value > 0)
+                                .unwrap_or(false)
+                    }
+                    "pidff_effect_start" => {
+                        effect_start_seen = true;
+                        report_id == PIDFF_EFFECT_OPERATION_REPORT_ID
+                            && safety_classification == Some(PIDFF_BOUNDED_EFFECT_CLASSIFICATION)
+                    }
+                    _ => false,
+                };
+                let record_safe = percent.is_finite()
+                    && percent > 0.0
+                    && percent <= max_percent
+                    && report_id != DIRECT_TORQUE_REPORT_ID
+                    && payload_hex.len() == report_len.saturating_mul(2)
+                    && bytes_written >= report_len as u64
+                    && report_shape_safe
+                    && lane_descriptor_has_output_report(lane, report_id, report_len);
+                if !record_safe {
+                    return false;
+                }
+                pidff_writes += 1;
+            }
+            Some("final_stop_all" | "final_zero") => {
+                if index + 1 != records.len() {
+                    return false;
+                }
+                let final_stop_all_safe = json_string(record, "payload_hex") == Some("0C04")
+                    && json_string(record, "report_id") == Some(PIDFF_DEVICE_CONTROL_REPORT_ID)
+                    && json_u64(record, "report_len")
+                        == Some(PIDFF_DEVICE_CONTROL_REPORT_LEN as u64)
+                    && json_u64(record, "bytes_written")
+                        .map(|bytes| bytes >= PIDFF_DEVICE_CONTROL_REPORT_LEN as u64)
+                        .unwrap_or(false)
+                    && json_f64(record, "percent") == Some(0.0)
+                    && json_f64(record, "effect_magnitude_percent") == Some(0.0)
+                    && json_i64(record, "torque_raw") == Some(0)
+                    && json_u64(record, "flags") == Some(0)
+                    && json_bool(record, "motor_enabled") == Some(false)
+                    && json_string(record, "pidff_device_control_command") == Some("0x04")
+                    && json_string(record, "pidff_device_control_command_name")
+                        == Some(PIDFF_STOP_ALL_EFFECTS_COMMAND_NAME)
+                    && json_string(record, "safety_classification")
+                        == Some(PIDFF_STOP_ALL_CLEANUP_CLASSIFICATION);
+                if !final_stop_all_safe {
+                    return false;
+                }
+            }
+            _ => return false,
+        }
+    }
+
+    pidff_writes == expected_writes && set_effect_seen && constant_force_seen && effect_start_seen
+}
+
+fn lane_descriptor_has_output_report(lane: &Path, report_id: &str, report_len: usize) -> bool {
+    lane_descriptor_has_report_record(lane, "output_reports", report_id, report_len)
+}
+
+fn lane_descriptor_has_pidff_set_effect_encoder(lane: &Path) -> bool {
+    lane_descriptor_has_output_report(
+        lane,
+        PIDFF_SET_EFFECT_REPORT_ID,
+        PIDFF_SET_EFFECT_GENERIC_REPORT_LEN,
+    ) || (lane_manifest_r5_pid(lane) == Some(product_ids::R5_V1)
+        && r5_v1_pidff_set_effect_encoder_available()
+        && lane_descriptor_has_output_report(
+            lane,
+            PIDFF_SET_EFFECT_REPORT_ID,
+            PIDFF_SET_EFFECT_R5_V1_REPORT_LEN,
+        ))
+}
+
+fn lane_descriptor_has_feature_report_metadata(lane: &Path, report_id: &str) -> bool {
+    let Ok(receipt) = read_json_value(lane, "descriptor.json") else {
+        return false;
+    };
+    let Some(devices) = receipt.get("devices").and_then(Value::as_array) else {
+        return false;
+    };
+    let Some(pid) = lane_manifest_r5_pid(lane).map(hex_u16) else {
+        return false;
+    };
+    devices.iter().any(|device| {
+        is_r5_device_value(device)
+            && json_string(device, "product_id") == Some(pid.as_str())
+            && r5_descriptor_metadata_trusted(device)
+            && device
+                .get("feature_reports")
+                .and_then(Value::as_array)
+                .map(|records| {
+                    records.iter().any(|record| {
+                        json_string(record, "report_id")
+                            .map(|value| value.eq_ignore_ascii_case(report_id))
+                            .unwrap_or(false)
+                            && json_u64(record, "report_len")
+                                .map(|len| len > 0)
+                                .unwrap_or(false)
+                    })
+                })
+                .unwrap_or(false)
+    })
+}
+
+fn lane_descriptor_has_report_record(
+    lane: &Path,
+    record_key: &str,
+    report_id: &str,
+    report_len: usize,
+) -> bool {
+    let Ok(receipt) = read_json_value(lane, "descriptor.json") else {
+        return false;
+    };
+    let Some(devices) = receipt.get("devices").and_then(Value::as_array) else {
+        return false;
+    };
+    let Some(pid) = lane_manifest_r5_pid(lane).map(hex_u16) else {
+        return false;
+    };
+    devices.iter().any(|device| {
+        is_r5_device_value(device)
+            && json_string(device, "product_id") == Some(pid.as_str())
+            && r5_descriptor_metadata_trusted(device)
+            && json_report_record_contains(device, record_key, report_id, report_len)
+    })
 }
 
 struct ExpectedLowTorquePayload {
@@ -8945,19 +14176,40 @@ fn verify_simulator_ffb_gate(lane: &Path) -> BundleGateCheck {
     let hardware = json_string(&receipt, "hardware");
     let hardware_ok = hardware == Some("moza-r5");
     let ffb_mode = json_string(&receipt, "ffb_mode");
+    let output_strategy = json_string(&receipt, "output_strategy").unwrap_or(
+        low_torque_strategy_name(MozaLowTorqueStrategy::DirectReport0x20),
+    );
     let descriptor_trusted = json_bool(&receipt, "descriptor_trusted");
     let explicit_operator_override = json_bool(&receipt, "explicit_operator_override");
     let receipt_pid = receipt_r5_device_pid(&receipt);
-    let descriptor_trust_observed = receipt_pid
+    let direct_descriptor_trust_observed = receipt_pid
         .map(|pid| lane_descriptor_trusted_for_pid(lane, &hex_u16(pid)))
         .unwrap_or(false);
+    let pidff_descriptor_trust_observed = validate_zero_output_pidff_stop_all_report_metadata(lane)
+        .is_ok()
+        && pidff_bounded_effect_descriptor_blockers(lane).is_empty();
+    let descriptor_trust_observed =
+        if output_strategy == low_torque_strategy_name(MozaLowTorqueStrategy::PidffBoundedEffect) {
+            pidff_descriptor_trust_observed
+        } else {
+            direct_descriptor_trust_observed
+        };
     let descriptor_trust_valid = descriptor_trusted != Some(true) || descriptor_trust_observed;
     let direct_mode_allowed = ffb_mode == Some("direct")
+        && output_strategy == low_torque_strategy_name(MozaLowTorqueStrategy::DirectReport0x20)
         && ((descriptor_trusted == Some(true) && descriptor_trust_observed)
             || explicit_operator_override == Some(true))
         && descriptor_trust_valid;
+    let pidff_mode_allowed = ffb_mode == Some("pidff")
+        && output_strategy == low_torque_strategy_name(MozaLowTorqueStrategy::PidffBoundedEffect)
+        && descriptor_trusted == Some(true)
+        && descriptor_trust_observed
+        && explicit_operator_override == Some(false)
+        && descriptor_trust_valid;
+    let output_strategy_allowed = direct_mode_allowed || pidff_mode_allowed;
     let high_torque = json_bool(&receipt, "high_torque");
     let no_high_torque = json_bool(&receipt, "no_high_torque");
+    let no_direct_torque_reports = json_bool(&receipt, "no_direct_torque_reports");
     let no_out_of_scope = no_out_of_scope_device_commands(&receipt);
     let no_hid_device_opened = json_bool(&receipt, "no_hid_device_opened");
     let no_ffb_writes = json_bool(&receipt, "no_ffb_writes");
@@ -8986,12 +14238,19 @@ fn verify_simulator_ffb_gate(lane: &Path) -> BundleGateCheck {
     let zero_output_count = json_u64(&receipt, "zero_output_count")
         .or_else(|| json_u64(&receipt, "zero_command_count"))
         .unwrap_or(0);
-    let final_zero_payload_safe = json_string(&receipt, "final_zero_payload_hex")
-        .map(|value| value.eq_ignore_ascii_case("2000000000000000"))
-        .unwrap_or(false)
-        || (json_string(&receipt, "final_zero_report_id") == Some(DIRECT_TORQUE_REPORT_ID)
-            && json_i64(&receipt, "final_zero_torque_raw") == Some(0)
-            && json_u64(&receipt, "final_zero_flags") == Some(0));
+    let final_zero_payload_safe = if output_strategy
+        == low_torque_strategy_name(MozaLowTorqueStrategy::PidffBoundedEffect)
+    {
+        json_string(&receipt, "final_zero_payload_hex") == Some("0C04")
+            && json_string(&receipt, "final_zero_report_id") == Some(PIDFF_DEVICE_CONTROL_REPORT_ID)
+    } else {
+        json_string(&receipt, "final_zero_payload_hex")
+            .map(|value| value.eq_ignore_ascii_case("2000000000000000"))
+            .unwrap_or(false)
+            || (json_string(&receipt, "final_zero_report_id") == Some(DIRECT_TORQUE_REPORT_ID)
+                && json_i64(&receipt, "final_zero_torque_raw") == Some(0)
+                && json_u64(&receipt, "final_zero_flags") == Some(0))
+    };
     let max_percent = json_f64(&receipt, "max_output_percent")
         .or_else(|| json_f64(&receipt, "max_percent"))
         .or_else(|| json_f64(&receipt, "max_command_percent"));
@@ -9020,16 +14279,30 @@ fn verify_simulator_ffb_gate(lane: &Path) -> BundleGateCheck {
             linked_telemetry
                 .as_ref()
                 .map(|telemetry| {
-                    simulator_ffb_output_artifact_is_safe(
-                        lane,
-                        value,
-                        output_report_count,
-                        nonzero_output_count,
-                        zero_output_count,
-                        max_artifact_percent,
-                        receipt_pid.unwrap_or(product_ids::R5_V2),
-                        telemetry,
-                    )
+                    if output_strategy
+                        == low_torque_strategy_name(MozaLowTorqueStrategy::PidffBoundedEffect)
+                    {
+                        simulator_ffb_pidff_output_artifact_is_safe(
+                            lane,
+                            value,
+                            output_report_count,
+                            nonzero_output_count,
+                            zero_output_count,
+                            max_artifact_percent,
+                            telemetry,
+                        )
+                    } else {
+                        simulator_ffb_output_artifact_is_safe(
+                            lane,
+                            value,
+                            output_report_count,
+                            nonzero_output_count,
+                            zero_output_count,
+                            max_artifact_percent,
+                            receipt_pid.unwrap_or(product_ids::R5_V2),
+                            telemetry,
+                        )
+                    }
                 })
                 .unwrap_or(false)
         })
@@ -9040,15 +14313,19 @@ fn verify_simulator_ffb_gate(lane: &Path) -> BundleGateCheck {
         .map(Vec::is_empty)
         .unwrap_or(false);
     let r5_output_device = receipt_targets_r5_output_device(&receipt);
+    let writer_selector_matches_lane_endpoint =
+        simulator_ffb_receipt_writer_selector_matches_lane_endpoint(lane, &receipt);
 
     let safe = success
         && command_ok
         && !game.trim().is_empty()
         && source_ok
         && hardware_ok
-        && direct_mode_allowed
+        && output_strategy_allowed
         && high_torque == Some(false)
         && no_high_torque == Some(true)
+        && (output_strategy != low_torque_strategy_name(MozaLowTorqueStrategy::PidffBoundedEffect)
+            || no_direct_torque_reports == Some(true))
         && no_out_of_scope
         && no_hid_device_opened == Some(false)
         && no_ffb_writes == Some(false)
@@ -9074,6 +14351,7 @@ fn verify_simulator_ffb_gate(lane: &Path) -> BundleGateCheck {
         && output_log_artifact_valid
         && faults_empty
         && r5_output_device
+        && writer_selector_matches_lane_endpoint
         && max_percent
             .map(|value| value.is_finite() && value > 0.0 && value <= 5.0)
             .unwrap_or(false)
@@ -9090,11 +14368,23 @@ fn verify_simulator_ffb_gate(lane: &Path) -> BundleGateCheck {
         BundleGateCheck::fail(
             "simulator_ffb_bounded",
             format!(
-                "success={success}, command_ok={command_ok}, game_present={}, telemetry_source={source:?}, hardware={hardware:?}, ffb_mode={ffb_mode:?}, descriptor_trusted={descriptor_trusted:?}, descriptor_trust_observed={descriptor_trust_observed}, descriptor_trust_valid={descriptor_trust_valid}, explicit_operator_override={explicit_operator_override:?}, direct_mode_allowed={direct_mode_allowed}, high_torque={high_torque:?}, no_high_torque={no_high_torque:?}, no_out_of_scope={no_out_of_scope}, no_hid_device_opened={no_hid_device_opened:?}, no_ffb_writes={no_ffb_writes:?}, hardware_prerequisites_validated={hardware_prerequisites_validated:?}, prerequisite_gates_valid={prerequisite_gates_valid}, prerequisite_artifacts_valid={prerequisite_artifacts_valid}, hardware_output_enabled={hardware_output_enabled:?}, watchdog_active={watchdog_active:?}, watchdog_timeout_ms={watchdog_timeout_ms}, final_zero_attempted={final_zero_attempted:?}, final_zero_sent={final_zero_sent:?}, final_zero_payload_safe={final_zero_payload_safe}, stop_cleared_output={stop_cleared_output:?}, pause_cleared_output={pause_cleared_output:?}, game_exit_cleared_output={game_exit_cleared_output:?}, mode_mismatch_cleared_output={mode_mismatch_cleared_output:?}, output_report_count={output_report_count}, nonzero_output_count={nonzero_output_count}, zero_output_count={zero_output_count}, simulator_telemetry_gate_valid={simulator_telemetry_gate_valid}, linked_telemetry_snapshot_count={linked_telemetry_snapshot_count:?}, output_log_provenance_valid={output_log_provenance_valid}, output_log_artifact_valid={output_log_artifact_valid}, faults_empty={faults_empty}, r5_output_device={r5_output_device}, max_output_percent={max_percent:?}, max_abs_output_percent={max_abs_output_percent:?}",
+                "success={success}, command_ok={command_ok}, game_present={}, telemetry_source={source:?}, hardware={hardware:?}, ffb_mode={ffb_mode:?}, output_strategy={output_strategy:?}, descriptor_trusted={descriptor_trusted:?}, descriptor_trust_observed={descriptor_trust_observed}, descriptor_trust_valid={descriptor_trust_valid}, explicit_operator_override={explicit_operator_override:?}, direct_mode_allowed={direct_mode_allowed}, pidff_mode_allowed={pidff_mode_allowed}, output_strategy_allowed={output_strategy_allowed}, high_torque={high_torque:?}, no_high_torque={no_high_torque:?}, no_direct_torque_reports={no_direct_torque_reports:?}, no_out_of_scope={no_out_of_scope}, no_hid_device_opened={no_hid_device_opened:?}, no_ffb_writes={no_ffb_writes:?}, hardware_prerequisites_validated={hardware_prerequisites_validated:?}, prerequisite_gates_valid={prerequisite_gates_valid}, prerequisite_artifacts_valid={prerequisite_artifacts_valid}, hardware_output_enabled={hardware_output_enabled:?}, watchdog_active={watchdog_active:?}, watchdog_timeout_ms={watchdog_timeout_ms}, final_zero_attempted={final_zero_attempted:?}, final_zero_sent={final_zero_sent:?}, final_zero_payload_safe={final_zero_payload_safe}, stop_cleared_output={stop_cleared_output:?}, pause_cleared_output={pause_cleared_output:?}, game_exit_cleared_output={game_exit_cleared_output:?}, mode_mismatch_cleared_output={mode_mismatch_cleared_output:?}, output_report_count={output_report_count}, nonzero_output_count={nonzero_output_count}, zero_output_count={zero_output_count}, simulator_telemetry_gate_valid={simulator_telemetry_gate_valid}, linked_telemetry_snapshot_count={linked_telemetry_snapshot_count:?}, output_log_provenance_valid={output_log_provenance_valid}, output_log_artifact_valid={output_log_artifact_valid}, faults_empty={faults_empty}, r5_output_device={r5_output_device}, writer_selector_matches_lane_endpoint={writer_selector_matches_lane_endpoint}, max_output_percent={max_percent:?}, max_abs_output_percent={max_abs_output_percent:?}",
                 !game.trim().is_empty()
             ),
         )
     }
+}
+
+fn simulator_ffb_receipt_writer_selector_matches_lane_endpoint(
+    lane: &Path,
+    receipt: &Value,
+) -> bool {
+    let Some(expected) = lane_manifest_r5_hid_observe_selector(lane) else {
+        return false;
+    };
+    json_string(receipt, "writer_endpoint_selector")
+        .map(|selector| selector.eq_ignore_ascii_case(&expected))
+        .unwrap_or(false)
 }
 
 fn simulator_ffb_prerequisite_gates(lane: &Path) -> Vec<BundleGateCheck> {
@@ -9597,10 +14887,140 @@ fn simulator_ffb_output_artifact_is_safe(
         && clear_events.all_ordered_before_final_zero(records.len().saturating_sub(1))
 }
 
+fn simulator_ffb_pidff_output_artifact_is_safe(
+    lane: &Path,
+    path: &str,
+    expected_count: u64,
+    expected_nonzero_count: u64,
+    expected_zero_count: u64,
+    max_percent: f64,
+    telemetry_link: &SimulatorFfbTelemetryLink,
+) -> bool {
+    if expected_count == 0
+        || expected_nonzero_count == 0
+        || expected_zero_count == 0
+        || !max_percent.is_finite()
+        || !(0.0..=5.0).contains(&max_percent)
+        || telemetry_link.snapshot_count == 0
+    {
+        return false;
+    }
+
+    let Some(records) = read_receipt_artifact_records(
+        lane,
+        path,
+        &["output_log", "records", "commands", "reports"],
+    ) else {
+        return false;
+    };
+    let Ok(expected_len) = usize::try_from(expected_count) else {
+        return false;
+    };
+    if records.len() != expected_len {
+        return false;
+    }
+
+    let mut nonzero_count = 0u64;
+    let mut zero_count = 0u64;
+    let mut set_effect_seen = false;
+    let mut constant_force_seen = false;
+    let mut effect_start_seen = false;
+    let mut clear_events = SimulatorFfbClearEvents::default();
+    let mut previous_elapsed_us = None;
+    let mut elapsed_advanced = false;
+
+    for (index, record) in records.iter().enumerate() {
+        let Some(output) = pidff_output_artifact_record(record) else {
+            return false;
+        };
+        let Some(elapsed_us) = json_u64(record, "elapsed_us") else {
+            return false;
+        };
+        if let Some(previous) = previous_elapsed_us {
+            if elapsed_us < previous {
+                return false;
+            }
+            if elapsed_us > previous {
+                elapsed_advanced = true;
+            }
+        }
+        previous_elapsed_us = Some(elapsed_us);
+
+        if json_string(record, "result") != Some("ok")
+            || !record_sequence_matches_index(record, index)
+            || !simulator_ffb_record_has_hid_write_metadata(record)
+            || !simulator_ffb_record_links_telemetry(record, telemetry_link)
+            || !lane_descriptor_has_output_report(lane, &output.report_id, output.report_len)
+            || output.effect_magnitude_percent > max_percent
+        {
+            return false;
+        }
+
+        let is_last = index + 1 == records.len();
+        match output.kind.as_str() {
+            "pidff_set_effect" => {
+                if is_last
+                    || output.report_id != PIDFF_SET_EFFECT_REPORT_ID
+                    || output.safety_classification != PIDFF_EFFECT_SETUP_CLASSIFICATION
+                {
+                    return false;
+                }
+                set_effect_seen = true;
+            }
+            "pidff_set_constant_force" => {
+                if is_last
+                    || output.report_id != PIDFF_SET_CONSTANT_FORCE_REPORT_ID
+                    || output.safety_classification != PIDFF_BOUNDED_EFFECT_CLASSIFICATION
+                    || output.torque_raw == 0
+                    || output.percent == 0.0
+                    || output.percent.abs() > max_percent
+                    || !simulator_ffb_output_sign_matches_input(record, output.percent)
+                {
+                    return false;
+                }
+                constant_force_seen = true;
+                nonzero_count += 1;
+            }
+            "pidff_effect_start" => {
+                if is_last
+                    || output.report_id != PIDFF_EFFECT_OPERATION_REPORT_ID
+                    || output.safety_classification != PIDFF_BOUNDED_EFFECT_CLASSIFICATION
+                {
+                    return false;
+                }
+                effect_start_seen = true;
+            }
+            "clear_zero" => {
+                if is_last || !pidff_stop_all_record_is_safe(record) {
+                    return false;
+                }
+                clear_events.record(record, index);
+                zero_count += 1;
+            }
+            "final_stop_all" | "final_zero" => {
+                if !is_last || !pidff_stop_all_record_is_safe(record) {
+                    return false;
+                }
+                zero_count += 1;
+            }
+            _ => return false,
+        }
+    }
+
+    nonzero_count == expected_nonzero_count
+        && zero_count == expected_zero_count
+        && set_effect_seen
+        && constant_force_seen
+        && effect_start_seen
+        && elapsed_advanced
+        && clear_events.all_ordered_before_final_zero(records.len().saturating_sub(1))
+}
+
 fn simulator_ffb_clear_events_for_records(records: &[Value]) -> SimulatorFfbClearEvents {
     let mut clear_events = SimulatorFfbClearEvents::default();
     for (index, record) in records.iter().enumerate() {
-        if json_string(record, "kind") == Some("clear_zero") && zero_payload_record_is_safe(record)
+        if json_string(record, "kind") == Some("clear_zero")
+            && (zero_payload_record_is_safe(record) || pidff_stop_all_record_is_safe(record))
         {
             clear_events.record(record, index);
         }
@@ -9613,6 +15033,7 @@ struct SimulatorFfbOutputProvenance {
     writer_session_id: String,
     device_path: String,
     product_id: String,
+    endpoint_selector: String,
     hardware_lane: String,
     writer_started_at_utc: String,
     writer_completed_at_utc: String,
@@ -9646,6 +15067,8 @@ fn simulator_ffb_output_artifact_provenance_matches(
         && json_string(receipt, "writer_session_id") == Some(provenance.writer_session_id.as_str())
         && json_string(receipt, "writer_device_path") == Some(provenance.device_path.as_str())
         && json_string(receipt, "writer_product_id") == Some(provenance.product_id.as_str())
+        && json_string(receipt, "writer_endpoint_selector")
+            == Some(provenance.endpoint_selector.as_str())
         && json_string(receipt, "writer_hardware_lane") == Some(provenance.hardware_lane.as_str())
         && json_string(receipt, "writer_started_at_utc")
             == Some(provenance.writer_started_at_utc.as_str())
@@ -9680,6 +15103,13 @@ fn simulator_ffb_output_provenance_for_records(
                     .get("device")
                     .and_then(|device| json_string(device, "product_id"))
             })?;
+        let endpoint_selector = json_string(record, "writer_endpoint_selector")
+            .or_else(|| json_string(record, "selector"))
+            .or_else(|| {
+                record
+                    .get("device")
+                    .and_then(|device| json_string(device, "selector"))
+            })?;
         let writer_started_at_utc = json_string(record, "writer_started_at_utc")?;
         let writer_completed_at_utc = json_string(record, "writer_completed_at_utc")?;
         let vendor_id = json_string(record, "vendor_id").or_else(|| {
@@ -9692,6 +15122,9 @@ fn simulator_ffb_output_provenance_for_records(
                 .get("device")
                 .and_then(|device| json_bool(device, "output_capable"))
         });
+        let endpoint_matches_lane = lane_manifest_r5_hid_observe_selector(lane)
+            .map(|expected| endpoint_selector.eq_ignore_ascii_case(&expected))
+            .unwrap_or(false);
 
         let record_safe = simulator_ffb_writer_command_is_safe(writer_command)
             && !writer_session_id.trim().is_empty()
@@ -9699,6 +15132,7 @@ fn simulator_ffb_output_provenance_for_records(
             && !device_path.trim().is_empty()
             && vendor_id == Some(MOZA_VENDOR_HEX)
             && parse_hex_selector(product_id) == Some(pid)
+            && endpoint_matches_lane
             && utc_timestamp_pair_is_ordered(writer_started_at_utc, writer_completed_at_utc)
             && output_capable == Some(true)
             && json_bool(record, "hardware_output_enabled") == Some(true)
@@ -9716,6 +15150,7 @@ fn simulator_ffb_output_provenance_for_records(
             writer_session_id: writer_session_id.to_string(),
             device_path: device_path.to_string(),
             product_id: product_id.to_string(),
+            endpoint_selector: endpoint_selector.to_string(),
             hardware_lane: hardware_lane.to_string(),
             writer_started_at_utc: writer_started_at_utc.to_string(),
             writer_completed_at_utc: writer_completed_at_utc.to_string(),
@@ -9725,6 +15160,7 @@ fn simulator_ffb_output_provenance_for_records(
                 || previous.writer_session_id != next.writer_session_id
                 || previous.device_path != next.device_path
                 || previous.product_id != next.product_id
+                || previous.endpoint_selector != next.endpoint_selector
                 || previous.hardware_lane != next.hardware_lane
                 || previous.writer_started_at_utc != next.writer_started_at_utc
                 || previous.writer_completed_at_utc != next.writer_completed_at_utc
@@ -9908,6 +15344,16 @@ struct DirectTorqueArtifactRecord {
     percent: f64,
 }
 
+struct PidffOutputArtifactRecord {
+    report_id: String,
+    report_len: usize,
+    torque_raw: i64,
+    percent: f64,
+    effect_magnitude_percent: f64,
+    kind: String,
+    safety_classification: String,
+}
+
 fn direct_torque_artifact_record(record: &Value) -> Option<DirectTorqueArtifactRecord> {
     let payload_hex = json_string(record, "payload_hex")?;
     let bytes = parse_hex_bytes(payload_hex).ok()?;
@@ -9933,6 +15379,59 @@ fn direct_torque_artifact_record(record: &Value) -> Option<DirectTorqueArtifactR
         motor_enabled,
         percent,
     })
+}
+
+fn pidff_output_artifact_record(record: &Value) -> Option<PidffOutputArtifactRecord> {
+    let kind = json_string(record, "kind")?.to_string();
+    let report_id = json_string(record, "report_id")?.to_string();
+    let report_len =
+        json_u64(record, "report_len").and_then(|value| usize::try_from(value).ok())?;
+    let payload_hex = json_string(record, "payload_hex")?;
+    let payload_len = parse_hex_bytes(payload_hex).ok()?.len();
+    let torque_raw = json_i64(record, "torque_raw")?;
+    let percent = json_f64(record, "percent").or_else(|| json_f64(record, "output_percent"))?;
+    let effect_magnitude_percent =
+        json_f64(record, "effect_magnitude_percent").unwrap_or(percent.abs());
+    let safety_classification = json_string(record, "safety_classification")?.to_string();
+
+    if json_string(record, "low_torque_strategy")
+        != Some(low_torque_strategy_name(
+            MozaLowTorqueStrategy::PidffBoundedEffect,
+        ))
+        || report_id == DIRECT_TORQUE_REPORT_ID
+        || payload_len != report_len
+        || !percent.is_finite()
+        || !effect_magnitude_percent.is_finite()
+    {
+        return None;
+    }
+
+    Some(PidffOutputArtifactRecord {
+        report_id,
+        report_len,
+        torque_raw,
+        percent,
+        effect_magnitude_percent,
+        kind,
+        safety_classification,
+    })
+}
+
+fn pidff_stop_all_record_is_safe(record: &Value) -> bool {
+    json_string(record, "payload_hex") == Some("0C04")
+        && json_string(record, "report_id") == Some(PIDFF_DEVICE_CONTROL_REPORT_ID)
+        && json_u64(record, "report_len") == Some(PIDFF_DEVICE_CONTROL_REPORT_LEN as u64)
+        && json_i64(record, "torque_raw") == Some(0)
+        && json_u64(record, "flags") == Some(0)
+        && json_bool(record, "motor_enabled") == Some(false)
+        && json_string(record, "pidff_device_control_command")
+            == Some(hex_u8(PIDFF_STOP_ALL_EFFECTS_COMMAND).as_str())
+        && json_string(record, "pidff_device_control_command_name")
+            == Some(PIDFF_STOP_ALL_EFFECTS_COMMAND_NAME)
+        && matches!(
+            json_string(record, "safety_classification"),
+            Some(PIDFF_STOP_ALL_CLEANUP_CLASSIFICATION | PIDFF_PLANNED_STOP_ALL_CLASSIFICATION)
+        )
 }
 
 fn telemetry_record_has_normalized_fields(record: &Value) -> bool {
@@ -10024,30 +15523,41 @@ fn receipt_file_crc32(path: &Path) -> Result<String> {
     Ok(format!("0x{:08X}", hasher.finalize()))
 }
 
-fn resolve_receipt_path(lane: &Path, path: &str) -> Option<PathBuf> {
-    let trimmed = path.trim();
-    if trimmed.is_empty() {
-        return None;
-    }
-
-    let candidate = Path::new(trimmed);
-    if candidate
-        .components()
-        .any(|component| !matches!(component, Component::Normal(_)))
+fn receipt_path_string(path: &Path) -> String {
+    if let Ok(cwd) = std::env::current_dir()
+        && let Ok(relative) = path.strip_prefix(&cwd)
     {
-        return None;
+        return relative.display().to_string();
+    }
+    path.display().to_string()
+}
+
+fn resolve_receipt_path(lane: &Path, path: &str) -> Option<PathBuf> {
+    let candidate = normalized_receipt_relative_path(path)?;
+    Some(lane.join(candidate))
+}
+
+fn resolve_fixture_out_path(lane: &Path, path: &str) -> Option<PathBuf> {
+    let candidate = normalized_receipt_relative_path(path)?;
+
+    if repo_relative_moza_fixture_path(&candidate) {
+        return fixture_repo_root_for_lane(lane).map(|root| root.join(candidate));
     }
 
     Some(lane.join(candidate))
 }
 
-fn resolve_fixture_out_path(lane: &Path, path: &str) -> Option<PathBuf> {
+fn normalized_receipt_relative_path(path: &str) -> Option<PathBuf> {
     let trimmed = path.trim();
     if trimmed.is_empty() {
         return None;
     }
+    if trimmed.contains(':') {
+        return None;
+    }
 
-    let candidate = Path::new(trimmed);
+    let normalized = trimmed.replace('\\', "/");
+    let candidate = Path::new(&normalized);
     if candidate
         .components()
         .any(|component| !matches!(component, Component::Normal(_)))
@@ -10055,11 +15565,7 @@ fn resolve_fixture_out_path(lane: &Path, path: &str) -> Option<PathBuf> {
         return None;
     }
 
-    if repo_relative_moza_fixture_path(candidate) {
-        return fixture_repo_root_for_lane(lane).map(|root| root.join(candidate));
-    }
-
-    Some(lane.join(candidate))
+    Some(candidate.to_path_buf())
 }
 
 fn repo_relative_moza_fixture_path(path: &Path) -> bool {
@@ -10079,46 +15585,103 @@ fn fixture_repo_root_for_lane(lane: &Path) -> Option<PathBuf> {
 }
 
 fn moza_lane_manifest_artifacts_value() -> Value {
-    serde_json::json!({
-        "manifest": "manifest.json",
-        "device_list": "device-list.json",
-        "hid_list": "hid-list.json",
-        "moza_probe": "moza-probe.json",
-        "descriptor": "descriptor.json",
-        "captures_dir": "captures",
-        "capture_r5_idle": "captures/r5-idle.jsonl",
-        "capture_r5_steering_sweep": "captures/r5-steering-sweep.jsonl",
-        "capture_r5_throttle_only_sweep": "captures/r5-throttle-only-sweep.jsonl",
-        "capture_r5_brake_only_sweep": "captures/r5-brake-only-sweep.jsonl",
-        "capture_r5_clutch_only_sweep": "captures/r5-clutch-only-sweep.jsonl",
-        "capture_r5_handbrake_only_sweep": "captures/r5-handbrake-only-sweep.jsonl",
-        "capture_r5_aggregated_idle_after_controls": "captures/r5-aggregated-idle-after-controls.jsonl",
-        "capture_ks_controls": "captures/ks-controls.jsonl",
-        "capture_es_controls": "captures/es-controls.jsonl",
-        "parser_fixture_validation": "parser-fixture-validation.json",
-        "fixture_promotion": "fixture-promotion.json",
-        "passive_verification": "passive-verification.json",
-        "passive_manifest_promotion": "manifest-promotion-passive.json",
-        "passive_lane_audit": "lane-audit-passive.json",
-        "init_off": "init-off.json",
-        "init_standard": "init-standard.json",
-        "moza_status": "moza-status.json",
-        "device_status": "device-status.json",
-        "support_bundle": "support-bundle.json",
-        "zero_torque_proof": "zero-torque-proof.json",
-        "watchdog_proof": "watchdog-proof.json",
-        "disconnect_proof": "disconnect-proof.json",
-        "zero_verification": "zero-verification.json",
-        "zero_manifest_promotion": "manifest-promotion-zero.json",
-        "zero_lane_audit": "lane-audit-zero.json",
-        "low_torque_proof": "low-torque-proof.json",
-        "pit_house_coexistence": "pit-house-coexistence.json",
-        "simulator_telemetry_proof": "simulator-telemetry-proof.json",
-        "simulator_ffb_smoke": "simulator-ffb-smoke.json",
-        "smoke_ready_verification": "smoke-ready-verification.json",
-        "smoke_ready_manifest_promotion": "manifest-promotion-smoke-ready.json",
-        "smoke_ready_lane_audit": "lane-audit-smoke-ready.json"
-    })
+    let artifacts = [
+        ("manifest", "manifest.json"),
+        ("device_list", "device-list.json"),
+        ("hid_list", "hid-list.json"),
+        ("moza_probe", "moza-probe.json"),
+        ("hardware_doctor", "hardware-doctor.json"),
+        ("descriptor", "descriptor.json"),
+        ("captures_dir", "captures"),
+        ("capture_r5_idle", "captures/r5-idle.jsonl"),
+        (
+            "capture_r5_steering_sweep",
+            "captures/r5-steering-sweep.jsonl",
+        ),
+        (
+            "capture_r5_throttle_only_sweep",
+            "captures/r5-throttle-only-sweep.jsonl",
+        ),
+        (
+            "capture_r5_brake_only_sweep",
+            "captures/r5-brake-only-sweep.jsonl",
+        ),
+        (
+            "capture_r5_clutch_only_sweep",
+            "captures/r5-clutch-only-sweep.jsonl",
+        ),
+        (
+            "capture_r5_handbrake_only_sweep",
+            "captures/r5-handbrake-only-sweep.jsonl",
+        ),
+        (
+            "capture_r5_aggregated_idle_after_controls",
+            "captures/r5-aggregated-idle-after-controls.jsonl",
+        ),
+        ("capture_ks_controls", "captures/ks-controls.jsonl"),
+        ("capture_es_controls", "captures/es-controls.jsonl"),
+        (
+            "parser_fixture_validation",
+            "parser-fixture-validation.json",
+        ),
+        ("fixture_promotion", "fixture-promotion.json"),
+        ("passive_verification", "passive-verification.json"),
+        (
+            "passive_manifest_promotion",
+            "manifest-promotion-passive.json",
+        ),
+        ("passive_lane_audit", "lane-audit-passive.json"),
+        ("init_off", "init-off.json"),
+        ("init_standard", "init-standard.json"),
+        ("moza_status", "moza-status.json"),
+        ("device_status", "device-status.json"),
+        ("support_bundle", "support-bundle.json"),
+        ("zero_torque_proof", "zero-torque-proof.json"),
+        ("watchdog_proof", "watchdog-proof.json"),
+        ("disconnect_proof", "disconnect-proof.json"),
+        ("zero_verification", "zero-verification.json"),
+        ("zero_manifest_promotion", "manifest-promotion-zero.json"),
+        ("zero_lane_audit", "lane-audit-zero.json"),
+        ("low_torque_proof", "low-torque-proof.json"),
+        (
+            "steering_angle_stream_proof",
+            "steering-angle-stream-proof.json",
+        ),
+        (
+            "native_actuator_profile_smoke",
+            "native-actuator-profile-smoke.json",
+        ),
+        (
+            "openracing_control_verification",
+            "openracing-control-verification.json",
+        ),
+        (
+            "openracing_control_manifest_promotion",
+            "manifest-promotion-openracing-control.json",
+        ),
+        (
+            "openracing_control_lane_audit",
+            "lane-audit-openracing-control.json",
+        ),
+        ("pit_house_coexistence", "pit-house-coexistence.json"),
+        (
+            "simulator_telemetry_proof",
+            "simulator-telemetry-proof.json",
+        ),
+        ("simulator_ffb_smoke", "simulator-ffb-smoke.json"),
+        ("smoke_ready_verification", "smoke-ready-verification.json"),
+        (
+            "smoke_ready_manifest_promotion",
+            "manifest-promotion-smoke-ready.json",
+        ),
+        ("smoke_ready_lane_audit", "lane-audit-smoke-ready.json"),
+    ];
+    Value::Object(
+        artifacts
+            .into_iter()
+            .map(|(key, path)| (key.to_string(), Value::String(path.to_string())))
+            .collect(),
+    )
 }
 
 fn moza_lane_manifest_topology_value(wheelbase_pid: u16) -> Value {
@@ -10142,7 +15705,8 @@ fn moza_lane_manifest_topology_value(wheelbase_pid: u16) -> Value {
                 "source_endpoint": "moza-r5-if2",
                 "connection": "wheelbase_hub",
                 "required": true,
-                "evidence_capture": "captures/r5-steering-sweep.jsonl"
+                "evidence_capture": "captures/r5-steering-sweep.jsonl",
+                "semantic_status": "deferred"
             },
             "ks_rim_controls": {
                 "role": "rim_controls",
@@ -10150,7 +15714,8 @@ fn moza_lane_manifest_topology_value(wheelbase_pid: u16) -> Value {
                 "source_endpoint": "moza-r5-if2",
                 "connection": "wheelbase_hub",
                 "required": true,
-                "evidence_capture": "captures/ks-controls.jsonl"
+                "evidence_capture": "captures/ks-controls.jsonl",
+                "semantic_status": "deferred"
             },
             "es_rim_controls": {
                 "role": "rim_controls",
@@ -10158,35 +15723,40 @@ fn moza_lane_manifest_topology_value(wheelbase_pid: u16) -> Value {
                 "source_endpoint": "moza-r5-if2",
                 "connection": "wheelbase_hub",
                 "required": true,
-                "evidence_capture": "captures/es-controls.jsonl"
+                "evidence_capture": "captures/es-controls.jsonl",
+                "semantic_status": "deferred"
             },
             "throttle": {
                 "role": "throttle",
                 "source_endpoint": "moza-r5-if2",
                 "connection": "wheelbase_hub",
                 "required": true,
-                "evidence_capture": "captures/r5-throttle-only-sweep.jsonl"
+                "evidence_capture": "captures/r5-throttle-only-sweep.jsonl",
+                "semantic_status": "deferred"
             },
             "brake": {
                 "role": "brake",
                 "source_endpoint": "moza-r5-if2",
                 "connection": "wheelbase_hub",
                 "required": true,
-                "evidence_capture": "captures/r5-brake-only-sweep.jsonl"
+                "evidence_capture": "captures/r5-brake-only-sweep.jsonl",
+                "semantic_status": "deferred"
             },
             "clutch": {
                 "role": "clutch",
                 "source_endpoint": "moza-r5-if2",
                 "connection": "wheelbase_hub",
                 "required": true,
-                "evidence_capture": "captures/r5-clutch-only-sweep.jsonl"
+                "evidence_capture": "captures/r5-clutch-only-sweep.jsonl",
+                "semantic_status": "deferred"
             },
             "handbrake": {
                 "role": "handbrake",
                 "source_endpoint": "moza-r5-if2",
                 "connection": "wheelbase_hub",
                 "required": true,
-                "evidence_capture": "captures/r5-handbrake-only-sweep.jsonl"
+                "evidence_capture": "captures/r5-handbrake-only-sweep.jsonl",
+                "semantic_status": "deferred"
             }
         },
         "notes": [
@@ -10445,6 +16015,10 @@ fn simulator_ffb_receipt_template_value() -> Value {
         "writer_product_id".to_string(),
         Value::String("0x0014".to_string()),
     );
+    receipt.insert(
+        "writer_endpoint_selector".to_string(),
+        Value::String(String::new()),
+    );
     receipt.insert("final_zero_attempted".to_string(), Value::Bool(false));
     receipt.insert("final_zero_sent".to_string(), Value::Bool(false));
     receipt.insert(
@@ -10508,6 +16082,7 @@ fn manifest_promotion_values(stage: MozaBundleStage) -> (&'static str, bool, boo
     match stage {
         MozaBundleStage::Passive => ("passive_capture_ready", false, false),
         MozaBundleStage::Zero => ("zero_torque_ready", false, false),
+        MozaBundleStage::OpenRacingControlReady => ("openracing_control_ready", true, false),
         MozaBundleStage::SmokeReady => ("real_hardware_smoke_ready", true, true),
     }
 }
@@ -10576,14 +16151,14 @@ fn count_r5_devices(value: &Value) -> usize {
         .unwrap_or(0)
 }
 
-fn count_stack_product_devices(value: &Value, product_ids: &[u16]) -> usize {
+fn count_vendor_product_devices(value: &Value, vendor_id: u16, product_id: u16) -> usize {
     value
         .get("devices")
         .and_then(Value::as_array)
         .map(|devices| {
             devices
                 .iter()
-                .filter(|device| is_moza_product_device_value(device, product_ids))
+                .filter(|device| is_vendor_product_device_value(device, vendor_id, product_id))
                 .count()
         })
         .unwrap_or(0)
@@ -10594,13 +16169,15 @@ fn is_r5_device_value(device: &Value) -> bool {
 }
 
 fn is_moza_product_device_value(device: &Value, product_ids: &[u16]) -> bool {
-    let vendor_id = json_string(device, "vendor_id");
-    let product_id = json_string(device, "product_id");
-    vendor_id == Some("0x346E")
-        && product_id
+    json_string(device, "vendor_id").and_then(parse_hex_selector) == Some(MOZA_VENDOR_ID)
+        && json_string(device, "product_id")
             .and_then(parse_hex_selector)
-            .map(|pid| product_ids.contains(&pid))
-            .unwrap_or(false)
+            .is_some_and(|pid| product_ids.contains(&pid))
+}
+
+fn is_vendor_product_device_value(device: &Value, vendor_id: u16, product_id: u16) -> bool {
+    json_string(device, "vendor_id").and_then(parse_hex_selector) == Some(vendor_id)
+        && json_string(device, "product_id").and_then(parse_hex_selector) == Some(product_id)
 }
 
 fn json_bool(value: &Value, key: &str) -> Option<bool> {
@@ -10627,7 +16204,8 @@ fn stage_rank(stage: MozaBundleStage) -> u8 {
     match stage {
         MozaBundleStage::Passive => 0,
         MozaBundleStage::Zero => 1,
-        MozaBundleStage::SmokeReady => 2,
+        MozaBundleStage::OpenRacingControlReady => 2,
+        MozaBundleStage::SmokeReady => 3,
     }
 }
 
@@ -10635,6 +16213,7 @@ fn stage_label(stage: MozaBundleStage) -> &'static str {
     match stage {
         MozaBundleStage::Passive => "passive",
         MozaBundleStage::Zero => "zero",
+        MozaBundleStage::OpenRacingControlReady => "openracing_control_ready",
         MozaBundleStage::SmokeReady => "smoke_ready",
     }
 }
@@ -10769,6 +16348,653 @@ fn validate_capture_file(
     })
 }
 
+fn analyze_capture_file(capture: &Path) -> Result<CaptureAnalysisReceipt> {
+    let file =
+        File::open(capture).with_context(|| format!("failed to open '{}'", capture.display()))?;
+    let reader = BufReader::new(file);
+    let mut total_reports = 0usize;
+    let mut decoded_reports = 0usize;
+    let mut rejected_reports = 0usize;
+    let mut capture_input_format_reports = 0usize;
+    let mut product_ids = BTreeMap::new();
+    let mut report_ids = BTreeMap::new();
+    let mut report_lengths = BTreeMap::new();
+    let mut byte_ranges = Vec::<AxisRange>::new();
+    let mut word_ranges_le = Vec::<AxisRange>::new();
+    let mut line_errors = Vec::new();
+    let mut line_errors_truncated = false;
+
+    for (idx, line) in reader.lines().enumerate() {
+        let line_no = idx + 1;
+        let line = match line {
+            Ok(line) => line,
+            Err(e) => {
+                record_capture_analysis_error(
+                    &mut line_errors,
+                    &mut line_errors_truncated,
+                    line_no,
+                    format!("failed to read line: {e}"),
+                );
+                rejected_reports += 1;
+                continue;
+            }
+        };
+
+        if line.trim().is_empty() {
+            continue;
+        }
+
+        total_reports += 1;
+
+        let parsed_line: CapturedInputReportLine = match serde_json::from_str(&line) {
+            Ok(report) => report,
+            Err(e) => {
+                record_capture_analysis_error(
+                    &mut line_errors,
+                    &mut line_errors_truncated,
+                    line_no,
+                    format!("invalid JSON capture line: {e}"),
+                );
+                rejected_reports += 1;
+                continue;
+            }
+        };
+
+        let pid = parsed_line
+            .product_id
+            .as_deref()
+            .and_then(parse_hex_selector);
+        if let Some(pid) = pid {
+            increment_count(&mut product_ids, hex_u16(pid));
+        }
+
+        let data = match parsed_line.decode_data() {
+            Ok(bytes) => bytes,
+            Err(e) => {
+                record_capture_analysis_error(
+                    &mut line_errors,
+                    &mut line_errors_truncated,
+                    line_no,
+                    e,
+                );
+                rejected_reports += 1;
+                continue;
+            }
+        };
+
+        if let Some(expected_len) = parsed_line.report_len
+            && expected_len != data.len()
+        {
+            record_capture_analysis_error(
+                &mut line_errors,
+                &mut line_errors_truncated,
+                line_no,
+                format!(
+                    "report_len mismatch: declared {expected_len}, decoded {}",
+                    data.len()
+                ),
+            );
+            rejected_reports += 1;
+            continue;
+        }
+
+        decoded_reports += 1;
+        let report_id = data.first().copied().unwrap_or(0);
+        increment_count(&mut report_ids, hex_u8(report_id));
+        increment_count(&mut report_lengths, data.len().to_string());
+        if pid
+            .map(|pid| parsed_line.has_capture_input_metadata(&data, pid))
+            .unwrap_or(false)
+        {
+            capture_input_format_reports += 1;
+        }
+
+        for (index, value) in data.iter().copied().enumerate() {
+            update_range_at(&mut byte_ranges, index, u16::from(value));
+        }
+
+        for (index, pair) in data.windows(2).enumerate() {
+            let value = u16::from_le_bytes([pair[0], pair[1]]);
+            update_range_at(&mut word_ranges_le, index, value);
+        }
+    }
+
+    let byte_ranges = materialize_byte_ranges(byte_ranges);
+    let word_ranges_le = materialize_word_ranges(word_ranges_le);
+    let moving_bytes = byte_ranges
+        .iter()
+        .filter(|range| range.changed)
+        .map(|range| range.index)
+        .collect::<Vec<_>>();
+    let moving_words_le = word_ranges_le
+        .iter()
+        .filter(|range| range.changed)
+        .map(|range| range.start_index)
+        .collect::<Vec<_>>();
+    let success = total_reports > 0 && rejected_reports == 0 && line_errors.is_empty();
+    let notes = if success {
+        vec![
+            "capture analysis reads stored JSONL reports only; no HID device is opened".to_string(),
+            "byte and word ranges are diagnostic evidence only and do not assign control semantics"
+                .to_string(),
+        ]
+    } else {
+        vec![
+            "capture analysis did not decode every line; inspect line_errors before using movement evidence".to_string(),
+            "analysis is offline and performs no HID reads, output writes, feature reports, or FFB actions".to_string(),
+        ]
+    };
+
+    Ok(CaptureAnalysisReceipt {
+        success,
+        command: "wheelctl moza analyze-capture",
+        generated_at_utc: now_utc(),
+        capture: capture.display().to_string(),
+        no_hid_device_opened: true,
+        no_ffb_writes: true,
+        no_output_reports: true,
+        no_feature_reports: true,
+        no_serial_config_commands: true,
+        no_firmware_or_dfu_commands: true,
+        total_reports,
+        decoded_reports,
+        rejected_reports,
+        capture_input_format_reports,
+        all_reports_have_capture_input_metadata: total_reports > 0
+            && capture_input_format_reports == total_reports,
+        product_ids,
+        report_ids,
+        report_lengths,
+        moving_byte_count: moving_bytes.len(),
+        moving_bytes,
+        byte_ranges,
+        moving_word_le_count: moving_words_le.len(),
+        moving_words_le,
+        word_ranges_le,
+        line_errors,
+        line_errors_truncated,
+        notes,
+    })
+}
+
+fn analyze_lane_captures(lane: &Path) -> Result<LaneCaptureAnalysisReceipt> {
+    let requirements = passive_capture_requirements_for_lane(lane);
+    let idle = analyze_capture_file(&lane.join("captures/r5-idle.jsonl"))
+        .context("failed to analyze captures/r5-idle.jsonl")?;
+    let idle_moving_bytes = idle.moving_bytes.iter().copied().collect::<BTreeSet<_>>();
+    let idle_moving_words_le = idle
+        .moving_words_le
+        .iter()
+        .copied()
+        .collect::<BTreeSet<_>>();
+
+    let mut captures = Vec::new();
+    let mut analyzed_capture_count = 0usize;
+    let mut total_reports = 0usize;
+    let mut decoded_reports = 0usize;
+    let mut rejected_reports = 0usize;
+
+    for requirement in &requirements {
+        let path = lane.join(requirement.relative_path);
+        let analysis = match analyze_capture_file(&path) {
+            Ok(analysis) => analysis,
+            Err(error) => {
+                captures.push(LaneCaptureAnalysisEntry::failed(
+                    requirement,
+                    format!("failed to analyze {}: {error}", requirement.relative_path),
+                ));
+                continue;
+            }
+        };
+
+        analyzed_capture_count += usize::from(analysis.success);
+        total_reports = total_reports.saturating_add(analysis.total_reports);
+        decoded_reports = decoded_reports.saturating_add(analysis.decoded_reports);
+        rejected_reports = rejected_reports.saturating_add(analysis.rejected_reports);
+
+        let unique_moving_bytes = analysis
+            .moving_bytes
+            .iter()
+            .copied()
+            .filter(|index| !idle_moving_bytes.contains(index))
+            .collect::<Vec<_>>();
+        let unique_moving_words_le = analysis
+            .moving_words_le
+            .iter()
+            .copied()
+            .filter(|index| !idle_moving_words_le.contains(index))
+            .collect::<Vec<_>>();
+
+        let validation = match validate_capture_file(&path, None) {
+            Ok(validation) => validation,
+            Err(error) => {
+                let mut missing_requirements = analysis
+                    .line_errors
+                    .iter()
+                    .map(|line_error| format!("line {}: {}", line_error.line, line_error.error))
+                    .collect::<Vec<_>>();
+                missing_requirements.push(format!(
+                    "failed to validate {}: {error}",
+                    requirement.relative_path
+                ));
+                captures.push(LaneCaptureAnalysisEntry {
+                    capture: requirement.relative_path.to_string(),
+                    fixture_id: requirement.fixture_id.to_string(),
+                    success: false,
+                    total_reports: analysis.total_reports,
+                    decoded_reports: analysis.decoded_reports,
+                    rejected_reports: analysis.rejected_reports,
+                    moving_bytes: analysis.moving_bytes,
+                    unique_moving_bytes_vs_idle: unique_moving_bytes,
+                    moving_words_le: analysis.moving_words_le,
+                    unique_moving_words_le_vs_idle: unique_moving_words_le,
+                    moving_required_axes: Vec::new(),
+                    control_evidence_ok: false,
+                    missing_requirements,
+                });
+                continue;
+            }
+        };
+        let expected_product_ids = expected_product_ids_for_requirement(requirement, lane);
+        let evaluation =
+            evaluate_passive_capture_requirement(requirement, &validation, &expected_product_ids);
+        let moving_required_axes = moving_required_axes(requirement, &validation.axis_ranges);
+        let control_evidence_ok = required_control_evidence_ok(requirement, &evaluation);
+
+        captures.push(LaneCaptureAnalysisEntry {
+            capture: requirement.relative_path.to_string(),
+            fixture_id: requirement.fixture_id.to_string(),
+            success: analysis.success && validation.success,
+            total_reports: analysis.total_reports,
+            decoded_reports: analysis.decoded_reports,
+            rejected_reports: analysis.rejected_reports,
+            moving_bytes: analysis.moving_bytes,
+            unique_moving_bytes_vs_idle: unique_moving_bytes,
+            moving_words_le: analysis.moving_words_le,
+            unique_moving_words_le_vs_idle: unique_moving_words_le,
+            moving_required_axes,
+            control_evidence_ok,
+            missing_requirements: evaluation.missing_requirements,
+        });
+    }
+
+    let failed_captures = captures
+        .iter()
+        .filter(|capture| !capture.success)
+        .map(|capture| capture.capture.clone())
+        .collect::<Vec<_>>();
+    let missing_control_evidence = captures
+        .iter()
+        .filter(|capture| !capture.control_evidence_ok)
+        .map(|capture| capture.capture.clone())
+        .collect::<Vec<_>>();
+    let role_evidence = lane_role_evidence_entries(lane, &captures);
+    let success = failed_captures.is_empty() && missing_control_evidence.is_empty();
+    let safe_diagnostics = lane_capture_safe_diagnostics(lane, &captures);
+
+    Ok(LaneCaptureAnalysisReceipt {
+        success,
+        command: "wheelctl moza analyze-lane",
+        generated_at_utc: now_utc(),
+        lane: lane.display().to_string(),
+        no_hid_device_opened: true,
+        no_ffb_writes: true,
+        no_output_reports: true,
+        no_feature_reports: true,
+        no_serial_config_commands: true,
+        no_firmware_or_dfu_commands: true,
+        required_capture_count: requirements.len(),
+        analyzed_capture_count,
+        total_reports,
+        decoded_reports,
+        rejected_reports,
+        idle_capture: idle.capture,
+        idle_moving_bytes: idle.moving_bytes,
+        idle_moving_words_le: idle.moving_words_le,
+        failed_captures,
+        missing_control_evidence,
+        safe_diagnostics,
+        role_evidence,
+        captures,
+        notes: vec![
+            "analyze-lane reads stored JSONL reports only; no HID device is opened".to_string(),
+            "unique_moving_* fields compare each capture to r5-idle and are diagnostic only"
+                .to_string(),
+            "control_evidence_ok uses the same parser-visible requirements as passive validation"
+                .to_string(),
+            "role_evidence derives semantic_status from manifest topology and parser-visible capture evidence; it does not promote lane receipts".to_string(),
+        ],
+    })
+}
+
+fn lane_capture_safe_diagnostics(
+    lane: &Path,
+    captures: &[LaneCaptureAnalysisEntry],
+) -> Vec<String> {
+    let mut diagnostics = Vec::new();
+
+    let Some(throttle) = captures
+        .iter()
+        .find(|capture| capture.capture == "captures/r5-throttle-only-sweep.jsonl")
+    else {
+        return diagnostics;
+    };
+
+    if throttle.success
+        && !throttle.control_evidence_ok
+        && throttle.moving_required_axes.is_empty()
+        && throttle
+            .unique_moving_bytes_vs_idle
+            .iter()
+            .all(|byte| matches!(*byte, 38..=41))
+    {
+        diagnostics.push(
+            "captures/r5-throttle-only-sweep.jsonl parsed cleanly, but only idle/trailer bytes moved versus r5-idle; do not recapture blindly until the throttle physical/vendor path is checked. If Pit House is unavailable, run one target-only post-reseat gas check under target/moza-gas-check and replace the lane capture only if parser-visible hub-control movement appears."
+                .to_string(),
+        );
+        if lane_has_single_observed_moza_hid_endpoint(lane) {
+            diagnostics.push(
+                "observe-only HID/PnP receipts show only the R5 HID game-controller endpoint; throttle is not visible on an alternate Moza HID endpoint, and the visible Moza serial/COM interface is diagnostic topology only and must not be probed or configured in the passive lane."
+                    .to_string(),
+            );
+        }
+    }
+
+    diagnostics
+}
+
+fn lane_has_single_observed_moza_hid_endpoint(lane: &Path) -> bool {
+    hid_list_moza_hid_device_count(lane) == Some(1)
+        && hardware_doctor_moza_hid_interface_count(lane).is_none_or(|count| count == 1)
+}
+
+fn hid_list_moza_hid_device_count(lane: &Path) -> Option<usize> {
+    let receipt = read_json_value(lane, "hid-list.json").ok()?;
+    receipt
+        .get("devices")
+        .and_then(Value::as_array)
+        .map(|devices| {
+            devices
+                .iter()
+                .filter(|device| {
+                    json_string(device, "vendor_id").and_then(parse_hex_selector)
+                        == Some(MOZA_VENDOR_ID)
+                })
+                .count()
+        })
+}
+
+fn hardware_doctor_moza_hid_interface_count(lane: &Path) -> Option<usize> {
+    let receipt = read_json_value(lane, "hardware-doctor.json").ok()?;
+    receipt
+        .get("windows_pnp")
+        .and_then(|pnp| json_u64(pnp, "hid_interface_count"))
+        .and_then(|count| usize::try_from(count).ok())
+}
+
+fn lane_role_evidence_entries(
+    lane: &Path,
+    captures: &[LaneCaptureAnalysisEntry],
+) -> Vec<LaneRoleEvidenceEntry> {
+    let Ok(manifest) = read_json_value(lane, "manifest.json") else {
+        return Vec::new();
+    };
+    let Some(controls) = manifest
+        .get("topology")
+        .and_then(|topology| topology.get("logical_controls"))
+        .and_then(Value::as_object)
+    else {
+        return Vec::new();
+    };
+    let capture_by_path = captures
+        .iter()
+        .map(|capture| (capture.capture.as_str(), capture))
+        .collect::<BTreeMap<_, _>>();
+    let mut entries = Vec::new();
+
+    for (control_key, control) in controls {
+        let required = json_bool(control, "required").unwrap_or(true);
+        let evidence_capture = json_string(control, "evidence_capture").map(str::to_string);
+        let capture = evidence_capture
+            .as_deref()
+            .and_then(|path| capture_by_path.get(path).copied());
+        let moving_required_axes = capture
+            .map(|capture| capture.moving_required_axes.clone())
+            .unwrap_or_default();
+        let missing_requirements = capture
+            .map(|capture| capture.missing_requirements.clone())
+            .unwrap_or_default();
+        let mut notes = Vec::new();
+        let semantic_status = role_semantic_status(required, capture, &mut notes);
+
+        entries.push(LaneRoleEvidenceEntry {
+            control: control_key.to_string(),
+            role: json_string(control, "role")
+                .unwrap_or("unknown")
+                .to_string(),
+            required,
+            rim: json_string(control, "rim").map(str::to_string),
+            source_endpoint: json_string(control, "source_endpoint").map(str::to_string),
+            connection: json_string(control, "connection").map(str::to_string),
+            evidence_capture,
+            semantic_status,
+            parser_visible: matches!(semantic_status, "proven" | "generic_aux"),
+            moving_required_axes,
+            missing_requirements,
+            notes,
+        });
+    }
+
+    entries
+}
+
+fn sync_role_status_receipt(lane: &Path, check: bool) -> Result<Value> {
+    let analysis = analyze_lane_captures(lane)?;
+    let mut manifest = read_json_value(lane, "manifest.json")?;
+    let controls = manifest
+        .pointer_mut("/topology/logical_controls")
+        .and_then(Value::as_object_mut)
+        .ok_or_else(|| anyhow!("manifest.json topology is missing logical_controls object"))?;
+
+    let mut status_updates = Vec::new();
+    let mut stale_control_count = 0usize;
+
+    for entry in &analysis.role_evidence {
+        let control = controls
+            .get_mut(&entry.control)
+            .ok_or_else(|| anyhow!("missing logical control '{}'", entry.control))?;
+        let old_status = json_string(control, "semantic_status").map(str::to_string);
+        let changed = old_status.as_deref() != Some(entry.semantic_status);
+        if changed {
+            stale_control_count += 1;
+            if !check {
+                control["semantic_status"] = serde_json::json!(entry.semantic_status);
+            }
+        }
+
+        status_updates.push(serde_json::json!({
+            "control": entry.control,
+            "role": entry.role,
+            "required": entry.required,
+            "source_endpoint": entry.source_endpoint,
+            "connection": entry.connection,
+            "evidence_capture": entry.evidence_capture,
+            "old_semantic_status": old_status,
+            "new_semantic_status": entry.semantic_status,
+            "changed": changed,
+            "parser_visible": entry.parser_visible,
+            "moving_required_axes": entry.moving_required_axes,
+            "missing_requirements": entry.missing_requirements,
+            "notes": entry.notes,
+        }));
+    }
+
+    let expected_artifacts = moza_lane_manifest_artifacts_value();
+    let artifact_map_changed = manifest.get("artifacts") != Some(&expected_artifacts);
+    if artifact_map_changed && !check {
+        manifest["artifacts"] = expected_artifacts;
+    }
+
+    let manifest_written = !check && (stale_control_count > 0 || artifact_map_changed);
+    if manifest_written {
+        write_json_file(&lane.join("manifest.json"), &manifest)?;
+    }
+
+    Ok(serde_json::json!({
+        "success": !check || (stale_control_count == 0 && !artifact_map_changed),
+        "command": "wheelctl moza sync-role-status",
+        "generated_at_utc": now_utc(),
+        "lane": lane.display().to_string(),
+        "manifest": "manifest.json",
+        "check_only": check,
+        "manifest_written": manifest_written,
+        "no_hid_device_opened": true,
+        "no_ffb_writes": true,
+        "no_output_reports": true,
+        "no_feature_reports": true,
+        "no_serial_config_commands": true,
+        "no_firmware_or_dfu_commands": true,
+        "lane_analysis_success": analysis.success,
+        "missing_control_evidence": analysis.missing_control_evidence,
+        "failed_captures": analysis.failed_captures,
+        "role_count": analysis.role_evidence.len(),
+        "stale_control_count": stale_control_count,
+        "artifact_map_changed": artifact_map_changed,
+        "status_updates": status_updates,
+        "notes": [
+            "sync-role-status reads stored JSONL reports only; no HID device is opened",
+            "semantic_status is diagnostic topology evidence and does not promote lane receipts",
+            "manifest artifacts are refreshed to the current lane contract without promoting receipts",
+            "lane_analysis_success may remain false while missing roles are recorded honestly"
+        ]
+    }))
+}
+
+fn role_semantic_status(
+    required: bool,
+    capture: Option<&LaneCaptureAnalysisEntry>,
+    notes: &mut Vec<String>,
+) -> &'static str {
+    let Some(capture) = capture else {
+        if required {
+            notes.push("required role has no selected capture evidence".to_string());
+            return "unavailable";
+        }
+        notes.push("optional role has no selected capture evidence".to_string());
+        return "deferred";
+    };
+
+    if !capture.success {
+        notes.push("capture failed to parse or validate".to_string());
+        return "missing";
+    }
+    if !capture.control_evidence_ok {
+        notes.push(
+            "capture parsed, but no parser-visible control movement satisfied the role".to_string(),
+        );
+        return "missing";
+    }
+    if capture
+        .moving_required_axes
+        .iter()
+        .any(|axis| axis.starts_with("r5_v1_extended_"))
+    {
+        notes.push(
+            "role is backed by generic live R5 V1 extended fields; semantic control naming remains unproven"
+                .to_string(),
+        );
+        return "generic_aux";
+    }
+
+    "proven"
+}
+
+fn moving_required_axes(
+    requirement: &PassiveCaptureRequirement,
+    ranges: &BTreeMap<String, AxisRange>,
+) -> Vec<String> {
+    let mut axes = BTreeSet::new();
+    for axis in requirement.required_axis_variation {
+        if axis_has_variation(ranges, axis) {
+            axes.insert((*axis).to_string());
+        }
+    }
+    for (_, group_axes) in requirement.required_any_axis_variation {
+        for axis in *group_axes {
+            if axis_has_variation(ranges, axis) {
+                axes.insert((*axis).to_string());
+            }
+        }
+    }
+    axes.into_iter().collect()
+}
+
+fn required_control_evidence_ok(
+    requirement: &PassiveCaptureRequirement,
+    evaluation: &PassiveCaptureEvaluation,
+) -> bool {
+    let has_control_requirements = !requirement.required_axis_variation.is_empty()
+        || !requirement.required_any_axis_variation.is_empty()
+        || !requirement.required_axis_values.is_empty();
+    !has_control_requirements
+        || (evaluation.axes_ok && evaluation.any_axes_ok && evaluation.exact_axes_ok)
+}
+
+fn record_capture_analysis_error(
+    line_errors: &mut Vec<CaptureLineError>,
+    truncated: &mut bool,
+    line: usize,
+    error: String,
+) {
+    const MAX_LINE_ERRORS: usize = 16;
+    if line_errors.len() < MAX_LINE_ERRORS {
+        line_errors.push(CaptureLineError { line, error });
+    } else {
+        *truncated = true;
+    }
+}
+
+fn update_range_at(ranges: &mut Vec<AxisRange>, index: usize, value: u16) {
+    if ranges.len() <= index {
+        ranges.resize_with(index + 1, AxisRange::default);
+    }
+    ranges[index].update(value);
+}
+
+fn materialize_byte_ranges(ranges: Vec<AxisRange>) -> Vec<ByteRange> {
+    ranges
+        .into_iter()
+        .enumerate()
+        .filter_map(|(index, range)| {
+            let min = range.min?;
+            let max = range.max?;
+            Some(ByteRange {
+                index,
+                min,
+                max,
+                changed: min != max,
+            })
+        })
+        .collect()
+}
+
+fn materialize_word_ranges(ranges: Vec<AxisRange>) -> Vec<WordRange> {
+    ranges
+        .into_iter()
+        .enumerate()
+        .filter_map(|(start_index, range)| {
+            let min = range.min?;
+            let max = range.max?;
+            Some(WordRange {
+                start_index,
+                min,
+                max,
+                changed: min != max,
+            })
+        })
+        .collect()
+}
+
 fn validate_lane_captures(lane: &Path) -> Result<CaptureValidationSetReceipt> {
     let mut captures = Vec::new();
     let mut total_reports = 0usize;
@@ -10822,6 +17048,9 @@ fn validate_lane_captures(lane: &Path) -> Result<CaptureValidationSetReceipt> {
         && validated_capture_count == required_capture_count
         && total_reports > 0
         && rejected_reports == 0;
+    let safe_diagnostics = analyze_lane_captures(lane)
+        .map(|analysis| analysis.safe_diagnostics)
+        .unwrap_or_default();
 
     Ok(CaptureValidationSetReceipt {
         success,
@@ -10837,6 +17066,7 @@ fn validate_lane_captures(lane: &Path) -> Result<CaptureValidationSetReceipt> {
         total_reports,
         parsed_reports,
         rejected_reports,
+        safe_diagnostics,
         captures,
         notes: vec![
             "validate-captures replays every required passive lane capture through Moza parsers only; no HID device is opened".to_string(),
@@ -11115,6 +17345,8 @@ struct ProbeReceipt {
     vendor_id: String,
     no_hid_device_opened: bool,
     no_ffb_writes: bool,
+    no_output_reports: bool,
+    no_feature_reports: bool,
     no_serial_config_commands: bool,
     no_firmware_or_dfu_commands: bool,
     devices: Vec<MozaDeviceRecord>,
@@ -11131,10 +17363,14 @@ struct DescriptorReceipt {
     selector: Option<String>,
     no_hid_device_opened: bool,
     no_ffb_writes: bool,
+    no_output_reports: bool,
+    no_feature_reports: bool,
     no_serial_config_commands: bool,
     no_firmware_or_dfu_commands: bool,
     descriptor_hex_included: bool,
     operator_descriptor_hex_supplied: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    operator_descriptor_hex_source: Option<&'static str>,
     devices: Vec<MozaDeviceRecord>,
     notes: Vec<String>,
 }
@@ -11184,6 +17420,138 @@ struct CaptureValidationReceipt {
 }
 
 #[derive(Debug, Serialize)]
+struct CaptureAnalysisReceipt {
+    success: bool,
+    command: &'static str,
+    generated_at_utc: String,
+    capture: String,
+    no_hid_device_opened: bool,
+    no_ffb_writes: bool,
+    no_output_reports: bool,
+    no_feature_reports: bool,
+    no_serial_config_commands: bool,
+    no_firmware_or_dfu_commands: bool,
+    total_reports: usize,
+    decoded_reports: usize,
+    rejected_reports: usize,
+    capture_input_format_reports: usize,
+    all_reports_have_capture_input_metadata: bool,
+    product_ids: BTreeMap<String, usize>,
+    report_ids: BTreeMap<String, usize>,
+    report_lengths: BTreeMap<String, usize>,
+    moving_byte_count: usize,
+    moving_bytes: Vec<usize>,
+    byte_ranges: Vec<ByteRange>,
+    moving_word_le_count: usize,
+    moving_words_le: Vec<usize>,
+    word_ranges_le: Vec<WordRange>,
+    line_errors: Vec<CaptureLineError>,
+    line_errors_truncated: bool,
+    notes: Vec<String>,
+}
+
+#[derive(Debug, Serialize)]
+struct LaneCaptureAnalysisReceipt {
+    success: bool,
+    command: &'static str,
+    generated_at_utc: String,
+    lane: String,
+    no_hid_device_opened: bool,
+    no_ffb_writes: bool,
+    no_output_reports: bool,
+    no_feature_reports: bool,
+    no_serial_config_commands: bool,
+    no_firmware_or_dfu_commands: bool,
+    required_capture_count: usize,
+    analyzed_capture_count: usize,
+    total_reports: usize,
+    decoded_reports: usize,
+    rejected_reports: usize,
+    idle_capture: String,
+    idle_moving_bytes: Vec<usize>,
+    idle_moving_words_le: Vec<usize>,
+    failed_captures: Vec<String>,
+    missing_control_evidence: Vec<String>,
+    safe_diagnostics: Vec<String>,
+    role_evidence: Vec<LaneRoleEvidenceEntry>,
+    captures: Vec<LaneCaptureAnalysisEntry>,
+    notes: Vec<String>,
+}
+
+#[derive(Debug, Serialize)]
+struct LaneRoleEvidenceEntry {
+    control: String,
+    role: String,
+    required: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    rim: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    source_endpoint: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    connection: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    evidence_capture: Option<String>,
+    semantic_status: &'static str,
+    parser_visible: bool,
+    moving_required_axes: Vec<String>,
+    missing_requirements: Vec<String>,
+    notes: Vec<String>,
+}
+
+#[derive(Debug, Serialize)]
+struct LaneCaptureAnalysisEntry {
+    capture: String,
+    fixture_id: String,
+    success: bool,
+    total_reports: usize,
+    decoded_reports: usize,
+    rejected_reports: usize,
+    moving_bytes: Vec<usize>,
+    unique_moving_bytes_vs_idle: Vec<usize>,
+    moving_words_le: Vec<usize>,
+    unique_moving_words_le_vs_idle: Vec<usize>,
+    moving_required_axes: Vec<String>,
+    control_evidence_ok: bool,
+    missing_requirements: Vec<String>,
+}
+
+impl LaneCaptureAnalysisEntry {
+    fn failed(requirement: &PassiveCaptureRequirement, reason: String) -> Self {
+        Self {
+            capture: requirement.relative_path.to_string(),
+            fixture_id: requirement.fixture_id.to_string(),
+            success: false,
+            total_reports: 0,
+            decoded_reports: 0,
+            rejected_reports: 0,
+            moving_bytes: Vec::new(),
+            unique_moving_bytes_vs_idle: Vec::new(),
+            moving_words_le: Vec::new(),
+            unique_moving_words_le_vs_idle: Vec::new(),
+            moving_required_axes: Vec::new(),
+            control_evidence_ok: false,
+            missing_requirements: vec![reason],
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
+struct ByteRange {
+    index: usize,
+    min: u16,
+    max: u16,
+    changed: bool,
+}
+
+#[derive(Debug, Serialize)]
+struct WordRange {
+    start_index: usize,
+    min: u16,
+    max: u16,
+    changed: bool,
+}
+
+#[derive(Debug, Serialize)]
 struct CaptureValidationSetReceipt {
     success: bool,
     command: &'static str,
@@ -11198,6 +17566,8 @@ struct CaptureValidationSetReceipt {
     total_reports: usize,
     parsed_reports: usize,
     rejected_reports: usize,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    safe_diagnostics: Vec<String>,
     captures: Vec<CaptureValidationSetEntry>,
     notes: Vec<String>,
 }
@@ -11362,6 +17732,7 @@ struct ZeroProofSummary {
     receipt_crc32: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     product_id: Option<String>,
+    zero_output_strategy: String,
     repeat: u64,
     writes_ok: u64,
     final_zero_sent: bool,
@@ -11445,10 +17816,12 @@ struct LowTorqueProofReceipt {
     generated_at_utc: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     receipt_path: Option<String>,
+    low_torque_strategy: &'static str,
     no_feature_reports: bool,
     no_high_torque: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     high_torque: Option<bool>,
+    no_direct_torque_reports: bool,
     no_nonzero_above_limit: bool,
     no_ffb_writes: bool,
     no_serial_config_commands: bool,
@@ -11461,6 +17834,9 @@ struct LowTorqueProofReceipt {
     direct_mode_gate_satisfied: bool,
     descriptor_trusted: bool,
     explicit_operator_override: bool,
+    pidff_effect_setup_proven: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pidff_effect_block_index: Option<u8>,
     #[serde(skip_serializing_if = "Option::is_none")]
     descriptor_proof: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -11483,6 +17859,8 @@ struct LowTorqueProofReceipt {
     bytes_written_total: usize,
     final_zero_attempted: bool,
     final_zero_sent: bool,
+    final_stop_all_attempted: bool,
+    final_stop_all_sent: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     final_zero_error: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -11496,6 +17874,7 @@ impl LowTorqueProofReceipt {
         selector: Option<String>,
         device: MozaDeviceRecord,
         zero_proof: Option<ZeroProofSummary>,
+        strategy: MozaLowTorqueStrategy,
         max_percent: f32,
         duration_ms: u64,
         hz: u32,
@@ -11507,9 +17886,11 @@ impl LowTorqueProofReceipt {
             command: "wheelctl moza torque-test",
             generated_at_utc: now_utc(),
             receipt_path: None,
+            low_torque_strategy: low_torque_strategy_name(strategy),
             no_feature_reports: true,
             no_high_torque: true,
             high_torque: Some(false),
+            no_direct_torque_reports: strategy == MozaLowTorqueStrategy::PidffBoundedEffect,
             no_nonzero_above_limit: true,
             no_ffb_writes: dry_run,
             no_serial_config_commands: true,
@@ -11522,6 +17903,8 @@ impl LowTorqueProofReceipt {
             direct_mode_gate_satisfied: false,
             descriptor_trusted: false,
             explicit_operator_override: false,
+            pidff_effect_setup_proven: false,
+            pidff_effect_block_index: None,
             descriptor_proof: None,
             matched_product_id: None,
             direct_mode_gate_reason: "not_evaluated".to_string(),
@@ -11532,19 +17915,28 @@ impl LowTorqueProofReceipt {
             duration_ms,
             hz,
             device,
-            ladder: low_torque_ladder_for_pid(pid, max_percent, duration_ms, hz),
+            ladder: if strategy == MozaLowTorqueStrategy::DirectReport0x20 {
+                low_torque_ladder_for_pid(pid, max_percent, duration_ms, hz)
+            } else {
+                Vec::new()
+            },
             write_attempts: 0,
             writes_ok: 0,
             write_errors: 0,
             bytes_written_total: 0,
             final_zero_attempted: false,
             final_zero_sent: false,
+            final_stop_all_attempted: false,
+            final_stop_all_sent: false,
             final_zero_error: None,
             abort_reason: None,
             command_log: Vec::new(),
             notes: vec![
                 "torque-test is gated by a passing real zero-torque proof before any actual HID write".to_string(),
-                "this command sends only Moza direct torque report 0x20 and never sends high-torque or feature reports".to_string(),
+                match strategy {
+                    MozaLowTorqueStrategy::DirectReport0x20 => "this command sends only Moza direct torque report 0x20 and never sends high-torque or feature reports".to_string(),
+                    MozaLowTorqueStrategy::PidffBoundedEffect => "pidff-bounded-effect is a separate strategy from direct report 0x20, uses descriptor-proven PIDFF output reports, and must end with PIDFF Stop All cleanup".to_string(),
+                },
             ],
         }
     }
@@ -11585,6 +17977,28 @@ impl LowTorqueProofReceipt {
     fn plan_only(&mut self) {
         let started_at = Instant::now();
         let mut sequence = 0u32;
+        if self.low_torque_strategy
+            == low_torque_strategy_name(MozaLowTorqueStrategy::PidffBoundedEffect)
+        {
+            for report in pidff_low_torque_reports(self.max_percent, self.duration_ms) {
+                self.record_command(LowTorqueCommandRecord::planned_pidff_output(
+                    sequence, &report, started_at,
+                ));
+                sequence += 1;
+            }
+            self.pidff_effect_setup_proven = true;
+            self.pidff_effect_block_index = Some(PIDFF_LOW_TORQUE_EFFECT_BLOCK_INDEX);
+            self.final_zero_attempted = true;
+            self.final_zero_sent = true;
+            self.final_stop_all_attempted = true;
+            self.final_stop_all_sent = true;
+            self.record_command(LowTorqueCommandRecord::planned_pidff_stop_all(
+                sequence,
+                "final_stop_all",
+                started_at,
+            ));
+            return;
+        }
         for stage in self.ladder.clone() {
             self.record_command(LowTorqueCommandRecord::planned(
                 sequence,
@@ -11608,7 +18022,21 @@ impl LowTorqueProofReceipt {
     }
 
     fn record_command(&mut self, record: LowTorqueCommandRecord) {
-        let low_torque_ok = if record.kind == "final_zero" {
+        let low_torque_ok = if self.low_torque_strategy
+            == low_torque_strategy_name(MozaLowTorqueStrategy::PidffBoundedEffect)
+        {
+            record.report_id != DIRECT_TORQUE_REPORT_ID
+                && record
+                    .safety_classification
+                    .map(|classification| {
+                        classification == PIDFF_PLANNED_STOP_ALL_CLASSIFICATION
+                            || classification == PIDFF_EFFECT_SETUP_CLASSIFICATION
+                            || classification == PIDFF_BOUNDED_EFFECT_CLASSIFICATION
+                            || classification == PIDFF_STOP_ALL_CLEANUP_CLASSIFICATION
+                    })
+                    .unwrap_or(false)
+                && record.percent <= self.max_percent
+        } else if record.kind == "final_zero" {
             record.torque_raw == 0 && record.flags == 0 && !record.motor_enabled
         } else {
             record.percent <= self.max_percent
@@ -11617,6 +18045,162 @@ impl LowTorqueProofReceipt {
                 && record.motor_enabled == (record.torque_raw != 0)
         };
         if !low_torque_ok {
+            self.no_nonzero_above_limit = false;
+        }
+        self.command_log.push(record);
+    }
+}
+
+#[derive(Debug, Serialize)]
+struct NativeActuatorProfileSmokeReceipt {
+    success: bool,
+    command: &'static str,
+    generated_at_utc: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    receipt_path: Option<String>,
+    lane: String,
+    selector: String,
+    profile: &'static str,
+    output_strategy: &'static str,
+    max_percent: f32,
+    duration_ms: u64,
+    confirmed: bool,
+    dry_run: bool,
+    hardware_output_enabled: bool,
+    no_hid_device_opened: bool,
+    no_feature_reports: bool,
+    no_ffb_writes: bool,
+    no_direct_torque_reports: bool,
+    no_high_torque: bool,
+    high_torque: bool,
+    no_serial_config_commands: bool,
+    no_firmware_or_dfu_commands: bool,
+    no_nonzero_above_limit: bool,
+    low_torque_proof_validated: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    low_torque_generated_at: Option<String>,
+    steering_proof_validated: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    steering_generated_at: Option<String>,
+    pidff_effect_setup_proven: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pidff_effect_block_index: Option<u8>,
+    device: MozaDeviceRecord,
+    write_attempts: u64,
+    writes_ok: u64,
+    write_errors: u64,
+    bytes_written_total: usize,
+    final_zero_attempted: bool,
+    final_zero_sent: bool,
+    final_stop_all_attempted: bool,
+    final_stop_all_sent: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    final_zero_error: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    abort_reason: Option<String>,
+    command_log: Vec<LowTorqueCommandRecord>,
+    notes: Vec<String>,
+}
+
+impl NativeActuatorProfileSmokeReceipt {
+    fn new(
+        selector: String,
+        lane: &Path,
+        device: MozaDeviceRecord,
+        preflight: NativeActuatorProfileSmokePreflight,
+        profile: MozaActuatorProfile,
+        max_percent: f32,
+        duration_ms: u64,
+        dry_run: bool,
+    ) -> Self {
+        Self {
+            success: false,
+            command: "wheelctl moza actuator-profile-smoke",
+            generated_at_utc: now_utc(),
+            receipt_path: None,
+            lane: lane.display().to_string(),
+            selector,
+            profile: actuator_profile_name(profile),
+            output_strategy: low_torque_strategy_name(MozaLowTorqueStrategy::PidffBoundedEffect),
+            max_percent,
+            duration_ms,
+            confirmed: !dry_run,
+            dry_run,
+            hardware_output_enabled: !dry_run,
+            no_hid_device_opened: dry_run,
+            no_feature_reports: true,
+            no_ffb_writes: dry_run,
+            no_direct_torque_reports: true,
+            no_high_torque: true,
+            high_torque: false,
+            no_serial_config_commands: true,
+            no_firmware_or_dfu_commands: true,
+            no_nonzero_above_limit: true,
+            low_torque_proof_validated: true,
+            low_torque_generated_at: preflight.low_torque_generated_at,
+            steering_proof_validated: true,
+            steering_generated_at: preflight.steering_generated_at,
+            pidff_effect_setup_proven: false,
+            pidff_effect_block_index: None,
+            device,
+            write_attempts: 0,
+            writes_ok: 0,
+            write_errors: 0,
+            bytes_written_total: 0,
+            final_zero_attempted: false,
+            final_zero_sent: false,
+            final_stop_all_attempted: false,
+            final_stop_all_sent: false,
+            final_zero_error: None,
+            abort_reason: None,
+            command_log: Vec::new(),
+            notes: vec![
+                "actuator-profile-smoke runs a native OpenRacing-owned PIDFF profile without SimHub or Pit House".to_string(),
+                "the command uses descriptor-proven PIDFF bounded-effect output reports and must end with PIDFF Stop All cleanup".to_string(),
+                "direct report 0x20, high torque, feature reports, serial config, firmware, and DFU remain forbidden".to_string(),
+            ],
+        }
+    }
+
+    fn set_receipt_path(&mut self, path: Option<&Path>) {
+        self.receipt_path = path.map(|path| path.display().to_string());
+    }
+
+    fn plan_only(&mut self) {
+        let started_at = Instant::now();
+        let mut sequence = 0u32;
+        for report in pidff_low_torque_reports(self.max_percent, self.duration_ms) {
+            self.record_command(LowTorqueCommandRecord::planned_pidff_output(
+                sequence, &report, started_at,
+            ));
+            sequence = sequence.saturating_add(1);
+        }
+        self.pidff_effect_setup_proven = true;
+        self.pidff_effect_block_index = Some(PIDFF_LOW_TORQUE_EFFECT_BLOCK_INDEX);
+        self.final_zero_attempted = true;
+        self.final_zero_sent = true;
+        self.final_stop_all_attempted = true;
+        self.final_stop_all_sent = true;
+        self.record_command(LowTorqueCommandRecord::planned_pidff_stop_all(
+            sequence,
+            "final_stop_all",
+            started_at,
+        ));
+    }
+
+    fn record_command(&mut self, record: LowTorqueCommandRecord) {
+        let safe = record.report_id != DIRECT_TORQUE_REPORT_ID
+            && record
+                .safety_classification
+                .map(|classification| {
+                    classification == PIDFF_PLANNED_STOP_ALL_CLASSIFICATION
+                        || classification == PIDFF_EFFECT_SETUP_CLASSIFICATION
+                        || classification == PIDFF_BOUNDED_EFFECT_CLASSIFICATION
+                        || classification == PIDFF_STOP_ALL_CLEANUP_CLASSIFICATION
+                })
+                .unwrap_or(false)
+            && record.percent <= self.max_percent;
+        if !safe {
             self.no_nonzero_above_limit = false;
         }
         self.command_log.push(record);
@@ -11655,17 +18239,67 @@ impl LowTorqueStage {
     }
 }
 
+#[derive(Debug, Clone)]
+struct PidffLowTorqueReport {
+    kind: &'static str,
+    percent: f32,
+    effect_magnitude_percent: f32,
+    payload: Vec<u8>,
+    report_id: String,
+    report_len: usize,
+    torque_raw: i16,
+    flags: u8,
+    motor_enabled: bool,
+    safety_classification: &'static str,
+}
+
+impl PidffLowTorqueReport {
+    fn new(
+        kind: &'static str,
+        percent: f32,
+        payload: Vec<u8>,
+        torque_raw: i16,
+        motor_enabled: bool,
+        safety_classification: &'static str,
+    ) -> Self {
+        let report_id = payload.first().copied().map(hex_u8).unwrap_or_default();
+        Self {
+            kind,
+            percent,
+            effect_magnitude_percent: percent,
+            report_len: payload.len(),
+            report_id,
+            payload,
+            torque_raw,
+            flags: 0,
+            motor_enabled,
+            safety_classification,
+        }
+    }
+}
+
 #[derive(Debug, Serialize)]
 struct LowTorqueCommandRecord {
     sequence: u32,
     kind: &'static str,
     elapsed_us: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    low_torque_strategy: Option<&'static str>,
     percent: f32,
     payload_hex: String,
     report_id: String,
+    report_len: usize,
     torque_raw: i16,
     flags: u8,
     motor_enabled: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    effect_magnitude_percent: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pidff_device_control_command: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pidff_device_control_command_name: Option<&'static str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    safety_classification: Option<&'static str>,
     result: &'static str,
     #[serde(skip_serializing_if = "Option::is_none")]
     bytes_written: Option<usize>,
@@ -11747,6 +18381,185 @@ impl LowTorqueCommandRecord {
         )
     }
 
+    fn planned_pidff_stop_all(sequence: u32, kind: &'static str, started_at: Instant) -> Self {
+        Self::pidff_stop_all(
+            sequence,
+            kind,
+            started_at,
+            "planned",
+            None,
+            None,
+            PIDFF_PLANNED_STOP_ALL_CLASSIFICATION,
+        )
+    }
+
+    fn ok_pidff_stop_all(
+        sequence: u32,
+        kind: &'static str,
+        started_at: Instant,
+        bytes_written: usize,
+    ) -> Self {
+        Self::pidff_stop_all(
+            sequence,
+            kind,
+            started_at,
+            "ok",
+            Some(bytes_written),
+            None,
+            PIDFF_STOP_ALL_CLEANUP_CLASSIFICATION,
+        )
+    }
+
+    fn partial_pidff_stop_all(
+        sequence: u32,
+        kind: &'static str,
+        started_at: Instant,
+        bytes_written: usize,
+        error: String,
+    ) -> Self {
+        Self::pidff_stop_all(
+            sequence,
+            kind,
+            started_at,
+            "partial",
+            Some(bytes_written),
+            Some(error),
+            PIDFF_STOP_ALL_CLEANUP_CLASSIFICATION,
+        )
+    }
+
+    fn error_pidff_stop_all(
+        sequence: u32,
+        kind: &'static str,
+        started_at: Instant,
+        error: String,
+    ) -> Self {
+        Self::pidff_stop_all(
+            sequence,
+            kind,
+            started_at,
+            "error",
+            None,
+            Some(error),
+            PIDFF_STOP_ALL_CLEANUP_CLASSIFICATION,
+        )
+    }
+
+    fn planned_pidff_output(
+        sequence: u32,
+        report: &PidffLowTorqueReport,
+        started_at: Instant,
+    ) -> Self {
+        Self::pidff_output(sequence, report, started_at, "planned", None, None)
+    }
+
+    fn ok_pidff_output(
+        sequence: u32,
+        report: &PidffLowTorqueReport,
+        started_at: Instant,
+        bytes_written: usize,
+    ) -> Self {
+        Self::pidff_output(
+            sequence,
+            report,
+            started_at,
+            "ok",
+            Some(bytes_written),
+            None,
+        )
+    }
+
+    fn partial_pidff_output(
+        sequence: u32,
+        report: &PidffLowTorqueReport,
+        started_at: Instant,
+        bytes_written: usize,
+        error: String,
+    ) -> Self {
+        Self::pidff_output(
+            sequence,
+            report,
+            started_at,
+            "partial",
+            Some(bytes_written),
+            Some(error),
+        )
+    }
+
+    fn error_pidff_output(
+        sequence: u32,
+        report: &PidffLowTorqueReport,
+        started_at: Instant,
+        error: String,
+    ) -> Self {
+        Self::pidff_output(sequence, report, started_at, "error", None, Some(error))
+    }
+
+    fn pidff_stop_all(
+        sequence: u32,
+        kind: &'static str,
+        started_at: Instant,
+        result: &'static str,
+        bytes_written: Option<usize>,
+        error: Option<String>,
+        safety_classification: &'static str,
+    ) -> Self {
+        Self {
+            sequence,
+            kind,
+            elapsed_us: started_at.elapsed().as_micros() as u64,
+            low_torque_strategy: Some(low_torque_strategy_name(
+                MozaLowTorqueStrategy::PidffBoundedEffect,
+            )),
+            percent: 0.0,
+            payload_hex: "0C04".to_string(),
+            report_id: PIDFF_DEVICE_CONTROL_REPORT_ID.to_string(),
+            report_len: PIDFF_DEVICE_CONTROL_REPORT_LEN,
+            torque_raw: 0,
+            flags: 0,
+            motor_enabled: false,
+            effect_magnitude_percent: Some(0.0),
+            pidff_device_control_command: Some(hex_u8(PIDFF_STOP_ALL_EFFECTS_COMMAND)),
+            pidff_device_control_command_name: Some(PIDFF_STOP_ALL_EFFECTS_COMMAND_NAME),
+            safety_classification: Some(safety_classification),
+            result,
+            bytes_written,
+            error,
+        }
+    }
+
+    fn pidff_output(
+        sequence: u32,
+        report: &PidffLowTorqueReport,
+        started_at: Instant,
+        result: &'static str,
+        bytes_written: Option<usize>,
+        error: Option<String>,
+    ) -> Self {
+        Self {
+            sequence,
+            kind: report.kind,
+            elapsed_us: started_at.elapsed().as_micros() as u64,
+            low_torque_strategy: Some(low_torque_strategy_name(
+                MozaLowTorqueStrategy::PidffBoundedEffect,
+            )),
+            percent: report.percent,
+            payload_hex: bytes_hex_compact(&report.payload),
+            report_id: report.report_id.clone(),
+            report_len: report.report_len,
+            torque_raw: report.torque_raw,
+            flags: report.flags,
+            motor_enabled: report.motor_enabled,
+            effect_magnitude_percent: Some(report.effect_magnitude_percent),
+            pidff_device_control_command: None,
+            pidff_device_control_command_name: None,
+            safety_classification: Some(report.safety_classification),
+            result,
+            bytes_written,
+            error,
+        }
+    }
+
     fn new(
         sequence: u32,
         kind: &'static str,
@@ -11763,12 +18576,20 @@ impl LowTorqueCommandRecord {
             sequence,
             kind,
             elapsed_us: started_at.elapsed().as_micros() as u64,
+            low_torque_strategy: Some(low_torque_strategy_name(
+                MozaLowTorqueStrategy::DirectReport0x20,
+            )),
             percent,
             payload_hex: bytes_hex_compact(&payload),
             report_id: hex_u8(payload[0]),
+            report_len: REPORT_LEN,
             torque_raw,
             flags,
             motor_enabled: flags & 0x01 != 0,
+            effect_magnitude_percent: Some(percent),
+            pidff_device_control_command: None,
+            pidff_device_control_command_name: None,
+            safety_classification: Some("bounded_low_torque_direct_report"),
             result,
             bytes_written,
             error,
@@ -11783,6 +18604,15 @@ struct MozaInitReceipt {
     generated_at_utc: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     receipt_path: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    lane: Option<String>,
+    operator_confirmed: bool,
+    zero_verification_validated: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    zero_verification_generated_at: Option<String>,
+    zero_audit_validated: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    zero_audit_generated_at: Option<String>,
     no_output_reports: bool,
     no_direct_torque_reports: bool,
     no_high_torque: bool,
@@ -11817,6 +18647,12 @@ impl MozaInitReceipt {
             command: "wheelctl moza init",
             generated_at_utc: now_utc(),
             receipt_path: None,
+            lane: None,
+            operator_confirmed: false,
+            zero_verification_validated: false,
+            zero_verification_generated_at: None,
+            zero_audit_validated: false,
+            zero_audit_generated_at: None,
             no_output_reports: true,
             no_direct_torque_reports: true,
             no_high_torque: true,
@@ -11865,6 +18701,7 @@ impl MozaInitReceipt {
                 &serde_json::to_value(&self.feature_reports).unwrap_or(Value::Null),
                 self.mode,
                 true,
+                Some(&self.device.product_id),
             );
     }
 
@@ -11989,6 +18826,14 @@ struct ZeroTorqueProofReceipt {
     generated_at_utc: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     receipt_path: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    lane: Option<String>,
+    pre_output_readiness_validated: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pre_output_readiness_generated_at: Option<String>,
+    zero_torque_proof_validated: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    zero_torque_proof_crc32: Option<String>,
     no_feature_reports: bool,
     no_high_torque: bool,
     no_nonzero_torque: bool,
@@ -12010,11 +18855,17 @@ struct ZeroTorqueProofReceipt {
     watchdog_triggered: bool,
     disconnect_observed: bool,
     device: MozaDeviceRecord,
+    zero_output_strategy: &'static str,
     payload_hex: String,
     report_id: String,
+    report_len: usize,
     torque_raw: i16,
     flags: u8,
     motor_enabled: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pidff_device_control_command: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pidff_device_control_command_name: Option<&'static str>,
     non_zero_payloads: usize,
     write_attempts: u32,
     writes_ok: u32,
@@ -12027,8 +18878,46 @@ struct ZeroTorqueProofReceipt {
     final_zero_error: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     abort_reason: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    command_log_summary: Option<ZeroTorqueCommandLogSummaryReceipt>,
     command_log: Vec<ZeroTorqueCommandRecord>,
     notes: Vec<String>,
+    #[serde(skip)]
+    zero_payload: ZeroOutputPayload,
+}
+
+const DISCONNECT_COMMAND_LOG_HEAD_RECORDS: u32 = 3;
+
+#[derive(Debug, Default, Serialize)]
+struct ZeroTorqueCommandLogSummaryReceipt {
+    total_records: u32,
+    logged_records: u32,
+    omitted_records: u32,
+    scheduled_zero_writes: u32,
+    disconnect_probe_seen: bool,
+    final_zero_seen: bool,
+    final_zero_sent: bool,
+    final_zero_error: bool,
+}
+
+impl ZeroTorqueCommandLogSummaryReceipt {
+    fn observe(&mut self, record: &ZeroTorqueCommandRecord) {
+        self.total_records = self.total_records.saturating_add(1);
+        match record.kind {
+            "scheduled_zero" if record.result == "ok" => {
+                self.scheduled_zero_writes = self.scheduled_zero_writes.saturating_add(1);
+            }
+            "disconnect_probe" => {
+                self.disconnect_probe_seen = true;
+            }
+            "final_zero" => {
+                self.final_zero_seen = true;
+                self.final_zero_sent = record.result == "ok";
+                self.final_zero_error = record.result == "error";
+            }
+            _ => {}
+        }
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -12036,11 +18925,17 @@ struct ZeroTorqueCommandRecord {
     sequence: u32,
     kind: &'static str,
     elapsed_us: u64,
+    zero_output_strategy: &'static str,
     payload_hex: String,
     report_id: String,
+    report_len: usize,
     torque_raw: i16,
     flags: u8,
     motor_enabled: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pidff_device_control_command: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pidff_device_control_command_name: Option<&'static str>,
     result: &'static str,
     #[serde(skip_serializing_if = "Option::is_none")]
     bytes_written: Option<usize>,
@@ -12053,7 +18948,7 @@ impl ZeroTorqueCommandRecord {
         sequence: u32,
         kind: &'static str,
         started_at: Instant,
-        payload: [u8; REPORT_LEN],
+        payload: &ZeroOutputPayload,
         bytes_written: usize,
     ) -> Self {
         Self::new(
@@ -12071,7 +18966,7 @@ impl ZeroTorqueCommandRecord {
         sequence: u32,
         kind: &'static str,
         started_at: Instant,
-        payload: [u8; REPORT_LEN],
+        payload: &ZeroOutputPayload,
         error: String,
     ) -> Self {
         Self::new(
@@ -12089,7 +18984,7 @@ impl ZeroTorqueCommandRecord {
         sequence: u32,
         kind: &'static str,
         started_at: Instant,
-        payload: [u8; REPORT_LEN],
+        payload: &ZeroOutputPayload,
         bytes_written: usize,
         error: String,
     ) -> Self {
@@ -12108,22 +19003,24 @@ impl ZeroTorqueCommandRecord {
         sequence: u32,
         kind: &'static str,
         started_at: Instant,
-        payload: [u8; REPORT_LEN],
+        payload: &ZeroOutputPayload,
         result: &'static str,
         bytes_written: Option<usize>,
         error: Option<String>,
     ) -> Self {
-        let torque_raw = i16::from_le_bytes([payload[1], payload[2]]);
-        let flags = payload[3];
         Self {
             sequence,
             kind,
             elapsed_us: started_at.elapsed().as_micros() as u64,
-            payload_hex: bytes_hex_compact(&payload),
-            report_id: hex_u8(payload[0]),
-            torque_raw,
-            flags,
-            motor_enabled: flags & 0x01 != 0,
+            zero_output_strategy: payload.strategy_name(),
+            payload_hex: payload.payload_hex(),
+            report_id: payload.report_id.clone(),
+            report_len: payload.report_len,
+            torque_raw: payload.torque_raw,
+            flags: payload.flags,
+            motor_enabled: payload.motor_enabled,
+            pidff_device_control_command: payload.pidff_device_control_command.map(hex_u8),
+            pidff_device_control_command_name: payload.pidff_device_control_command_name,
             result,
             bytes_written,
             error,
@@ -12143,12 +19040,176 @@ struct BundleVerificationReceipt {
     failed_gates: usize,
     artifacts: Vec<BundleArtifactCheck>,
     gates: Vec<BundleGateCheck>,
+    endpoint_observations: Vec<BundleEndpointObservation>,
+    role_evidence: Vec<LaneRoleEvidenceEntry>,
+    operator_actions: Vec<String>,
     next_commands: Vec<String>,
     no_hid_device_opened: bool,
     no_ffb_writes: bool,
     no_serial_config_commands: bool,
     no_firmware_or_dfu_commands: bool,
     notes: Vec<String>,
+}
+
+#[derive(Debug, Serialize)]
+struct PreOutputReadinessReceipt {
+    success: bool,
+    command: &'static str,
+    generated_at_utc: String,
+    lane: String,
+    stage: &'static str,
+    ready_for_zero_torque: bool,
+    ready_for_ffb: bool,
+    ready_for_native_control: bool,
+    ready_for_external_compatibility: bool,
+    blocking_items: Vec<String>,
+    ffb_blocking_items: Vec<String>,
+    native_control_blocking_items: Vec<String>,
+    external_compatibility_blocking_items: Vec<String>,
+    zero_output_strategies: Vec<ZeroOutputStrategyCandidate>,
+    passed_items: Vec<String>,
+    status_receipts: Vec<PreOutputReadinessCheck>,
+    passive_verification: Value,
+    zero_verification: Value,
+    openracing_control_verification: Value,
+    smoke_ready_verification: Value,
+    passive_audit_passed: bool,
+    zero_audit_passed: bool,
+    openracing_control_audit_passed: bool,
+    smoke_ready_audit_passed: bool,
+    no_hid_device_opened: bool,
+    no_ffb_writes: bool,
+    no_output_reports: bool,
+    no_feature_reports: bool,
+    no_serial_config_commands: bool,
+    no_firmware_or_dfu_commands: bool,
+    hard_forbidden_until_ready: Vec<&'static str>,
+    notes: Vec<String>,
+}
+
+#[derive(Debug, Serialize)]
+struct ZeroOutputStrategyCandidate {
+    name: &'static str,
+    description: &'static str,
+    implemented: bool,
+    descriptor_report_observed: bool,
+    descriptor_metadata_trusted: bool,
+    ready: bool,
+    required_output_reports: Vec<HidReportRecord>,
+    blocking_items: Vec<&'static str>,
+    notes: Vec<String>,
+}
+
+#[derive(Debug)]
+struct PreOutputVerificationReceipt {
+    success: bool,
+    requested_stage: String,
+    missing_artifacts: usize,
+    invalid_artifacts: usize,
+    failed_gates: usize,
+    artifacts: Vec<PreOutputVerificationArtifact>,
+    gates: Vec<PreOutputVerificationGate>,
+    role_evidence: Vec<PreOutputRoleEvidence>,
+}
+
+impl PreOutputVerificationReceipt {
+    fn missing(stage: MozaBundleStage, path: &str, details: String) -> Self {
+        Self::from_unavailable(stage, path, "missing", details)
+    }
+
+    fn invalid(stage: MozaBundleStage, path: &str, details: String) -> Self {
+        Self::from_unavailable(stage, path, "invalid", details)
+    }
+
+    fn from_unavailable(
+        stage: MozaBundleStage,
+        path: &str,
+        status: &str,
+        _details: String,
+    ) -> Self {
+        Self {
+            success: false,
+            requested_stage: stage_label(stage).to_string(),
+            missing_artifacts: usize::from(status == "missing"),
+            invalid_artifacts: usize::from(status == "invalid"),
+            failed_gates: 0,
+            artifacts: vec![PreOutputVerificationArtifact {
+                path: path.to_string(),
+                status: status.to_string(),
+            }],
+            gates: Vec::new(),
+            role_evidence: Vec::new(),
+        }
+    }
+}
+
+#[derive(Debug)]
+struct PreOutputVerificationArtifact {
+    path: String,
+    status: String,
+}
+
+#[derive(Debug)]
+struct PreOutputVerificationGate {
+    name: String,
+    status: String,
+}
+
+#[derive(Debug)]
+struct PreOutputRoleEvidence {
+    required: bool,
+    parser_visible: bool,
+    missing_requirements: Vec<String>,
+}
+
+#[derive(Debug, Serialize)]
+struct PreOutputReadinessCheck {
+    name: &'static str,
+    status: &'static str,
+    details: String,
+}
+
+impl PreOutputReadinessCheck {
+    fn pass(name: &'static str, details: String) -> Self {
+        Self {
+            name,
+            status: "pass",
+            details,
+        }
+    }
+
+    fn fail(name: &'static str, details: String) -> Self {
+        Self {
+            name,
+            status: "fail",
+            details,
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
+struct BundleEndpointObservation {
+    id: String,
+    kind: Option<String>,
+    vendor_id: Option<String>,
+    product_id: Option<String>,
+    interface_number: Option<u64>,
+    usage_page: Option<String>,
+    usage: Option<String>,
+    output_capable: Option<bool>,
+    required_logical_controls: Vec<String>,
+    optional_logical_controls: Vec<String>,
+    observed_artifact_count: usize,
+    metadata_match_artifact_count: usize,
+    artifacts: Vec<BundleEndpointArtifactObservation>,
+}
+
+#[derive(Debug, Serialize)]
+struct BundleEndpointArtifactObservation {
+    path: String,
+    status: String,
+    vid_pid_count: usize,
+    metadata_match_count: usize,
 }
 
 #[derive(Debug, Serialize)]
@@ -12332,17 +19393,22 @@ impl ZeroTorqueProofReceipt {
         hz: u32,
         watchdog_timeout_ms: u64,
         device: MozaDeviceRecord,
-        payload: [u8; REPORT_LEN],
+        payload: ZeroOutputPayload,
         dry_run: bool,
     ) -> Self {
-        let torque_raw = i16::from_le_bytes([payload[1], payload[2]]);
-        let flags = payload[3];
-        let motor_enabled = flags & 0x01 != 0;
-        let non_zero_payloads = usize::from(torque_raw != 0 || flags != 0);
+        let non_zero_payloads = usize::from(!payload.no_nonzero_torque());
         let test_kind = match command {
             "wheelctl moza watchdog-proof" => "watchdog_proof",
             "wheelctl moza disconnect-proof" => "disconnect_proof",
             _ => "zero_torque",
+        };
+        let note = match payload.strategy {
+            MozaZeroOutputStrategy::DirectReport0x20 => {
+                "zero sends only Moza direct torque report 0x20 encoded with raw torque 0 and flags 0"
+            }
+            MozaZeroOutputStrategy::PidffStopAll => {
+                "zero sends only standard PIDFF Device Control report 0x0C with Stop All Effects"
+            }
         };
 
         Self {
@@ -12351,6 +19417,11 @@ impl ZeroTorqueProofReceipt {
             test_kind,
             generated_at_utc: now_utc(),
             receipt_path: None,
+            lane: None,
+            pre_output_readiness_validated: false,
+            pre_output_readiness_generated_at: None,
+            zero_torque_proof_validated: false,
+            zero_torque_proof_crc32: None,
             no_feature_reports: true,
             no_high_torque: true,
             no_nonzero_torque: non_zero_payloads == 0,
@@ -12359,7 +19430,7 @@ impl ZeroTorqueProofReceipt {
             no_firmware_or_dfu_commands: true,
             dry_run,
             no_hid_device_opened: dry_run,
-            operator_confirmed: !dry_run,
+            operator_confirmed: false,
             selector,
             repeat,
             hz,
@@ -12369,11 +19440,15 @@ impl ZeroTorqueProofReceipt {
             watchdog_triggered: false,
             disconnect_observed: false,
             device,
-            payload_hex: bytes_hex_compact(&payload),
-            report_id: hex_u8(payload[0]),
-            torque_raw,
-            flags,
-            motor_enabled,
+            zero_output_strategy: payload.strategy_name(),
+            payload_hex: payload.payload_hex(),
+            report_id: payload.report_id.clone(),
+            report_len: payload.report_len,
+            torque_raw: payload.torque_raw,
+            flags: payload.flags,
+            motor_enabled: payload.motor_enabled,
+            pidff_device_control_command: payload.pidff_device_control_command.map(hex_u8),
+            pidff_device_control_command_name: payload.pidff_device_control_command_name,
             non_zero_payloads,
             write_attempts: 0,
             writes_ok: 0,
@@ -12384,20 +19459,42 @@ impl ZeroTorqueProofReceipt {
             final_zero_sent: false,
             final_zero_error: None,
             abort_reason: None,
+            command_log_summary: None,
             command_log: Vec::new(),
             notes: vec![
-                "zero sends only Moza direct torque report 0x20 encoded with raw torque 0 and flags 0".to_string(),
+                note.to_string(),
                 "this command does not send Moza feature reports, FFB mode reports, high-torque reports, or non-zero torque".to_string(),
             ],
+            zero_payload: payload,
         }
     }
 
     fn record_command(&mut self, record: ZeroTorqueCommandRecord) {
+        self.account_command_record(&record);
+        self.command_log.push(record);
+    }
+
+    fn record_disconnect_command(&mut self, record: ZeroTorqueCommandRecord) {
+        self.account_command_record(&record);
+        let summary = self
+            .command_log_summary
+            .get_or_insert_with(Default::default);
+        summary.observe(&record);
+        let keep_record = record.kind != "scheduled_zero"
+            || summary.scheduled_zero_writes <= DISCONNECT_COMMAND_LOG_HEAD_RECORDS;
+        if keep_record {
+            summary.logged_records = summary.logged_records.saturating_add(1);
+            self.command_log.push(record);
+        } else {
+            summary.omitted_records = summary.omitted_records.saturating_add(1);
+        }
+    }
+
+    fn account_command_record(&mut self, record: &ZeroTorqueCommandRecord) {
         if record.torque_raw != 0 || record.flags != 0 || record.motor_enabled {
             self.non_zero_payloads += 1;
             self.no_nonzero_torque = false;
         }
-        self.command_log.push(record);
     }
 
     fn set_receipt_path(&mut self, path: Option<&Path>) {
@@ -12468,6 +19565,7 @@ struct MozaDeviceRecord {
     output_report_ids: Vec<String>,
     output_reports: Vec<HidReportRecord>,
     feature_report_ids: Vec<String>,
+    feature_reports: Vec<HidReportRecord>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -12514,7 +19612,8 @@ impl MozaDeviceRecord {
             input_report_lengths: expected_input_report_lengths(info.product_id()),
             output_report_ids: expected_output_report_ids(output_capable),
             output_reports: expected_output_reports(output_capable),
-            feature_report_ids: expected_feature_report_ids(output_capable),
+            feature_report_ids: expected_feature_report_ids(info.product_id(), output_capable),
+            feature_reports: Vec::new(),
         };
         if let Some(descriptor) = report_descriptor {
             record.apply_report_descriptor(descriptor, &descriptor_source);
@@ -12543,6 +19642,14 @@ impl MozaDeviceRecord {
                 .feature_report_ids
                 .into_iter()
                 .map(hex_u8)
+                .collect();
+            self.feature_reports = metadata
+                .feature_reports
+                .into_iter()
+                .map(|report| HidReportRecord {
+                    report_id: hex_u8(report.report_id),
+                    report_len: report.report_len,
+                })
                 .collect();
         }
     }
@@ -12592,6 +19699,7 @@ fn report_descriptor_from_operator_hex(value: &str) -> Result<ReportDescriptor> 
             "report descriptor hex must contain at least one byte"
         ));
     }
+    reject_unsupported_report_descriptor_bytes(&bytes)?;
     let mut hasher = crc32fast::Hasher::new();
     hasher.update(&bytes);
     let crc = hasher.finalize();
@@ -12603,6 +19711,15 @@ fn report_descriptor_from_operator_hex(value: &str) -> Result<ReportDescriptor> 
     })
 }
 
+fn reject_unsupported_report_descriptor_bytes(bytes: &[u8]) -> Result<()> {
+    if bytes.starts_with(b"HidP KDR") {
+        return Err(anyhow!(
+            "Windows HID collection/preparsed descriptor bytes are not raw HID report descriptor bytes; export the actual Report Descriptor block instead, for example Linux sysfs report_descriptor bytes or a USB descriptor tool's Report Descriptor hexdump."
+        ));
+    }
+    Ok(())
+}
+
 fn descriptor_source_label(report_descriptor: Option<&ReportDescriptor>) -> String {
     if report_descriptor.is_some() {
         "linux_sysfs".to_string()
@@ -12612,7 +19729,9 @@ fn descriptor_source_label(report_descriptor: Option<&ReportDescriptor>) -> Stri
 }
 
 fn expected_input_report_lengths(pid: u16) -> Vec<usize> {
-    if is_wheelbase_product(pid) {
+    if pid == product_ids::R5_V1 {
+        vec![42]
+    } else if is_wheelbase_product(pid) {
         vec![7, 31]
     } else if pid == product_ids::SR_P_PEDALS {
         vec![5]
@@ -12642,15 +19761,20 @@ fn expected_output_reports(output_capable: bool) -> Vec<HidReportRecord> {
     }
 }
 
-fn expected_feature_report_ids(output_capable: bool) -> Vec<String> {
-    if output_capable {
+fn expected_feature_report_ids(pid: u16, output_capable: bool) -> Vec<String> {
+    if !output_capable {
+        Vec::new()
+    } else if pid == product_ids::R5_V1 {
+        R5_V1_LIVE_FEATURE_REPORT_IDS
+            .iter()
+            .map(|id| (*id).to_string())
+            .collect()
+    } else {
         vec![
             HIGH_TORQUE_FEATURE_REPORT_ID.to_string(),
             START_REPORTING_FEATURE_REPORT_ID.to_string(),
             FFB_MODE_FEATURE_REPORT_ID.to_string(),
         ]
-    } else {
-        Vec::new()
     }
 }
 
@@ -12662,6 +19786,10 @@ fn selector_matches(device: &MozaDeviceRecord, selector: Option<&str>) -> bool {
     let selector = selector.trim();
     if selector.is_empty() {
         return true;
+    }
+
+    if let Some(identity) = parse_hid_observe_selector(selector) {
+        return hid_observe_selector_matches(device, &identity);
     }
 
     if let Some((vid, pid)) = parse_vid_pid_selector(selector) {
@@ -12684,6 +19812,49 @@ fn selector_matches(device: &MozaDeviceRecord, selector: Option<&str>) -> bool {
             .as_deref()
             .map(|s| s.to_ascii_lowercase().contains(&selector_lc))
             .unwrap_or(false)
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct HidObserveSelector {
+    vendor_id: u16,
+    product_id: u16,
+    interface_number: i32,
+    usage_page: u16,
+    usage: u16,
+}
+
+fn parse_hid_observe_selector(selector: &str) -> Option<HidObserveSelector> {
+    let rest = selector.strip_prefix("hid-")?;
+    let mut parts = rest.split('-');
+    let vendor_id = parse_hex_selector(parts.next()?)?;
+    let product_id = parse_hex_selector(parts.next()?)?;
+    let interface_number = parts.next()?.strip_prefix("if")?.parse::<i32>().ok()?;
+    let usage_page = parse_hex_selector(parts.next()?)?;
+    let usage = parse_hex_selector(parts.next()?)?;
+    parts.next().is_none().then_some(HidObserveSelector {
+        vendor_id,
+        product_id,
+        interface_number,
+        usage_page,
+        usage,
+    })
+}
+
+fn hid_observe_selector_matches(device: &MozaDeviceRecord, selector: &HidObserveSelector) -> bool {
+    device
+        .vendor_id
+        .eq_ignore_ascii_case(&hex_u16(selector.vendor_id))
+        && device
+            .product_id
+            .eq_ignore_ascii_case(&hex_u16(selector.product_id))
+        && device.interface_number == Some(selector.interface_number)
+        && device.usage_page.as_deref().is_some_and(|usage_page| {
+            usage_page.eq_ignore_ascii_case(&hex_u16(selector.usage_page))
+        })
+        && device
+            .usage
+            .as_deref()
+            .is_some_and(|usage| usage.eq_ignore_ascii_case(&hex_u16(selector.usage)))
 }
 
 fn parse_vid_pid_selector(selector: &str) -> Option<(u16, u16)> {
@@ -12814,6 +19985,78 @@ fn print_capture_validation_receipt(
             "Validated {} Moza capture report(s): {} parsed, {} rejected; no FFB writes sent.",
             receipt.total_reports, receipt.parsed_reports, receipt.rejected_reports
         );
+        if let Some(path) = json_out {
+            println!("Receipt: {}", path.display());
+        }
+    }
+    Ok(())
+}
+
+fn print_capture_analysis_receipt(
+    json: bool,
+    json_out: Option<&Path>,
+    receipt: &CaptureAnalysisReceipt,
+) -> Result<()> {
+    if json {
+        println!("{}", serde_json::to_string_pretty(receipt)?);
+    } else {
+        println!(
+            "Analyzed {} Moza capture report(s): {} decoded, {} rejected, {} moving byte(s), {} moving little-endian word(s); no HID device opened.",
+            receipt.total_reports,
+            receipt.decoded_reports,
+            receipt.rejected_reports,
+            receipt.moving_byte_count,
+            receipt.moving_word_le_count
+        );
+        if let Some(path) = json_out {
+            println!("Receipt: {}", path.display());
+        }
+    }
+    Ok(())
+}
+
+fn print_lane_capture_analysis_receipt(
+    json: bool,
+    json_out: Option<&Path>,
+    receipt: &LaneCaptureAnalysisReceipt,
+) -> Result<()> {
+    if json {
+        println!("{}", serde_json::to_string_pretty(receipt)?);
+    } else {
+        println!(
+            "Analyzed {} of {} required Moza lane capture(s): {} decoded, {} rejected, {} missing control evidence; no HID device opened.",
+            receipt.analyzed_capture_count,
+            receipt.required_capture_count,
+            receipt.decoded_reports,
+            receipt.rejected_reports,
+            receipt.missing_control_evidence.len()
+        );
+        if let Some(path) = json_out {
+            println!("Receipt: {}", path.display());
+        }
+    }
+    Ok(())
+}
+
+fn print_role_status_sync_receipt(
+    json: bool,
+    json_out: Option<&Path>,
+    receipt: &Value,
+) -> Result<()> {
+    if json {
+        println!("{}", serde_json::to_string_pretty(receipt)?);
+    } else {
+        let stale_count = json_u64(receipt, "stale_control_count").unwrap_or(0);
+        let check_only = json_bool(receipt, "check_only").unwrap_or(false);
+        let manifest_written = json_bool(receipt, "manifest_written").unwrap_or(false);
+        let action = if check_only {
+            "Checked"
+        } else if manifest_written {
+            "Synced"
+        } else {
+            "Confirmed"
+        };
+        println!("{action} Moza role semantic statuses; stale controls: {stale_count}.");
         if let Some(path) = json_out {
             println!("Receipt: {}", path.display());
         }
@@ -12990,6 +20233,30 @@ fn print_low_torque_receipt(
     Ok(())
 }
 
+fn print_actuator_profile_smoke_receipt(
+    json: bool,
+    json_out: Option<&Path>,
+    receipt: &NativeActuatorProfileSmokeReceipt,
+) -> Result<()> {
+    if json {
+        println!("{}", serde_json::to_string_pretty(receipt)?);
+    } else {
+        println!(
+            "Moza actuator-profile smoke success={}, dry_run={}, profile={}, writes_ok={}, final_stop_all_sent={}, max_percent={}.",
+            receipt.success,
+            receipt.dry_run,
+            receipt.profile,
+            receipt.writes_ok,
+            receipt.final_stop_all_sent,
+            receipt.max_percent
+        );
+        if let Some(path) = json_out {
+            println!("Receipt: {}", path.display());
+        }
+    }
+    Ok(())
+}
+
 fn print_bundle_verification_receipt(
     json: bool,
     json_out: Option<&Path>,
@@ -13005,6 +20272,29 @@ fn print_bundle_verification_receipt(
             receipt.missing_artifacts,
             receipt.invalid_artifacts,
             receipt.failed_gates
+        );
+        if let Some(path) = json_out {
+            println!("Receipt: {}", path.display());
+        }
+    }
+    Ok(())
+}
+
+fn print_pre_output_readiness_receipt(
+    json: bool,
+    json_out: Option<&Path>,
+    receipt: &PreOutputReadinessReceipt,
+) -> Result<()> {
+    if json {
+        println!("{}", serde_json::to_string_pretty(receipt)?);
+    } else {
+        println!(
+            "Moza pre-output readiness: zero_torque={}, native_control={}, external_compatibility={}, ffb={}; {} blocker(s).",
+            receipt.ready_for_zero_torque,
+            receipt.ready_for_native_control,
+            receipt.ready_for_external_compatibility,
+            receipt.ready_for_ffb,
+            receipt.blocking_items.len()
         );
         if let Some(path) = json_out {
             println!("Receipt: {}", path.display());
@@ -13150,6 +20440,7 @@ fn bytes_hex_array(bytes: &[u8]) -> Vec<String> {
 mod tests {
     use super::*;
     use clap::Parser;
+    use racing_wheel_hid_moza_protocol::rim_ids;
     use std::path::PathBuf;
 
     type TestResult<T = ()> = Result<T, Box<dyn std::error::Error>>;
@@ -13171,6 +20462,18 @@ mod tests {
             fs::create_dir_all(parent)?;
         }
         fs::write(path, contents)?;
+        Ok(())
+    }
+
+    #[test]
+    fn steering_u16_to_degrees_scales_declared_range() -> TestResult {
+        let full_left = steering_u16_to_degrees(0, 1080.0);
+        let center = steering_u16_to_degrees(32768, 1080.0);
+        let full_right = steering_u16_to_degrees(u16::MAX, 1080.0);
+
+        assert!((full_left + 540.0).abs() < 0.001);
+        assert!(center.abs() < 0.01);
+        assert!((full_right - 540.0).abs() < 0.001);
         Ok(())
     }
 
@@ -13326,6 +20629,7 @@ mod tests {
             "writer_completed_at_utc": "2026-05-06T00:00:03Z",
             "writer_device_path": "\\\\?\\hid#vid_346e&pid_0014&mi_00",
             "writer_product_id": "0x0014",
+            "writer_endpoint_selector": "hid-0x346E-0x0014-if2-0x0001-0x0004",
             "writer_hardware_lane": writer_hardware_lane.display().to_string(),
             "vendor_id": "0x346E",
             "product_id": "0x0014",
@@ -13417,6 +20721,174 @@ mod tests {
         write_text_file(path, &lines)
     }
 
+    fn simulator_pidff_output_record(
+        sequence: usize,
+        kind: &'static str,
+        percent: f64,
+        writer_hardware_lane: &Path,
+    ) -> Value {
+        let (payload_hex, report_id, report_len, torque_raw, motor_enabled, safety) = match kind {
+            "pidff_set_effect" => (
+                "010101960000000000000003FF052823000000000000",
+                "0x01",
+                22_u64,
+                0_i64,
+                false,
+                PIDFF_EFFECT_SETUP_CLASSIFICATION,
+            ),
+            "pidff_effect_start" => (
+                "0A010101",
+                "0x0A",
+                4_u64,
+                0_i64,
+                true,
+                PIDFF_BOUNDED_EFFECT_CLASSIFICATION,
+            ),
+            "pidff_set_constant_force" => {
+                if percent < 0.0 {
+                    (
+                        "0501B8FE",
+                        "0x05",
+                        4_u64,
+                        -328_i64,
+                        true,
+                        PIDFF_BOUNDED_EFFECT_CLASSIFICATION,
+                    )
+                } else {
+                    (
+                        "05014801",
+                        "0x05",
+                        4_u64,
+                        328_i64,
+                        true,
+                        PIDFF_BOUNDED_EFFECT_CLASSIFICATION,
+                    )
+                }
+            }
+            "clear_zero" | "final_stop_all" | "final_zero" => (
+                "0C04",
+                "0x0C",
+                2_u64,
+                0_i64,
+                false,
+                PIDFF_STOP_ALL_CLEANUP_CLASSIFICATION,
+            ),
+            _ => ("", "", 0_u64, 0_i64, false, ""),
+        };
+        let telemetry_sequence = sequence % 120;
+        let mut record = simulator_ffb_output_record(sequence, kind, 0.0, writer_hardware_lane);
+        record["writer_session_id"] = serde_json::json!("sim-ffb-pidff-session-001");
+        record["writer_device_path"] = serde_json::json!("\\\\?\\hid#vid_346e&pid_0004&mi_02");
+        record["writer_product_id"] = serde_json::json!("0x0004");
+        record["writer_endpoint_selector"] =
+            serde_json::json!("hid-0x346E-0x0004-if2-0x0001-0x0004");
+        record["product_id"] = serde_json::json!("0x0004");
+        record["telemetry_sequence"] = serde_json::json!(telemetry_sequence);
+        record["input_ffb_scalar"] =
+            serde_json::json!(simulator_fixture_ffb_scalar(telemetry_sequence));
+        record["low_torque_strategy"] = serde_json::json!("pidff_bounded_effect");
+        record["zero_output_strategy"] = serde_json::json!("pidff_device_control_stop_all");
+        record["percent"] = serde_json::json!(percent);
+        record["effect_magnitude_percent"] = serde_json::json!(percent.abs());
+        record["payload_hex"] = serde_json::json!(payload_hex);
+        record["report_id"] = serde_json::json!(report_id);
+        record["report_len"] = serde_json::json!(report_len);
+        record["torque_raw"] = serde_json::json!(torque_raw);
+        record["flags"] = serde_json::json!(0);
+        record["motor_enabled"] = serde_json::json!(motor_enabled);
+        record["safety_classification"] = serde_json::json!(safety);
+        record["bytes_written"] = serde_json::json!(report_len);
+        if report_id == "0x0C" {
+            record["pidff_device_control_command"] = serde_json::json!("0x04");
+            record["pidff_device_control_command_name"] = serde_json::json!("stop_all_effects");
+        }
+        record
+    }
+
+    fn write_simulator_pidff_output_jsonl(
+        path: &Path,
+        nonzero_count: usize,
+        zero_count: usize,
+    ) -> TestResult {
+        write_simulator_pidff_output_jsonl_mutated(path, nonzero_count, zero_count, |_, _| {})
+    }
+
+    fn write_simulator_pidff_output_jsonl_mutated<F>(
+        path: &Path,
+        nonzero_count: usize,
+        zero_count: usize,
+        mut mutate: F,
+    ) -> TestResult
+    where
+        F: FnMut(usize, &mut Value),
+    {
+        if nonzero_count == 0 || zero_count < 5 {
+            return Err("invalid simulator PIDFF output counts".into());
+        }
+        let writer_hardware_lane = path.parent().unwrap_or_else(|| Path::new("."));
+        let mut lines = String::new();
+        for (sequence, mut record) in [
+            simulator_pidff_output_record(0, "pidff_set_effect", 1.0, writer_hardware_lane),
+            simulator_pidff_output_record(1, "pidff_effect_start", 1.0, writer_hardware_lane),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            record["sequence"] = serde_json::json!(sequence);
+            record["elapsed_us"] = serde_json::json!(sequence as u64 * 1000);
+            mutate(sequence, &mut record);
+            lines.push_str(&serde_json::to_string(&record)?);
+            lines.push('\n');
+        }
+
+        let mut sequence = 2usize;
+        for index in 0..nonzero_count {
+            let telemetry_sequence = index * 2;
+            let percent = if simulator_fixture_ffb_scalar(telemetry_sequence) >= 0.0 {
+                1.0
+            } else {
+                -1.0
+            };
+            let mut record = simulator_pidff_output_record(
+                sequence,
+                "pidff_set_constant_force",
+                percent,
+                writer_hardware_lane,
+            );
+            record["telemetry_sequence"] = serde_json::json!(telemetry_sequence);
+            record["input_ffb_scalar"] =
+                serde_json::json!(simulator_fixture_ffb_scalar(telemetry_sequence));
+            mutate(sequence, &mut record);
+            lines.push_str(&serde_json::to_string(&record)?);
+            lines.push('\n');
+            sequence += 1;
+        }
+
+        for index in 0..zero_count {
+            let kind = if index + 1 == zero_count {
+                "final_stop_all"
+            } else {
+                "clear_zero"
+            };
+            let mut record =
+                simulator_pidff_output_record(sequence, kind, 0.0, writer_hardware_lane);
+            if kind == "clear_zero" {
+                match index {
+                    0 => record["clear_event"] = serde_json::json!("stop"),
+                    1 => record["clear_event"] = serde_json::json!("pause"),
+                    2 => record["clear_event"] = serde_json::json!("game_exit"),
+                    3 => record["clear_event"] = serde_json::json!("mode_mismatch"),
+                    _ => {}
+                }
+            }
+            mutate(sequence, &mut record);
+            lines.push_str(&serde_json::to_string(&record)?);
+            lines.push('\n');
+            sequence += 1;
+        }
+        write_text_file(path, &lines)
+    }
+
     fn write_test_json_file(path: &Path, value: &Value) -> TestResult {
         let mut value = value.clone();
         if matches!(
@@ -13495,6 +20967,7 @@ mod tests {
                 report_len: REPORT_LEN,
             }],
             feature_report_ids: vec!["0x02".to_string(), "0x03".to_string(), "0x11".to_string()],
+            feature_reports: Vec::new(),
         }
     }
 
@@ -13505,7 +20978,7 @@ mod tests {
             "product_name": "Moza R5",
             "manufacturer": "MOZA",
             "serial_number_present": true,
-            "interface_number": 0,
+            "interface_number": 2,
             "usage_page": "0x0001",
             "usage": "0x0004",
             "descriptor_source": "operator_supplied_hex",
@@ -13570,7 +21043,86 @@ mod tests {
         device["output_report_ids"] = serde_json::json!(["0x20"]);
         device["output_reports"] = serde_json::json!([{"report_id": "0x20", "report_len": 8}]);
         device["feature_report_ids"] = serde_json::json!(["0x03", "0x11"]);
+        device["feature_reports"] = serde_json::json!([
+            {"report_id": "0x03", "report_len": 4},
+            {"report_id": "0x11", "report_len": 4}
+        ]);
         device
+    }
+
+    fn sample_trusted_r5_v1_json_device() -> Value {
+        if let Some(device) = live_r5_v1_descriptor_device() {
+            return device;
+        }
+
+        let mut device = sample_trusted_r5_json_device();
+        device["product_id"] = serde_json::json!("0x0004");
+        device["product_name"] = serde_json::json!("Moza R5 V1");
+        device["report_descriptor_len"] = serde_json::json!(1315);
+        device["report_descriptor_crc32"] = serde_json::json!("0x25345E0C");
+        if let Some(object) = device.as_object_mut() {
+            object.remove("report_descriptor_hex");
+        }
+        device["input_report_lengths"] = serde_json::json!([3, 18, 42]);
+        device["output_report_ids"] = serde_json::json!([
+            "0x01", "0x02", "0x03", "0x04", "0x05", "0x06", "0x0A", "0x0B", "0x0C", "0x0D", "0x14",
+            "0x15", "0xAF"
+        ]);
+        device["output_reports"] = serde_json::json!([
+            {"report_id": "0x01", "report_len": 22},
+            {"report_id": "0x02", "report_len": 14},
+            {"report_id": "0x03", "report_len": 15},
+            {"report_id": "0x04", "report_len": 12},
+            {"report_id": "0x05", "report_len": 4},
+            {"report_id": "0x06", "report_len": 6},
+            {"report_id": "0x0A", "report_len": 4},
+            {"report_id": "0x0B", "report_len": 2},
+            {"report_id": "0x0C", "report_len": 2},
+            {"report_id": "0x0D", "report_len": 2},
+            {"report_id": "0x14", "report_len": 51},
+            {"report_id": "0x15", "report_len": 21},
+            {"report_id": "0xAF", "report_len": 18}
+        ]);
+        device["feature_report_ids"] = serde_json::json!(["0x11", "0x12", "0x13", "0xAF"]);
+        device
+    }
+
+    fn live_r5_v1_descriptor_device() -> Option<Value> {
+        let descriptor: Value = serde_json::from_str(include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../ci/hardware/moza-r5/2026-05-13/descriptor.json"
+        )))
+        .ok()?;
+        descriptor
+            .get("devices")?
+            .as_array()?
+            .iter()
+            .find(|device| {
+                json_string(device, "vendor_id") == Some("0x346E")
+                    && json_string(device, "product_id") == Some("0x0004")
+            })
+            .cloned()
+    }
+
+    fn sample_mixed_vendor_pedals_json_device() -> Value {
+        serde_json::json!({
+            "vendor_id": "0x1234",
+            "product_id": "0xABCD",
+            "product_name": "External Pedals",
+            "manufacturer": "Example",
+            "serial_number_present": true,
+            "interface_number": 0,
+            "usage_page": "0x0001",
+            "usage": "0x0004",
+            "descriptor_source": "operator_supplied_hex",
+            "report_descriptor_crc32": "0x456789AB",
+            "report_metadata_source": "report_descriptor_parsed",
+            "input_report_lengths": [8],
+            "output_report_ids": [],
+            "output_reports": [],
+            "feature_report_ids": [],
+            "output_capable": false
+        })
     }
 
     fn trusted_r5_descriptor_receipt() -> Value {
@@ -13605,6 +21157,8 @@ mod tests {
         );
         assert_eq!(json_bool(&receipt, "no_hid_device_opened"), Some(true));
         assert_eq!(json_bool(&receipt, "no_ffb_writes"), Some(true));
+        assert_eq!(json_bool(&receipt, "no_output_reports"), Some(true));
+        assert_eq!(json_bool(&receipt, "no_feature_reports"), Some(true));
         assert_eq!(json_bool(&receipt, "no_serial_config_commands"), Some(true));
         assert_eq!(
             json_bool(&receipt, "no_firmware_or_dfu_commands"),
@@ -13685,6 +21239,7 @@ mod tests {
     #[test]
     fn device_status_lane_readiness_reports_stored_stage_without_enabling_torque() -> TestResult {
         let dir = tempfile::tempdir()?;
+        write_zero_torque_ready_manifest(dir.path())?;
         write_test_json_file(
             &dir.path().join("passive-verification.json"),
             &stored_verification_receipt(dir.path(), MozaBundleStage::Passive),
@@ -13693,10 +21248,17 @@ mod tests {
             &dir.path().join("zero-verification.json"),
             &stored_verification_receipt(dir.path(), MozaBundleStage::Zero),
         )?;
-        write_test_json_file(&dir.path().join("init-off.json"), &real_init_receipt("off"))?;
+        write_test_json_file(
+            &dir.path().join("init-off.json"),
+            &receipt_with_lane_path(dir.path(), "init-off.json", real_init_receipt("off")),
+        )?;
         write_test_json_file(
             &dir.path().join("init-standard.json"),
-            &real_init_receipt("standard"),
+            &receipt_with_lane_path(
+                dir.path(),
+                "init-standard.json",
+                real_init_receipt("standard"),
+            ),
         )?;
         let mut smoke_ready = stored_verification_receipt(dir.path(), MozaBundleStage::SmokeReady);
         smoke_ready["success"] = serde_json::json!(false);
@@ -13738,10 +21300,7 @@ mod tests {
         apply_lane_readiness_to_device_status(&mut status, dir.path());
 
         let readiness = status.moza.as_ref().ok_or("missing readiness")?;
-        assert_eq!(
-            readiness.safety_state,
-            "lane_low_torque_gate_receipts_observed"
-        );
+        assert_eq!(readiness.safety_state, "lane_init_handshakes_observed");
         assert!(
             readiness
                 .safety_reason
@@ -13750,7 +21309,7 @@ mod tests {
         assert!(
             readiness
                 .safety_reason
-                .contains("next_required_stage=smoke_ready")
+                .contains("next_required_stage=openracing_control_ready")
         );
         assert!(!readiness.direct_mode_allowed);
         assert!(!readiness.high_torque_allowed);
@@ -13916,15 +21475,19 @@ mod tests {
         write_minimal_passive_bundle(dir.path())?;
         write_test_json_file(
             &dir.path().join("zero-torque-proof.json"),
-            &real_zero_receipt(100),
+            &receipt_with_lane_path(dir.path(), "zero-torque-proof.json", real_zero_receipt(100)),
         )?;
         write_test_json_file(
             &dir.path().join("watchdog-proof.json"),
-            &real_watchdog_receipt(3),
+            &receipt_with_lane_path(dir.path(), "watchdog-proof.json", real_watchdog_receipt(3)),
         )?;
         write_test_json_file(
             &dir.path().join("disconnect-proof.json"),
-            &real_disconnect_receipt(),
+            &receipt_with_lane_path(
+                dir.path(),
+                "disconnect-proof.json",
+                real_disconnect_receipt(),
+            ),
         )?;
 
         let status = support_bundle_status(dir.path());
@@ -13944,6 +21507,58 @@ mod tests {
                 .get("ready_for_low_torque")
                 .and_then(Value::as_bool),
             Some(false)
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn support_status_allows_low_torque_ready_through_pidff_path() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_zero_torque_ready_r5_v1_manifest(dir.path())?;
+        write_test_json_file(
+            &dir.path().join("descriptor.json"),
+            &serde_json::json!({
+                "success": true,
+                "command": "hid-capture descriptor",
+                "no_hid_device_opened": true,
+                "no_ffb_writes": true,
+                "no_serial_config_commands": true,
+                "no_firmware_or_dfu_commands": true,
+                "devices": [sample_trusted_r5_v1_json_device()]
+            }),
+        )?;
+        write_test_json_file(
+            &dir.path().join("zero-torque-proof.json"),
+            &receipt_with_lane_path(
+                dir.path(),
+                "zero-torque-proof.json",
+                real_pidff_zero_receipt(100),
+            ),
+        )?;
+        write_test_json_file(
+            &dir.path().join("init-off.json"),
+            &receipt_with_lane_path(dir.path(), "init-off.json", real_init_receipt("off")),
+        )?;
+        write_test_json_file(
+            &dir.path().join("init-standard.json"),
+            &receipt_with_lane_path(
+                dir.path(),
+                "init-standard.json",
+                real_init_receipt("standard"),
+            ),
+        )?;
+
+        assert!(
+            support_ready_for_low_torque(dir.path(), true, true, true),
+            "R5 V1 PIDFF zero proof and descriptor-proven bounded-effect reports should report low-torque readiness without direct report 0x20"
+        );
+
+        let direct = tempfile::tempdir()?;
+        write_minimal_passive_bundle(direct.path())?;
+        write_low_torque_prerequisite_receipts(direct.path())?;
+        assert!(
+            support_ready_for_low_torque(direct.path(), true, true, true),
+            "direct report 0x20 descriptor metadata plus same-lane direct zero proof should remain low-torque ready"
         );
         Ok(())
     }
@@ -14027,6 +21642,673 @@ mod tests {
         Ok(())
     }
 
+    #[test]
+    fn pre_output_readiness_blocks_zero_torque_until_descriptor_and_fixtures_pass() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_minimal_passive_bundle(dir.path())?;
+        write_service_status_artifacts(dir.path())?;
+        fs::remove_file(dir.path().join("fixture-promotion.json"))?;
+        let mut descriptor = trusted_r5_descriptor_receipt();
+        let device = descriptor
+            .get_mut("devices")
+            .and_then(Value::as_array_mut)
+            .and_then(|devices| devices.first_mut())
+            .and_then(Value::as_object_mut)
+            .ok_or("expected R5 descriptor record")?;
+        device.insert(
+            "descriptor_source".to_string(),
+            Value::String("unavailable".to_string()),
+        );
+        device.remove("report_descriptor_crc32");
+        write_test_json_file(&dir.path().join("descriptor.json"), &descriptor)?;
+        let passive = verify_bundle_dir(dir.path(), MozaBundleStage::Passive);
+        write_test_json_file(
+            &dir.path().join("passive-verification.json"),
+            &serde_json::to_value(passive)?,
+        )?;
+
+        let receipt = pre_output_readiness_dir(dir.path());
+
+        assert!(!receipt.success);
+        assert!(!receipt.ready_for_zero_torque);
+        assert!(!receipt.ready_for_ffb);
+        assert!(
+            receipt
+                .blocking_items
+                .iter()
+                .any(|item| item == "descriptor_metadata")
+        );
+        assert!(
+            receipt
+                .blocking_items
+                .iter()
+                .any(|item| item == "fixture_promotion")
+        );
+        assert!(
+            receipt
+                .passed_items
+                .iter()
+                .any(|item| item == "status_receipts_no_output")
+        );
+        assert!(receipt.hard_forbidden_until_ready.contains(&"ffb"));
+        Ok(())
+    }
+
+    #[test]
+    fn pre_output_readiness_allows_zero_torque_after_passive_audit_only() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_minimal_passive_bundle(dir.path())?;
+        write_service_status_artifacts(dir.path())?;
+        write_lane_audit_receipts(dir.path(), MozaBundleStage::Passive)?;
+
+        let receipt = pre_output_readiness_dir(dir.path());
+
+        assert!(receipt.success);
+        assert!(receipt.ready_for_zero_torque);
+        assert!(!receipt.ready_for_ffb);
+        assert!(receipt.blocking_items.is_empty());
+        assert!(
+            receipt
+                .passed_items
+                .iter()
+                .any(|item| item == "ready_for_zero_torque")
+        );
+        assert!(
+            receipt
+                .ffb_blocking_items
+                .iter()
+                .any(|item| item == "zero-verification.json")
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn pre_output_readiness_allows_pidff_zero_when_descriptor_lacks_direct_report() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_minimal_passive_bundle(dir.path())?;
+        write_service_status_artifacts(dir.path())?;
+        write_lane_audit_receipts(dir.path(), MozaBundleStage::Passive)?;
+        let mut manifest = sample_lane_manifest("passive_capture_ready", false, false);
+        manifest["hardware"]["wheelbase_pid"] = serde_json::json!("0x0004");
+        manifest["topology"] = moza_lane_manifest_topology_value(product_ids::R5_V1);
+        write_test_json_file(&dir.path().join("manifest.json"), &manifest)?;
+        write_test_json_file(
+            &dir.path().join("descriptor.json"),
+            &serde_json::json!({
+                "success": true,
+                "command": "hid-capture descriptor",
+                "no_hid_device_opened": true,
+                "no_ffb_writes": true,
+                "no_serial_config_commands": true,
+                "no_firmware_or_dfu_commands": true,
+                "devices": [sample_trusted_r5_v1_json_device()]
+            }),
+        )?;
+
+        let receipt = pre_output_readiness_dir(dir.path());
+
+        assert!(receipt.success);
+        assert!(receipt.ready_for_zero_torque);
+        assert!(!receipt.ready_for_ffb);
+        assert!(
+            receipt.blocking_items.is_empty(),
+            "PIDFF stop-all should satisfy zero-output readiness when descriptor metadata is trusted"
+        );
+        assert!(
+            receipt
+                .passed_items
+                .iter()
+                .any(|item| item == "zero_output_strategy_ready")
+        );
+        assert!(
+            receipt
+                .passed_items
+                .iter()
+                .any(|item| item == "ready_for_zero_torque")
+        );
+        let direct = receipt
+            .zero_output_strategies
+            .iter()
+            .find(|strategy| strategy.name == "direct_report_0x20")
+            .ok_or("expected direct zero-output strategy")?;
+        assert!(direct.implemented);
+        assert!(!direct.ready);
+        assert!(!direct.descriptor_report_observed);
+        assert!(
+            direct
+                .blocking_items
+                .contains(&"direct_zero_report_metadata")
+        );
+        let pidff = receipt
+            .zero_output_strategies
+            .iter()
+            .find(|strategy| strategy.name == "pidff_device_control_stop_all")
+            .ok_or("expected PIDFF stop-all zero-output candidate")?;
+        assert!(pidff.implemented);
+        assert!(pidff.descriptor_report_observed);
+        assert!(pidff.descriptor_metadata_trusted);
+        assert!(pidff.ready);
+        assert!(pidff.blocking_items.is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn pre_output_readiness_uses_stored_receipts_without_replaying_captures() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_test_json_file(
+            &dir.path().join("manifest.json"),
+            &sample_lane_manifest("passive_capture_ready", false, false),
+        )?;
+        write_test_json_file(
+            &dir.path().join("descriptor.json"),
+            &trusted_r5_descriptor_receipt(),
+        )?;
+        write_service_status_artifacts(dir.path())?;
+        write_stage_audit_receipts(dir.path(), MozaBundleStage::Passive)?;
+        write_test_json_file(
+            &dir.path().join("lane-audit-passive.json"),
+            &serde_json::json!({
+                "success": true,
+                "command": "wheelctl moza audit-lane",
+                "lane": dir.path().display().to_string(),
+                "requested_stage": "passive",
+                "live_verification_success": true,
+                "missing_receipts": 0,
+                "invalid_receipts": 0,
+                "receipt_checks": [
+                    {"status": "pass"},
+                    {"status": "pass"}
+                ],
+                "no_hid_device_opened": true,
+                "no_ffb_writes": true,
+                "no_serial_config_commands": true,
+                "no_firmware_or_dfu_commands": true
+            }),
+        )?;
+
+        let receipt = pre_output_readiness_dir(dir.path());
+
+        assert!(receipt.success);
+        assert!(receipt.ready_for_zero_torque);
+        assert!(!receipt.ready_for_ffb);
+        assert!(
+            receipt
+                .ffb_blocking_items
+                .iter()
+                .any(|item| item == "zero-verification.json")
+        );
+        assert!(
+            !dir.path().join("captures").exists(),
+            "pre-output-readiness should trust stored verification receipts instead of requiring raw capture artifacts"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn pre_output_readiness_ffb_prerequisites_do_not_require_pit_house_parent_proof() -> TestResult
+    {
+        let zero = pre_output_verification_receipt_for_gates(
+            MozaBundleStage::Zero,
+            &[
+                ("zero_torque_real_hardware", "pass"),
+                ("watchdog_zero_output", "pass"),
+                ("disconnect_final_zero", "pass"),
+            ],
+        );
+        let smoke_ready_gates = pre_output_smoke_ready_gates_for_bounded_ffb_without_pit_house();
+        let smoke_ready = pre_output_verification_receipt_for_gates(
+            MozaBundleStage::SmokeReady,
+            &smoke_ready_gates,
+        );
+
+        assert!(
+            pre_output_bounded_ffb_prerequisite_gates_passed(&smoke_ready),
+            "bounded FFB readiness should not wait for the Pit House parent proof because its mode-change case links back to simulator-ffb-smoke.json"
+        );
+
+        let blockers = pre_output_ffb_blocking_items(&zero, &smoke_ready, true);
+        assert!(
+            !blockers.iter().any(|item| item == "pit_house_coexistence"),
+            "Pit House coexistence remains required for smoke-ready promotion, not for ready_for_ffb"
+        );
+        assert!(
+            !blockers.iter().any(|item| item == "simulator_ffb_bounded"),
+            "ready_for_ffb should be true before the bounded simulator FFB receipt exists"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn pre_output_native_control_readiness_does_not_require_external_adapters() -> TestResult {
+        let zero = pre_output_verification_receipt_for_gates(
+            MozaBundleStage::Zero,
+            &[
+                ("zero_torque_real_hardware", "pass"),
+                ("watchdog_zero_output", "pass"),
+                ("disconnect_final_zero", "pass"),
+            ],
+        );
+        let openracing_control = pre_output_verification_receipt_for_gates(
+            MozaBundleStage::OpenRacingControlReady,
+            &[
+                ("init_off_handshake", "pass"),
+                ("init_standard_handshake", "pass"),
+                ("service_status_receipts", "pass"),
+                ("low_torque_bounded", "pass"),
+            ],
+        );
+        let smoke_ready = pre_output_verification_receipt_for_gates(
+            MozaBundleStage::SmokeReady,
+            &[
+                ("simulator_telemetry", "fail"),
+                ("simulator_ffb_bounded", "fail"),
+                ("pit_house_coexistence", "fail"),
+            ],
+        );
+
+        let native_blockers =
+            pre_output_native_control_blocking_items(&zero, &openracing_control, true, true);
+        assert!(
+            native_blockers
+                .iter()
+                .any(|item| item == "steering_angle_stream_proof"),
+            "native control should wait for native steering feedback proof: {native_blockers:?}"
+        );
+        assert!(
+            native_blockers
+                .iter()
+                .any(|item| item == "native_actuator_profile_smoke"),
+            "native control should wait for native actuator profile proof: {native_blockers:?}"
+        );
+        for external_gate in [
+            "simulator_telemetry",
+            "simulator_ffb_bounded",
+            "pit_house_coexistence",
+        ] {
+            assert!(
+                !native_blockers.iter().any(|item| item == external_gate),
+                "native control readiness must not be blocked by external adapter gate {external_gate}: {native_blockers:?}"
+            );
+        }
+
+        let complete_openracing_control = pre_output_verification_receipt_for_gates(
+            MozaBundleStage::OpenRacingControlReady,
+            &[
+                ("init_off_handshake", "pass"),
+                ("init_standard_handshake", "pass"),
+                ("service_status_receipts", "pass"),
+                ("low_torque_bounded", "pass"),
+                ("steering_angle_stream_proof", "pass"),
+                ("native_actuator_profile_smoke", "pass"),
+            ],
+        );
+        let complete_native_blockers = pre_output_native_control_blocking_items(
+            &zero,
+            &complete_openracing_control,
+            true,
+            true,
+        );
+        assert!(
+            complete_native_blockers.is_empty(),
+            "complete native OpenRacing gates should clear native blockers without external adapters: {complete_native_blockers:?}"
+        );
+
+        let external_blockers =
+            pre_output_external_compatibility_blocking_items(&smoke_ready, false);
+        for external_gate in [
+            "simulator_telemetry",
+            "simulator_ffb_bounded",
+            "pit_house_coexistence",
+        ] {
+            assert!(
+                external_blockers.iter().any(|item| item == external_gate),
+                "external compatibility should track {external_gate}: {external_blockers:?}"
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn pre_output_readiness_reports_smoke_verification_missing_without_guessing_gates() -> TestResult
+    {
+        let zero = pre_output_verification_receipt_for_gates(
+            MozaBundleStage::Zero,
+            &[
+                ("zero_torque_real_hardware", "pass"),
+                ("watchdog_zero_output", "pass"),
+                ("disconnect_final_zero", "pass"),
+            ],
+        );
+        let smoke_ready = PreOutputVerificationReceipt::missing(
+            MozaBundleStage::SmokeReady,
+            "smoke-ready-verification.json",
+            "smoke-ready verification has not been generated".to_string(),
+        );
+
+        let blockers = pre_output_ffb_blocking_items(&zero, &smoke_ready, true);
+
+        assert_eq!(blockers, vec!["smoke-ready-verification.json".to_string()]);
+        for guessed_gate in [
+            "init_off_handshake",
+            "init_standard_handshake",
+            "service_status_receipts",
+            "low_torque_bounded",
+            "simulator_telemetry",
+        ] {
+            assert!(
+                !blockers.iter().any(|item| item == guessed_gate),
+                "{guessed_gate} should not be reported when the smoke-ready receipt is unavailable"
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn pre_output_readiness_reports_zero_verification_before_later_smoke_gates() -> TestResult {
+        let zero = PreOutputVerificationReceipt::missing(
+            MozaBundleStage::Zero,
+            "zero-verification.json",
+            "zero verification has not been generated".to_string(),
+        );
+        let smoke_ready = pre_output_verification_receipt_for_gates(
+            MozaBundleStage::SmokeReady,
+            &[
+                ("init_off_handshake", "fail"),
+                ("init_standard_handshake", "fail"),
+                ("service_status_receipts", "fail"),
+                ("low_torque_bounded", "fail"),
+                ("simulator_telemetry", "fail"),
+            ],
+        );
+
+        let blockers = pre_output_ffb_blocking_items(&zero, &smoke_ready, true);
+
+        assert_eq!(blockers, vec!["zero-verification.json".to_string()]);
+        for later_gate in [
+            "init_off_handshake",
+            "init_standard_handshake",
+            "service_status_receipts",
+            "low_torque_bounded",
+            "simulator_telemetry",
+        ] {
+            assert!(
+                !blockers.iter().any(|item| item == later_gate),
+                "{later_gate} should wait until zero verification is available"
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn zero_output_stage_preflight_accepts_ready_same_lane_receipt() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_pre_output_ready_receipt(dir.path())?;
+        let json_out = dir.path().join("zero-torque-proof.json");
+
+        let preflight = validate_zero_output_stage_preflight(
+            Some(dir.path()),
+            Some(&json_out),
+            "zero-torque-proof.json",
+            MozaZeroOutputStrategy::DirectReport0x20,
+            true,
+            "--confirm-zero-torque",
+        )?;
+
+        assert_eq!(preflight.lane, dir.path());
+        assert!(preflight.pre_output_readiness_generated_at.is_some());
+        Ok(())
+    }
+
+    #[test]
+    fn zero_output_stage_preflight_rejects_unconfirmed_real_writes() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_pre_output_ready_receipt(dir.path())?;
+
+        let result = validate_zero_output_stage_preflight(
+            Some(dir.path()),
+            Some(&dir.path().join("zero-torque-proof.json")),
+            "zero-torque-proof.json",
+            MozaZeroOutputStrategy::DirectReport0x20,
+            false,
+            "--confirm-zero-torque",
+        );
+
+        let message = match result {
+            Ok(_) => return Err("expected confirmation preflight error".into()),
+            Err(error) => error.to_string(),
+        };
+        assert!(message.contains("--confirm-zero-torque"));
+        Ok(())
+    }
+
+    #[test]
+    fn zero_output_stage_preflight_rejects_blocked_readiness_receipt() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_pre_output_ready_receipt(dir.path())?;
+        let mut receipt = read_json_path(&dir.path().join("pre-output-readiness.json"))?;
+        receipt["ready_for_zero_torque"] = serde_json::json!(false);
+        receipt["blocking_items"] = serde_json::json!(["descriptor_metadata"]);
+        write_test_json_file(&dir.path().join("pre-output-readiness.json"), &receipt)?;
+
+        let result = validate_zero_output_stage_preflight(
+            Some(dir.path()),
+            Some(&dir.path().join("zero-torque-proof.json")),
+            "zero-torque-proof.json",
+            MozaZeroOutputStrategy::DirectReport0x20,
+            true,
+            "--confirm-zero-torque",
+        );
+
+        let message = match result {
+            Ok(_) => return Err("expected readiness preflight error".into()),
+            Err(error) => error.to_string(),
+        };
+        assert!(message.contains("ready_for_zero_torque=false"));
+        Ok(())
+    }
+
+    #[test]
+    fn zero_output_stage_preflight_rejects_descriptor_without_direct_report() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_pre_output_ready_receipt(dir.path())?;
+        let mut manifest = sample_lane_manifest("passive_capture_ready", false, false);
+        manifest["hardware"]["wheelbase_pid"] = serde_json::json!("0x0004");
+        manifest["topology"] = moza_lane_manifest_topology_value(product_ids::R5_V1);
+        write_test_json_file(&dir.path().join("manifest.json"), &manifest)?;
+        write_test_json_file(
+            &dir.path().join("descriptor.json"),
+            &serde_json::json!({
+                "success": true,
+                "command": "hid-capture descriptor",
+                "no_hid_device_opened": true,
+                "no_ffb_writes": true,
+                "no_serial_config_commands": true,
+                "no_firmware_or_dfu_commands": true,
+                "devices": [sample_trusted_r5_v1_json_device()]
+            }),
+        )?;
+
+        let result = validate_zero_output_stage_preflight(
+            Some(dir.path()),
+            Some(&dir.path().join("zero-torque-proof.json")),
+            "zero-torque-proof.json",
+            MozaZeroOutputStrategy::DirectReport0x20,
+            true,
+            "--confirm-zero-torque",
+        );
+
+        let message = match result {
+            Ok(_) => return Err("expected direct report metadata preflight error".into()),
+            Err(error) => error.to_string(),
+        };
+        assert!(message.contains("strategy_metadata=false"));
+        assert!(message.contains("trusted descriptor-derived direct output report metadata"));
+        Ok(())
+    }
+
+    #[test]
+    fn zero_output_stage_preflight_accepts_pidff_stop_all_strategy() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_pre_output_ready_receipt(dir.path())?;
+        let mut manifest = sample_lane_manifest("passive_capture_ready", false, false);
+        manifest["hardware"]["wheelbase_pid"] = serde_json::json!("0x0004");
+        manifest["topology"] = moza_lane_manifest_topology_value(product_ids::R5_V1);
+        write_test_json_file(&dir.path().join("manifest.json"), &manifest)?;
+        write_test_json_file(
+            &dir.path().join("descriptor.json"),
+            &serde_json::json!({
+                "success": true,
+                "command": "hid-capture descriptor",
+                "no_hid_device_opened": true,
+                "no_ffb_writes": true,
+                "no_serial_config_commands": true,
+                "no_firmware_or_dfu_commands": true,
+                "devices": [sample_trusted_r5_v1_json_device()]
+            }),
+        )?;
+
+        validate_zero_output_stage_preflight(
+            Some(dir.path()),
+            Some(&dir.path().join("zero-torque-proof.json")),
+            "zero-torque-proof.json",
+            MozaZeroOutputStrategy::PidffStopAll,
+            true,
+            "--confirm-zero-torque",
+        )?;
+
+        Ok(())
+    }
+
+    #[test]
+    fn zero_output_stage_preflight_rejects_off_lane_receipt_path() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        let other = tempfile::tempdir()?;
+        write_pre_output_ready_receipt(dir.path())?;
+
+        let result = validate_zero_output_stage_preflight(
+            Some(dir.path()),
+            Some(&other.path().join("zero-torque-proof.json")),
+            "zero-torque-proof.json",
+            MozaZeroOutputStrategy::DirectReport0x20,
+            true,
+            "--confirm-zero-torque",
+        );
+
+        let message = match result {
+            Ok(_) => return Err("expected same-lane json-out preflight error".into()),
+            Err(error) => error.to_string(),
+        };
+        assert!(message.contains("same-lane artifact"));
+        Ok(())
+    }
+
+    #[test]
+    fn same_lane_zero_proof_preflight_rejects_stale_receipt_path() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        let mut receipt = real_zero_receipt(100);
+        receipt["receipt_path"] = serde_json::json!(
+            dir.path()
+                .join("other/zero-torque-proof.json")
+                .display()
+                .to_string()
+        );
+        write_test_json_file(&dir.path().join("zero-torque-proof.json"), &receipt)?;
+
+        let result = validate_same_lane_zero_proof_for_zero_output(dir.path());
+
+        let message = match result {
+            Ok(_) => return Err("expected same-lane zero proof preflight error".into()),
+            Err(error) => error.to_string(),
+        };
+        assert!(message.contains("receipt_path"));
+        Ok(())
+    }
+
+    #[test]
+    fn pre_output_lane_binding_accepts_repo_relative_lane_path() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        let lane = dir
+            .path()
+            .join("ci")
+            .join("hardware")
+            .join("moza-r5")
+            .join("2026-05-13");
+
+        assert!(lane_path_value_matches(
+            &lane,
+            Some("ci\\hardware\\moza-r5\\2026-05-13")
+        ));
+        assert!(!lane_path_value_matches(
+            &lane,
+            Some("ci\\hardware\\moza-r5\\2026-05-14")
+        ));
+        Ok(())
+    }
+
+    #[test]
+    fn receipt_path_binding_accepts_repo_relative_lane_artifact_path() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        let lane = dir
+            .path()
+            .join("ci")
+            .join("hardware")
+            .join("moza-r5")
+            .join("2026-05-13");
+        let receipt = serde_json::json!({
+            "receipt_path": "ci\\hardware\\moza-r5\\2026-05-13\\zero-torque-proof.json"
+        });
+
+        assert!(receipt_path_matches(
+            &lane,
+            &receipt,
+            "zero-torque-proof.json"
+        ));
+        Ok(())
+    }
+
+    #[test]
+    fn artifact_path_binding_accepts_repo_relative_manifest_path() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        let manifest = dir
+            .path()
+            .join("ci")
+            .join("hardware")
+            .join("moza-r5")
+            .join("2026-05-13")
+            .join("manifest.json");
+
+        assert!(artifact_path_value_matches(
+            &manifest,
+            Some("ci\\hardware\\moza-r5\\2026-05-13\\manifest.json")
+        ));
+        assert!(!artifact_path_value_matches(
+            &manifest,
+            Some("ci\\hardware\\moza-r5\\2026-05-14\\manifest.json")
+        ));
+        Ok(())
+    }
+
+    #[test]
+    fn receipt_path_binding_rejects_stale_relative_lane_artifact_path() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        let lane = dir
+            .path()
+            .join("ci")
+            .join("hardware")
+            .join("moza-r5")
+            .join("2026-05-13");
+        let receipt = serde_json::json!({
+            "receipt_path": "ci\\hardware\\moza-r5\\2026-05-14\\zero-torque-proof.json"
+        });
+
+        assert!(!receipt_path_matches(
+            &lane,
+            &receipt,
+            "zero-torque-proof.json"
+        ));
+        Ok(())
+    }
+
     fn sample_lane_manifest(
         completion_state: &str,
         hardware_validated: bool,
@@ -14064,6 +22346,13 @@ mod tests {
             "release_ready": false,
             "artifacts": moza_lane_manifest_artifacts_value()
         })
+    }
+
+    fn write_zero_torque_ready_manifest(root: &Path) -> TestResult {
+        write_test_json_file(
+            &root.join("manifest.json"),
+            &sample_lane_manifest("zero_torque_ready", true, false),
+        )
     }
 
     fn capture_line(pid: u16, data_hex: &str) -> String {
@@ -14114,7 +22403,7 @@ mod tests {
         report[0] = 0x01;
         report[1..3].copy_from_slice(&0x7A37u16.to_le_bytes());
         report[3..5].copy_from_slice(&axis0.to_le_bytes());
-        report[5..7].copy_from_slice(&0x8000u16.to_le_bytes());
+        report[5..7].copy_from_slice(&0x0000u16.to_le_bytes());
         report[7..9].copy_from_slice(&0x8001u16.to_le_bytes());
         report[9..11].copy_from_slice(&0x8001u16.to_le_bytes());
         report[11..13].copy_from_slice(&0x8000u16.to_le_bytes());
@@ -14131,7 +22420,7 @@ mod tests {
         report[0] = 0x01;
         report[1..3].copy_from_slice(&0x7A37u16.to_le_bytes());
         report[3..5].copy_from_slice(&0x8001u16.to_le_bytes());
-        report[5..7].copy_from_slice(&0x8000u16.to_le_bytes());
+        report[5..7].copy_from_slice(&0x0000u16.to_le_bytes());
         report[7..9].copy_from_slice(&0x8001u16.to_le_bytes());
         report[9..11].copy_from_slice(&0x8001u16.to_le_bytes());
         report[11..13].copy_from_slice(&0x8000u16.to_le_bytes());
@@ -14140,6 +22429,37 @@ mod tests {
         report[17] = 0x08;
         report[34..36].copy_from_slice(&aux0.to_le_bytes());
         report[36..38].copy_from_slice(&aux1.to_le_bytes());
+        bytes_hex_compact(&report)
+    }
+
+    fn live_r5_v1_extended_throttle_report_hex(throttle: u16) -> String {
+        let mut report = [0u8; 42];
+        report[0] = 0x01;
+        report[1..3].copy_from_slice(&0x7A37u16.to_le_bytes());
+        report[3..5].copy_from_slice(&0x8001u16.to_le_bytes());
+        report[5..7].copy_from_slice(&throttle.to_le_bytes());
+        report[7..9].copy_from_slice(&0x8001u16.to_le_bytes());
+        report[9..11].copy_from_slice(&0x8001u16.to_le_bytes());
+        report[11..13].copy_from_slice(&0x8000u16.to_le_bytes());
+        report[13..15].copy_from_slice(&0x8001u16.to_le_bytes());
+        report[15..17].copy_from_slice(&0x8000u16.to_le_bytes());
+        report[17] = 0x08;
+        bytes_hex_compact(&report)
+    }
+
+    fn live_r5_v1_trailer_report_hex(trailer: [u8; 4]) -> String {
+        let mut report = [0u8; 42];
+        report[0] = 0x01;
+        report[1..3].copy_from_slice(&0x7A37u16.to_le_bytes());
+        report[3..5].copy_from_slice(&0x8001u16.to_le_bytes());
+        report[5..7].copy_from_slice(&0x0000u16.to_le_bytes());
+        report[7..9].copy_from_slice(&0x8001u16.to_le_bytes());
+        report[9..11].copy_from_slice(&0x8001u16.to_le_bytes());
+        report[11..13].copy_from_slice(&0x8000u16.to_le_bytes());
+        report[13..15].copy_from_slice(&0x8001u16.to_le_bytes());
+        report[15..17].copy_from_slice(&0x8000u16.to_le_bytes());
+        report[17] = 0x08;
+        report[38..42].copy_from_slice(&trailer);
         bytes_hex_compact(&report)
     }
 
@@ -14184,6 +22504,47 @@ mod tests {
                 "no_serial_config_commands": true,
                 "no_firmware_or_dfu_commands": true,
                 "devices": [r5_device.clone(), srp_device.clone(), hbp_device.clone()]
+            }),
+        )?;
+        write_test_json_file(
+            &root.join("hardware-doctor.json"),
+            &serde_json::json!({
+                "success": true,
+                "command": "wheelctl hardware doctor",
+                "no_hid_device_opened": true,
+                "no_ffb_writes": true,
+                "no_output_reports": true,
+                "no_feature_reports": true,
+                "no_serial_config_commands": true,
+                "no_firmware_or_dfu_commands": true,
+                "hid": {
+                    "api_available": true,
+                    "enumeration_available": true,
+                    "known_devices_visible": [r5_device.clone(), srp_device.clone(), hbp_device.clone()],
+                    "moza_vid_visible": true
+                },
+                "windows_pnp": {
+                    "scan_attempted": true,
+                    "moza_vid_visible": true,
+                    "hid_interface_count": 1,
+                    "serial_interface_count": 1,
+                    "devices": [
+                        {
+                            "class": "HIDClass",
+                            "vendor_id": "0x346E",
+                            "product_id": "0x0014",
+                            "interface_number": 2,
+                            "instance_id_present": true
+                        },
+                        {
+                            "class": "Ports",
+                            "vendor_id": "0x346E",
+                            "product_id": "0x0014",
+                            "interface_number": 0,
+                            "instance_id_present": true
+                        }
+                    ]
+                }
             }),
         )?;
         write_test_json_file(
@@ -14304,11 +22665,11 @@ mod tests {
                 "{}\n{}",
                 capture_line(
                     product_ids::R5_V2,
-                    &wheelbase_full_report_hex(0x8000, 0, 0, 0, 0, 0, 8, rim_ids::ES, 0, 0),
+                    &wheelbase_full_report_hex(0x8000, 0, 0, 0, 0, 0, 0, 0, 0, 0),
                 ),
                 capture_line(
                     product_ids::R5_V2,
-                    &wheelbase_full_report_hex(0x8000, 0, 0, 0, 0, 0x02, 2, rim_ids::ES, 0, 0),
+                    &wheelbase_full_report_hex(0x8000, 0, 0, 0, 0, 0x02, 0, 0, 0, 0),
                 )
             ),
         )?;
@@ -14415,9 +22776,147 @@ mod tests {
             "source_endpoint": endpoint_id,
             "connection": "standalone_usb",
             "required": true,
-            "evidence_capture": evidence_capture
+            "evidence_capture": evidence_capture,
+            "semantic_status": "deferred"
         });
         write_test_json_file(&root.join("manifest.json"), &manifest)
+    }
+
+    fn add_topology_endpoint(
+        root: &Path,
+        endpoint_id: &str,
+        endpoint_kind: &str,
+        vendor_id: &str,
+        product_id: &str,
+        output_capable: bool,
+    ) -> TestResult {
+        let mut manifest = read_json_path(&root.join("manifest.json"))?;
+        let endpoints = manifest["topology"]["endpoints"]
+            .as_array_mut()
+            .ok_or("expected topology endpoints")?;
+        endpoints.push(serde_json::json!({
+            "id": endpoint_id,
+            "kind": endpoint_kind,
+            "vendor_id": vendor_id,
+            "product_id": product_id,
+            "interface_number": 0,
+            "usage_page": "0x0001",
+            "usage": "0x0004",
+            "output_capable": output_capable
+        }));
+        write_test_json_file(&root.join("manifest.json"), &manifest)
+    }
+
+    fn add_topology_control(
+        root: &Path,
+        control_key: &str,
+        role: &str,
+        endpoint_id: &str,
+        connection: &str,
+        evidence_capture: &str,
+    ) -> TestResult {
+        let mut manifest = read_json_path(&root.join("manifest.json"))?;
+        manifest["topology"]["logical_controls"][control_key] = serde_json::json!({
+            "role": role,
+            "source_endpoint": endpoint_id,
+            "connection": connection,
+            "required": true,
+            "evidence_capture": evidence_capture,
+            "semantic_status": "deferred"
+        });
+        write_test_json_file(&root.join("manifest.json"), &manifest)
+    }
+
+    fn set_required_hub_controls(
+        root: &Path,
+        controls: &[(&str, &str, Option<&str>, &str)],
+    ) -> TestResult {
+        let mut manifest = read_json_path(&root.join("manifest.json"))?;
+        let logical_controls = manifest
+            .pointer_mut("/topology/logical_controls")
+            .and_then(Value::as_object_mut)
+            .ok_or("expected topology logical_controls object")?;
+        logical_controls.clear();
+        for (key, role, rim, evidence_capture) in controls {
+            let mut control = serde_json::json!({
+                "role": role,
+                "source_endpoint": "moza-r5-if2",
+                "connection": "wheelbase_hub",
+                "required": true,
+                "evidence_capture": evidence_capture,
+                "semantic_status": "deferred"
+            });
+            if let Some(rim) = rim {
+                control["rim"] = serde_json::json!(rim);
+            }
+            logical_controls.insert((*key).to_string(), control);
+        }
+        write_test_json_file(&root.join("manifest.json"), &manifest)
+    }
+
+    fn set_declared_hardware(
+        root: &Path,
+        rims: &[&str],
+        pedals: &[&str],
+        handbrake: Option<&str>,
+    ) -> TestResult {
+        let mut manifest = read_json_path(&root.join("manifest.json"))?;
+        let hardware = manifest
+            .get_mut("hardware")
+            .and_then(Value::as_object_mut)
+            .ok_or("expected manifest hardware object")?;
+        hardware.insert("rims".to_string(), serde_json::json!(rims));
+        hardware.insert("pedals".to_string(), serde_json::json!(pedals));
+        match handbrake {
+            Some(handbrake) => {
+                hardware.insert("handbrake".to_string(), serde_json::json!(handbrake));
+            }
+            None => {
+                hardware.remove("handbrake");
+            }
+        }
+        write_test_json_file(&root.join("manifest.json"), &manifest)
+    }
+
+    fn append_device_to_observation_receipts(root: &Path, device: &Value) -> TestResult {
+        for artifact in [
+            "device-list.json",
+            "moza-probe.json",
+            "hid-list.json",
+            "descriptor.json",
+        ] {
+            let mut receipt = read_json_path(&root.join(artifact))?;
+            receipt["devices"]
+                .as_array_mut()
+                .ok_or("expected devices array")?
+                .push(device.clone());
+            write_test_json_file(&root.join(artifact), &receipt)?;
+        }
+        Ok(())
+    }
+
+    fn replace_observation_receipt_devices(root: &Path, devices: &[Value]) -> TestResult {
+        for artifact in [
+            "device-list.json",
+            "moza-probe.json",
+            "hid-list.json",
+            "descriptor.json",
+        ] {
+            let mut receipt = read_json_path(&root.join(artifact))?;
+            receipt["devices"] = serde_json::Value::Array(devices.to_vec());
+            write_test_json_file(&root.join(artifact), &receipt)?;
+        }
+        Ok(())
+    }
+
+    fn remove_optional_capture_files(root: &Path, captures: &[&str]) -> TestResult {
+        for capture in captures {
+            let path = root.join(capture);
+            if path.exists() {
+                fs::remove_file(path)?;
+            }
+        }
+        Ok(())
     }
 
     fn promoted_fixture_report_for_requirement(
@@ -14495,7 +22994,9 @@ mod tests {
                 "kind": "scheduled_zero",
                 "elapsed_us": u64::from(sequence),
                 "payload_hex": "2000000000000000",
+                "zero_output_strategy": "direct_report_0x20",
                 "report_id": "0x20",
+                "report_len": 8,
                 "torque_raw": 0,
                 "flags": 0,
                 "motor_enabled": false,
@@ -14508,12 +23009,53 @@ mod tests {
             "kind": "final_zero",
             "elapsed_us": u64::from(repeat),
             "payload_hex": "2000000000000000",
+            "zero_output_strategy": "direct_report_0x20",
             "report_id": "0x20",
+            "report_len": 8,
             "torque_raw": 0,
             "flags": 0,
             "motor_enabled": false,
             "result": "ok",
             "bytes_written": 8
+        }));
+        records
+    }
+
+    fn pidff_zero_command_log(repeat: u32) -> Vec<Value> {
+        let mut records = Vec::new();
+        for sequence in 0..repeat {
+            records.push(serde_json::json!({
+                "sequence": sequence,
+                "kind": "scheduled_zero",
+                "elapsed_us": u64::from(sequence),
+                "payload_hex": "0C04",
+                "zero_output_strategy": "pidff_device_control_stop_all",
+                "report_id": "0x0C",
+                "report_len": 2,
+                "torque_raw": 0,
+                "flags": 0,
+                "motor_enabled": false,
+                "pidff_device_control_command": "0x04",
+                "pidff_device_control_command_name": "stop_all_effects",
+                "result": "ok",
+                "bytes_written": 51
+            }));
+        }
+        records.push(serde_json::json!({
+            "sequence": repeat,
+            "kind": "final_zero",
+            "elapsed_us": u64::from(repeat),
+            "payload_hex": "0C04",
+            "zero_output_strategy": "pidff_device_control_stop_all",
+            "report_id": "0x0C",
+            "report_len": 2,
+            "torque_raw": 0,
+            "flags": 0,
+            "motor_enabled": false,
+            "pidff_device_control_command": "0x04",
+            "pidff_device_control_command_name": "stop_all_effects",
+            "result": "ok",
+            "bytes_written": 51
         }));
         records
     }
@@ -14538,7 +23080,10 @@ mod tests {
             },
             "repeat": repeat,
             "hz": 1000,
+            "zero_output_strategy": "direct_report_0x20",
+            "payload_hex": "2000000000000000",
             "report_id": "0x20",
+            "report_len": 8,
             "torque_raw": 0,
             "flags": 0,
             "motor_enabled": false,
@@ -14552,6 +23097,45 @@ mod tests {
         })
     }
 
+    fn real_pidff_zero_receipt(repeat: u32) -> Value {
+        serde_json::json!({
+            "success": true,
+            "command": "wheelctl moza zero",
+            "generated_at_utc": TEST_GENERATED_AT,
+            "no_feature_reports": true,
+            "no_high_torque": true,
+            "no_nonzero_torque": true,
+            "no_serial_config_commands": true,
+            "no_firmware_or_dfu_commands": true,
+            "dry_run": false,
+            "no_hid_device_opened": false,
+            "device": {
+                "vendor_id": "0x346E",
+                "product_id": "0x0004",
+                "product_name": "Moza R5 V1",
+                "output_capable": true
+            },
+            "repeat": repeat,
+            "hz": 1000,
+            "zero_output_strategy": "pidff_device_control_stop_all",
+            "payload_hex": "0C04",
+            "report_id": "0x0C",
+            "report_len": 2,
+            "torque_raw": 0,
+            "flags": 0,
+            "motor_enabled": false,
+            "pidff_device_control_command": "0x04",
+            "pidff_device_control_command_name": "stop_all_effects",
+            "write_attempts": repeat,
+            "writes_ok": repeat + 1,
+            "write_errors": 0,
+            "watchdog_faults": 0,
+            "final_zero_attempted": true,
+            "final_zero_sent": true,
+            "command_log": pidff_zero_command_log(repeat)
+        })
+    }
+
     fn watchdog_command_log(pre_zero_count: u32) -> Vec<Value> {
         let mut records = Vec::new();
         for sequence in 0..pre_zero_count {
@@ -14560,7 +23144,9 @@ mod tests {
                 "kind": "scheduled_zero",
                 "elapsed_us": u64::from(sequence),
                 "payload_hex": "2000000000000000",
+                "zero_output_strategy": "direct_report_0x20",
                 "report_id": "0x20",
+                "report_len": 8,
                 "torque_raw": 0,
                 "flags": 0,
                 "motor_enabled": false,
@@ -14573,7 +23159,9 @@ mod tests {
             "kind": "final_zero",
             "elapsed_us": u64::from(pre_zero_count),
             "payload_hex": "2000000000000000",
+            "zero_output_strategy": "direct_report_0x20",
             "report_id": "0x20",
+            "report_len": 8,
             "torque_raw": 0,
             "flags": 0,
             "motor_enabled": false,
@@ -14619,6 +23207,66 @@ mod tests {
         })
     }
 
+    fn pidff_stop_all_command_record(
+        sequence: u32,
+        kind: &'static str,
+        result: &'static str,
+        error: Option<&'static str>,
+    ) -> Value {
+        let mut record = serde_json::json!({
+            "sequence": sequence,
+            "kind": kind,
+            "elapsed_us": u64::from(sequence),
+            "payload_hex": "0C04",
+            "zero_output_strategy": "pidff_device_control_stop_all",
+            "report_id": "0x0C",
+            "report_len": 2,
+            "torque_raw": 0,
+            "flags": 0,
+            "motor_enabled": false,
+            "pidff_device_control_command": "0x04",
+            "pidff_device_control_command_name": "stop_all_effects",
+            "result": result
+        });
+        if result == "ok" {
+            record["bytes_written"] = serde_json::json!(2);
+        }
+        if let Some(error) = error {
+            record["error"] = serde_json::json!(error);
+        }
+        record
+    }
+
+    fn pidff_watchdog_command_log(pre_zero_count: u32) -> Vec<Value> {
+        let mut records = Vec::new();
+        for sequence in 0..pre_zero_count {
+            records.push(pidff_stop_all_command_record(
+                sequence,
+                "scheduled_zero",
+                "ok",
+                None,
+            ));
+        }
+        records.push(pidff_stop_all_command_record(
+            pre_zero_count,
+            "final_zero",
+            "ok",
+            None,
+        ));
+        records
+    }
+
+    fn real_pidff_watchdog_receipt(pre_zero_count: u32) -> Value {
+        let mut receipt = real_watchdog_receipt(pre_zero_count);
+        receipt["device"]["product_id"] = serde_json::json!("0x0004");
+        receipt["device"]["product_name"] = serde_json::json!("Moza R5 V1");
+        receipt["zero_output_strategy"] = serde_json::json!(zero_output_strategy_name(
+            MozaZeroOutputStrategy::PidffStopAll
+        ));
+        receipt["command_log"] = serde_json::json!(pidff_watchdog_command_log(pre_zero_count));
+        receipt
+    }
+
     fn disconnect_command_log(scheduled_count: u32) -> Vec<Value> {
         let mut records = Vec::new();
         for sequence in 0..scheduled_count {
@@ -14627,7 +23275,9 @@ mod tests {
                 "kind": "scheduled_zero",
                 "elapsed_us": u64::from(sequence),
                 "payload_hex": "2000000000000000",
+                "zero_output_strategy": "direct_report_0x20",
                 "report_id": "0x20",
+                "report_len": 8,
                 "torque_raw": 0,
                 "flags": 0,
                 "motor_enabled": false,
@@ -14640,7 +23290,9 @@ mod tests {
             "kind": "disconnect_probe",
             "elapsed_us": u64::from(scheduled_count),
             "payload_hex": "2000000000000000",
+            "zero_output_strategy": "direct_report_0x20",
             "report_id": "0x20",
+            "report_len": 8,
             "torque_raw": 0,
             "flags": 0,
             "motor_enabled": false,
@@ -14652,7 +23304,9 @@ mod tests {
             "kind": "final_zero",
             "elapsed_us": u64::from(scheduled_count + 1),
             "payload_hex": "2000000000000000",
+            "zero_output_strategy": "direct_report_0x20",
             "report_id": "0x20",
+            "report_len": 8,
             "torque_raw": 0,
             "flags": 0,
             "motor_enabled": false,
@@ -14684,6 +23338,13 @@ mod tests {
             },
             "repeat": 10000,
             "hz": 1000,
+            "zero_output_strategy": "direct_report_0x20",
+            "payload_hex": "2000000000000000",
+            "report_id": "0x20",
+            "report_len": 8,
+            "torque_raw": 0,
+            "flags": 0,
+            "motor_enabled": false,
             "watchdog_timeout_ms": 100,
             "max_duration_ms": 10000,
             "fault_injected": "operator_disconnect",
@@ -14698,6 +23359,181 @@ mod tests {
             "final_zero_error": "device disconnected",
             "command_log": disconnect_command_log(2)
         })
+    }
+
+    fn pidff_disconnect_command_log(scheduled_count: u32) -> Vec<Value> {
+        let mut records = Vec::new();
+        for sequence in 0..scheduled_count {
+            records.push(pidff_stop_all_command_record(
+                sequence,
+                "scheduled_zero",
+                "ok",
+                None,
+            ));
+        }
+        records.push(pidff_stop_all_command_record(
+            scheduled_count,
+            "disconnect_probe",
+            "error",
+            Some("device disconnected"),
+        ));
+        records.push(pidff_stop_all_command_record(
+            scheduled_count + 1,
+            "final_zero",
+            "error",
+            Some("device disconnected"),
+        ));
+        records
+    }
+
+    fn real_pidff_disconnect_receipt() -> Value {
+        let scheduled_count = 2u32;
+        let mut receipt = real_disconnect_receipt();
+        receipt["device"]["product_id"] = serde_json::json!("0x0004");
+        receipt["device"]["product_name"] = serde_json::json!("Moza R5 V1");
+        receipt["zero_output_strategy"] = serde_json::json!(zero_output_strategy_name(
+            MozaZeroOutputStrategy::PidffStopAll
+        ));
+        receipt["payload_hex"] = serde_json::json!("0C04");
+        receipt["report_id"] = serde_json::json!("0x0C");
+        receipt["report_len"] = serde_json::json!(2);
+        receipt["command_log"] = serde_json::json!(pidff_disconnect_command_log(scheduled_count));
+        receipt
+    }
+
+    fn bounded_disconnect_receipt() -> TestResult<Value> {
+        let scheduled_count = 10u32;
+        let full_log = disconnect_command_log(scheduled_count);
+        let mut bounded_log = Vec::new();
+        bounded_log.extend(full_log.iter().take(3).cloned());
+        let disconnect_record = full_log
+            .get(scheduled_count as usize)
+            .ok_or("missing disconnect record")?
+            .clone();
+        let final_zero_record = full_log
+            .get(scheduled_count as usize + 1)
+            .ok_or("missing final zero record")?
+            .clone();
+        bounded_log.push(disconnect_record);
+        bounded_log.push(final_zero_record);
+
+        let mut receipt = real_disconnect_receipt();
+        receipt["write_attempts"] = serde_json::json!(scheduled_count + 1);
+        receipt["writes_ok"] = serde_json::json!(scheduled_count);
+        receipt["write_errors"] = serde_json::json!(2);
+        receipt["command_log"] = serde_json::json!(bounded_log);
+        receipt["command_log_summary"] = serde_json::json!({
+            "total_records": scheduled_count + 2,
+            "logged_records": 5,
+            "omitted_records": scheduled_count - 3,
+            "scheduled_zero_writes": scheduled_count,
+            "disconnect_probe_seen": true,
+            "final_zero_seen": true,
+            "final_zero_sent": false,
+            "final_zero_error": true
+        });
+        Ok(receipt)
+    }
+
+    fn receipt_with_lane_path(root: &Path, relative_path: &str, mut receipt: Value) -> Value {
+        receipt["receipt_path"] = serde_json::json!(root.join(relative_path).display().to_string());
+        match json_string(&receipt, "command") {
+            Some("wheelctl moza zero") => {
+                receipt["lane"] = serde_json::json!(root.display().to_string());
+                receipt["operator_confirmed"] = serde_json::json!(true);
+                receipt["pre_output_readiness_validated"] = serde_json::json!(true);
+                receipt["pre_output_readiness_generated_at"] = serde_json::json!(TEST_GENERATED_AT);
+            }
+            Some("wheelctl moza watchdog-proof" | "wheelctl moza disconnect-proof") => {
+                receipt["lane"] = serde_json::json!(root.display().to_string());
+                receipt["pre_output_readiness_validated"] = serde_json::json!(true);
+                receipt["pre_output_readiness_generated_at"] = serde_json::json!(TEST_GENERATED_AT);
+                receipt["zero_torque_proof_validated"] = serde_json::json!(true);
+                receipt["zero_torque_proof_crc32"] = serde_json::json!("0x12345678");
+            }
+            Some("wheelctl moza init") => {
+                receipt["lane"] = serde_json::json!(root.display().to_string());
+                receipt["operator_confirmed"] = serde_json::json!(true);
+                receipt["zero_verification_validated"] = serde_json::json!(true);
+                receipt["zero_verification_generated_at"] = serde_json::json!(TEST_GENERATED_AT);
+                receipt["zero_audit_validated"] = serde_json::json!(true);
+                receipt["zero_audit_generated_at"] = serde_json::json!(TEST_GENERATED_AT);
+            }
+            _ => {}
+        }
+        receipt
+    }
+
+    fn write_zero_stage_receipts(root: &Path) -> TestResult {
+        write_test_json_file(
+            &root.join("zero-torque-proof.json"),
+            &receipt_with_lane_path(root, "zero-torque-proof.json", real_zero_receipt(100)),
+        )?;
+        write_test_json_file(
+            &root.join("watchdog-proof.json"),
+            &receipt_with_lane_path(root, "watchdog-proof.json", real_watchdog_receipt(3)),
+        )?;
+        write_test_json_file(
+            &root.join("disconnect-proof.json"),
+            &receipt_with_lane_path(root, "disconnect-proof.json", real_disconnect_receipt()),
+        )
+    }
+
+    fn write_pre_output_ready_receipt(root: &Path) -> TestResult {
+        write_minimal_passive_bundle(root)?;
+        write_service_status_artifacts(root)?;
+        write_lane_audit_receipts(root, MozaBundleStage::Passive)?;
+        let receipt = serde_json::to_value(pre_output_readiness_dir(root))?;
+        write_test_json_file(&root.join("pre-output-readiness.json"), &receipt)
+    }
+
+    fn pre_output_verification_receipt_for_gates(
+        stage: MozaBundleStage,
+        gates: &[(&str, &str)],
+    ) -> PreOutputVerificationReceipt {
+        PreOutputVerificationReceipt {
+            success: gates.iter().all(|(_, status)| *status == "pass"),
+            requested_stage: stage_label(stage).to_string(),
+            missing_artifacts: 0,
+            invalid_artifacts: 0,
+            failed_gates: gates.iter().filter(|(_, status)| *status == "fail").count(),
+            artifacts: Vec::new(),
+            gates: gates
+                .iter()
+                .map(|(name, status)| PreOutputVerificationGate {
+                    name: (*name).to_string(),
+                    status: (*status).to_string(),
+                })
+                .collect(),
+            role_evidence: Vec::new(),
+        }
+    }
+
+    fn pre_output_smoke_ready_gates_for_bounded_ffb_without_pit_house()
+    -> Vec<(&'static str, &'static str)> {
+        vec![
+            ("lane_directory", "pass"),
+            ("manifest_no_overclaim", "pass"),
+            ("manifest_r5_pid_consistency", "pass"),
+            ("moza_r5_observed", "pass"),
+            ("moza_topology_observed", "pass"),
+            ("descriptor_metadata", "pass"),
+            ("passive_receipts_successful", "pass"),
+            ("passive_receipts_no_ffb_writes", "pass"),
+            ("passive_captures_parse", "pass"),
+            ("parser_fixture_validation", "pass"),
+            ("fixture_promotion", "pass"),
+            ("zero_torque_real_hardware", "pass"),
+            ("watchdog_zero_output", "pass"),
+            ("disconnect_final_zero", "pass"),
+            ("init_off_handshake", "pass"),
+            ("init_standard_handshake", "pass"),
+            ("service_status_receipts", "pass"),
+            ("low_torque_bounded", "pass"),
+            ("simulator_telemetry", "pass"),
+            ("simulator_ffb_bounded", "fail"),
+            ("pit_house_coexistence", "fail"),
+        ]
     }
 
     fn init_feature_reports(mode_payload: &str, result: &str) -> Vec<Value> {
@@ -14721,6 +23557,17 @@ mod tests {
         ]
     }
 
+    fn r5_v1_mode_only_init_feature_reports(mode_payload: &str, result: &str) -> Vec<Value> {
+        vec![serde_json::json!({
+            "sequence": 0,
+            "kind": "ffb_mode",
+            "payload_hex": mode_payload,
+            "report_id": "0x11",
+            "result": result,
+            "bytes_written": 4
+        })]
+    }
+
     fn real_init_receipt(mode: &str) -> Value {
         let mode_payload = if mode == "off" {
             "11FF0000"
@@ -14731,6 +23578,7 @@ mod tests {
         serde_json::json!({
             "success": true,
             "command": "wheelctl moza init",
+            "selector": "hid-0x346E-0x0014-if2-0x0001-0x0004",
             "generated_at_utc": TEST_GENERATED_AT,
             "no_output_reports": true,
             "no_direct_torque_reports": true,
@@ -14757,15 +23605,66 @@ mod tests {
         })
     }
 
+    fn real_r5_v1_init_receipt(mode: &str) -> Value {
+        let mode_payload = if mode == "off" {
+            "11FF0000"
+        } else {
+            "11000000"
+        };
+        let mode_wire_value = if mode == "off" { "0xFF" } else { "0x00" };
+        serde_json::json!({
+            "success": true,
+            "command": "wheelctl moza init",
+            "selector": "hid-0x346E-0x0004-if2-0x0001-0x0004",
+            "generated_at_utc": TEST_GENERATED_AT,
+            "no_output_reports": true,
+            "no_direct_torque_reports": true,
+            "no_high_torque": true,
+            "high_torque": false,
+            "no_serial_config_commands": true,
+            "no_firmware_or_dfu_commands": true,
+            "dry_run": false,
+            "no_hid_device_opened": false,
+            "device": {
+                "vendor_id": "0x346E",
+                "product_id": "0x0004",
+                "product_name": "Moza R5",
+                "output_capable": true
+            },
+            "mode": mode,
+            "mode_wire_value": mode_wire_value,
+            "init_state": "ready",
+            "ready": true,
+            "feature_report_count": 1,
+            "feature_write_errors": 0,
+            "output_report_attempts": 0,
+            "feature_reports": r5_v1_mode_only_init_feature_reports(mode_payload, "ok")
+        })
+    }
+
+    fn write_zero_torque_ready_r5_v1_manifest(root: &Path) -> TestResult {
+        let mut manifest = sample_lane_manifest("zero_torque_ready", true, false);
+        manifest["hardware"]["wheelbase_pid"] = serde_json::json!("0x0004");
+        manifest["topology"] = moza_lane_manifest_topology_value(product_ids::R5_V1);
+        write_test_json_file(&root.join("manifest.json"), &manifest)
+    }
+
     fn write_low_torque_prerequisite_receipts(root: &Path) -> TestResult {
+        let manifest_path = root.join("manifest.json");
+        if !manifest_path.exists() {
+            write_zero_torque_ready_manifest(root)?;
+        }
         write_test_json_file(
             &root.join("zero-torque-proof.json"),
-            &real_zero_receipt(100),
+            &receipt_with_lane_path(root, "zero-torque-proof.json", real_zero_receipt(100)),
         )?;
-        write_test_json_file(&root.join("init-off.json"), &real_init_receipt("off"))?;
+        write_test_json_file(
+            &root.join("init-off.json"),
+            &receipt_with_lane_path(root, "init-off.json", real_init_receipt("off")),
+        )?;
         write_test_json_file(
             &root.join("init-standard.json"),
-            &real_init_receipt("standard"),
+            &receipt_with_lane_path(root, "init-standard.json", real_init_receipt("standard")),
         )?;
         Ok(())
     }
@@ -14775,9 +23674,10 @@ mod tests {
         let init_proofs = validate_init_proofs_for_torque_test(Some(root), None, None, false)?
             .ok_or("expected init proofs")?;
         let mut receipt = LowTorqueProofReceipt::new(
-            Some("0x346E:0x0014".to_string()),
+            Some("hid-0x346E-0x0014-if2-0x0001-0x0004".to_string()),
             sample_device(),
             Some(zero_proof),
+            MozaLowTorqueStrategy::DirectReport0x20,
             max_percent,
             1,
             1000,
@@ -14832,6 +23732,276 @@ mod tests {
             && receipt.final_zero_sent;
 
         Ok(serde_json::to_value(receipt)?)
+    }
+
+    fn write_pidff_low_torque_prerequisite_receipts(root: &Path) -> TestResult {
+        write_zero_torque_ready_r5_v1_manifest(root)?;
+        write_test_json_file(
+            &root.join("descriptor.json"),
+            &serde_json::json!({
+                "success": true,
+                "command": "hid-capture descriptor",
+                "no_hid_device_opened": true,
+                "no_ffb_writes": true,
+                "no_serial_config_commands": true,
+                "no_firmware_or_dfu_commands": true,
+                "devices": [sample_trusted_r5_v1_json_device()]
+            }),
+        )?;
+        write_test_json_file(
+            &root.join("zero-torque-proof.json"),
+            &receipt_with_lane_path(root, "zero-torque-proof.json", real_pidff_zero_receipt(100)),
+        )?;
+        write_test_json_file(
+            &root.join("watchdog-proof.json"),
+            &receipt_with_lane_path(root, "watchdog-proof.json", real_pidff_watchdog_receipt(3)),
+        )?;
+        write_test_json_file(
+            &root.join("disconnect-proof.json"),
+            &receipt_with_lane_path(
+                root,
+                "disconnect-proof.json",
+                real_pidff_disconnect_receipt(),
+            ),
+        )?;
+        write_test_json_file(
+            &root.join("init-off.json"),
+            &receipt_with_lane_path(root, "init-off.json", real_r5_v1_init_receipt("off")),
+        )?;
+        write_test_json_file(
+            &root.join("init-standard.json"),
+            &receipt_with_lane_path(
+                root,
+                "init-standard.json",
+                real_r5_v1_init_receipt("standard"),
+            ),
+        )?;
+        Ok(())
+    }
+
+    fn pidff_bounded_command_log() -> Vec<Value> {
+        vec![
+            serde_json::json!({
+                "sequence": 0,
+                "kind": "pidff_set_effect",
+                "elapsed_us": 10,
+                "low_torque_strategy": "pidff_bounded_effect",
+                "percent": 1.0,
+                "effect_magnitude_percent": 1.0,
+                "payload_hex": "010101960000000000000003FF052823000000000000",
+                "report_id": "0x01",
+                "report_len": 22,
+                "torque_raw": 0,
+                "flags": 0,
+                "motor_enabled": false,
+                "safety_classification": "pidff_effect_setup",
+                "result": "ok",
+                "bytes_written": 22
+            }),
+            serde_json::json!({
+                "sequence": 1,
+                "kind": "pidff_set_constant_force",
+                "elapsed_us": 100,
+                "low_torque_strategy": "pidff_bounded_effect",
+                "percent": 1.0,
+                "effect_magnitude_percent": 1.0,
+                "payload_hex": "05014801",
+                "report_id": "0x05",
+                "report_len": 4,
+                "torque_raw": 328,
+                "flags": 0,
+                "motor_enabled": true,
+                "safety_classification": "bounded_low_torque_pidff",
+                "result": "ok",
+                "bytes_written": 4
+            }),
+            serde_json::json!({
+                "sequence": 2,
+                "kind": "pidff_effect_start",
+                "elapsed_us": 150,
+                "low_torque_strategy": "pidff_bounded_effect",
+                "percent": 1.0,
+                "effect_magnitude_percent": 1.0,
+                "payload_hex": "0A010101",
+                "report_id": "0x0A",
+                "report_len": 4,
+                "torque_raw": 0,
+                "flags": 0,
+                "motor_enabled": true,
+                "safety_classification": "bounded_low_torque_pidff",
+                "result": "ok",
+                "bytes_written": 4
+            }),
+            serde_json::json!({
+                "sequence": 3,
+                "kind": "final_stop_all",
+                "elapsed_us": 200,
+                "low_torque_strategy": "pidff_bounded_effect",
+                "percent": 0.0,
+                "effect_magnitude_percent": 0.0,
+                "payload_hex": "0C04",
+                "report_id": "0x0C",
+                "report_len": 2,
+                "torque_raw": 0,
+                "flags": 0,
+                "motor_enabled": false,
+                "pidff_device_control_command": "0x04",
+                "pidff_device_control_command_name": "stop_all_effects",
+                "safety_classification": "pidff_stop_all_cleanup",
+                "result": "ok",
+                "bytes_written": 51
+            }),
+        ]
+    }
+
+    fn real_pidff_low_torque_receipt_for_lane(root: &Path) -> TestResult<Value> {
+        let zero_proof = validate_zero_proof_for_low_torque_strategy(
+            &root.join("zero-torque-proof.json"),
+            MozaLowTorqueStrategy::PidffBoundedEffect,
+        )?;
+        let init_proofs = validate_init_proofs_for_torque_test(Some(root), None, None, false)?
+            .ok_or("expected init proofs")?;
+        Ok(serde_json::json!({
+            "success": true,
+            "command": "wheelctl moza torque-test",
+            "generated_at_utc": TEST_LOW_TORQUE_GENERATED_AT,
+            "receipt_path": root.join("low-torque-proof.json").display().to_string(),
+            "low_torque_strategy": "pidff_bounded_effect",
+            "no_feature_reports": true,
+            "no_high_torque": true,
+            "high_torque": false,
+            "no_direct_torque_reports": true,
+            "no_nonzero_above_limit": true,
+            "no_ffb_writes": false,
+            "no_serial_config_commands": true,
+            "no_firmware_or_dfu_commands": true,
+            "dry_run": false,
+            "no_hid_device_opened": false,
+            "confirmed": true,
+            "zero_proof_validated": true,
+            "init_proofs_validated": true,
+            "selector": "hid-0x346E-0x0004-if2-0x0001-0x0004",
+            "max_percent": 1.0,
+            "duration_ms": 150,
+            "hz": 1000,
+            "device": {
+                "vendor_id": "0x346E",
+                "product_id": "0x0004",
+                "product_name": "Moza R5",
+                "output_capable": true
+            },
+            "zero_proof": zero_proof,
+            "init_proofs": init_proofs,
+            "pidff_effect_setup_proven": true,
+            "pidff_effect_block_index": 1,
+            "write_attempts": 3,
+            "writes_ok": 4,
+            "write_errors": 0,
+            "bytes_written_total": 81,
+            "final_zero_attempted": true,
+            "final_zero_sent": true,
+            "final_stop_all_attempted": true,
+            "final_stop_all_sent": true,
+            "abort_reason": null,
+            "final_zero_error": null,
+            "command_log": pidff_bounded_command_log(),
+            "notes": ["synthetic verifier fixture for PIDFF bounded-effect receipt shape"]
+        }))
+    }
+
+    fn write_native_actuator_profile_prerequisite_receipts(root: &Path) -> TestResult {
+        write_pidff_low_torque_prerequisite_receipts(root)?;
+        write_test_json_file(
+            &root.join("low-torque-proof.json"),
+            &real_pidff_low_torque_receipt_for_lane(root)?,
+        )?;
+        write_test_json_file(
+            &root.join("steering-angle-stream-proof.json"),
+            &steering_angle_stream_receipt_for_pid(root, product_ids::R5_V1),
+        )?;
+        Ok(())
+    }
+
+    fn successful_native_actuator_profile_receipt(root: &Path) -> TestResult<Value> {
+        write_native_actuator_profile_prerequisite_receipts(root)?;
+        let preflight = validate_native_actuator_profile_smoke_preflight(
+            "hid-0x346E-0x0004-if2-0x0001-0x0004",
+            root,
+            Some(&root.join("low-torque-proof.json")),
+            Some(&root.join("steering-angle-stream-proof.json")),
+            Some(&root.join("native-actuator-profile-smoke.json")),
+            false,
+        )?;
+        let mut receipt = NativeActuatorProfileSmokeReceipt::new(
+            "hid-0x346E-0x0004-if2-0x0001-0x0004".to_string(),
+            root,
+            synthetic_moza_device_record(product_ids::R5_V1),
+            preflight,
+            MozaActuatorProfile::ConstantLowForce,
+            1.0,
+            150,
+            false,
+        );
+        execute_pidff_bounded_actuator_profile_sequence(
+            &mut receipt,
+            Instant::now(),
+            false,
+            |payload| Ok(payload.len()),
+        );
+        receipt.success = receipt.confirmed
+            && receipt.hardware_output_enabled
+            && !receipt.no_hid_device_opened
+            && receipt.low_torque_proof_validated
+            && receipt.steering_proof_validated
+            && receipt.no_feature_reports
+            && !receipt.no_ffb_writes
+            && receipt.no_direct_torque_reports
+            && receipt.no_high_torque
+            && !receipt.high_torque
+            && receipt.no_serial_config_commands
+            && receipt.no_firmware_or_dfu_commands
+            && receipt.no_nonzero_above_limit
+            && receipt.pidff_effect_setup_proven
+            && receipt.write_errors == 0
+            && receipt.final_stop_all_sent;
+        receipt.set_receipt_path(Some(&root.join("native-actuator-profile-smoke.json")));
+        Ok(serde_json::to_value(receipt)?)
+    }
+
+    #[test]
+    fn r5_v1_pidff_set_effect_payload_matches_live_descriptor_layout() -> TestResult {
+        let payload =
+            r5_v1_pidff_set_effect_payload(1, PIDFF_EFFECT_TYPE_CONSTANT_FORCE, 150, 3, 9000, 0);
+
+        assert_eq!(payload.len(), PIDFF_SET_EFFECT_R5_V1_REPORT_LEN);
+        assert_eq!(
+            bytes_hex_compact(&payload),
+            "010101960000000000000003FF052823000000000000"
+        );
+        assert_eq!(payload[0], PIDFF_SET_EFFECT_REPORT_ID_BYTE);
+        assert_eq!(payload[1], 1);
+        assert_eq!(payload[2], PIDFF_EFFECT_TYPE_CONSTANT_FORCE);
+        assert_eq!(&payload[3..5], &150_u16.to_le_bytes());
+        assert_eq!(payload[11], 3);
+        assert_eq!(payload[12], PIDFF_TRIGGER_BUTTON_NONE);
+        assert_eq!(payload[13], 0b0000_0101);
+        assert_eq!(&payload[14..16], &9000_u16.to_le_bytes());
+        assert_eq!(&payload[18..22], &[0, 0, 0, 0]);
+        Ok(())
+    }
+
+    #[test]
+    fn pidff_descriptor_blockers_accept_live_r5_v1_set_effect_shape() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_pidff_low_torque_prerequisite_receipts(dir.path())?;
+
+        let blockers = pidff_low_torque_frontier_blockers(dir.path());
+
+        assert!(
+            blockers.is_empty(),
+            "unexpected PIDFF blockers: {blockers:?}"
+        );
+        Ok(())
     }
 
     fn pit_house_receipt() -> Value {
@@ -15004,6 +24174,10 @@ mod tests {
                 "writer_completed_at_utc".to_string(),
                 serde_json::json!("2026-05-06T00:00:03Z"),
             );
+            object.insert(
+                "writer_endpoint_selector".to_string(),
+                serde_json::json!("hid-0x346E-0x0014-if2-0x0001-0x0004"),
+            );
             object.insert("writer_hardware_lane".to_string(), Value::Null);
         }
         receipt
@@ -15068,17 +24242,23 @@ mod tests {
     }
 
     fn write_pit_house_artifacts(root: &Path) -> TestResult {
+        let manifest_path = root.join("manifest.json");
+        if !manifest_path.exists() {
+            write_test_json_file(
+                &manifest_path,
+                &sample_lane_manifest("real_hardware_smoke_ready", true, true),
+            )?;
+        }
         write_trusted_descriptor_if_missing(root)?;
-        write_test_json_file(&root.join("init-off.json"), &real_init_receipt("off"))?;
+        write_test_json_file(
+            &root.join("init-off.json"),
+            &receipt_with_lane_path(root, "init-off.json", real_init_receipt("off")),
+        )?;
         write_test_json_file(
             &root.join("init-standard.json"),
-            &real_init_receipt("standard"),
+            &receipt_with_lane_path(root, "init-standard.json", real_init_receipt("standard")),
         )?;
-        write_test_json_file(
-            &root.join("zero-torque-proof.json"),
-            &real_zero_receipt(100),
-        )?;
-        write_test_json_file(&root.join("watchdog-proof.json"), &real_watchdog_receipt(3))?;
+        write_zero_stage_receipts(root)?;
         write_test_json_file(
             &root.join("low-torque-proof.json"),
             &real_low_torque_receipt_for_lane(root, 2.0)?,
@@ -15241,21 +24421,23 @@ mod tests {
     }
 
     fn write_simulator_artifacts(root: &Path) -> TestResult {
+        let manifest_path = root.join("manifest.json");
+        if !manifest_path.exists() {
+            write_test_json_file(
+                &manifest_path,
+                &sample_lane_manifest("real_hardware_smoke_ready", true, true),
+            )?;
+        }
         write_trusted_descriptor_if_missing(root)?;
-        write_test_json_file(&root.join("init-off.json"), &real_init_receipt("off"))?;
+        write_test_json_file(
+            &root.join("init-off.json"),
+            &receipt_with_lane_path(root, "init-off.json", real_init_receipt("off")),
+        )?;
         write_test_json_file(
             &root.join("init-standard.json"),
-            &real_init_receipt("standard"),
+            &receipt_with_lane_path(root, "init-standard.json", real_init_receipt("standard")),
         )?;
-        write_test_json_file(
-            &root.join("zero-torque-proof.json"),
-            &real_zero_receipt(100),
-        )?;
-        write_test_json_file(&root.join("watchdog-proof.json"), &real_watchdog_receipt(3))?;
-        write_test_json_file(
-            &root.join("disconnect-proof.json"),
-            &real_disconnect_receipt(),
-        )?;
+        write_zero_stage_receipts(root)?;
         write_test_json_file(
             &root.join("low-torque-proof.json"),
             &real_low_torque_receipt_for_lane(root, 2.0)?,
@@ -15269,7 +24451,47 @@ mod tests {
         Ok(())
     }
 
+    fn write_simulator_pidff_artifacts(root: &Path) -> TestResult {
+        write_pidff_low_torque_prerequisite_receipts(root)?;
+        let mut manifest = sample_lane_manifest("real_hardware_smoke_ready", true, true);
+        manifest["hardware"]["wheelbase_pid"] = serde_json::json!("0x0004");
+        manifest["topology"] = moza_lane_manifest_topology_value(product_ids::R5_V1);
+        write_test_json_file(&root.join("manifest.json"), &manifest)?;
+        write_test_json_file(
+            &root.join("low-torque-proof.json"),
+            &real_pidff_low_torque_receipt_for_lane(root)?,
+        )?;
+        write_simulator_telemetry_jsonl(&root.join("simulator-telemetry-recording.jsonl"), 120)?;
+        write_simulator_pidff_output_jsonl(&root.join("simulator-ffb-output.jsonl"), 12, 5)?;
+        write_test_json_file(
+            &root.join("simulator-telemetry-proof.json"),
+            &simulator_telemetry_receipt(),
+        )?;
+        Ok(())
+    }
+
     fn service_device_status_value(root: &Path) -> Value {
+        let init_receipts_pass =
+            verify_init_receipt_gate(root, "init_off_handshake", "init-off.json", "off").status
+                == "pass"
+                && verify_init_receipt_gate(
+                    root,
+                    "init_standard_handshake",
+                    "init-standard.json",
+                    "standard",
+                )
+                .status
+                    == "pass";
+        let safety_state = if init_receipts_pass {
+            "lane_low_torque_gate_receipts_observed"
+        } else {
+            "lane_zero_torque_verified"
+        };
+        let safety_reason = if init_receipts_pass {
+            "stored Moza lane verification receipts report highest_passing_stage=zero, next_required_stage=smoke_ready, and staged init receipts are present; service status remains observe-only"
+        } else {
+            "stored Moza lane verification receipts report highest_passing_stage=zero, next_required_stage=smoke_ready; service status remains observe-only"
+        };
         serde_json::json!({
             "device": {
                 "id": "moza-r5",
@@ -15310,8 +24532,8 @@ mod tests {
                 "direct_mode_allowed": false,
                 "high_torque_allowed": false,
                 "safe_to_send_torque": false,
-                "safety_state": "lane_zero_torque_verified",
-                "safety_reason": "stored Moza lane verification receipts report highest_passing_stage=zero, next_required_stage=smoke_ready; service status remains observe-only"
+                "safety_state": safety_state,
+                "safety_reason": safety_reason
             }
         })
     }
@@ -15324,6 +24546,8 @@ mod tests {
             "moza_lane": root.display().to_string(),
             "no_hid_device_opened": true,
             "no_ffb_writes": true,
+            "no_output_reports": true,
+            "no_feature_reports": true,
             "no_serial_config_commands": true,
             "no_firmware_or_dfu_commands": true,
             "status": service_device_status_value(root)
@@ -15337,6 +24561,8 @@ mod tests {
             "timestamp": "2026-05-06T00:00:00Z",
             "no_hid_device_opened": true,
             "no_ffb_writes": true,
+            "no_output_reports": true,
+            "no_feature_reports": true,
             "no_serial_config_commands": true,
             "no_firmware_or_dfu_commands": true,
             "system_info": {
@@ -15385,31 +24611,123 @@ mod tests {
         Ok(())
     }
 
-    fn write_smoke_ready_bundle(root: &Path) -> TestResult {
+    fn steering_angle_stream_receipt_for_pid(root: &Path, pid: u16) -> Value {
+        let product_id = hex_u16(pid);
+        let product_name = if pid == product_ids::R5_V1 {
+            "Moza R5 V1"
+        } else {
+            "Moza R5"
+        };
+        let selector = format!("hid-0x346E-{product_id}-if2-0x0001-0x0004");
+        serde_json::json!({
+            "success": true,
+            "command": "wheelctl moza steering-stream-proof",
+            "generated_at_utc": "2026-05-06T00:00:00Z",
+            "receipt_path": root.join("steering-angle-stream-proof.json").display().to_string(),
+            "selector": selector,
+            "device": {
+                "vendor_id": "0x346E",
+                "product_id": product_id,
+                "product_name": product_name,
+                "output_capable": true
+            },
+            "duration_ms": 5000,
+            "sample_count": 500,
+            "sample_rate_hz": 100,
+            "angle_units": "degrees",
+            "center_baseline_degrees": 0.0,
+            "timestamps_monotonic": true,
+            "sequence_monotonic": true,
+            "hardware_output_enabled": false,
+            "no_output_reports": true,
+            "no_feature_reports": true,
+            "no_ffb_writes": true,
+            "no_serial_config_commands": true,
+            "no_firmware_or_dfu_commands": true
+        })
+    }
+
+    fn steering_angle_stream_receipt(root: &Path) -> Value {
+        steering_angle_stream_receipt_for_pid(root, product_ids::R5_V2)
+    }
+
+    fn native_actuator_profile_smoke_receipt(root: &Path) -> Value {
+        serde_json::json!({
+            "success": true,
+            "command": "wheelctl moza actuator-profile-smoke",
+            "generated_at_utc": "2026-05-06T00:00:00Z",
+            "receipt_path": root.join("native-actuator-profile-smoke.json").display().to_string(),
+            "selector": "hid-0x346E-0x0014-if2-0x0001-0x0004",
+            "device": {
+                "vendor_id": "0x346E",
+                "product_id": "0x0014",
+                "product_name": "Moza R5",
+                "output_capable": true
+            },
+            "profile": "constant_low_force",
+            "output_strategy": "pidff_bounded_effect",
+            "max_percent": 1.0,
+            "duration_ms": 2000,
+            "confirmed": true,
+            "hardware_output_enabled": true,
+            "no_hid_device_opened": false,
+            "no_feature_reports": true,
+            "no_ffb_writes": false,
+            "no_direct_torque_reports": true,
+            "no_high_torque": true,
+            "high_torque": false,
+            "no_serial_config_commands": true,
+            "no_firmware_or_dfu_commands": true,
+            "no_nonzero_above_limit": true,
+            "pidff_effect_setup_proven": true,
+            "pidff_effect_block_index": 1,
+            "final_stop_all_attempted": true,
+            "final_stop_all_sent": true,
+            "write_attempts": 4,
+            "writes_ok": 4,
+            "write_errors": 0,
+            "command_log": pidff_bounded_command_log()
+        })
+    }
+
+    fn write_openracing_control_bundle(root: &Path) -> TestResult {
         write_minimal_passive_bundle(root)?;
+        write_test_json_file(
+            &root.join("manifest.json"),
+            &sample_lane_manifest("openracing_control_ready", true, false),
+        )?;
+        write_zero_stage_receipts(root)?;
+        write_test_json_file(
+            &root.join("init-off.json"),
+            &receipt_with_lane_path(root, "init-off.json", real_init_receipt("off")),
+        )?;
+        write_test_json_file(
+            &root.join("init-standard.json"),
+            &receipt_with_lane_path(root, "init-standard.json", real_init_receipt("standard")),
+        )?;
+        write_test_json_file(
+            &root.join("low-torque-proof.json"),
+            &real_low_torque_receipt_for_lane(root, 2.0)?,
+        )?;
+        write_test_json_file(
+            &root.join("steering-angle-stream-proof.json"),
+            &steering_angle_stream_receipt(root),
+        )?;
+        write_test_json_file(
+            &root.join("native-actuator-profile-smoke.json"),
+            &native_actuator_profile_smoke_receipt(root),
+        )?;
+        write_service_status_artifacts(root)?;
+        Ok(())
+    }
+
+    fn write_smoke_ready_bundle(root: &Path) -> TestResult {
+        write_openracing_control_bundle(root)?;
         write_pit_house_artifacts(root)?;
         write_simulator_artifacts(root)?;
         write_test_json_file(
             &root.join("manifest.json"),
             &sample_lane_manifest("real_hardware_smoke_ready", true, true),
-        )?;
-        write_test_json_file(
-            &root.join("zero-torque-proof.json"),
-            &real_zero_receipt(100),
-        )?;
-        write_test_json_file(&root.join("watchdog-proof.json"), &real_watchdog_receipt(3))?;
-        write_test_json_file(
-            &root.join("disconnect-proof.json"),
-            &real_disconnect_receipt(),
-        )?;
-        write_test_json_file(&root.join("init-off.json"), &real_init_receipt("off"))?;
-        write_test_json_file(
-            &root.join("init-standard.json"),
-            &real_init_receipt("standard"),
-        )?;
-        write_test_json_file(
-            &root.join("low-torque-proof.json"),
-            &real_low_torque_receipt_for_lane(root, 2.0)?,
         )?;
         write_test_json_file(
             &root.join("pit-house-coexistence.json"),
@@ -15423,8 +24741,6 @@ mod tests {
             &root.join("simulator-ffb-smoke.json"),
             &simulator_ffb_receipt(),
         )?;
-        write_service_status_artifacts(root)?;
-
         Ok(())
     }
 
@@ -15526,6 +24842,27 @@ mod tests {
     }
 
     #[test]
+    fn hid_observe_selector_matches_full_endpoint_identity() {
+        let device = sample_device();
+        assert!(selector_matches(
+            &device,
+            Some("hid-0x346E-0x0014-if0-0x0001-0x0004")
+        ));
+        assert!(!selector_matches(
+            &device,
+            Some("hid-0x346E-0x0004-if0-0x0001-0x0004")
+        ));
+        assert!(!selector_matches(
+            &device,
+            Some("hid-0x346E-0x0014-if2-0x0001-0x0004")
+        ));
+        assert!(!selector_matches(
+            &device,
+            Some("hid-0x346E-0x0014-if0-0x0001-0x0005")
+        ));
+    }
+
+    #[test]
     fn text_selector_matches_path_and_product_name() {
         let device = sample_device();
         assert!(selector_matches(&device, Some("pid_0014")));
@@ -15544,12 +24881,19 @@ mod tests {
             vec![DIRECT_TORQUE_REPORT_ID.to_string()]
         );
         assert_eq!(
-            expected_feature_report_ids(true),
+            expected_feature_report_ids(product_ids::R5_V2, true),
             vec![
                 HIGH_TORQUE_FEATURE_REPORT_ID.to_string(),
                 START_REPORTING_FEATURE_REPORT_ID.to_string(),
                 FFB_MODE_FEATURE_REPORT_ID.to_string(),
             ]
+        );
+        assert_eq!(
+            expected_feature_report_ids(product_ids::R5_V1, true),
+            R5_V1_LIVE_FEATURE_REPORT_IDS
+                .iter()
+                .map(|id| (*id).to_string())
+                .collect::<Vec<_>>()
         );
     }
 
@@ -15562,6 +24906,8 @@ mod tests {
             vendor_id: "0x346E".to_string(),
             no_hid_device_opened: true,
             no_ffb_writes: true,
+            no_output_reports: true,
+            no_feature_reports: true,
             no_serial_config_commands: true,
             no_firmware_or_dfu_commands: true,
             devices: vec![sample_device()],
@@ -15609,6 +24955,45 @@ mod tests {
         assert_eq!(receipt.parsed_reports, 0);
         assert_eq!(receipt.rejected_reports, 1);
         assert_eq!(receipt.line_errors.len(), 1);
+        Ok(())
+    }
+
+    #[test]
+    fn analyze_capture_reports_raw_byte_and_word_movement() -> TestResult {
+        let (_dir, path) = write_temp_capture(&[
+            &capture_line(
+                product_ids::R5_V1,
+                &live_r5_v1_extended_aux_report_hex(0x0001, 0x0100),
+            ),
+            &capture_line(
+                product_ids::R5_V1,
+                &live_r5_v1_extended_aux_report_hex(0x00FF, 0x0200),
+            ),
+        ])?;
+
+        let receipt = analyze_capture_file(&path)?;
+
+        assert!(receipt.success);
+        assert_eq!(receipt.total_reports, 2);
+        assert_eq!(receipt.decoded_reports, 2);
+        assert_eq!(receipt.rejected_reports, 0);
+        assert_eq!(receipt.product_ids.get("0x0004"), Some(&2));
+        assert!(receipt.no_hid_device_opened);
+        assert!(receipt.no_ffb_writes);
+        assert!(receipt.no_output_reports);
+        assert!(receipt.no_feature_reports);
+        assert!(receipt.no_serial_config_commands);
+        assert!(receipt.no_firmware_or_dfu_commands);
+        assert!(receipt.moving_bytes.contains(&34));
+        assert!(receipt.moving_words_le.contains(&34));
+        let aux0 = receipt
+            .word_ranges_le
+            .iter()
+            .find(|range| range.start_index == 34)
+            .ok_or("expected word range at byte 34")?;
+        assert_eq!(aux0.min, 0x0001);
+        assert_eq!(aux0.max, 0x00FF);
+        assert!(aux0.changed);
         Ok(())
     }
 
@@ -15756,12 +25141,62 @@ mod tests {
             Some(passive_capture_requirements_for_lane(dir.path()).len() as u64)
         );
         for requirement in passive_capture_requirements_for_lane(dir.path()) {
-            assert!(
-                fixture_dir
-                    .join(format!("{}.json", requirement.fixture_id))
-                    .is_file()
+            let fixture_path = fixture_dir.join(format!("{}.json", requirement.fixture_id));
+            assert!(fixture_path.is_file());
+            let fixture = read_json_path(&fixture_path)?;
+            assert_eq!(
+                json_string(&fixture, "source_capture"),
+                Some(requirement.relative_path)
             );
         }
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn promote_fixtures_refuses_invalid_required_capture_before_writing() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_minimal_passive_bundle(dir.path())?;
+        write_text_file(
+            &dir.path().join("captures/r5-throttle-only-sweep.jsonl"),
+            &format!(
+                "{}\n{}",
+                capture_line(
+                    product_ids::R5_V2,
+                    &wheelbase_full_report_hex(0x8000, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+                ),
+                capture_line(
+                    product_ids::R5_V2,
+                    &wheelbase_full_report_hex(0x8000, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+                )
+            ),
+        )?;
+        let fixture_dir = dir.path().join("promoted-fixtures");
+        let receipt_path = dir.path().join("fixture-promotion.json");
+
+        let result = promote_fixtures(
+            false,
+            dir.path(),
+            &fixture_dir,
+            16,
+            true,
+            Some(&receipt_path),
+        )
+        .await;
+
+        assert!(result.is_err());
+        let message = result
+            .err()
+            .map(|error| error.to_string())
+            .ok_or("expected promote-fixtures to fail")?;
+        assert!(
+            message.contains("refusing to promote passive fixtures")
+                && message.contains("captures/r5-throttle-only-sweep.jsonl"),
+            "expected invalid throttle capture in promotion preflight error, got {message}"
+        );
+        assert!(
+            !fixture_dir.join("r5_idle.json").exists(),
+            "promote-fixtures must not write partial fixture outputs after preflight failure"
+        );
         Ok(())
     }
 
@@ -15804,6 +25239,35 @@ mod tests {
     }
 
     #[test]
+    fn ci_lane_readme_init_commands_are_lane_bound_and_confirmed() -> TestResult {
+        let readme_path =
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../ci/hardware/moza-r5/README.md");
+        let readme = fs::read_to_string(&readme_path)?;
+
+        for mode in ["off", "standard"] {
+            let expected = format!(
+                "wheelctl moza init --device <r5> --lane ci/hardware/moza-r5/YYYY-MM-DD --mode {mode} --confirm-init"
+            );
+            assert!(
+                readme.contains(&expected),
+                "expected {} to document lane-bound confirmed {mode} init: {expected}",
+                readme_path.display()
+            );
+        }
+        for stale in [
+            "wheelctl moza init --device <r5> --mode off --json-out",
+            "wheelctl moza init --device <r5> --mode standard --json-out",
+        ] {
+            assert!(
+                !readme.contains(stale),
+                "README must not document unconfirmed or lane-less init command: {stale}"
+            );
+        }
+
+        Ok(())
+    }
+
+    #[test]
     fn ci_lane_docs_use_wheelctl_descriptor_receipt_producer() -> TestResult {
         let readme_path =
             Path::new(env!("CARGO_MANIFEST_DIR")).join("../../ci/hardware/moza-r5/README.md");
@@ -15824,6 +25288,11 @@ mod tests {
             assert!(
                 text.contains("wheelctl moza descriptor --device <r5> --report-descriptor-hex"),
                 "expected {} to document operator-supplied descriptor hex through wheelctl",
+                path.display()
+            );
+            assert!(
+                text.contains("--report-descriptor-bin-file"),
+                "expected {} to document operator-supplied binary descriptor bytes through wheelctl",
                 path.display()
             );
         }
@@ -15867,7 +25336,8 @@ mod tests {
                 "source_endpoint": "moza-r5-if2",
                 "connection": "wheelbase_hub",
                 "required": true,
-                "evidence_capture": "captures/r5-steering-sweep.jsonl"
+                "evidence_capture": "captures/r5-steering-sweep.jsonl",
+                "semantic_status": "deferred"
             }),
         );
         controls.insert(
@@ -15877,26 +25347,44 @@ mod tests {
                 "source_endpoint": "moza-r5-if2",
                 "connection": "wheelbase_hub",
                 "required": true,
-                "evidence_capture": "captures/r5-brake-only-sweep.jsonl"
+                "evidence_capture": "captures/r5-brake-only-sweep.jsonl",
+                "semantic_status": "generic_aux"
             }),
         );
 
         assert!(manifest_topology_is_logical_role_model(&manifest));
 
-        let controls = manifest
-            .pointer_mut("/topology/logical_controls")
-            .and_then(Value::as_object_mut)
-            .ok_or("expected topology logical_controls object")?;
-        controls.insert(
-            "unmapped".to_string(),
-            serde_json::json!({
-                "role": "unmapped",
-                "source_endpoint": "moza-r5-if2",
-                "connection": "wheelbase_hub",
-                "required": true,
-                "evidence_capture": "captures/r5-brake-only-sweep.jsonl"
-            }),
-        );
+        {
+            let controls = manifest
+                .pointer_mut("/topology/logical_controls")
+                .and_then(Value::as_object_mut)
+                .ok_or("expected topology logical_controls object")?;
+            controls.insert(
+                "unmapped".to_string(),
+                serde_json::json!({
+                    "role": "unmapped",
+                    "source_endpoint": "moza-r5-if2",
+                    "connection": "wheelbase_hub",
+                    "required": true,
+                    "evidence_capture": "captures/r5-brake-only-sweep.jsonl",
+                    "semantic_status": "deferred"
+                }),
+            );
+        }
+
+        assert!(!manifest_topology_is_logical_role_model(&manifest));
+
+        {
+            let controls = manifest
+                .pointer_mut("/topology/logical_controls")
+                .and_then(Value::as_object_mut)
+                .ok_or("expected topology logical_controls object")?;
+            let unmapped = controls
+                .get_mut("unmapped")
+                .ok_or("expected unmapped test control")?;
+            unmapped["role"] = serde_json::json!("brake");
+            unmapped["semantic_status"] = serde_json::json!("guessed");
+        }
 
         assert!(!manifest_topology_is_logical_role_model(&manifest));
         Ok(())
@@ -15918,6 +25406,25 @@ mod tests {
             );
             assert!(manifest_contract_is_moza_r5_lane(&manifest));
         }
+
+        let mut missing_semantic_status = sample_lane_manifest("not_started", false, false);
+        missing_semantic_status
+            .pointer_mut("/topology/logical_controls/throttle")
+            .and_then(Value::as_object_mut)
+            .ok_or("expected throttle topology control")?
+            .remove("semantic_status");
+        assert!(!manifest_schema_validation_errors(&missing_semantic_status).is_empty());
+        assert!(!manifest_topology_is_logical_role_model(
+            &missing_semantic_status
+        ));
+
+        let mut invalid_semantic_status = sample_lane_manifest("not_started", false, false);
+        invalid_semantic_status["topology"]["logical_controls"]["throttle"]["semantic_status"] =
+            serde_json::json!("guessed");
+        assert!(!manifest_schema_validation_errors(&invalid_semantic_status).is_empty());
+        assert!(!manifest_topology_is_logical_role_model(
+            &invalid_semantic_status
+        ));
 
         let mut passive_overclaim = sample_lane_manifest("passive_capture_ready", true, false);
         assert!(!manifest_schema_validation_errors(&passive_overclaim).is_empty());
@@ -16023,14 +25530,27 @@ mod tests {
     #[test]
     fn moza_validation_docs_link_checklist_and_remain_non_claiming() -> TestResult {
         let docs_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../docs");
+        let repo_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let root_readme_path = repo_root.join("README.md");
         let docs_readme_path = docs_root.join("README.md");
+        let setup_path = docs_root.join("SETUP.md");
+        let user_guide_path = docs_root.join("USER_GUIDE.md");
+        let protocols_readme_path = docs_root.join("protocols/README.md");
+        let device_support_path = docs_root.join("DEVICE_SUPPORT.md");
+        let device_capabilities_path = docs_root.join("DEVICE_CAPABILITIES.md");
         let validation_path = docs_root.join("hardware/moza-r5-validation.md");
         let matrix_path = docs_root.join("hardware/moza-validation-matrix.md");
         let checklist_path = docs_root.join("hardware/moza-r5-artifact-checklist.md");
         let ci_readme_path =
             Path::new(env!("CARGO_MANIFEST_DIR")).join("../../ci/hardware/moza-r5/README.md");
 
+        let root_readme = fs::read_to_string(&root_readme_path)?;
         let docs_readme = fs::read_to_string(&docs_readme_path)?;
+        let setup = fs::read_to_string(&setup_path)?;
+        let user_guide = fs::read_to_string(&user_guide_path)?;
+        let protocols_readme = fs::read_to_string(&protocols_readme_path)?;
+        let device_support = fs::read_to_string(&device_support_path)?;
+        let device_capabilities = fs::read_to_string(&device_capabilities_path)?;
         let validation = fs::read_to_string(&validation_path)?;
         let matrix = fs::read_to_string(&matrix_path)?;
         let checklist = fs::read_to_string(&checklist_path)?;
@@ -16041,11 +25561,12 @@ mod tests {
         assert!(matrix.contains("moza-r5-artifact-checklist.md"));
         assert!(ci_readme.contains("docs/hardware/moza-r5-artifact-checklist.md"));
 
-        assert!(matrix.contains("| `moza-r5-windows-usb` | R5 + KS/ES + SR-P + HBP | Windows | HID only | Not started | No | No | No | No |"));
+        assert!(matrix.contains("| `moza-r5-windows-usb` | R5 + KS/ES + SR-P + HBP | Windows | HID only | Zero proof ready; bounded PIDFF low torque proven; simulator FFB blocked | Bounded low torque only | No | No | No |"));
         for non_claim in [
-            "Moza R5 compatibility on Steven's hardware",
+            "Direct mode or direct report `0x20` readiness",
+            "Simulator-scale FFB output safety",
             "Pit House coexistence safety",
-            "Direct/high-torque readiness",
+            "Simulator-to-Moza FFB smoke coverage",
             "Release readiness",
         ] {
             assert!(
@@ -16054,10 +25575,64 @@ mod tests {
             );
         }
 
-        assert!(checklist.contains("It does not contain a dated real-hardware lane"));
+        assert!(checklist.contains("not smoke-ready complete"));
         assert!(
             checklist.contains("release_ready` and `high_torque_validated` must remain `false`")
         );
+
+        for (path, text) in [
+            (root_readme_path.as_path(), root_readme.as_str()),
+            (setup_path.as_path(), setup.as_str()),
+            (user_guide_path.as_path(), user_guide.as_str()),
+            (protocols_readme_path.as_path(), protocols_readme.as_str()),
+            (device_support_path.as_path(), device_support.as_str()),
+            (
+                device_capabilities_path.as_path(),
+                device_capabilities.as_str(),
+            ),
+        ] {
+            assert!(
+                text.contains("receipt") || text.contains("Source-backed"),
+                "{} must keep Moza real-hardware claims receipt-gated",
+                path.display()
+            );
+        }
+
+        assert!(root_readme.contains("Source-backed; receipt-gated HID output"));
+        assert!(setup.contains("Source-backed; hardware receipts required"));
+        assert!(user_guide.contains("protocol-known, real-hardware output requires lane receipts"));
+        assert!(protocols_readme.contains("Source-backed / receipt-gated"));
+        assert!(device_support.contains("Status: **Source-backed / receipt-gated**"));
+        assert!(device_capabilities.contains("status: **Source-backed / receipt-gated**"));
+
+        for stale_claim in [
+            "| **Moza Racing** | `0x346E` | R3, R5 V1/V2, R9 V1/V2, R12 V1/V2, R16, R21 | ✅ Serial/HID PIDFF |",
+            "| **Moza Racing** | `0x346E` | R3, R5 V1/V2, R9 V1/V2, R12 V1/V2, R16, R21 | ✅ Serial / HID PIDFF |",
+            "| [Moza](MOZA_PROTOCOL.md) | ✅ Supported | Serial/HID PIDFF |",
+            "### 4. Moza Racing — VID `0x346E` · Status: **Verified**",
+            "| R5 V1 | `0x0004` | Verified | universal-pidff |",
+            "| R5 V2 | `0x0014` | Verified | universal-pidff |",
+            "Source: `crates/hid-moza-protocol`; status: **Verified**",
+            "| Moza Racing (R3–R21 V1/V2) | Verified |",
+        ] {
+            for (path, text) in [
+                (root_readme_path.as_path(), root_readme.as_str()),
+                (setup_path.as_path(), setup.as_str()),
+                (user_guide_path.as_path(), user_guide.as_str()),
+                (protocols_readme_path.as_path(), protocols_readme.as_str()),
+                (device_support_path.as_path(), device_support.as_str()),
+                (
+                    device_capabilities_path.as_path(),
+                    device_capabilities.as_str(),
+                ),
+            ] {
+                assert!(
+                    !text.contains(stale_claim),
+                    "{} still contains stale Moza claim: {stale_claim}",
+                    path.display()
+                );
+            }
+        }
         Ok(())
     }
 
@@ -16225,20 +25800,21 @@ mod tests {
     }
 
     #[test]
-    fn short_hid_write_error_requires_full_report_length() {
+    fn zero_output_write_error_allows_host_padded_writes() {
         assert!(short_hid_write_error(REPORT_LEN).is_none());
         assert!(short_hid_write_error(REPORT_LEN - 1).is_some());
         assert!(short_hid_write_error(REPORT_LEN + 1).is_some());
+        assert!(short_zero_output_write_error(PIDFF_DEVICE_CONTROL_REPORT_LEN, 51).is_none());
     }
 
     #[test]
     fn partial_zero_command_record_keeps_bytes_written() -> TestResult {
-        let payload = zero_torque_payload_for_pid(product_ids::R5_V2);
+        let payload = ZeroOutputPayload::direct(product_ids::R5_V2);
         let record = ZeroTorqueCommandRecord::partial(
             0,
             "scheduled_zero",
             Instant::now(),
-            payload,
+            &payload,
             REPORT_LEN - 1,
             "short_hid_write: expected 8 bytes, wrote 7".to_string(),
         );
@@ -16272,7 +25848,7 @@ mod tests {
 
     #[test]
     fn zero_torque_receipt_proves_no_nonzero_payload() {
-        let payload = zero_torque_payload_for_pid(product_ids::R5_V2);
+        let payload = ZeroOutputPayload::direct(product_ids::R5_V2);
         let receipt = ZeroTorqueProofReceipt::new(
             "wheelctl moza zero",
             None,
@@ -16299,7 +25875,7 @@ mod tests {
     #[test]
     fn zero_torque_dry_run_receipt_proves_no_hid_open() -> TestResult {
         let pid = zero_torque_dry_run_pid(Some("0x346E:0x0014"), None)?;
-        let payload = zero_torque_payload_for_pid(pid);
+        let payload = ZeroOutputPayload::direct(pid);
         let receipt = ZeroTorqueProofReceipt::new(
             "wheelctl moza zero",
             Some("0x346E:0x0014".to_string()),
@@ -16343,8 +25919,11 @@ mod tests {
     #[test]
     fn validate_zero_proof_for_torque_test_accepts_real_zero_receipt() -> TestResult {
         let dir = tempfile::tempdir()?;
-        let proof = dir.path().join("zero.json");
-        write_test_json_file(&proof, &real_zero_receipt(100))?;
+        let proof = dir.path().join("zero-torque-proof.json");
+        write_test_json_file(
+            &proof,
+            &receipt_with_lane_path(dir.path(), "zero-torque-proof.json", real_zero_receipt(100)),
+        )?;
 
         let summary = validate_zero_proof_for_torque_test(&proof)?;
 
@@ -16355,9 +25934,57 @@ mod tests {
     }
 
     #[test]
+    fn validate_zero_proof_for_zero_output_accepts_pidff_stop_all_receipt() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        let proof = dir.path().join("zero-torque-proof.json");
+        write_test_json_file(
+            &proof,
+            &receipt_with_lane_path(
+                dir.path(),
+                "zero-torque-proof.json",
+                real_pidff_zero_receipt(100),
+            ),
+        )?;
+
+        let summary = validate_zero_proof_for_zero_output(&proof)?;
+
+        assert_eq!(summary.product_id.as_deref(), Some("0x0004"));
+        assert_eq!(
+            summary.zero_output_strategy,
+            "pidff_device_control_stop_all"
+        );
+        assert_eq!(summary.repeat, 100);
+        assert!(summary.final_zero_sent);
+        Ok(())
+    }
+
+    #[test]
+    fn validate_zero_proof_for_torque_test_rejects_pidff_stop_all_receipt() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        let proof = dir.path().join("zero-torque-proof.json");
+        write_test_json_file(
+            &proof,
+            &receipt_with_lane_path(
+                dir.path(),
+                "zero-torque-proof.json",
+                real_pidff_zero_receipt(100),
+            ),
+        )?;
+
+        let result = validate_zero_proof_for_torque_test(&proof);
+
+        let message = match result {
+            Ok(_) => return Err("expected PIDFF zero proof to fail direct torque preflight".into()),
+            Err(error) => error.to_string(),
+        };
+        assert!(message.contains("direct_report_0x20"));
+        Ok(())
+    }
+
+    #[test]
     fn validate_zero_proof_for_torque_test_rejects_dry_run_receipt() -> TestResult {
         let dir = tempfile::tempdir()?;
-        let proof = dir.path().join("zero.json");
+        let proof = dir.path().join("zero-torque-proof.json");
         write_test_json_file(
             &proof,
             &serde_json::json!({
@@ -16378,12 +26005,15 @@ mod tests {
     #[test]
     fn validate_zero_proof_for_torque_test_requires_out_of_scope_assertions() -> TestResult {
         let dir = tempfile::tempdir()?;
-        let proof = dir.path().join("zero.json");
+        let proof = dir.path().join("zero-torque-proof.json");
         let mut receipt = real_zero_receipt(100);
         if let Some(map) = receipt.as_object_mut() {
             map.remove("no_firmware_or_dfu_commands");
         }
-        write_test_json_file(&proof, &receipt)?;
+        write_test_json_file(
+            &proof,
+            &receipt_with_lane_path(dir.path(), "zero-torque-proof.json", receipt),
+        )?;
 
         let result = validate_zero_proof_for_torque_test(&proof);
 
@@ -16394,10 +26024,13 @@ mod tests {
     #[test]
     fn validate_zero_proof_for_torque_test_requires_exact_write_accounting() -> TestResult {
         let dir = tempfile::tempdir()?;
-        let proof = dir.path().join("zero.json");
+        let proof = dir.path().join("zero-torque-proof.json");
         let mut receipt = real_zero_receipt(100);
         receipt["writes_ok"] = serde_json::json!(100);
-        write_test_json_file(&proof, &receipt)?;
+        write_test_json_file(
+            &proof,
+            &receipt_with_lane_path(dir.path(), "zero-torque-proof.json", receipt),
+        )?;
 
         let result = validate_zero_proof_for_torque_test(&proof);
 
@@ -16408,7 +26041,7 @@ mod tests {
     #[test]
     fn validate_zero_proof_for_torque_test_requires_final_zero_last() -> TestResult {
         let dir = tempfile::tempdir()?;
-        let proof = dir.path().join("zero.json");
+        let proof = dir.path().join("zero-torque-proof.json");
         let mut receipt = real_zero_receipt(100);
         let command_log = receipt
             .get_mut("command_log")
@@ -16419,7 +26052,10 @@ mod tests {
         for (index, record) in command_log.iter_mut().enumerate() {
             record["sequence"] = serde_json::json!(index);
         }
-        write_test_json_file(&proof, &receipt)?;
+        write_test_json_file(
+            &proof,
+            &receipt_with_lane_path(dir.path(), "zero-torque-proof.json", receipt),
+        )?;
 
         let result = validate_zero_proof_for_torque_test(&proof);
 
@@ -16430,10 +26066,13 @@ mod tests {
     #[test]
     fn validate_zero_proof_for_torque_test_requires_r5_output_device() -> TestResult {
         let dir = tempfile::tempdir()?;
-        let proof = dir.path().join("zero.json");
+        let proof = dir.path().join("zero-torque-proof.json");
         let mut receipt = real_zero_receipt(100);
         receipt["device"]["output_capable"] = serde_json::json!(false);
-        write_test_json_file(&proof, &receipt)?;
+        write_test_json_file(
+            &proof,
+            &receipt_with_lane_path(dir.path(), "zero-torque-proof.json", receipt),
+        )?;
 
         let result = validate_zero_proof_for_torque_test(&proof);
 
@@ -16459,6 +26098,47 @@ mod tests {
         assert!(gate.satisfied);
         assert!(gate.descriptor_trusted);
         assert!(!gate.explicit_operator_override);
+        Ok(())
+    }
+
+    #[test]
+    fn validate_direct_mode_gate_rejects_live_r5_v1_descriptor_without_direct_report() -> TestResult
+    {
+        let dir = tempfile::tempdir()?;
+        let descriptor = dir.path().join("descriptor.json");
+        write_test_json_file(
+            &descriptor,
+            &serde_json::json!({
+                "success": true,
+                "no_ffb_writes": true,
+                "devices": [sample_trusted_r5_v1_json_device()]
+            }),
+        )?;
+
+        let result = validate_direct_mode_gate_for_torque_test(Some(&descriptor), "0x0004", false);
+
+        assert!(result.is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn validate_direct_mode_gate_rejects_r5_v2_descriptor_with_v1_input_shape() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        let descriptor = dir.path().join("descriptor.json");
+        let mut device = sample_trusted_r5_v1_json_device();
+        device["product_id"] = serde_json::json!("0x0014");
+        write_test_json_file(
+            &descriptor,
+            &serde_json::json!({
+                "success": true,
+                "no_ffb_writes": true,
+                "devices": [device]
+            }),
+        )?;
+
+        let result = validate_direct_mode_gate_for_torque_test(Some(&descriptor), "0x0014", false);
+
+        assert!(result.is_err());
         Ok(())
     }
 
@@ -16621,6 +26301,352 @@ mod tests {
     }
 
     #[test]
+    fn operator_descriptor_hex_file_extracts_usbtreeview_style_bytes() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        let path = dir.path().join("r5-report-descriptor.txt");
+        write_text_file(
+            &path,
+            "Report Descriptor:\n\
+             0000: 05 01 09 04 A1 01 // Usage Page, Usage, Collection\n\
+             0006: 85 01, 09 30\n",
+        )?;
+
+        let hex = read_report_descriptor_hex_file(&path)?;
+
+        assert_eq!(hex, "05010904A10185010930");
+        Ok(())
+    }
+
+    #[test]
+    fn operator_descriptor_hex_file_ignores_usbtreeview_device_summary_fields() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        let path = dir.path().join("r5-usbtreeview-device-summary.txt");
+        write_text_file(
+            &path,
+            "Device ID: USB\\VID_346E&PID_0004\\6&00000000&0&2\n\
+             bcdUSB: 2.00\n\
+             Interface Descriptor:\n\
+             bInterfaceNumber: 02\n\
+             HID Descriptor:\n\
+             bNumDescriptors: 01\n",
+        )?;
+
+        let result = read_report_descriptor_hex_file(&path);
+
+        let message = match result {
+            Ok(bytes) => format!("device summary parsed as descriptor bytes: {bytes}"),
+            Err(err) => err.to_string(),
+        };
+        assert!(message.contains("no HID report descriptor bytes found"));
+        assert!(message.contains("Report Descriptor byte block"));
+        assert!(message.contains("0000: 05 01 09 04"));
+        assert!(message.contains("USBTreeView device/interface summary"));
+        assert!(message.contains("wDescriptorLength"));
+        assert!(message.contains("ERROR_INVALID_PARAMETER"));
+        Ok(())
+    }
+
+    #[test]
+    fn operator_descriptor_hex_file_rejects_usbtreeview_report_read_error_without_summary_bytes()
+    -> TestResult {
+        let dir = tempfile::tempdir()?;
+        let path = dir.path().join("r5-usbtreeview-report-with-read-error.txt");
+        write_text_file(
+            &path,
+            "Data (HexDump)           : 03 00 00 00 12 01 00 02   ........\n\
+                                      00 01 01 02 03 01 01 01   ........\n\
+             bcdADC                   : 0x0100\n\
+             Interface Descriptor:\n\
+             bInterfaceNumber         : 0x02\n\
+             HID Descriptor:\n\
+             Descriptor 1:\n\
+             bDescriptorType          : 0x22 (Class=Report)\n\
+             wDescriptorLength        : 0x0523 (1315 bytes)\n\
+             Error reading descriptor : ERROR_INVALID_PARAMETER\n\
+             String Descriptor 1:\n\
+             Data (HexDump)           : 10 03 47 00 75 00 64 00   ..G.u.d.\n\
+                                      73 00 65 00 6E 00 00 00   s.e.n...\n",
+        )?;
+
+        let result = read_report_descriptor_hex_file(&path);
+
+        let message = match result {
+            Ok(bytes) => format!("USBTreeView summary parsed as descriptor bytes: {bytes}"),
+            Err(err) => err.to_string(),
+        };
+        assert!(
+            message.contains("no HID report descriptor bytes found"),
+            "{message}"
+        );
+        assert!(
+            message.contains("ERROR_INVALID_PARAMETER descriptor-read failure"),
+            "{message}"
+        );
+        assert!(
+            !message.contains("invalid descriptor byte line"),
+            "{message}"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn operator_descriptor_hex_file_reports_no_bytes_for_non_utf8_usbtreeview_summary() -> TestResult
+    {
+        let dir = tempfile::tempdir()?;
+        let path = dir.path().join("r5-usbtreeview-report-with-ansi-byte.txt");
+        fs::write(
+            &path,
+            b"HID Descriptor:\n\
+              bDescriptorType          : 0x22 (Class=Report)\n\
+              wDescriptorLength        : 0x0523 (1315 bytes)\n\
+              Error reading descriptor : ERROR_INVALID_PARAMETER\n\
+              Language 0x0409          : \"MOZA R5 Base\x90\"\n",
+        )?;
+
+        let result = read_report_descriptor_hex_file(&path);
+
+        let message = match result {
+            Ok(bytes) => format!("USBTreeView summary parsed as descriptor bytes: {bytes}"),
+            Err(err) => err.to_string(),
+        };
+        assert!(
+            message.contains("no HID report descriptor bytes found"),
+            "{message}"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn operator_descriptor_hex_file_accepts_descriptor_block_inside_summary() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        let path = dir
+            .path()
+            .join("r5-usbtreeview-summary-with-report-descriptor.txt");
+        write_text_file(
+            &path,
+            "Device ID: USB\\VID_346E&PID_0004\\6&00000000&0&2\n\
+             bcdUSB: 2.00\n\
+             Report Descriptor:\n\
+             0000: 05 01 09 04 A1 01\n\
+             0006: 85 20 75 08 95 06 91 02\n\
+             Interface Descriptor:\n\
+             bInterfaceNumber: 02\n",
+        )?;
+
+        let hex = read_report_descriptor_hex_file(&path)?;
+
+        assert_eq!(hex, "05010904A1018520750895069102");
+        Ok(())
+    }
+
+    #[test]
+    fn operator_descriptor_hex_file_accepts_usbtreeview_report_descriptor_hexdump() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        let path = dir
+            .path()
+            .join("r5-usbtreeview-report-descriptor-hexdump.txt");
+        write_text_file(
+            &path,
+            "Interface Descriptor:\n\
+             bInterfaceNumber         : 0x02\n\
+             ------------------- Report Descriptor --------------------\n\
+             Data (HexDump)           : 05 01 09 04 A1 01 85 20   ....... \n\
+                                      75 08 95 06 91 02 C0      u......\n\
+             Endpoint Descriptor:\n\
+             bEndpointAddress         : 0x83\n",
+        )?;
+
+        let hex = read_report_descriptor_hex_file(&path)?;
+
+        assert_eq!(hex, "05010904A1018520750895069102C0");
+        Ok(())
+    }
+
+    #[test]
+    fn operator_descriptor_hex_file_accepts_usbpcap_wireshark_report_descriptor_hexdump()
+    -> TestResult {
+        let dir = tempfile::tempdir()?;
+        let path = dir
+            .path()
+            .join("r5-usbpcap-wireshark-report-descriptor.txt");
+        write_text_file(
+            &path,
+            "Frame 7: 72 bytes on wire\n\
+             GET DESCRIPTOR Response HID Report\n\
+             HID Report Descriptor\n\
+             0000  05 01 09 04 a1 01 85 20 75 08 95 06 91 02 c0  ....... u......\n\
+             0010  09 30 15 00 26 ff 00 75 10 95 01 81 02        .0..&..u.....\n",
+        )?;
+
+        let hex = read_report_descriptor_hex_file(&path)?;
+
+        assert_eq!(
+            hex,
+            "05010904A1018520750895069102C00930150026FF00751095018102"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn operator_descriptor_hex_file_rejects_unlabeled_usbpcap_packet_bytes() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        let path = dir.path().join("r5-usbpcap-device-packet.txt");
+        write_text_file(
+            &path,
+            "Frame 3: USB device descriptor response\n\
+             0000  12 01 00 02 00 00 00 40 6e 34 04 00 00 01 01 02  .......@n4......\n\
+             0010  03 01                                            ..\n",
+        )?;
+
+        let result = read_report_descriptor_hex_file(&path);
+
+        let message = match result {
+            Ok(bytes) => format!("unlabeled USB packet bytes parsed as descriptor: {bytes}"),
+            Err(err) => err.to_string(),
+        };
+        assert!(
+            message.contains("no HID report descriptor bytes found"),
+            "{message}"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn operator_descriptor_hex_file_accepts_compact_hex_file() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        let path = dir.path().join("r5-report-descriptor-compact.txt");
+        write_text_file(&path, "05010904A101")?;
+
+        let hex = read_report_descriptor_hex_file(&path)?;
+
+        assert_eq!(hex, "05010904A101");
+        Ok(())
+    }
+
+    #[test]
+    fn operator_descriptor_bin_file_accepts_raw_sysfs_bytes() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        let path = dir.path().join("report_descriptor");
+        fs::write(&path, [0x05, 0x01, 0x09, 0x04, 0xA1, 0x01])?;
+
+        let hex = read_report_descriptor_bin_file(&path)?;
+
+        assert_eq!(hex, "05010904A101");
+        Ok(())
+    }
+
+    #[test]
+    fn operator_descriptor_bin_file_rejects_empty_raw_file() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        let path = dir.path().join("report_descriptor");
+        fs::write(&path, [])?;
+
+        let result = read_report_descriptor_bin_file(&path);
+
+        let message = match result {
+            Ok(bytes) => format!("empty descriptor parsed as bytes: {bytes}"),
+            Err(err) => err.to_string(),
+        };
+        assert!(
+            message.contains("raw binary HID report_descriptor file"),
+            "{message}"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn operator_descriptor_bin_file_rejects_windows_hid_collection_descriptor() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        let path = dir.path().join("r5-ioctl-collection-descriptor.bin");
+        fs::write(&path, b"HidP KDR\x04\x00\x01\x00")?;
+
+        let result = read_report_descriptor_bin_file(&path);
+
+        let message = match result {
+            Ok(bytes) => format!("Windows HID collection descriptor parsed as bytes: {bytes}"),
+            Err(err) => err.to_string(),
+        };
+        assert!(
+            message.contains("Windows HID collection/preparsed descriptor bytes"),
+            "{message}"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn operator_descriptor_hex_rejects_windows_hid_collection_descriptor() -> TestResult {
+        let result = report_descriptor_from_operator_hex("48 69 64 50 20 4B 44 52");
+
+        let message = match result {
+            Ok(descriptor) => format!(
+                "Windows HID collection descriptor parsed with crc {}",
+                descriptor.crc32
+            ),
+            Err(err) => err.to_string(),
+        };
+        assert!(
+            message.contains("Windows HID collection/preparsed descriptor bytes"),
+            "{message}"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn operator_descriptor_hex_source_rejects_inline_and_file_together() -> TestResult {
+        let path = Path::new("r5-report-descriptor.txt");
+        let result = operator_report_descriptor_hex(Some("05 01"), Some(path), None);
+
+        assert!(result.is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn operator_descriptor_hex_source_rejects_text_and_binary_files_together() -> TestResult {
+        let text_path = Path::new("r5-report-descriptor.txt");
+        let binary_path = Path::new("report_descriptor");
+        let result = operator_report_descriptor_hex(None, Some(text_path), Some(binary_path));
+
+        assert!(result.is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn operator_descriptor_hex_file_updates_device_descriptor_metadata() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        let path = dir.path().join("r5-report-descriptor.txt");
+        write_text_file(&path, "05 01 09 04")?;
+        let hex = operator_report_descriptor_hex(None, Some(&path), None)?
+            .ok_or("expected descriptor hex from file")?;
+        let descriptor = report_descriptor_from_operator_hex(&hex)?;
+        let mut device = sample_device();
+
+        device.apply_report_descriptor(descriptor, "operator_supplied_hex");
+
+        assert_eq!(device.descriptor_source, "operator_supplied_hex");
+        assert_eq!(device.report_descriptor_len, Some(4));
+        assert_eq!(device.report_descriptor_hex.as_deref(), Some("05010904"));
+        Ok(())
+    }
+
+    #[test]
+    fn operator_descriptor_bin_file_updates_device_descriptor_metadata() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        let path = dir.path().join("report_descriptor");
+        fs::write(&path, [0x05, 0x01, 0x09, 0x04])?;
+        let hex = operator_report_descriptor_hex(None, None, Some(&path))?
+            .ok_or("expected descriptor hex from binary file")?;
+        let descriptor = report_descriptor_from_operator_hex(&hex)?;
+        let mut device = sample_device();
+
+        device.apply_report_descriptor(descriptor, "operator_supplied_hex");
+
+        assert_eq!(device.descriptor_source, "operator_supplied_hex");
+        assert_eq!(device.report_descriptor_len, Some(4));
+        assert_eq!(device.report_descriptor_hex.as_deref(), Some("05010904"));
+        Ok(())
+    }
+
+    #[test]
     fn operator_descriptor_hex_preserves_vendor_wide_descriptor_records() -> TestResult {
         let mut devices = vec![
             synthetic_moza_device_record(product_ids::R5_V2),
@@ -16711,6 +26737,19 @@ mod tests {
                 FFB_MODE_FEATURE_REPORT_ID.to_string(),
             ]
         );
+        assert_eq!(
+            device.feature_reports,
+            vec![
+                HidReportRecord {
+                    report_id: START_REPORTING_FEATURE_REPORT_ID.to_string(),
+                    report_len: 4,
+                },
+                HidReportRecord {
+                    report_id: FFB_MODE_FEATURE_REPORT_ID.to_string(),
+                    report_len: 4,
+                },
+            ]
+        );
         Ok(())
     }
 
@@ -16728,6 +26767,7 @@ mod tests {
             lane: None,
             init_off: None,
             init_standard: None,
+            strategy: MozaLowTorqueStrategy::DirectReport0x20,
             dry_run: true,
             confirm_low_torque: false,
             explicit_operator_override: false,
@@ -16766,6 +26806,7 @@ mod tests {
             lane: None,
             init_off: None,
             init_standard: None,
+            strategy: MozaLowTorqueStrategy::DirectReport0x20,
             dry_run: false,
             confirm_low_torque: false,
             explicit_operator_override: false,
@@ -16788,13 +26829,14 @@ mod tests {
 
         let result = torque_test(TorqueTestRequest {
             json: false,
-            selector: Some("0x346E:0x0014"),
+            selector: Some("hid-0x346E-0x0014-if2-0x0001-0x0004"),
             pid_override: None,
             zero_proof: Some(&zero_proof),
             descriptor: None,
             lane: Some(dir.path()),
             init_off: None,
             init_standard: None,
+            strategy: MozaLowTorqueStrategy::DirectReport0x20,
             dry_run: false,
             confirm_low_torque: true,
             explicit_operator_override: false,
@@ -16818,17 +26860,25 @@ mod tests {
     async fn torque_test_actual_requires_init_proofs_before_hid_open() -> TestResult {
         let dir = tempfile::tempdir()?;
         let zero_proof = dir.path().join("zero-torque-proof.json");
-        write_test_json_file(&zero_proof, &real_zero_receipt(100))?;
+        write_test_json_file(
+            &zero_proof,
+            &receipt_with_lane_path(dir.path(), "zero-torque-proof.json", real_zero_receipt(100)),
+        )?;
+        write_test_json_file(
+            &dir.path().join("manifest.json"),
+            &sample_lane_manifest("zero_torque_ready", true, false),
+        )?;
 
         let result = torque_test(TorqueTestRequest {
             json: false,
-            selector: Some("0x346E:0x0014"),
+            selector: Some("hid-0x346E-0x0014-if2-0x0001-0x0004"),
             pid_override: None,
             zero_proof: Some(&zero_proof),
             descriptor: None,
             lane: Some(dir.path()),
             init_off: None,
             init_standard: None,
+            strategy: MozaLowTorqueStrategy::DirectReport0x20,
             dry_run: false,
             confirm_low_torque: true,
             explicit_operator_override: true,
@@ -16850,10 +26900,18 @@ mod tests {
     #[test]
     fn validate_init_proofs_for_torque_test_accepts_lane_receipts() -> TestResult {
         let dir = tempfile::tempdir()?;
-        write_test_json_file(&dir.path().join("init-off.json"), &real_init_receipt("off"))?;
+        write_zero_torque_ready_manifest(dir.path())?;
+        write_test_json_file(
+            &dir.path().join("init-off.json"),
+            &receipt_with_lane_path(dir.path(), "init-off.json", real_init_receipt("off")),
+        )?;
         write_test_json_file(
             &dir.path().join("init-standard.json"),
-            &real_init_receipt("standard"),
+            &receipt_with_lane_path(
+                dir.path(),
+                "init-standard.json",
+                real_init_receipt("standard"),
+            ),
         )?;
 
         let proofs = validate_init_proofs_for_torque_test(Some(dir.path()), None, None, false)?
@@ -16868,12 +26926,20 @@ mod tests {
     #[test]
     fn validate_init_proofs_for_torque_test_rejects_high_torque_receipt() -> TestResult {
         let dir = tempfile::tempdir()?;
+        write_zero_torque_ready_manifest(dir.path())?;
         let mut off = real_init_receipt("off");
         off["high_torque"] = serde_json::json!(true);
-        write_test_json_file(&dir.path().join("init-off.json"), &off)?;
+        write_test_json_file(
+            &dir.path().join("init-off.json"),
+            &receipt_with_lane_path(dir.path(), "init-off.json", off),
+        )?;
         write_test_json_file(
             &dir.path().join("init-standard.json"),
-            &real_init_receipt("standard"),
+            &receipt_with_lane_path(
+                dir.path(),
+                "init-standard.json",
+                real_init_receipt("standard"),
+            ),
         )?;
 
         let result = validate_init_proofs_for_torque_test(Some(dir.path()), None, None, false);
@@ -16889,7 +26955,7 @@ mod tests {
         write_trusted_descriptor_if_missing(dir.path())?;
 
         let preflight = validate_low_torque_real_hardware_preflight(
-            Some("0x0014"),
+            Some("hid-0x346E-0x0014-if2-0x0001-0x0004"),
             None,
             Some(dir.path()),
             Some(&dir.path().join("zero-torque-proof.json")),
@@ -16907,6 +26973,55 @@ mod tests {
     }
 
     #[test]
+    fn validate_low_torque_preflight_requires_lane_endpoint_selector() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_low_torque_prerequisite_receipts(dir.path())?;
+        write_trusted_descriptor_if_missing(dir.path())?;
+
+        let result = validate_low_torque_real_hardware_preflight(
+            None,
+            None,
+            Some(dir.path()),
+            Some(&dir.path().join("zero-torque-proof.json")),
+            None,
+            None,
+            Some(&dir.path().join("descriptor.json")),
+            false,
+        );
+        let message = result
+            .err()
+            .map(|error| error.to_string())
+            .ok_or("expected missing selector preflight error")?;
+        assert!(
+            message.contains("--device")
+                && message.contains("actual low-torque writes")
+                && message.contains("hid-0x346E-0x0014-if2-0x0001-0x0004"),
+            "low-torque preflight should require the exact lane endpoint selector: {message}"
+        );
+
+        let result = validate_low_torque_real_hardware_preflight(
+            Some("0x346E:0x0014"),
+            None,
+            Some(dir.path()),
+            Some(&dir.path().join("zero-torque-proof.json")),
+            None,
+            None,
+            Some(&dir.path().join("descriptor.json")),
+            false,
+        );
+        let message = result
+            .err()
+            .map(|error| error.to_string())
+            .ok_or("expected loose selector preflight error")?;
+        assert!(
+            message.contains("expected hid-0x346E-0x0014-if2-0x0001-0x0004")
+                && message.contains("got 0x346E:0x0014"),
+            "low-torque preflight should reject loose VID/PID selectors: {message}"
+        );
+        Ok(())
+    }
+
+    #[test]
     fn validate_low_torque_preflight_rejects_off_lane_zero_proof() -> TestResult {
         let dir = tempfile::tempdir()?;
         let stale = tempfile::tempdir()?;
@@ -16915,7 +27030,7 @@ mod tests {
         write_trusted_descriptor_if_missing(dir.path())?;
 
         let result = validate_low_torque_real_hardware_preflight(
-            Some("0x0014"),
+            Some("hid-0x346E-0x0014-if2-0x0001-0x0004"),
             None,
             Some(dir.path()),
             Some(&stale.path().join("zero-torque-proof.json")),
@@ -16943,7 +27058,7 @@ mod tests {
         write_trusted_descriptor_if_missing(dir.path())?;
 
         let result = validate_low_torque_real_hardware_preflight(
-            Some("0x0014"),
+            Some("hid-0x346E-0x0014-if2-0x0001-0x0004"),
             None,
             Some(dir.path()),
             Some(&dir.path().join("zero-torque-proof.json")),
@@ -16971,7 +27086,7 @@ mod tests {
         write_trusted_descriptor_if_missing(stale.path())?;
 
         let result = validate_low_torque_real_hardware_preflight(
-            Some("0x0014"),
+            Some("hid-0x346E-0x0014-if2-0x0001-0x0004"),
             None,
             Some(dir.path()),
             Some(&dir.path().join("zero-torque-proof.json")),
@@ -16999,7 +27114,10 @@ mod tests {
             true,
             Some("0x346E:0x0014"),
             None,
+            None,
+            MozaZeroOutputStrategy::DirectReport0x20,
             true,
+            false,
             3,
             1000,
             100,
@@ -17020,11 +27138,205 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn watchdog_proof_dry_run_accepts_hid_observe_selector_without_hid() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        let receipt_path = dir.path().join("watchdog-proof.json");
+
+        watchdog_proof(
+            true,
+            Some("hid-0x346E-0x0004-if2-0x0001-0x0004"),
+            None,
+            None,
+            MozaZeroOutputStrategy::PidffStopAll,
+            true,
+            true,
+            3,
+            1000,
+            100,
+            Some(&receipt_path),
+        )
+        .await?;
+
+        let receipt = read_json_path(&receipt_path)?;
+        assert_eq!(json_bool(&receipt, "success"), Some(true));
+        assert_eq!(json_bool(&receipt, "dry_run"), Some(true));
+        assert_eq!(json_bool(&receipt, "no_hid_device_opened"), Some(true));
+        assert_eq!(
+            json_string(&receipt, "selector"),
+            Some("hid-0x346E-0x0004-if2-0x0001-0x0004")
+        );
+        assert_eq!(json_string(&receipt, "payload_hex"), Some("0C04"));
+        assert_eq!(
+            json_string(&receipt, "pidff_device_control_command_name"),
+            Some("stop_all_effects")
+        );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn zero_torque_pidff_stop_all_dry_run_writes_receipt_without_hid() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        let receipt_path = dir.path().join("zero-torque-proof.json");
+
+        zero_torque(
+            false,
+            Some("0x346E:0x0004"),
+            None,
+            None,
+            MozaZeroOutputStrategy::PidffStopAll,
+            true,
+            false,
+            3,
+            1000,
+            100,
+            Some(&receipt_path),
+        )
+        .await?;
+
+        let receipt = read_json_path(&receipt_path)?;
+        assert_eq!(json_bool(&receipt, "success"), Some(true));
+        assert_eq!(json_bool(&receipt, "dry_run"), Some(true));
+        assert_eq!(json_bool(&receipt, "no_hid_device_opened"), Some(true));
+        assert_eq!(
+            json_string(&receipt, "zero_output_strategy"),
+            Some("pidff_device_control_stop_all")
+        );
+        assert_eq!(json_string(&receipt, "payload_hex"), Some("0C04"));
+        assert_eq!(json_string(&receipt, "report_id"), Some("0x0C"));
+        assert_eq!(json_u64(&receipt, "report_len"), Some(2));
+        assert_eq!(
+            json_string(&receipt, "pidff_device_control_command_name"),
+            Some("stop_all_effects")
+        );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn zero_torque_dry_run_accepts_hid_observe_selector_without_hid() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        let receipt_path = dir.path().join("zero-torque-proof.json");
+
+        zero_torque(
+            true,
+            Some("hid-0x346E-0x0004-if2-0x0001-0x0004"),
+            None,
+            None,
+            MozaZeroOutputStrategy::PidffStopAll,
+            true,
+            true,
+            3,
+            1000,
+            100,
+            Some(&receipt_path),
+        )
+        .await?;
+
+        let receipt = read_json_path(&receipt_path)?;
+        assert_eq!(json_bool(&receipt, "success"), Some(true));
+        assert_eq!(json_bool(&receipt, "dry_run"), Some(true));
+        assert_eq!(json_bool(&receipt, "no_hid_device_opened"), Some(true));
+        assert_eq!(
+            json_string(&receipt, "selector"),
+            Some("hid-0x346E-0x0004-if2-0x0001-0x0004")
+        );
+        assert_eq!(json_string(&receipt, "payload_hex"), Some("0C04"));
+        assert_eq!(json_u64(&receipt, "report_len"), Some(2));
+        assert_eq!(
+            json_string(&receipt, "pidff_device_control_command_name"),
+            Some("stop_all_effects")
+        );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn zero_torque_actual_requires_lane_readiness_before_hid() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        let result = zero_torque(
+            false,
+            Some("0x346E:0x0014"),
+            None,
+            None,
+            MozaZeroOutputStrategy::DirectReport0x20,
+            false,
+            true,
+            100,
+            1000,
+            100,
+            Some(&dir.path().join("zero-torque-proof.json")),
+        )
+        .await;
+
+        let message = match result {
+            Ok(_) => return Err("expected missing lane preflight error".into()),
+            Err(error) => error.to_string(),
+        };
+        assert!(message.contains("--lane"));
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn watchdog_proof_actual_requires_same_lane_zero_proof_before_hid() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_pre_output_ready_receipt(dir.path())?;
+
+        let result = watchdog_proof(
+            false,
+            Some("0x346E:0x0014"),
+            Some(dir.path()),
+            None,
+            MozaZeroOutputStrategy::DirectReport0x20,
+            false,
+            true,
+            3,
+            1000,
+            100,
+            Some(&dir.path().join("watchdog-proof.json")),
+        )
+        .await;
+
+        let message = match result {
+            Ok(_) => return Err("expected missing zero proof preflight error".into()),
+            Err(error) => error.to_string(),
+        };
+        assert!(message.contains("zero-torque-proof.json"));
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn disconnect_proof_actual_requires_same_lane_zero_proof_before_hid() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_pre_output_ready_receipt(dir.path())?;
+
+        let result = disconnect_proof(
+            false,
+            Some("0x346E:0x0014"),
+            Some(dir.path()),
+            None,
+            MozaZeroOutputStrategy::DirectReport0x20,
+            false,
+            true,
+            1000,
+            1000,
+            Some(&dir.path().join("disconnect-proof.json")),
+        )
+        .await;
+
+        let message = match result {
+            Ok(_) => return Err("expected missing zero proof preflight error".into()),
+            Err(error) => error.to_string(),
+        };
+        assert!(message.contains("zero-torque-proof.json"));
+        Ok(())
+    }
+
+    #[tokio::test]
     async fn disconnect_proof_actual_requires_confirmation() -> TestResult {
         let result = disconnect_proof(
             false,
             Some("0x346E:0x0014"),
             None,
+            None,
+            MozaZeroOutputStrategy::DirectReport0x20,
             false,
             false,
             1000,
@@ -17046,6 +27358,8 @@ mod tests {
             true,
             Some("0x346E:0x0014"),
             None,
+            None,
+            MozaZeroOutputStrategy::DirectReport0x20,
             true,
             false,
             1000,
@@ -17067,6 +27381,42 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn disconnect_proof_dry_run_accepts_hid_observe_selector_without_hid() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        let receipt_path = dir.path().join("disconnect-proof.json");
+
+        disconnect_proof(
+            true,
+            Some("hid-0x346E-0x0004-if2-0x0001-0x0004"),
+            None,
+            None,
+            MozaZeroOutputStrategy::PidffStopAll,
+            true,
+            true,
+            1000,
+            1000,
+            Some(&receipt_path),
+        )
+        .await?;
+
+        let receipt = read_json_path(&receipt_path)?;
+        assert_eq!(json_bool(&receipt, "success"), Some(true));
+        assert_eq!(json_bool(&receipt, "dry_run"), Some(true));
+        assert_eq!(json_bool(&receipt, "no_hid_device_opened"), Some(true));
+        assert_eq!(
+            json_string(&receipt, "selector"),
+            Some("hid-0x346E-0x0004-if2-0x0001-0x0004")
+        );
+        assert_eq!(json_string(&receipt, "payload_hex"), Some("0C04"));
+        assert_eq!(json_bool(&receipt, "disconnect_observed"), Some(true));
+        assert_eq!(
+            json_string(&receipt, "pidff_device_control_command_name"),
+            Some("stop_all_effects")
+        );
+        Ok(())
+    }
+
+    #[tokio::test]
     async fn init_dry_run_writes_off_handshake_plan_without_hid() -> TestResult {
         let dir = tempfile::tempdir()?;
         let receipt_path = dir.path().join("init-off.json");
@@ -17075,8 +27425,10 @@ mod tests {
             true,
             Some("0x346E:0x0014"),
             None,
+            None,
             MozaInitMode::Off,
             true,
+            false,
             Some(&receipt_path),
         )
         .await?;
@@ -17091,9 +27443,212 @@ mod tests {
         assert!(
             receipt
                 .get("feature_reports")
-                .map(|reports| init_feature_reports_are_safe_value(reports, "off", true))
+                .map(|reports| {
+                    init_feature_reports_are_safe_value(reports, "off", true, Some("0x0014"))
+                })
                 .unwrap_or(false)
         );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn init_actual_requires_confirmation_before_hid_open() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        let receipt_path = dir.path().join("init-off.json");
+
+        let result = init(
+            true,
+            Some("0x346E:0x0014"),
+            Some(dir.path()),
+            None,
+            MozaInitMode::Off,
+            false,
+            false,
+            Some(&receipt_path),
+        )
+        .await;
+
+        let message = result
+            .err()
+            .map(|error| error.to_string())
+            .ok_or("expected init confirmation gate error")?;
+        assert!(message.contains("--confirm-init"));
+        assert!(!receipt_path.exists());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn init_actual_requires_zero_stage_before_hid_open() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        let receipt_path = dir.path().join("init-off.json");
+
+        let result = init(
+            true,
+            Some("0x346E:0x0014"),
+            Some(dir.path()),
+            None,
+            MozaInitMode::Off,
+            false,
+            true,
+            Some(&receipt_path),
+        )
+        .await;
+
+        let message = result
+            .err()
+            .map(|error| error.to_string())
+            .ok_or("expected init zero-stage gate error")?;
+        assert!(message.contains("zero-stage verification"));
+        assert!(!receipt_path.exists());
+        Ok(())
+    }
+
+    #[test]
+    fn init_preflight_requires_lane_endpoint_selector() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_test_json_file(
+            &dir.path().join("manifest.json"),
+            &sample_lane_manifest("zero_torque_ready", false, false),
+        )?;
+        write_test_json_file(
+            &dir.path().join("zero-verification.json"),
+            &stored_verification_receipt(dir.path(), MozaBundleStage::Zero),
+        )?;
+        write_test_json_file(
+            &dir.path().join("lane-audit-zero.json"),
+            &serde_json::json!({
+                "success": true,
+                "command": "wheelctl moza audit-lane",
+                "generated_at_utc": TEST_GENERATED_AT,
+                "lane": dir.path().display().to_string(),
+                "requested_stage": "zero",
+                "live_verification_success": true,
+                "missing_receipts": 0,
+                "invalid_receipts": 0,
+                "receipt_checks": [
+                    {"path": "passive-verification.json", "status": "pass"},
+                    {"path": "manifest-promotion-passive.json", "status": "pass"},
+                    {"path": "zero-verification.json", "status": "pass"},
+                    {"path": "manifest-promotion-zero.json", "status": "pass"}
+                ],
+                "no_hid_device_opened": true,
+                "no_ffb_writes": true,
+                "no_serial_config_commands": true,
+                "no_firmware_or_dfu_commands": true
+            }),
+        )?;
+        let off_path = dir.path().join("init-off.json");
+
+        let result = validate_init_stage_preflight(
+            Some(dir.path()),
+            Some(&off_path),
+            None,
+            MozaInitMode::Off,
+            true,
+        );
+        let message = result
+            .err()
+            .map(|error| error.to_string())
+            .ok_or("expected init preflight to require --device")?;
+        assert!(
+            message.contains("--device") && message.contains("hid-0x346E-0x0014-if2-0x0001-0x0004"),
+            "init preflight should require the exact lane endpoint selector: {message}"
+        );
+
+        let result = validate_init_stage_preflight(
+            Some(dir.path()),
+            Some(&off_path),
+            Some("0x346E:0x0014"),
+            MozaInitMode::Off,
+            true,
+        );
+        let message = result
+            .err()
+            .map(|error| error.to_string())
+            .ok_or("expected init preflight to reject loose VID/PID selector")?;
+        assert!(
+            message.contains("must match the lane manifest wheelbase endpoint selector"),
+            "init preflight should reject loose selectors before HID open: {message}"
+        );
+
+        validate_init_stage_preflight(
+            Some(dir.path()),
+            Some(&off_path),
+            Some("hid-0x346E-0x0014-if2-0x0001-0x0004"),
+            MozaInitMode::Off,
+            true,
+        )?;
+        assert!(!off_path.exists());
+        Ok(())
+    }
+
+    #[test]
+    fn init_standard_preflight_requires_same_lane_off_receipt() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_test_json_file(
+            &dir.path().join("manifest.json"),
+            &sample_lane_manifest("zero_torque_ready", false, false),
+        )?;
+        write_test_json_file(
+            &dir.path().join("zero-verification.json"),
+            &stored_verification_receipt(dir.path(), MozaBundleStage::Zero),
+        )?;
+        write_test_json_file(
+            &dir.path().join("lane-audit-zero.json"),
+            &serde_json::json!({
+                "success": true,
+                "command": "wheelctl moza audit-lane",
+                "generated_at_utc": TEST_GENERATED_AT,
+                "lane": dir.path().display().to_string(),
+                "requested_stage": "zero",
+                "live_verification_success": true,
+                "missing_receipts": 0,
+                "invalid_receipts": 0,
+                "receipt_checks": [
+                    {"path": "passive-verification.json", "status": "pass"},
+                    {"path": "manifest-promotion-passive.json", "status": "pass"},
+                    {"path": "zero-verification.json", "status": "pass"},
+                    {"path": "manifest-promotion-zero.json", "status": "pass"}
+                ],
+                "no_hid_device_opened": true,
+                "no_ffb_writes": true,
+                "no_serial_config_commands": true,
+                "no_firmware_or_dfu_commands": true
+            }),
+        )?;
+        let standard_path = dir.path().join("init-standard.json");
+
+        let result = validate_init_stage_preflight(
+            Some(dir.path()),
+            Some(&standard_path),
+            Some("hid-0x346E-0x0014-if2-0x0001-0x0004"),
+            MozaInitMode::Standard,
+            true,
+        );
+
+        let message = result
+            .err()
+            .map(|error| error.to_string())
+            .ok_or("expected standard init to require init-off")?;
+        assert!(
+            message.contains("init-off.json") && message.contains("before standard init"),
+            "standard init should point at the missing same-lane off receipt: {message}"
+        );
+        assert!(!standard_path.exists());
+
+        write_test_json_file(
+            &dir.path().join("init-off.json"),
+            &receipt_with_lane_path(dir.path(), "init-off.json", real_init_receipt("off")),
+        )?;
+
+        validate_init_stage_preflight(
+            Some(dir.path()),
+            Some(&standard_path),
+            Some("hid-0x346E-0x0014-if2-0x0001-0x0004"),
+            MozaInitMode::Standard,
+            true,
+        )?;
+        assert!(!standard_path.exists());
         Ok(())
     }
 
@@ -17109,7 +27664,7 @@ mod tests {
 
         let gate = verify_low_torque_gate(dir.path());
 
-        assert_eq!(gate.status, "pass");
+        assert_eq!(gate.status, "pass", "{}", gate.details);
         Ok(())
     }
 
@@ -17134,6 +27689,30 @@ mod tests {
     }
 
     #[test]
+    fn verify_low_torque_gate_requires_lane_endpoint_selector() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_trusted_descriptor_if_missing(dir.path())?;
+        write_low_torque_prerequisite_receipts(dir.path())?;
+        let mut receipt = real_low_torque_receipt_for_lane(dir.path(), 2.0)?;
+        receipt["selector"] = serde_json::json!("0x346E:0x0014");
+        write_test_json_file(
+            &dir.path().join("low-torque-proof.json"),
+            &serde_json::to_value(&receipt)?,
+        )?;
+
+        let gate = verify_low_torque_gate(dir.path());
+
+        assert_eq!(gate.status, "fail");
+        assert!(
+            gate.details
+                .contains("selector_matches_lane_endpoint=false"),
+            "expected lane endpoint selector failure, got {}",
+            gate.details
+        );
+        Ok(())
+    }
+
+    #[test]
     fn verify_low_torque_gate_rejects_dry_run_receipt() -> TestResult {
         let dir = tempfile::tempdir()?;
         write_trusted_descriptor_if_missing(dir.path())?;
@@ -17142,7 +27721,10 @@ mod tests {
         receipt["dry_run"] = serde_json::json!(true);
         receipt["no_hid_device_opened"] = serde_json::json!(true);
         receipt["no_ffb_writes"] = serde_json::json!(true);
-        write_test_json_file(&dir.path().join("low-torque-proof.json"), &receipt)?;
+        write_test_json_file(
+            &dir.path().join("low-torque-proof.json"),
+            &serde_json::to_value(&receipt)?,
+        )?;
 
         let gate = verify_low_torque_gate(dir.path());
 
@@ -17321,12 +27903,550 @@ mod tests {
     }
 
     #[test]
+    fn validate_pidff_low_torque_preflight_accepts_same_lane_r5_v1_prerequisites() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_pidff_low_torque_prerequisite_receipts(dir.path())?;
+
+        let preflight = validate_pidff_low_torque_real_hardware_preflight(
+            Some("hid-0x346E-0x0004-if2-0x0001-0x0004"),
+            None,
+            Some(dir.path()),
+            Some(&dir.path().join("zero-torque-proof.json")),
+            None,
+            None,
+        )?;
+
+        assert_eq!(preflight.target_product_id, "0x0004");
+        assert_eq!(
+            preflight.zero_proof.zero_output_strategy,
+            "pidff_device_control_stop_all"
+        );
+        assert!(preflight.init_proofs.match_product_id("0x0004"));
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn torque_test_pidff_actual_requires_exact_endpoint_before_hid_open() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_pidff_low_torque_prerequisite_receipts(dir.path())?;
+
+        let result = torque_test(TorqueTestRequest {
+            json: false,
+            selector: Some("0x346E:0x0004"),
+            pid_override: None,
+            zero_proof: Some(&dir.path().join("zero-torque-proof.json")),
+            descriptor: None,
+            lane: Some(dir.path()),
+            init_off: None,
+            init_standard: None,
+            strategy: MozaLowTorqueStrategy::PidffBoundedEffect,
+            dry_run: false,
+            confirm_low_torque: true,
+            explicit_operator_override: false,
+            max_percent: 1.0,
+            duration_ms: 150,
+            hz: 1000,
+            json_out: Some(&dir.path().join("low-torque-proof.json")),
+        })
+        .await;
+
+        let message = result
+            .err()
+            .map(|error| error.to_string())
+            .ok_or("expected PIDFF endpoint preflight failure")?;
+        assert!(message.contains("lane manifest wheelbase endpoint selector"));
+        assert!(message.contains("actual PIDFF low-torque writes"));
+        assert!(!dir.path().join("low-torque-proof.json").exists());
+        Ok(())
+    }
+
+    #[test]
+    fn execute_pidff_low_torque_sequence_records_setup_and_cleanup() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_pidff_low_torque_prerequisite_receipts(dir.path())?;
+        let zero_proof = validate_zero_proof_for_low_torque_strategy(
+            &dir.path().join("zero-torque-proof.json"),
+            MozaLowTorqueStrategy::PidffBoundedEffect,
+        )?;
+        let init_proofs =
+            validate_init_proofs_for_torque_test(Some(dir.path()), None, None, false)?
+                .ok_or("expected init proofs")?;
+        let mut receipt = LowTorqueProofReceipt::new(
+            Some("hid-0x346E-0x0004-if2-0x0001-0x0004".to_string()),
+            synthetic_moza_device_record(product_ids::R5_V1),
+            Some(zero_proof),
+            MozaLowTorqueStrategy::PidffBoundedEffect,
+            1.0,
+            150,
+            1000,
+            false,
+        );
+        receipt.apply_init_proofs(Some(init_proofs));
+
+        execute_pidff_bounded_low_torque_sequence(&mut receipt, Instant::now(), false, |payload| {
+            Ok(payload.len())
+        });
+        receipt.success = receipt.zero_proof_validated
+            && receipt.confirmed
+            && receipt.init_proofs_validated
+            && receipt.no_high_torque
+            && receipt.high_torque == Some(false)
+            && receipt.no_direct_torque_reports
+            && receipt.pidff_effect_setup_proven
+            && receipt.no_nonzero_above_limit
+            && receipt.write_errors == 0
+            && receipt.final_stop_all_sent;
+        receipt.set_receipt_path(Some(&dir.path().join("low-torque-proof.json")));
+
+        assert!(receipt.success);
+        assert!(receipt.pidff_effect_setup_proven);
+        assert_eq!(
+            receipt.pidff_effect_block_index,
+            Some(PIDFF_LOW_TORQUE_EFFECT_BLOCK_INDEX)
+        );
+        assert_eq!(receipt.write_attempts, 3);
+        assert_eq!(receipt.writes_ok, 4);
+        assert_eq!(receipt.command_log.len(), 4);
+        let receipt_value = serde_json::to_value(&receipt)?;
+        write_test_json_file(&dir.path().join("low-torque-proof.json"), &receipt_value)?;
+
+        let gate = verify_low_torque_gate(dir.path());
+
+        assert_eq!(
+            gate.status, "pass",
+            "expected PIDFF gate pass: {}",
+            gate.details
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn actuator_profile_smoke_args_require_pidff_and_tight_bounds() -> TestResult {
+        validate_actuator_profile_smoke_args(
+            MozaLowTorqueStrategy::PidffBoundedEffect,
+            1.0,
+            2_000,
+        )?;
+
+        let direct_message = validate_actuator_profile_smoke_args(
+            MozaLowTorqueStrategy::DirectReport0x20,
+            1.0,
+            2_000,
+        )
+        .err()
+        .map(|error| error.to_string())
+        .ok_or("expected direct report strategy rejection")?;
+        assert!(direct_message.contains("pidff-bounded-effect"));
+
+        let percent_message = validate_actuator_profile_smoke_args(
+            MozaLowTorqueStrategy::PidffBoundedEffect,
+            1.1,
+            2_000,
+        )
+        .err()
+        .map(|error| error.to_string())
+        .ok_or("expected max percent rejection")?;
+        assert!(percent_message.contains("0.1..=1.0"));
+
+        let duration_message = validate_actuator_profile_smoke_args(
+            MozaLowTorqueStrategy::PidffBoundedEffect,
+            1.0,
+            2_001,
+        )
+        .err()
+        .map(|error| error.to_string())
+        .ok_or("expected duration rejection")?;
+        assert!(duration_message.contains("1..=2000"));
+        Ok(())
+    }
+
+    #[test]
+    fn validate_native_actuator_profile_preflight_accepts_same_lane_prerequisites() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_native_actuator_profile_prerequisite_receipts(dir.path())?;
+
+        let preflight = validate_native_actuator_profile_smoke_preflight(
+            "hid-0x346E-0x0004-if2-0x0001-0x0004",
+            dir.path(),
+            Some(&dir.path().join("low-torque-proof.json")),
+            Some(&dir.path().join("steering-angle-stream-proof.json")),
+            Some(&dir.path().join("native-actuator-profile-smoke.json")),
+            false,
+        )?;
+
+        assert_eq!(preflight.target_product_id, "0x0004");
+        assert!(preflight.low_torque_generated_at.is_some());
+        assert!(preflight.steering_generated_at.is_some());
+        Ok(())
+    }
+
+    #[test]
+    fn validate_native_actuator_profile_preflight_requires_exact_endpoint() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_native_actuator_profile_prerequisite_receipts(dir.path())?;
+
+        let message = validate_native_actuator_profile_smoke_preflight(
+            "0x346E:0x0004",
+            dir.path(),
+            Some(&dir.path().join("low-torque-proof.json")),
+            Some(&dir.path().join("steering-angle-stream-proof.json")),
+            Some(&dir.path().join("native-actuator-profile-smoke.json")),
+            false,
+        )
+        .err()
+        .map(|error| error.to_string())
+        .ok_or("expected exact endpoint preflight rejection")?;
+
+        assert!(message.contains("lane manifest wheelbase endpoint selector"));
+        assert!(message.contains("native actuator-profile smoke"));
+        Ok(())
+    }
+
+    #[test]
+    fn validate_native_actuator_profile_preflight_requires_low_torque_and_steering() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_native_actuator_profile_prerequisite_receipts(dir.path())?;
+        fs::remove_file(dir.path().join("low-torque-proof.json"))?;
+
+        let missing_low_torque = validate_native_actuator_profile_smoke_preflight(
+            "hid-0x346E-0x0004-if2-0x0001-0x0004",
+            dir.path(),
+            Some(&dir.path().join("low-torque-proof.json")),
+            Some(&dir.path().join("steering-angle-stream-proof.json")),
+            Some(&dir.path().join("native-actuator-profile-smoke.json")),
+            false,
+        )
+        .err()
+        .map(|error| error.to_string())
+        .ok_or("expected missing low-torque rejection")?;
+        assert!(missing_low_torque.contains("same-lane low-torque proof"));
+
+        write_test_json_file(
+            &dir.path().join("low-torque-proof.json"),
+            &real_pidff_low_torque_receipt_for_lane(dir.path())?,
+        )?;
+        let mut steering_receipt =
+            steering_angle_stream_receipt_for_pid(dir.path(), product_ids::R5_V1);
+        steering_receipt["device"]["product_id"] = serde_json::json!("0x0014");
+        write_test_json_file(
+            &dir.path().join("steering-angle-stream-proof.json"),
+            &steering_receipt,
+        )?;
+        let mismatched_steering = validate_native_actuator_profile_smoke_preflight(
+            "hid-0x346E-0x0004-if2-0x0001-0x0004",
+            dir.path(),
+            Some(&dir.path().join("low-torque-proof.json")),
+            Some(&dir.path().join("steering-angle-stream-proof.json")),
+            Some(&dir.path().join("native-actuator-profile-smoke.json")),
+            false,
+        )
+        .err()
+        .map(|error| error.to_string())
+        .ok_or("expected steering PID mismatch rejection")?;
+        assert!(mismatched_steering.contains("steering proof PID"));
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn actuator_profile_smoke_actual_requires_exact_endpoint_before_hid_open() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_native_actuator_profile_prerequisite_receipts(dir.path())?;
+
+        let result = actuator_profile_smoke(ActuatorProfileSmokeRequest {
+            json: false,
+            selector: "0x346E:0x0004",
+            lane: dir.path(),
+            low_torque_proof: Some(&dir.path().join("low-torque-proof.json")),
+            steering_proof: Some(&dir.path().join("steering-angle-stream-proof.json")),
+            profile: MozaActuatorProfile::ConstantLowForce,
+            strategy: MozaLowTorqueStrategy::PidffBoundedEffect,
+            dry_run: false,
+            confirm_actuator_profile: true,
+            max_percent: 1.0,
+            duration_ms: 150,
+            json_out: Some(&dir.path().join("native-actuator-profile-smoke.json")),
+        })
+        .await;
+
+        let message = result
+            .err()
+            .map(|error| error.to_string())
+            .ok_or("expected exact endpoint preflight failure")?;
+        assert!(message.contains("lane manifest wheelbase endpoint selector"));
+        assert!(
+            !dir.path()
+                .join("native-actuator-profile-smoke.json")
+                .exists()
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn execute_pidff_actuator_profile_sequence_records_setup_and_cleanup() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        let receipt = successful_native_actuator_profile_receipt(dir.path())?;
+        write_test_json_file(
+            &dir.path().join("native-actuator-profile-smoke.json"),
+            &receipt,
+        )?;
+
+        let records = receipt
+            .get("command_log")
+            .and_then(Value::as_array)
+            .ok_or("expected actuator profile command log")?;
+        assert_eq!(records.len(), 4);
+        assert_eq!(json_u64(&receipt, "write_attempts"), Some(4));
+        assert_eq!(json_u64(&receipt, "writes_ok"), Some(4));
+        assert!(records.iter().all(|record| {
+            json_string(record, "report_id")
+                .map(|report_id| report_id != DIRECT_TORQUE_REPORT_ID)
+                .unwrap_or(false)
+        }));
+        assert!(records.iter().any(|record| {
+            json_string(record, "kind") == Some("final_stop_all")
+                && json_string(record, "payload_hex") == Some("0C04")
+        }));
+
+        let gate = verify_native_actuator_profile_smoke_gate(dir.path());
+        assert_eq!(
+            gate.status, "pass",
+            "expected native actuator gate pass: {}",
+            gate.details
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn verify_native_actuator_profile_gate_rejects_direct_report_log() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        let mut receipt = successful_native_actuator_profile_receipt(dir.path())?;
+        let records = receipt
+            .get_mut("command_log")
+            .and_then(Value::as_array_mut)
+            .ok_or("expected actuator profile command log")?;
+        let record = records
+            .get_mut(1)
+            .ok_or("expected bounded PIDFF command record")?;
+        record["report_id"] = serde_json::json!(DIRECT_TORQUE_REPORT_ID);
+        write_test_json_file(
+            &dir.path().join("native-actuator-profile-smoke.json"),
+            &receipt,
+        )?;
+
+        let gate = verify_native_actuator_profile_smoke_gate(dir.path());
+
+        assert_eq!(gate.status, "fail");
+        assert!(gate.details.contains("command_log_no_direct_report=false"));
+        Ok(())
+    }
+
+    #[test]
+    fn verify_native_actuator_profile_gate_rejects_missing_pidff_setup_proof() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        let mut receipt = successful_native_actuator_profile_receipt(dir.path())?;
+        receipt["pidff_effect_setup_proven"] = serde_json::json!(false);
+        write_test_json_file(
+            &dir.path().join("native-actuator-profile-smoke.json"),
+            &receipt,
+        )?;
+
+        let gate = verify_native_actuator_profile_smoke_gate(dir.path());
+
+        assert_eq!(gate.status, "fail");
+        assert!(
+            gate.details
+                .contains("pidff_effect_setup_proven=Some(false)")
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn verify_low_torque_gate_rejects_pidff_receipt_without_effect_setup_proof() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_pidff_low_torque_prerequisite_receipts(dir.path())?;
+        let mut receipt = real_pidff_low_torque_receipt_for_lane(dir.path())?;
+        receipt["pidff_effect_setup_proven"] = serde_json::json!(false);
+        write_test_json_file(&dir.path().join("low-torque-proof.json"), &receipt)?;
+
+        let gate = verify_low_torque_gate(dir.path());
+
+        assert_eq!(gate.status, "fail");
+        assert!(
+            gate.details.contains("pidff_effect_setup_proven")
+                && gate.details.contains("pidff_effect_frontier_clear=true"),
+            "PIDFF low-torque receipts must not pass until effect setup/allocation proof is explicit, even after descriptor encoder metadata is clear: {}",
+            gate.details
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn verify_low_torque_gate_rejects_pidff_receipt_with_direct_report() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_pidff_low_torque_prerequisite_receipts(dir.path())?;
+        let mut receipt = real_pidff_low_torque_receipt_for_lane(dir.path())?;
+        let command_log = receipt
+            .get_mut("command_log")
+            .and_then(Value::as_array_mut)
+            .ok_or("expected command log")?;
+        let first = command_log.first_mut().ok_or("expected first command")?;
+        first["report_id"] = serde_json::json!("0x20");
+        first["report_len"] = serde_json::json!(8);
+        first["payload_hex"] = serde_json::json!("2001000000000000");
+        first["bytes_written"] = serde_json::json!(8);
+        write_test_json_file(&dir.path().join("low-torque-proof.json"), &receipt)?;
+
+        let gate = verify_low_torque_gate(dir.path());
+
+        assert_eq!(gate.status, "fail");
+        assert!(
+            gate.details.contains("command_log_safe=false"),
+            "expected PIDFF verifier to reject direct report payloads: {}",
+            gate.details
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn verify_low_torque_gate_rejects_pidff_receipt_with_direct_strategy_label() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_pidff_low_torque_prerequisite_receipts(dir.path())?;
+        let mut receipt = real_pidff_low_torque_receipt_for_lane(dir.path())?;
+        receipt["low_torque_strategy"] = serde_json::json!("direct_report_0x20");
+        write_test_json_file(&dir.path().join("low-torque-proof.json"), &receipt)?;
+
+        let gate = verify_low_torque_gate(dir.path());
+
+        assert_eq!(gate.status, "fail");
+        assert!(
+            gate.details.contains("command_log_safe=false")
+                || gate.details.contains("direct_mode_gate_satisfied"),
+            "expected direct verifier to reject PIDFF-shaped receipt: {}",
+            gate.details
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn verify_low_torque_gate_rejects_pidff_receipt_with_loose_selector() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_pidff_low_torque_prerequisite_receipts(dir.path())?;
+        let mut receipt = real_pidff_low_torque_receipt_for_lane(dir.path())?;
+        receipt["selector"] = serde_json::json!("0x346E:0x0004");
+        write_test_json_file(&dir.path().join("low-torque-proof.json"), &receipt)?;
+
+        let gate = verify_low_torque_gate(dir.path());
+
+        assert_eq!(gate.status, "fail");
+        assert!(
+            gate.details
+                .contains("selector_matches_lane_endpoint=false"),
+            "expected loose selector failure: {}",
+            gate.details
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn verify_low_torque_gate_rejects_pidff_receipt_with_wrong_interface() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_pidff_low_torque_prerequisite_receipts(dir.path())?;
+        let mut receipt = real_pidff_low_torque_receipt_for_lane(dir.path())?;
+        receipt["selector"] = serde_json::json!("hid-0x346E-0x0004-if1-0x0001-0x0004");
+        write_test_json_file(&dir.path().join("low-torque-proof.json"), &receipt)?;
+
+        let gate = verify_low_torque_gate(dir.path());
+
+        assert_eq!(gate.status, "fail");
+        assert!(
+            gate.details
+                .contains("selector_matches_lane_endpoint=false"),
+            "expected wrong interface selector failure: {}",
+            gate.details
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn verify_low_torque_gate_rejects_pidff_receipt_without_final_stop_all() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_pidff_low_torque_prerequisite_receipts(dir.path())?;
+        let mut receipt = real_pidff_low_torque_receipt_for_lane(dir.path())?;
+        receipt["final_stop_all_sent"] = serde_json::json!(false);
+        let command_log = receipt
+            .get_mut("command_log")
+            .and_then(Value::as_array_mut)
+            .ok_or("expected command log")?;
+        let _ = command_log.pop();
+        receipt["writes_ok"] = serde_json::json!(1);
+        write_test_json_file(&dir.path().join("low-torque-proof.json"), &receipt)?;
+
+        let gate = verify_low_torque_gate(dir.path());
+
+        assert_eq!(gate.status, "fail");
+        assert!(
+            gate.details.contains("final_stop_all_sent=Some(false)")
+                || gate.details.contains("command_log_safe=false"),
+            "expected missing final Stop All failure: {}",
+            gate.details
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn verify_low_torque_gate_rejects_pidff_receipt_with_high_torque_flag() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_pidff_low_torque_prerequisite_receipts(dir.path())?;
+        let mut receipt = real_pidff_low_torque_receipt_for_lane(dir.path())?;
+        receipt["high_torque"] = serde_json::json!(true);
+        write_test_json_file(&dir.path().join("low-torque-proof.json"), &receipt)?;
+
+        let gate = verify_low_torque_gate(dir.path());
+
+        assert_eq!(gate.status, "fail");
+        assert!(
+            gate.details.contains("high_torque=Some(true)"),
+            "expected high torque flag failure: {}",
+            gate.details
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn verify_low_torque_gate_rejects_pidff_receipt_with_serial_or_firmware_flags() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_pidff_low_torque_prerequisite_receipts(dir.path())?;
+        let mut receipt = real_pidff_low_torque_receipt_for_lane(dir.path())?;
+        receipt["no_serial_config_commands"] = serde_json::json!(false);
+        receipt["no_firmware_or_dfu_commands"] = serde_json::json!(false);
+        write_test_json_file(&dir.path().join("low-torque-proof.json"), &receipt)?;
+
+        let gate = verify_low_torque_gate(dir.path());
+
+        assert_eq!(gate.status, "fail");
+        assert!(
+            gate.details.contains("no_out_of_scope=false"),
+            "expected serial/firmware safety flag failure: {}",
+            gate.details
+        );
+        Ok(())
+    }
+
+    #[test]
     fn verify_init_receipt_gate_accepts_off_and_standard_receipts() -> TestResult {
         let dir = tempfile::tempdir()?;
-        write_test_json_file(&dir.path().join("init-off.json"), &real_init_receipt("off"))?;
+        write_zero_torque_ready_manifest(dir.path())?;
+        write_test_json_file(
+            &dir.path().join("init-off.json"),
+            &receipt_with_lane_path(dir.path(), "init-off.json", real_init_receipt("off")),
+        )?;
         write_test_json_file(
             &dir.path().join("init-standard.json"),
-            &real_init_receipt("standard"),
+            &receipt_with_lane_path(
+                dir.path(),
+                "init-standard.json",
+                real_init_receipt("standard"),
+            ),
         )?;
 
         let off_gate =
@@ -17344,8 +28464,78 @@ mod tests {
     }
 
     #[test]
+    fn verify_init_receipt_gate_accepts_r5_v1_mode_only_receipts() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_zero_torque_ready_r5_v1_manifest(dir.path())?;
+        write_test_json_file(
+            &dir.path().join("init-off.json"),
+            &receipt_with_lane_path(dir.path(), "init-off.json", real_r5_v1_init_receipt("off")),
+        )?;
+
+        let off_gate =
+            verify_init_receipt_gate(dir.path(), "init_off_handshake", "init-off.json", "off");
+
+        assert_eq!(off_gate.status, "pass");
+        Ok(())
+    }
+
+    #[test]
+    fn verify_init_receipt_gate_requires_lane_endpoint_selector() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_zero_torque_ready_manifest(dir.path())?;
+        let mut missing_selector = real_init_receipt("standard");
+        missing_selector
+            .as_object_mut()
+            .ok_or("expected init receipt object")?
+            .remove("selector");
+        write_test_json_file(
+            &dir.path().join("init-standard.json"),
+            &receipt_with_lane_path(dir.path(), "init-standard.json", missing_selector),
+        )?;
+
+        let gate = verify_init_receipt_gate(
+            dir.path(),
+            "init_standard_handshake",
+            "init-standard.json",
+            "standard",
+        );
+
+        assert_eq!(gate.status, "fail");
+        assert!(
+            gate.details
+                .contains("selector_matches_lane_endpoint=false"),
+            "expected missing selector to fail lane endpoint matching, got {}",
+            gate.details
+        );
+
+        let mut loose_selector = real_init_receipt("standard");
+        loose_selector["selector"] = serde_json::json!("0x346E:0x0014");
+        write_test_json_file(
+            &dir.path().join("init-standard.json"),
+            &receipt_with_lane_path(dir.path(), "init-standard.json", loose_selector),
+        )?;
+
+        let gate = verify_init_receipt_gate(
+            dir.path(),
+            "init_standard_handshake",
+            "init-standard.json",
+            "standard",
+        );
+
+        assert_eq!(gate.status, "fail");
+        assert!(
+            gate.details
+                .contains("selector_matches_lane_endpoint=false"),
+            "expected loose selector to fail lane endpoint matching, got {}",
+            gate.details
+        );
+        Ok(())
+    }
+
+    #[test]
     fn verify_init_receipt_gate_rejects_high_torque_report() -> TestResult {
         let dir = tempfile::tempdir()?;
+        write_zero_torque_ready_manifest(dir.path())?;
         let mut receipt = real_init_receipt("standard");
         receipt["feature_reports"] = serde_json::json!([
             {
@@ -17365,7 +28555,10 @@ mod tests {
                 "bytes_written": 4
             }
         ]);
-        write_test_json_file(&dir.path().join("init-standard.json"), &receipt)?;
+        write_test_json_file(
+            &dir.path().join("init-standard.json"),
+            &receipt_with_lane_path(dir.path(), "init-standard.json", receipt),
+        )?;
 
         let gate = verify_init_receipt_gate(
             dir.path(),
@@ -17381,6 +28574,7 @@ mod tests {
     #[test]
     fn verify_init_receipt_gate_requires_full_feature_report_writes() -> TestResult {
         let dir = tempfile::tempdir()?;
+        write_zero_torque_ready_manifest(dir.path())?;
         let mut receipt = real_init_receipt("standard");
         let reports = receipt
             .get_mut("feature_reports")
@@ -17390,7 +28584,10 @@ mod tests {
         if let Some(object) = report.as_object_mut() {
             object.remove("bytes_written");
         }
-        write_test_json_file(&dir.path().join("init-standard.json"), &receipt)?;
+        write_test_json_file(
+            &dir.path().join("init-standard.json"),
+            &receipt_with_lane_path(dir.path(), "init-standard.json", receipt),
+        )?;
 
         let gate = verify_init_receipt_gate(
             dir.path(),
@@ -17411,6 +28608,7 @@ mod tests {
     #[test]
     fn verify_init_receipt_gate_requires_ordered_feature_report_sequence() -> TestResult {
         let dir = tempfile::tempdir()?;
+        write_zero_torque_ready_manifest(dir.path())?;
         let mut receipt = real_init_receipt("standard");
         let reports = receipt
             .get_mut("feature_reports")
@@ -17418,7 +28616,10 @@ mod tests {
             .ok_or("expected feature reports")?;
         let report = reports.get_mut(0).ok_or("expected start report")?;
         report["sequence"] = serde_json::json!(1);
-        write_test_json_file(&dir.path().join("init-standard.json"), &receipt)?;
+        write_test_json_file(
+            &dir.path().join("init-standard.json"),
+            &receipt_with_lane_path(dir.path(), "init-standard.json", receipt),
+        )?;
 
         let gate = verify_init_receipt_gate(
             dir.path(),
@@ -17439,9 +28640,13 @@ mod tests {
     #[test]
     fn verify_init_receipt_gate_requires_r5_output_device() -> TestResult {
         let dir = tempfile::tempdir()?;
+        write_zero_torque_ready_manifest(dir.path())?;
         let mut receipt = real_init_receipt("standard");
         receipt["device"]["product_id"] = serde_json::json!("0x0008");
-        write_test_json_file(&dir.path().join("init-standard.json"), &receipt)?;
+        write_test_json_file(
+            &dir.path().join("init-standard.json"),
+            &receipt_with_lane_path(dir.path(), "init-standard.json", receipt),
+        )?;
 
         let gate = verify_init_receipt_gate(
             dir.path(),
@@ -17457,7 +28662,12 @@ mod tests {
     #[test]
     fn verify_init_receipt_gate_rejects_stale_receipt_path() -> TestResult {
         let dir = tempfile::tempdir()?;
-        let mut receipt = real_init_receipt("standard");
+        write_zero_torque_ready_manifest(dir.path())?;
+        let mut receipt = receipt_with_lane_path(
+            dir.path(),
+            "init-standard.json",
+            real_init_receipt("standard"),
+        );
         receipt["receipt_path"] = serde_json::json!(
             dir.path()
                 .join("other/init-standard.json")
@@ -17487,12 +28697,12 @@ mod tests {
         let dir = tempfile::tempdir()?;
         write_test_json_file(
             &dir.path().join("watchdog-proof.json"),
-            &real_watchdog_receipt(3),
+            &receipt_with_lane_path(dir.path(), "watchdog-proof.json", real_watchdog_receipt(3)),
         )?;
 
         let gate = verify_watchdog_proof_gate(dir.path());
 
-        assert_eq!(gate.status, "pass");
+        assert_eq!(gate.status, "pass", "{}", gate.details);
         Ok(())
     }
 
@@ -17566,6 +28776,48 @@ mod tests {
         if let Some(map) = receipt.as_object_mut() {
             map.remove("no_firmware_or_dfu_commands");
         }
+        write_test_json_file(&dir.path().join("zero-torque-proof.json"), &receipt)?;
+
+        let gate = verify_zero_torque_gate(dir.path());
+
+        assert_eq!(gate.status, "fail");
+        Ok(())
+    }
+
+    #[test]
+    fn verify_zero_torque_gate_accepts_pidff_stop_all_padded_write_receipt() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_test_json_file(
+            &dir.path().join("zero-torque-proof.json"),
+            &receipt_with_lane_path(
+                dir.path(),
+                "zero-torque-proof.json",
+                real_pidff_zero_receipt(100),
+            ),
+        )?;
+
+        let gate = verify_zero_torque_gate(dir.path());
+
+        assert_eq!(gate.status, "pass");
+        Ok(())
+    }
+
+    #[test]
+    fn verify_zero_torque_gate_rejects_short_pidff_stop_all_write_receipt() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        let mut receipt = receipt_with_lane_path(
+            dir.path(),
+            "zero-torque-proof.json",
+            real_pidff_zero_receipt(100),
+        );
+        let records = receipt
+            .get_mut("command_log")
+            .and_then(Value::as_array_mut)
+            .ok_or("expected command log")?;
+        let first = records
+            .first_mut()
+            .ok_or("expected scheduled zero record")?;
+        first["bytes_written"] = serde_json::json!(1);
         write_test_json_file(&dir.path().join("zero-torque-proof.json"), &receipt)?;
 
         let gate = verify_zero_torque_gate(dir.path());
@@ -17675,12 +28927,55 @@ mod tests {
         let dir = tempfile::tempdir()?;
         write_test_json_file(
             &dir.path().join("disconnect-proof.json"),
-            &real_disconnect_receipt(),
+            &receipt_with_lane_path(
+                dir.path(),
+                "disconnect-proof.json",
+                real_disconnect_receipt(),
+            ),
         )?;
 
         let gate = verify_disconnect_proof_gate(dir.path());
 
         assert_eq!(gate.status, "pass");
+        Ok(())
+    }
+
+    #[test]
+    fn verify_disconnect_proof_gate_accepts_bounded_command_log_summary() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_test_json_file(
+            &dir.path().join("disconnect-proof.json"),
+            &receipt_with_lane_path(
+                dir.path(),
+                "disconnect-proof.json",
+                bounded_disconnect_receipt()?,
+            ),
+        )?;
+
+        let gate = verify_disconnect_proof_gate(dir.path());
+
+        assert_eq!(gate.status, "pass");
+        Ok(())
+    }
+
+    #[test]
+    fn verify_disconnect_proof_gate_rejects_mismatched_bounded_summary() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        let mut receipt = bounded_disconnect_receipt()?;
+        receipt["command_log_summary"]["scheduled_zero_writes"] = serde_json::json!(9);
+        write_test_json_file(
+            &dir.path().join("disconnect-proof.json"),
+            &receipt_with_lane_path(dir.path(), "disconnect-proof.json", receipt),
+        )?;
+
+        let gate = verify_disconnect_proof_gate(dir.path());
+
+        assert_eq!(gate.status, "fail");
+        assert!(
+            gate.details.contains("command_log_safe=false"),
+            "expected command log summary failure, got {}",
+            gate.details
+        );
         Ok(())
     }
 
@@ -18938,6 +30233,7 @@ mod tests {
             Some(SIMULATOR_FFB_WRITER_COMMAND)
         );
         assert_eq!(json_string(&ffb, "writer_started_at_utc"), Some(""));
+        assert_eq!(json_string(&ffb, "writer_endpoint_selector"), Some(""));
         assert_eq!(
             json_string(&ffb, "input_telemetry_recorder_session_id"),
             Some("")
@@ -18996,6 +30292,7 @@ mod tests {
             game: "simhub-bridge",
             telemetry_source: "simhub_bridge",
             output_log_artifact: Path::new("simulator-ffb-output.jsonl"),
+            strategy: MozaLowTorqueStrategy::DirectReport0x20,
             descriptor_trusted: true,
             explicit_operator_override: false,
             watchdog_timeout_ms: 100,
@@ -19021,6 +30318,10 @@ mod tests {
             json_string(&receipt, "writer_command"),
             Some(SIMULATOR_FFB_WRITER_COMMAND)
         );
+        assert_eq!(
+            json_string(&receipt, "writer_endpoint_selector"),
+            Some("hid-0x346E-0x0014-if2-0x0001-0x0004")
+        );
         assert!(path_value_matches(
             dir.path(),
             json_string(&receipt, "writer_hardware_lane")
@@ -19037,6 +30338,221 @@ mod tests {
         );
         let gate = verify_simulator_ffb_gate(dir.path());
         assert_eq!(gate.status, "pass");
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn simulator_ffb_smoke_accepts_pidff_bounded_effect_receipt() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_simulator_pidff_artifacts(dir.path())?;
+
+        simulator_ffb_smoke(SimulatorFfbSmokeRequest {
+            json: false,
+            lane: dir.path(),
+            game: "simhub-bridge",
+            telemetry_source: "simhub_bridge",
+            output_log_artifact: Path::new("simulator-ffb-output.jsonl"),
+            strategy: MozaLowTorqueStrategy::PidffBoundedEffect,
+            descriptor_trusted: true,
+            explicit_operator_override: false,
+            watchdog_timeout_ms: 100,
+            stop_cleared_output: true,
+            pause_cleared_output: true,
+            game_exit_cleared_output: true,
+            json_out: None,
+            overwrite: false,
+        })
+        .await?;
+
+        let receipt = read_json_path(&dir.path().join("simulator-ffb-smoke.json"))?;
+        assert_eq!(json_string(&receipt, "ffb_mode"), Some("pidff"));
+        assert_eq!(
+            json_string(&receipt, "output_strategy"),
+            Some("pidff_bounded_effect")
+        );
+        assert_eq!(json_bool(&receipt, "no_direct_torque_reports"), Some(true));
+        assert_eq!(json_string(&receipt, "final_zero_report_id"), Some("0x0C"));
+        assert_eq!(
+            json_string(&receipt, "final_zero_payload_hex"),
+            Some("0C04")
+        );
+
+        let gate = verify_simulator_ffb_gate(dir.path());
+        assert_eq!(gate.status, "pass", "{}", gate.details);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn simulator_ffb_smoke_rejects_pidff_missing_final_stop_all() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_simulator_pidff_artifacts(dir.path())?;
+        write_simulator_pidff_output_jsonl_mutated(
+            &dir.path().join("simulator-ffb-output.jsonl"),
+            12,
+            5,
+            |sequence, record| {
+                if sequence == 18 {
+                    record["kind"] = serde_json::json!("clear_zero");
+                    record["clear_event"] = serde_json::json!("mode_mismatch");
+                }
+            },
+        )?;
+
+        let result = simulator_ffb_smoke(SimulatorFfbSmokeRequest {
+            json: false,
+            lane: dir.path(),
+            game: "simhub-bridge",
+            telemetry_source: "simhub_bridge",
+            output_log_artifact: Path::new("simulator-ffb-output.jsonl"),
+            strategy: MozaLowTorqueStrategy::PidffBoundedEffect,
+            descriptor_trusted: true,
+            explicit_operator_override: false,
+            watchdog_timeout_ms: 100,
+            stop_cleared_output: true,
+            pause_cleared_output: true,
+            game_exit_cleared_output: true,
+            json_out: None,
+            overwrite: false,
+        })
+        .await;
+
+        assert!(result.is_err());
+        let receipt = read_json_path(&dir.path().join("simulator-ffb-smoke.json"))?;
+        assert_eq!(json_bool(&receipt, "success"), Some(false));
+        assert_eq!(json_bool(&receipt, "final_zero_attempted"), Some(false));
+        let gate = verify_simulator_ffb_gate(dir.path());
+        assert_eq!(gate.status, "fail");
+        assert!(gate.details.contains("final_zero_attempted=Some(false)"));
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn simulator_ffb_smoke_rejects_pidff_output_log_with_direct_report() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_simulator_pidff_artifacts(dir.path())?;
+        write_simulator_pidff_output_jsonl_mutated(
+            &dir.path().join("simulator-ffb-output.jsonl"),
+            12,
+            5,
+            |sequence, record| {
+                if sequence == 2 {
+                    record["payload_hex"] = serde_json::json!("2001000000000000");
+                    record["report_id"] = serde_json::json!("0x20");
+                    record["report_len"] = serde_json::json!(8);
+                    record["torque_raw"] = serde_json::json!(1);
+                    record["bytes_written"] = serde_json::json!(8);
+                }
+            },
+        )?;
+
+        let result = simulator_ffb_smoke(SimulatorFfbSmokeRequest {
+            json: false,
+            lane: dir.path(),
+            game: "simhub-bridge",
+            telemetry_source: "simhub_bridge",
+            output_log_artifact: Path::new("simulator-ffb-output.jsonl"),
+            strategy: MozaLowTorqueStrategy::PidffBoundedEffect,
+            descriptor_trusted: true,
+            explicit_operator_override: false,
+            watchdog_timeout_ms: 100,
+            stop_cleared_output: true,
+            pause_cleared_output: true,
+            game_exit_cleared_output: true,
+            json_out: None,
+            overwrite: false,
+        })
+        .await;
+
+        assert!(result.is_err());
+        let receipt = read_json_path(&dir.path().join("simulator-ffb-smoke.json"))?;
+        assert_eq!(json_bool(&receipt, "success"), Some(false));
+        assert_eq!(json_bool(&receipt, "no_direct_torque_reports"), Some(true));
+        let gate = verify_simulator_ffb_gate(dir.path());
+        assert_eq!(gate.status, "fail");
+        assert!(gate.details.contains("output_log_artifact_valid=false"));
+        Ok(())
+    }
+
+    #[test]
+    fn verify_simulator_ffb_gate_rejects_pidff_receipt_with_direct_output_log() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_simulator_pidff_artifacts(dir.path())?;
+        write_simulator_ffb_output_jsonl_mutated(
+            &dir.path().join("simulator-ffb-output.jsonl"),
+            20,
+            12,
+            8,
+            |_, record| {
+                record["writer_product_id"] = serde_json::json!("0x0004");
+                record["writer_endpoint_selector"] =
+                    serde_json::json!("hid-0x346E-0x0004-if2-0x0001-0x0004");
+                record["writer_device_path"] =
+                    serde_json::json!("\\\\?\\hid#vid_346e&pid_0004&mi_02");
+                record["product_id"] = serde_json::json!("0x0004");
+            },
+        )?;
+        let mut receipt = simulator_ffb_receipt();
+        receipt["device"]["product_id"] = serde_json::json!("0x0004");
+        receipt["ffb_mode"] = serde_json::json!("pidff");
+        receipt["output_strategy"] = serde_json::json!("pidff_bounded_effect");
+        receipt["descriptor_trusted"] = serde_json::json!(true);
+        receipt["explicit_operator_override"] = serde_json::json!(false);
+        receipt["no_direct_torque_reports"] = serde_json::json!(true);
+        receipt["writer_product_id"] = serde_json::json!("0x0004");
+        receipt["writer_endpoint_selector"] =
+            serde_json::json!("hid-0x346E-0x0004-if2-0x0001-0x0004");
+        receipt["writer_device_path"] = serde_json::json!("\\\\?\\hid#vid_346e&pid_0004&mi_02");
+        receipt["writer_hardware_lane"] = serde_json::json!(dir.path().display().to_string());
+        receipt["output_report_count"] = serde_json::json!(20);
+        receipt["nonzero_output_count"] = serde_json::json!(12);
+        receipt["zero_output_count"] = serde_json::json!(8);
+        receipt["max_output_percent"] = serde_json::json!(2.0);
+        receipt["max_abs_output_percent"] = serde_json::json!(2.0);
+        write_test_json_file(&dir.path().join("simulator-ffb-smoke.json"), &receipt)?;
+
+        let gate = verify_simulator_ffb_gate(dir.path());
+
+        assert_eq!(gate.status, "fail");
+        assert!(
+            gate.details.contains("output_log_artifact_valid=false"),
+            "expected PIDFF/direct output-log confusion to fail, got {}",
+            gate.details
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn smoke_ready_next_commands_use_pidff_strategy_after_pidff_low_torque() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_simulator_pidff_artifacts(dir.path())?;
+
+        let gates = [
+            "init_off_handshake",
+            "init_standard_handshake",
+            "service_status_receipts",
+            "low_torque_bounded",
+            "simulator_telemetry",
+        ]
+        .into_iter()
+        .map(|name| BundleGateCheck::pass(name, "ok".to_string()))
+        .chain(std::iter::once(BundleGateCheck::fail(
+            "simulator_ffb_bounded",
+            "missing".to_string(),
+        )))
+        .collect::<Vec<_>>();
+        let mut next_commands = Vec::new();
+        push_smoke_ready_next_commands(dir.path(), &gates, &mut next_commands);
+        let commands = next_commands.join("\n");
+
+        assert!(
+            commands.contains("wheelctl moza simulator-ffb-smoke")
+                && commands.contains("--strategy pidff-bounded-effect"),
+            "PIDFF low-torque lanes should carry PIDFF strategy into simulator FFB guidance: {commands}"
+        );
+        assert!(
+            !commands.contains("--strategy direct-report"),
+            "PIDFF simulator FFB guidance must not fall back to direct report 0x20: {commands}"
+        );
         Ok(())
     }
 
@@ -19072,6 +30588,7 @@ mod tests {
             game: "simhub-bridge",
             telemetry_source: "simhub_bridge",
             output_log_artifact: Path::new("simulator-ffb-output.jsonl"),
+            strategy: MozaLowTorqueStrategy::DirectReport0x20,
             descriptor_trusted: true,
             explicit_operator_override: false,
             watchdog_timeout_ms: 100,
@@ -19161,6 +30678,136 @@ mod tests {
         assert!(
             gate.details.contains("output_log_provenance_valid=false"),
             "expected stale writer lane provenance failure, got {}",
+            gate.details
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn verify_simulator_ffb_gate_requires_writer_endpoint_selector() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_simulator_artifacts(dir.path())?;
+
+        write_simulator_ffb_output_jsonl_mutated(
+            &dir.path().join("simulator-ffb-output.jsonl"),
+            240,
+            180,
+            60,
+            |_, record| {
+                if let Some(object) = record.as_object_mut() {
+                    object.remove("writer_endpoint_selector");
+                }
+            },
+        )?;
+        write_test_json_file(
+            &dir.path().join("simulator-ffb-smoke.json"),
+            &simulator_ffb_receipt(),
+        )?;
+
+        let gate = verify_simulator_ffb_gate(dir.path());
+
+        assert_eq!(gate.status, "fail");
+        assert!(
+            gate.details.contains("output_log_provenance_valid=false"),
+            "expected missing writer endpoint selector to fail output provenance, got {}",
+            gate.details
+        );
+
+        write_simulator_ffb_output_jsonl_mutated(
+            &dir.path().join("simulator-ffb-output.jsonl"),
+            240,
+            180,
+            60,
+            |_, record| {
+                record["writer_endpoint_selector"] = serde_json::json!("0x346E:0x0014");
+            },
+        )?;
+        write_test_json_file(
+            &dir.path().join("simulator-ffb-smoke.json"),
+            &simulator_ffb_receipt(),
+        )?;
+
+        let gate = verify_simulator_ffb_gate(dir.path());
+
+        assert_eq!(gate.status, "fail");
+        assert!(
+            gate.details.contains("output_log_provenance_valid=false"),
+            "expected loose writer endpoint selector to fail output provenance, got {}",
+            gate.details
+        );
+
+        write_simulator_ffb_output_jsonl_mutated(
+            &dir.path().join("simulator-ffb-output.jsonl"),
+            240,
+            180,
+            60,
+            |_, record| {
+                record["writer_endpoint_selector"] =
+                    serde_json::json!("hid-0x346E-0x0014-if1-0x0001-0x0004");
+            },
+        )?;
+        write_test_json_file(
+            &dir.path().join("simulator-ffb-smoke.json"),
+            &simulator_ffb_receipt(),
+        )?;
+
+        let gate = verify_simulator_ffb_gate(dir.path());
+
+        assert_eq!(gate.status, "fail");
+        assert!(
+            gate.details.contains("output_log_provenance_valid=false"),
+            "expected wrong-interface writer endpoint selector to fail output provenance, got {}",
+            gate.details
+        );
+
+        write_simulator_ffb_output_jsonl(
+            &dir.path().join("simulator-ffb-output.jsonl"),
+            240,
+            180,
+            60,
+        )?;
+        let mut receipt = simulator_ffb_receipt();
+        if let Some(object) = receipt.as_object_mut() {
+            object.remove("writer_endpoint_selector");
+        }
+        write_test_json_file(&dir.path().join("simulator-ffb-smoke.json"), &receipt)?;
+
+        let gate = verify_simulator_ffb_gate(dir.path());
+
+        assert_eq!(gate.status, "fail");
+        assert!(
+            gate.details
+                .contains("writer_selector_matches_lane_endpoint=false"),
+            "expected missing parent writer endpoint selector to fail lane matching, got {}",
+            gate.details
+        );
+
+        let mut receipt = simulator_ffb_receipt();
+        receipt["writer_endpoint_selector"] = serde_json::json!("0x346E:0x0014");
+        write_test_json_file(&dir.path().join("simulator-ffb-smoke.json"), &receipt)?;
+
+        let gate = verify_simulator_ffb_gate(dir.path());
+
+        assert_eq!(gate.status, "fail");
+        assert!(
+            gate.details
+                .contains("writer_selector_matches_lane_endpoint=false"),
+            "expected loose parent writer endpoint selector to fail lane matching, got {}",
+            gate.details
+        );
+
+        let mut receipt = simulator_ffb_receipt();
+        receipt["writer_endpoint_selector"] =
+            serde_json::json!("hid-0x346E-0x0014-if1-0x0001-0x0004");
+        write_test_json_file(&dir.path().join("simulator-ffb-smoke.json"), &receipt)?;
+
+        let gate = verify_simulator_ffb_gate(dir.path());
+
+        assert_eq!(gate.status, "fail");
+        assert!(
+            gate.details
+                .contains("writer_selector_matches_lane_endpoint=false"),
+            "expected wrong-interface parent writer endpoint selector to fail lane matching, got {}",
             gate.details
         );
         Ok(())
@@ -20081,6 +31728,22 @@ mod tests {
     }
 
     #[test]
+    fn verify_manifest_gate_accepts_progressed_manifest_for_lower_stage_summaries() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_test_json_file(
+            &dir.path().join("manifest.json"),
+            &sample_lane_manifest("openracing_control_ready", true, false),
+        )?;
+
+        let passive = verify_manifest_gate(dir.path(), MozaBundleStage::Passive);
+        let zero = verify_manifest_gate(dir.path(), MozaBundleStage::Zero);
+
+        assert_eq!(passive.status, "pass");
+        assert_eq!(zero.status, "pass");
+        Ok(())
+    }
+
+    #[test]
     fn verify_bundle_passive_rejects_manifest_pid_mismatch() -> TestResult {
         let dir = tempfile::tempdir()?;
         write_minimal_passive_bundle(dir.path())?;
@@ -20101,6 +31764,47 @@ mod tests {
             gate.details.contains("0x0004") && gate.details.contains("0x0014"),
             "expected manifest/receipt PID mismatch details, got {}",
             gate.details
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn verify_bundle_passive_pid_gate_does_not_fail_on_missing_artifacts() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_minimal_passive_bundle(dir.path())?;
+        fs::remove_file(dir.path().join("captures/es-controls.jsonl"))?;
+        fs::remove_file(dir.path().join("fixture-promotion.json"))?;
+
+        let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::Passive);
+
+        assert!(!receipt.success);
+        let gate = receipt
+            .gates
+            .iter()
+            .find(|gate| gate.name == "manifest_r5_pid_consistency")
+            .ok_or("expected manifest PID gate")?;
+        assert_eq!(gate.status, "pass");
+        assert!(
+            gate.details.contains("matches available lane R5 receipts")
+                && gate.details.contains("unavailable PID evidence")
+                && gate.details.contains("captures/es-controls.jsonl")
+                && gate.details.contains("fixture:r5_idle"),
+            "expected missing PID evidence to be reported without failing the PID gate, got {}",
+            gate.details
+        );
+        assert!(
+            receipt
+                .gates
+                .iter()
+                .any(|gate| gate.name == "passive_captures_parse" && gate.status == "fail"),
+            "missing ES capture should still fail the passive capture gate"
+        );
+        assert!(
+            receipt
+                .gates
+                .iter()
+                .any(|gate| gate.name == "fixture_promotion" && gate.status == "fail"),
+            "missing fixture promotion should still fail the fixture gate"
         );
         Ok(())
     }
@@ -20324,6 +32028,968 @@ mod tests {
         Ok(())
     }
 
+    struct TopologyMatrixCase {
+        name: &'static str,
+        rims: &'static [&'static str],
+        pedals: &'static [&'static str],
+        handbrake: Option<&'static str>,
+        controls: &'static [(
+            &'static str,
+            &'static str,
+            Option<&'static str>,
+            &'static str,
+        )],
+        removed_captures: &'static [&'static str],
+        absent_artifacts: &'static [&'static str],
+    }
+
+    #[test]
+    fn verify_bundle_passive_accepts_declared_topology_matrix_without_fixed_kit_leakage()
+    -> TestResult {
+        let cases = [
+            TopologyMatrixCase {
+                name: "r5_ks_only",
+                rims: &["KS"],
+                pedals: &[],
+                handbrake: None,
+                controls: &[
+                    (
+                        "steering",
+                        "steering",
+                        None,
+                        "captures/r5-steering-sweep.jsonl",
+                    ),
+                    (
+                        "ks_rim_controls",
+                        "rim_controls",
+                        Some("KS"),
+                        "captures/ks-controls.jsonl",
+                    ),
+                ],
+                removed_captures: &[
+                    "captures/r5-throttle-only-sweep.jsonl",
+                    "captures/r5-brake-only-sweep.jsonl",
+                    "captures/r5-clutch-only-sweep.jsonl",
+                    "captures/r5-handbrake-only-sweep.jsonl",
+                    "captures/es-controls.jsonl",
+                ],
+                absent_artifacts: &[
+                    "captures/r5-throttle-only-sweep.jsonl",
+                    "captures/r5-brake-only-sweep.jsonl",
+                    "captures/r5-clutch-only-sweep.jsonl",
+                    "captures/r5-handbrake-only-sweep.jsonl",
+                    "captures/es-controls.jsonl",
+                    "captures/srp-standalone-sweep.jsonl",
+                    "captures/hbp-standalone-sweep.jsonl",
+                ],
+            },
+            TopologyMatrixCase {
+                name: "r5_es_only",
+                rims: &["ES"],
+                pedals: &[],
+                handbrake: None,
+                controls: &[
+                    (
+                        "steering",
+                        "steering",
+                        None,
+                        "captures/r5-steering-sweep.jsonl",
+                    ),
+                    (
+                        "es_rim_controls",
+                        "rim_controls",
+                        Some("ES"),
+                        "captures/es-controls.jsonl",
+                    ),
+                ],
+                removed_captures: &[
+                    "captures/r5-throttle-only-sweep.jsonl",
+                    "captures/r5-brake-only-sweep.jsonl",
+                    "captures/r5-clutch-only-sweep.jsonl",
+                    "captures/r5-handbrake-only-sweep.jsonl",
+                    "captures/ks-controls.jsonl",
+                ],
+                absent_artifacts: &[
+                    "captures/r5-throttle-only-sweep.jsonl",
+                    "captures/r5-brake-only-sweep.jsonl",
+                    "captures/r5-clutch-only-sweep.jsonl",
+                    "captures/r5-handbrake-only-sweep.jsonl",
+                    "captures/ks-controls.jsonl",
+                    "captures/srp-standalone-sweep.jsonl",
+                    "captures/hbp-standalone-sweep.jsonl",
+                ],
+            },
+            TopologyMatrixCase {
+                name: "r5_throttle_brake_no_clutch_or_handbrake",
+                rims: &[],
+                pedals: &["SR-P"],
+                handbrake: None,
+                controls: &[
+                    (
+                        "steering",
+                        "steering",
+                        None,
+                        "captures/r5-steering-sweep.jsonl",
+                    ),
+                    (
+                        "throttle",
+                        "throttle",
+                        None,
+                        "captures/r5-throttle-only-sweep.jsonl",
+                    ),
+                    ("brake", "brake", None, "captures/r5-brake-only-sweep.jsonl"),
+                ],
+                removed_captures: &[
+                    "captures/r5-clutch-only-sweep.jsonl",
+                    "captures/r5-handbrake-only-sweep.jsonl",
+                    "captures/ks-controls.jsonl",
+                    "captures/es-controls.jsonl",
+                ],
+                absent_artifacts: &[
+                    "captures/r5-clutch-only-sweep.jsonl",
+                    "captures/r5-handbrake-only-sweep.jsonl",
+                    "captures/ks-controls.jsonl",
+                    "captures/es-controls.jsonl",
+                    "captures/srp-standalone-sweep.jsonl",
+                    "captures/hbp-standalone-sweep.jsonl",
+                ],
+            },
+            TopologyMatrixCase {
+                name: "r5_hbp_through_hub",
+                rims: &[],
+                pedals: &[],
+                handbrake: Some("HBP"),
+                controls: &[
+                    (
+                        "steering",
+                        "steering",
+                        None,
+                        "captures/r5-steering-sweep.jsonl",
+                    ),
+                    (
+                        "handbrake",
+                        "handbrake",
+                        None,
+                        "captures/r5-handbrake-only-sweep.jsonl",
+                    ),
+                ],
+                removed_captures: &[
+                    "captures/r5-throttle-only-sweep.jsonl",
+                    "captures/r5-brake-only-sweep.jsonl",
+                    "captures/r5-clutch-only-sweep.jsonl",
+                    "captures/ks-controls.jsonl",
+                    "captures/es-controls.jsonl",
+                ],
+                absent_artifacts: &[
+                    "captures/r5-throttle-only-sweep.jsonl",
+                    "captures/r5-brake-only-sweep.jsonl",
+                    "captures/r5-clutch-only-sweep.jsonl",
+                    "captures/ks-controls.jsonl",
+                    "captures/es-controls.jsonl",
+                    "captures/srp-standalone-sweep.jsonl",
+                    "captures/hbp-standalone-sweep.jsonl",
+                ],
+            },
+        ];
+
+        for case in cases {
+            let dir = tempfile::tempdir()?;
+            write_minimal_passive_bundle(dir.path())?;
+            replace_observation_receipt_devices(dir.path(), &[sample_trusted_r5_json_device()])?;
+            set_declared_hardware(dir.path(), case.rims, case.pedals, case.handbrake)?;
+            set_required_hub_controls(dir.path(), case.controls)?;
+            remove_optional_capture_files(dir.path(), case.removed_captures)?;
+            refresh_passive_parser_receipts(dir.path())?;
+
+            let manifest = read_json_path(&dir.path().join("manifest.json"))?;
+            let schema_errors = manifest_schema_validation_errors(&manifest);
+            assert!(
+                schema_errors.is_empty(),
+                "{} schema errors: {schema_errors:?}",
+                case.name
+            );
+
+            let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::Passive);
+
+            assert!(
+                receipt.success,
+                "{} failed: {}",
+                case.name,
+                serde_json::to_string_pretty(&receipt)?
+            );
+            let selected_requirements = passive_capture_requirements_for_lane(dir.path());
+            for artifact in case.absent_artifacts {
+                assert!(
+                    receipt
+                        .artifacts
+                        .iter()
+                        .all(|receipt_artifact| receipt_artifact.path != *artifact),
+                    "{} unexpectedly required artifact {}",
+                    case.name,
+                    artifact
+                );
+                assert!(
+                    selected_requirements
+                        .iter()
+                        .all(|requirement| requirement.relative_path != *artifact),
+                    "{} unexpectedly selected capture {}",
+                    case.name,
+                    artifact
+                );
+            }
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn analyze_lane_scopes_missing_throttle_to_declared_topology_role() -> TestResult {
+        let ks_only = tempfile::tempdir()?;
+        write_minimal_passive_bundle(ks_only.path())?;
+        replace_observation_receipt_devices(ks_only.path(), &[sample_trusted_r5_json_device()])?;
+        set_declared_hardware(ks_only.path(), &["KS"], &[], None)?;
+        set_required_hub_controls(
+            ks_only.path(),
+            &[
+                (
+                    "steering",
+                    "steering",
+                    None,
+                    "captures/r5-steering-sweep.jsonl",
+                ),
+                (
+                    "ks_rim_controls",
+                    "rim_controls",
+                    Some("KS"),
+                    "captures/ks-controls.jsonl",
+                ),
+            ],
+        )?;
+        remove_optional_capture_files(
+            ks_only.path(),
+            &[
+                "captures/r5-throttle-only-sweep.jsonl",
+                "captures/r5-brake-only-sweep.jsonl",
+                "captures/r5-clutch-only-sweep.jsonl",
+                "captures/r5-handbrake-only-sweep.jsonl",
+                "captures/es-controls.jsonl",
+            ],
+        )?;
+
+        let ks_analysis = analyze_lane_captures(ks_only.path())?;
+
+        assert!(
+            ks_analysis.success,
+            "KS-only topology should not inherit throttle requirements: {}",
+            serde_json::to_string_pretty(&ks_analysis)?
+        );
+        assert!(ks_analysis.missing_control_evidence.is_empty());
+        assert!(
+            ks_analysis
+                .role_evidence
+                .iter()
+                .all(|entry| entry.role != "throttle")
+        );
+        assert!(
+            passive_capture_requirements_for_lane(ks_only.path())
+                .iter()
+                .all(|requirement| requirement.relative_path
+                    != "captures/r5-throttle-only-sweep.jsonl")
+        );
+
+        let throttle_required = tempfile::tempdir()?;
+        write_minimal_passive_bundle(throttle_required.path())?;
+        replace_observation_receipt_devices(
+            throttle_required.path(),
+            &[sample_trusted_r5_v1_json_device()],
+        )?;
+        set_declared_hardware(throttle_required.path(), &[], &["SR-P"], None)?;
+        set_required_hub_controls(
+            throttle_required.path(),
+            &[
+                (
+                    "steering",
+                    "steering",
+                    None,
+                    "captures/r5-steering-sweep.jsonl",
+                ),
+                (
+                    "throttle",
+                    "throttle",
+                    None,
+                    "captures/r5-throttle-only-sweep.jsonl",
+                ),
+            ],
+        )?;
+        remove_optional_capture_files(
+            throttle_required.path(),
+            &[
+                "captures/r5-brake-only-sweep.jsonl",
+                "captures/r5-clutch-only-sweep.jsonl",
+                "captures/r5-handbrake-only-sweep.jsonl",
+                "captures/ks-controls.jsonl",
+                "captures/es-controls.jsonl",
+            ],
+        )?;
+        write_text_file(
+            &throttle_required
+                .path()
+                .join("captures/r5-throttle-only-sweep.jsonl"),
+            &format!(
+                "{}\n{}",
+                capture_line(
+                    product_ids::R5_V1,
+                    &live_r5_v1_trailer_report_hex([0x00, 0x00, 0x00, 0x00])
+                ),
+                capture_line(
+                    product_ids::R5_V1,
+                    &live_r5_v1_trailer_report_hex([0x10, 0x20, 0x30, 0x40])
+                )
+            ),
+        )?;
+
+        let throttle_analysis = analyze_lane_captures(throttle_required.path())?;
+        let throttle_role = throttle_analysis
+            .role_evidence
+            .iter()
+            .find(|entry| entry.role == "throttle")
+            .ok_or("expected declared throttle role evidence")?;
+        let selected_requirements = passive_capture_requirements_for_lane(throttle_required.path());
+
+        assert!(!throttle_analysis.success);
+        assert_eq!(
+            throttle_analysis.missing_control_evidence,
+            vec!["captures/r5-throttle-only-sweep.jsonl".to_string()]
+        );
+        assert_eq!(throttle_role.semantic_status, "missing");
+        assert!(!throttle_role.parser_visible);
+        assert_eq!(
+            throttle_role.evidence_capture.as_deref(),
+            Some("captures/r5-throttle-only-sweep.jsonl")
+        );
+        assert!(
+            throttle_analysis
+                .role_evidence
+                .iter()
+                .all(|entry| entry.role != "brake"
+                    && entry.role != "clutch"
+                    && entry.role != "handbrake")
+        );
+        assert!(selected_requirements.iter().any(
+            |requirement| requirement.relative_path == "captures/r5-throttle-only-sweep.jsonl"
+        ));
+        for artifact in [
+            "captures/r5-brake-only-sweep.jsonl",
+            "captures/r5-clutch-only-sweep.jsonl",
+            "captures/r5-handbrake-only-sweep.jsonl",
+            "captures/ks-controls.jsonl",
+            "captures/es-controls.jsonl",
+            "captures/srp-standalone-sweep.jsonl",
+            "captures/hbp-standalone-sweep.jsonl",
+        ] {
+            assert!(
+                selected_requirements
+                    .iter()
+                    .all(|requirement| requirement.relative_path != artifact),
+                "throttle-required topology unexpectedly selected {artifact}"
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn verify_bundle_passive_allows_optional_absent_roles_without_placeholder_artifacts()
+    -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_minimal_passive_bundle(dir.path())?;
+        replace_observation_receipt_devices(dir.path(), &[sample_trusted_r5_json_device()])?;
+        set_declared_hardware(dir.path(), &[], &["SR-P"], None)?;
+        set_required_hub_controls(
+            dir.path(),
+            &[
+                (
+                    "steering",
+                    "steering",
+                    None,
+                    "captures/r5-steering-sweep.jsonl",
+                ),
+                (
+                    "throttle",
+                    "throttle",
+                    None,
+                    "captures/r5-throttle-only-sweep.jsonl",
+                ),
+                ("brake", "brake", None, "captures/r5-brake-only-sweep.jsonl"),
+            ],
+        )?;
+        let mut manifest = read_json_path(&dir.path().join("manifest.json"))?;
+        manifest["topology"]["logical_controls"]["clutch"] = serde_json::json!({
+            "role": "clutch",
+            "source_endpoint": "moza-r5-if2",
+            "connection": "wheelbase_hub",
+            "required": false,
+            "evidence_capture": "captures/r5-clutch-only-sweep.jsonl",
+            "semantic_status": "deferred"
+        });
+        write_test_json_file(&dir.path().join("manifest.json"), &manifest)?;
+        remove_optional_capture_files(
+            dir.path(),
+            &[
+                "captures/r5-clutch-only-sweep.jsonl",
+                "captures/r5-handbrake-only-sweep.jsonl",
+                "captures/ks-controls.jsonl",
+                "captures/es-controls.jsonl",
+            ],
+        )?;
+        refresh_passive_parser_receipts(dir.path())?;
+
+        let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::Passive);
+
+        assert!(
+            receipt.success,
+            "{}",
+            serde_json::to_string_pretty(&receipt)?
+        );
+        assert!(
+            passive_capture_requirements_for_lane(dir.path())
+                .iter()
+                .all(|requirement| requirement.relative_path
+                    != "captures/r5-clutch-only-sweep.jsonl")
+        );
+        assert!(
+            receipt
+                .artifacts
+                .iter()
+                .all(|artifact| artifact.path != "captures/r5-clutch-only-sweep.jsonl")
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn verify_bundle_passive_allows_optional_absent_handbrake_without_placeholder_artifacts()
+    -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_minimal_passive_bundle(dir.path())?;
+        replace_observation_receipt_devices(dir.path(), &[sample_trusted_r5_json_device()])?;
+        set_declared_hardware(dir.path(), &[], &["SR-P"], None)?;
+        set_required_hub_controls(
+            dir.path(),
+            &[
+                (
+                    "steering",
+                    "steering",
+                    None,
+                    "captures/r5-steering-sweep.jsonl",
+                ),
+                (
+                    "throttle",
+                    "throttle",
+                    None,
+                    "captures/r5-throttle-only-sweep.jsonl",
+                ),
+                ("brake", "brake", None, "captures/r5-brake-only-sweep.jsonl"),
+            ],
+        )?;
+        let mut manifest = read_json_path(&dir.path().join("manifest.json"))?;
+        manifest["topology"]["logical_controls"]["handbrake"] = serde_json::json!({
+            "role": "handbrake",
+            "source_endpoint": "moza-r5-if2",
+            "connection": "wheelbase_hub",
+            "required": false,
+            "evidence_capture": "captures/r5-handbrake-only-sweep.jsonl",
+            "semantic_status": "deferred"
+        });
+        write_test_json_file(&dir.path().join("manifest.json"), &manifest)?;
+        remove_optional_capture_files(
+            dir.path(),
+            &[
+                "captures/r5-clutch-only-sweep.jsonl",
+                "captures/r5-handbrake-only-sweep.jsonl",
+                "captures/ks-controls.jsonl",
+                "captures/es-controls.jsonl",
+            ],
+        )?;
+        refresh_passive_parser_receipts(dir.path())?;
+
+        let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::Passive);
+
+        assert!(
+            receipt.success,
+            "{}",
+            serde_json::to_string_pretty(&receipt)?
+        );
+        assert!(
+            passive_capture_requirements_for_lane(dir.path())
+                .iter()
+                .all(|requirement| requirement.relative_path
+                    != "captures/r5-handbrake-only-sweep.jsonl"
+                    && requirement.relative_path != "captures/hbp-standalone-sweep.jsonl")
+        );
+        assert!(receipt.artifacts.iter().all(|artifact| artifact.path
+            != "captures/r5-handbrake-only-sweep.jsonl"
+            && artifact.path != "captures/hbp-standalone-sweep.jsonl"));
+        Ok(())
+    }
+
+    #[test]
+    fn verify_bundle_passive_accepts_r5_ks_only_topology() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_minimal_passive_bundle(dir.path())?;
+        set_required_hub_controls(
+            dir.path(),
+            &[
+                (
+                    "steering",
+                    "steering",
+                    None,
+                    "captures/r5-steering-sweep.jsonl",
+                ),
+                (
+                    "ks_rim_controls",
+                    "rim_controls",
+                    Some("KS"),
+                    "captures/ks-controls.jsonl",
+                ),
+            ],
+        )?;
+        remove_optional_capture_files(
+            dir.path(),
+            &[
+                "captures/r5-throttle-only-sweep.jsonl",
+                "captures/r5-brake-only-sweep.jsonl",
+                "captures/r5-clutch-only-sweep.jsonl",
+                "captures/r5-handbrake-only-sweep.jsonl",
+                "captures/es-controls.jsonl",
+            ],
+        )?;
+        refresh_passive_parser_receipts(dir.path())?;
+
+        let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::Passive);
+
+        assert!(
+            receipt.success,
+            "{}",
+            serde_json::to_string_pretty(&receipt)?
+        );
+        assert!(
+            receipt
+                .artifacts
+                .iter()
+                .all(|artifact| artifact.path != "captures/es-controls.jsonl"
+                    && artifact.path != "captures/r5-throttle-only-sweep.jsonl")
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn verify_bundle_passive_accepts_r5_es_only_topology() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_minimal_passive_bundle(dir.path())?;
+        set_required_hub_controls(
+            dir.path(),
+            &[
+                (
+                    "steering",
+                    "steering",
+                    None,
+                    "captures/r5-steering-sweep.jsonl",
+                ),
+                (
+                    "es_rim_controls",
+                    "rim_controls",
+                    Some("ES"),
+                    "captures/es-controls.jsonl",
+                ),
+            ],
+        )?;
+        remove_optional_capture_files(
+            dir.path(),
+            &[
+                "captures/r5-throttle-only-sweep.jsonl",
+                "captures/r5-brake-only-sweep.jsonl",
+                "captures/r5-clutch-only-sweep.jsonl",
+                "captures/r5-handbrake-only-sweep.jsonl",
+                "captures/ks-controls.jsonl",
+            ],
+        )?;
+        refresh_passive_parser_receipts(dir.path())?;
+
+        let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::Passive);
+
+        assert!(
+            receipt.success,
+            "{}",
+            serde_json::to_string_pretty(&receipt)?
+        );
+        assert!(
+            receipt
+                .artifacts
+                .iter()
+                .all(|artifact| artifact.path != "captures/ks-controls.jsonl"
+                    && artifact.path != "captures/r5-clutch-only-sweep.jsonl")
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn verify_bundle_passive_accepts_r5_throttle_brake_only_topology() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_minimal_passive_bundle(dir.path())?;
+        set_required_hub_controls(
+            dir.path(),
+            &[
+                (
+                    "steering",
+                    "steering",
+                    None,
+                    "captures/r5-steering-sweep.jsonl",
+                ),
+                (
+                    "throttle",
+                    "throttle",
+                    None,
+                    "captures/r5-throttle-only-sweep.jsonl",
+                ),
+                ("brake", "brake", None, "captures/r5-brake-only-sweep.jsonl"),
+            ],
+        )?;
+        remove_optional_capture_files(
+            dir.path(),
+            &[
+                "captures/r5-clutch-only-sweep.jsonl",
+                "captures/r5-handbrake-only-sweep.jsonl",
+                "captures/ks-controls.jsonl",
+                "captures/es-controls.jsonl",
+            ],
+        )?;
+        refresh_passive_parser_receipts(dir.path())?;
+
+        let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::Passive);
+
+        assert!(
+            receipt.success,
+            "{}",
+            serde_json::to_string_pretty(&receipt)?
+        );
+        assert!(receipt.artifacts.iter().all(|artifact| artifact.path
+            != "captures/r5-clutch-only-sweep.jsonl"
+            && artifact.path != "captures/r5-handbrake-only-sweep.jsonl"));
+        Ok(())
+    }
+
+    #[test]
+    fn verify_bundle_passive_accepts_r5_hub_handbrake_without_standalone_hbp() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_minimal_passive_bundle(dir.path())?;
+        set_required_hub_controls(
+            dir.path(),
+            &[
+                (
+                    "steering",
+                    "steering",
+                    None,
+                    "captures/r5-steering-sweep.jsonl",
+                ),
+                (
+                    "handbrake",
+                    "handbrake",
+                    None,
+                    "captures/r5-handbrake-only-sweep.jsonl",
+                ),
+            ],
+        )?;
+        remove_optional_capture_files(
+            dir.path(),
+            &[
+                "captures/r5-throttle-only-sweep.jsonl",
+                "captures/r5-brake-only-sweep.jsonl",
+                "captures/r5-clutch-only-sweep.jsonl",
+                "captures/ks-controls.jsonl",
+                "captures/es-controls.jsonl",
+            ],
+        )?;
+        refresh_passive_parser_receipts(dir.path())?;
+
+        let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::Passive);
+
+        assert!(
+            receipt.success,
+            "{}",
+            serde_json::to_string_pretty(&receipt)?
+        );
+        assert!(
+            receipt
+                .artifacts
+                .iter()
+                .all(|artifact| artifact.path != "captures/hbp-standalone-sweep.jsonl")
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn verify_bundle_passive_accepts_standalone_hbp_when_topology_declares_it() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_minimal_passive_bundle(dir.path())?;
+        set_required_hub_controls(
+            dir.path(),
+            &[(
+                "steering",
+                "steering",
+                None,
+                "captures/r5-steering-sweep.jsonl",
+            )],
+        )?;
+        declare_standalone_control_topology(
+            dir.path(),
+            "standalone_handbrake",
+            "handbrake",
+            "moza-hbp-standalone",
+            "standalone_handbrake",
+            product_ids::HBP_HANDBRAKE,
+            "captures/hbp-standalone-sweep.jsonl",
+        )?;
+        write_text_file(
+            &dir.path().join("captures/hbp-standalone-sweep.jsonl"),
+            &format!(
+                "{}\n{}",
+                capture_line(product_ids::HBP_HANDBRAKE, "01000000"),
+                capture_line(product_ids::HBP_HANDBRAKE, "01FFFF01")
+            ),
+        )?;
+        remove_optional_capture_files(
+            dir.path(),
+            &[
+                "captures/r5-throttle-only-sweep.jsonl",
+                "captures/r5-brake-only-sweep.jsonl",
+                "captures/r5-clutch-only-sweep.jsonl",
+                "captures/r5-handbrake-only-sweep.jsonl",
+                "captures/ks-controls.jsonl",
+                "captures/es-controls.jsonl",
+            ],
+        )?;
+        refresh_passive_parser_receipts(dir.path())?;
+
+        let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::Passive);
+
+        assert!(
+            receipt.success,
+            "{}",
+            serde_json::to_string_pretty(&receipt)?
+        );
+        assert!(
+            passive_capture_requirements_for_lane(dir.path())
+                .iter()
+                .any(|requirement| requirement.relative_path
+                    == "captures/hbp-standalone-sweep.jsonl")
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn verify_bundle_passive_accepts_standalone_pedals_when_topology_declares_them() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_minimal_passive_bundle(dir.path())?;
+        set_required_hub_controls(
+            dir.path(),
+            &[(
+                "steering",
+                "steering",
+                None,
+                "captures/r5-steering-sweep.jsonl",
+            )],
+        )?;
+        declare_standalone_control_topology(
+            dir.path(),
+            "standalone_throttle",
+            "throttle",
+            "moza-srp-standalone",
+            "standalone_pedals",
+            product_ids::SR_P_PEDALS,
+            "captures/srp-standalone-sweep.jsonl",
+        )?;
+        add_topology_control(
+            dir.path(),
+            "standalone_brake",
+            "brake",
+            "moza-srp-standalone",
+            "standalone_usb",
+            "captures/srp-standalone-sweep.jsonl",
+        )?;
+        write_text_file(
+            &dir.path().join("captures/srp-standalone-sweep.jsonl"),
+            &format!(
+                "{}\n{}",
+                capture_line(product_ids::SR_P_PEDALS, "0100000000"),
+                capture_line(product_ids::SR_P_PEDALS, "01FFFFFFFF")
+            ),
+        )?;
+        remove_optional_capture_files(
+            dir.path(),
+            &[
+                "captures/r5-throttle-only-sweep.jsonl",
+                "captures/r5-brake-only-sweep.jsonl",
+                "captures/r5-clutch-only-sweep.jsonl",
+                "captures/r5-handbrake-only-sweep.jsonl",
+                "captures/ks-controls.jsonl",
+                "captures/es-controls.jsonl",
+            ],
+        )?;
+        refresh_passive_parser_receipts(dir.path())?;
+
+        let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::Passive);
+
+        assert!(
+            receipt.success,
+            "{}",
+            serde_json::to_string_pretty(&receipt)?
+        );
+        assert!(
+            passive_capture_requirements_for_lane(dir.path())
+                .iter()
+                .any(|requirement| requirement.relative_path
+                    == "captures/srp-standalone-sweep.jsonl")
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn verify_moza_topology_observed_accepts_mixed_vendor_endpoint() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_minimal_passive_bundle(dir.path())?;
+        let external_pedals = sample_mixed_vendor_pedals_json_device();
+        add_topology_endpoint(
+            dir.path(),
+            "external-pedals",
+            "standalone_pedals",
+            "0x1234",
+            "0xABCD",
+            false,
+        )?;
+        add_topology_control(
+            dir.path(),
+            "external_throttle",
+            "throttle",
+            "external-pedals",
+            "cross_device",
+            "captures/srp-standalone-sweep.jsonl",
+        )?;
+        append_device_to_observation_receipts(dir.path(), &external_pedals)?;
+
+        let gate = verify_moza_topology_observed_gate(dir.path());
+
+        assert_eq!(gate.status, "pass", "{}", gate.details);
+        assert!(
+            gate.details.contains("external-pedals:0x1234:0xABCD"),
+            "{}",
+            gate.details
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn verify_bundle_passive_rejects_required_topology_evidence_without_verifier_coverage()
+    -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_minimal_passive_bundle(dir.path())?;
+        replace_observation_receipt_devices(dir.path(), &[sample_trusted_r5_json_device()])?;
+        set_required_hub_controls(
+            dir.path(),
+            &[(
+                "steering",
+                "steering",
+                None,
+                "captures/r5-steering-sweep.jsonl",
+            )],
+        )?;
+        let external_pedals = sample_mixed_vendor_pedals_json_device();
+        add_topology_endpoint(
+            dir.path(),
+            "external-pedals",
+            "standalone_pedals",
+            "0x1234",
+            "0xABCD",
+            false,
+        )?;
+        add_topology_control(
+            dir.path(),
+            "external_throttle",
+            "throttle",
+            "external-pedals",
+            "cross_device",
+            "captures/external-pedals.jsonl",
+        )?;
+        append_device_to_observation_receipts(dir.path(), &external_pedals)?;
+        remove_optional_capture_files(
+            dir.path(),
+            &[
+                "captures/r5-throttle-only-sweep.jsonl",
+                "captures/r5-brake-only-sweep.jsonl",
+                "captures/r5-clutch-only-sweep.jsonl",
+                "captures/r5-handbrake-only-sweep.jsonl",
+                "captures/ks-controls.jsonl",
+                "captures/es-controls.jsonl",
+            ],
+        )?;
+        refresh_passive_parser_receipts(dir.path())?;
+        let manifest = read_json_path(&dir.path().join("manifest.json"))?;
+        let schema_errors = manifest_schema_validation_errors(&manifest);
+        assert!(schema_errors.is_empty(), "{schema_errors:?}");
+
+        let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::Passive);
+
+        assert!(
+            !receipt.success,
+            "{}",
+            serde_json::to_string_pretty(&receipt)?
+        );
+        let gate = receipt
+            .gates
+            .iter()
+            .find(|gate| gate.name == "topology_required_evidence_supported")
+            .ok_or("expected topology_required_evidence_supported gate")?;
+        assert_eq!(gate.status, "fail", "{}", gate.details);
+        assert!(
+            gate.details.contains("external_throttle")
+                && gate.details.contains("captures/external-pedals.jsonl"),
+            "{}",
+            gate.details
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn verify_moza_topology_observed_accepts_multiple_r5_endpoints() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_minimal_passive_bundle(dir.path())?;
+        let r5_v1 = sample_trusted_r5_v1_json_device();
+        add_topology_endpoint(
+            dir.path(),
+            "moza-r5-v1-if2",
+            "wheelbase_hub",
+            MOZA_VENDOR_HEX,
+            "0x0004",
+            true,
+        )?;
+        add_topology_control(
+            dir.path(),
+            "v1_ks_rim_controls",
+            "rim_controls",
+            "moza-r5-v1-if2",
+            "wheelbase_hub",
+            "captures/ks-controls.jsonl",
+        )?;
+        append_device_to_observation_receipts(dir.path(), &r5_v1)?;
+
+        let gate = verify_moza_topology_observed_gate(dir.path());
+
+        assert_eq!(gate.status, "pass", "{}", gate.details);
+        assert!(
+            gate.details.contains("moza-r5-v1-if2:0x346E:0x0004"),
+            "{}",
+            gate.details
+        );
+        Ok(())
+    }
+
     #[test]
     fn verify_bundle_passive_requires_device_list_no_ffb_writes() -> TestResult {
         let dir = tempfile::tempdir()?;
@@ -20399,14 +33065,30 @@ mod tests {
         receipt["success"] = serde_json::json!(false);
         write_test_json_file(&dir.path().join("hid-list.json"), &receipt)?;
 
-        let gate = verify_passive_no_writes_gate(dir.path());
+        let gate = verify_passive_receipts_success_gate(dir.path());
 
         assert_eq!(gate.status, "fail");
+        assert_eq!(gate.name, "passive_receipts_successful");
         assert!(
             gate.details.contains("unsuccessful"),
             "expected unsuccessful receipt failure, got {}",
             gate.details
         );
+        Ok(())
+    }
+
+    #[test]
+    fn verify_bundle_passive_no_writes_accepts_unsuccessful_safe_receipt() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_minimal_passive_bundle(dir.path())?;
+        let mut receipt = read_json_path(&dir.path().join("parser-fixture-validation.json"))?;
+        receipt["success"] = serde_json::json!(false);
+        write_test_json_file(&dir.path().join("parser-fixture-validation.json"), &receipt)?;
+
+        let gate = verify_passive_no_writes_gate(dir.path());
+
+        assert_eq!(gate.status, "pass", "{}", gate.details);
+        assert_eq!(gate.name, "passive_receipts_no_ffb_writes");
         Ok(())
     }
 
@@ -20424,6 +33106,25 @@ mod tests {
         assert!(
             gate.details.contains("opened_hid"),
             "expected no-HID-open failure, got {}",
+            gate.details
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn verify_bundle_passive_requires_hardware_doctor_no_hid_open() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_minimal_passive_bundle(dir.path())?;
+        let mut receipt = read_json_path(&dir.path().join("hardware-doctor.json"))?;
+        receipt["no_hid_device_opened"] = serde_json::json!(false);
+        write_test_json_file(&dir.path().join("hardware-doctor.json"), &receipt)?;
+
+        let gate = verify_passive_no_writes_gate(dir.path());
+
+        assert_eq!(gate.status, "fail");
+        assert!(
+            gate.details.contains("hardware-doctor.json"),
+            "expected hardware doctor no-HID-open failure, got {}",
             gate.details
         );
         Ok(())
@@ -20487,6 +33188,43 @@ mod tests {
                 && command.contains("captures/r5-steering-sweep.jsonl")
         }));
         assert!(
+            receipt.next_commands.iter().any(|command| command.contains(
+                "wheelctl moza descriptor --device 0x346E:0x0014 --report-descriptor-hex-file"
+            )),
+            "passive next_commands should include the descriptor file fallback"
+        );
+        assert!(
+            receipt
+                .next_commands
+                .iter()
+                .any(|command| command.contains("scripts/extract_usbpcap_report_descriptor.ps1")),
+            "passive next_commands should include the USBPcap descriptor extractor"
+        );
+        assert!(
+            receipt.next_commands.iter().any(|command| command.contains(
+                "wheelctl moza descriptor --device 0x346E:0x0014 --report-descriptor-bin-file"
+            )),
+            "passive next_commands should include the binary descriptor file fallback"
+        );
+        assert!(
+            receipt.operator_actions.iter().any(|action| action
+                .contains("Export the R5 HID report descriptor byte block")
+                && action.contains("wDescriptorLength")
+                && action.contains("ERROR_INVALID_PARAMETER")
+                && action.contains("HidP KDR")
+                && action.contains("Do not run firmware or DFU")),
+            "passive operator actions should explain the descriptor export fallback: {:?}",
+            receipt.operator_actions
+        );
+        assert!(
+            receipt
+                .next_commands
+                .iter()
+                .any(|command| command.contains("wheelctl hardware doctor")
+                    && command.contains("hardware-doctor.json")),
+            "passive next_commands should include hardware doctor receipt generation"
+        );
+        assert!(
             receipt
                 .next_commands
                 .iter()
@@ -20504,6 +33242,434 @@ mod tests {
     }
 
     #[test]
+    fn verify_bundle_failed_existing_capture_suggests_analysis_not_recapture() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_minimal_passive_bundle(dir.path())?;
+        write_text_file(
+            &dir.path().join("captures/r5-throttle-only-sweep.jsonl"),
+            &format!(
+                "{}\n{}",
+                capture_line(
+                    product_ids::R5_V2,
+                    &wheelbase_full_report_hex(0x8000, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+                ),
+                capture_line(
+                    product_ids::R5_V2,
+                    &wheelbase_full_report_hex(0x8000, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+                )
+            ),
+        )?;
+
+        let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::Passive);
+
+        assert!(!receipt.success);
+        let joined = receipt.next_commands.join("\n");
+        assert!(
+            joined.contains("wheelctl moza analyze-lane"),
+            "failed existing captures should suggest offline lane analysis: {joined}"
+        );
+        assert!(
+            joined.contains("wheelctl moza sync-role-status"),
+            "failed existing captures should suggest semantic-status sync: {joined}"
+        );
+        assert!(
+            receipt.operator_actions.iter().any(|action| action
+                .contains("Throttle capture parsed")
+                && action.contains("check throttle pedal cable")
+                && action.contains("Pit House is unavailable")
+                && action.contains("target/moza-gas-check/r5-gas-after-reseat-60s.jsonl")
+                && action.contains("wheelctl moza capture-input --device")
+                && action.contains("wheelctl moza analyze-capture --capture")
+                && action.contains("Replace the lane capture only if parser-visible")
+                && action.contains("must not be probed or configured")),
+            "failed throttle role should include a physical-path diagnostic action: {:?}",
+            receipt.operator_actions
+        );
+        assert!(
+            !joined.contains("wheelctl moza capture-input"),
+            "existing parseable captures should not be blindly recaptured from next_commands: {joined}"
+        );
+        for passing_observation_command in [
+            "wheelctl moza init-lane",
+            "wheelctl device list",
+            "wheelctl moza probe",
+            "hid-capture list",
+            "wheelctl hardware doctor",
+            "wheelctl moza descriptor",
+        ] {
+            assert!(
+                !joined.contains(passing_observation_command),
+                "failed parser-visible role evidence should not suggest already-passing observation command {passing_observation_command}: {joined}"
+            );
+        }
+        assert!(
+            !joined.contains("wheelctl moza promote-fixtures"),
+            "failed parser-visible role evidence should not suggest fixture promotion: {joined}"
+        );
+        assert!(
+            !joined.contains("promoted_capture_fixtures_replay_through_moza_parser"),
+            "failed parser-visible role evidence should not suggest promoted-fixture replay tests: {joined}"
+        );
+        assert!(
+            !joined.contains("wheelctl moza promote-manifest"),
+            "failed passive verification should not suggest manifest promotion: {joined}"
+        );
+        assert!(
+            !joined.contains("wheelctl moza audit-lane"),
+            "failed passive verification should not suggest lane audit: {joined}"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn verify_bundle_reports_declared_endpoint_observations() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_minimal_passive_bundle(dir.path())?;
+
+        let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::Passive);
+
+        let r5 = receipt
+            .endpoint_observations
+            .iter()
+            .find(|endpoint| endpoint.id == "moza-r5-if2")
+            .ok_or("expected R5 topology endpoint observation")?;
+        assert_eq!(r5.kind.as_deref(), Some("wheelbase_hub"));
+        assert_eq!(r5.vendor_id.as_deref(), Some("0x346E"));
+        assert_eq!(r5.product_id.as_deref(), Some("0x0014"));
+        assert_eq!(r5.interface_number, Some(2));
+        assert_eq!(r5.usage_page.as_deref(), Some("0x0001"));
+        assert_eq!(r5.usage.as_deref(), Some("0x0004"));
+        assert_eq!(r5.output_capable, Some(true));
+        assert!(
+            r5.required_logical_controls
+                .iter()
+                .any(|control| control == "throttle"),
+            "expected declared throttle role in endpoint observation: {:?}",
+            r5.required_logical_controls
+        );
+        assert_eq!(r5.observed_artifact_count, 4);
+        assert_eq!(r5.metadata_match_artifact_count, 4);
+        assert!(r5.artifacts.iter().all(|artifact| {
+            artifact.status == "read"
+                && artifact.vid_pid_count == 1
+                && artifact.metadata_match_count == 1
+        }));
+        let throttle = receipt
+            .role_evidence
+            .iter()
+            .find(|entry| entry.control == "throttle")
+            .ok_or("expected throttle role evidence in bundle receipt")?;
+        assert_eq!(throttle.role, "throttle");
+        assert!(throttle.required);
+        assert_eq!(throttle.source_endpoint.as_deref(), Some("moza-r5-if2"));
+        assert_eq!(throttle.connection.as_deref(), Some("wheelbase_hub"));
+        assert_eq!(
+            throttle.evidence_capture.as_deref(),
+            Some("captures/r5-throttle-only-sweep.jsonl")
+        );
+        assert_eq!(throttle.semantic_status, "proven");
+        assert!(throttle.parser_visible);
+        Ok(())
+    }
+
+    #[test]
+    fn verify_bundle_validated_captures_suggest_fixture_promotion_when_missing() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_minimal_passive_bundle(dir.path())?;
+        fs::remove_file(dir.path().join("fixture-promotion.json"))?;
+
+        let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::Passive);
+
+        assert!(!receipt.success);
+        let joined = receipt.next_commands.join("\n");
+        assert!(
+            joined.contains("wheelctl moza promote-fixtures"),
+            "missing fixture promotion should be suggested after capture validation passes: {joined}"
+        );
+        assert!(
+            joined.contains("promoted_capture_fixtures_replay_through_moza_parser"),
+            "promoted fixture replay test should follow fixture promotion when validation passes: {joined}"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn verify_bundle_validated_captures_wait_for_descriptor_before_fixture_promotion() -> TestResult
+    {
+        let dir = tempfile::tempdir()?;
+        write_minimal_passive_bundle(dir.path())?;
+        fs::remove_file(dir.path().join("fixture-promotion.json"))?;
+        let mut descriptor = read_json_path(&dir.path().join("descriptor.json"))?;
+        descriptor["devices"][0]["descriptor_source"] = serde_json::json!("unavailable");
+        descriptor["devices"][0]
+            .as_object_mut()
+            .ok_or("descriptor devices[0] should be object")?
+            .remove("report_descriptor_crc32");
+        write_test_json_file(&dir.path().join("descriptor.json"), &descriptor)?;
+
+        let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::Passive);
+
+        assert!(!receipt.success);
+        let joined = receipt.next_commands.join("\n");
+        assert!(
+            joined.contains("--report-descriptor-bin-file"),
+            "missing descriptor trust should suggest descriptor byte import: {joined}"
+        );
+        assert!(
+            !joined.contains("wheelctl moza promote-fixtures"),
+            "fixture promotion should wait for descriptor metadata trust: {joined}"
+        );
+        assert!(
+            !joined.contains("promoted_capture_fixtures_replay_through_moza_parser"),
+            "fixture replay test should wait for descriptor metadata trust: {joined}"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn verify_bundle_descriptor_next_commands_respect_usbpcap_tooling_receipt() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_minimal_passive_bundle(dir.path())?;
+        let mut descriptor = read_json_path(&dir.path().join("descriptor.json"))?;
+        descriptor["devices"][0]["descriptor_source"] = serde_json::json!("unavailable");
+        descriptor["devices"][0]
+            .as_object_mut()
+            .ok_or("descriptor devices[0] should be object")?
+            .remove("report_descriptor_crc32");
+        write_test_json_file(&dir.path().join("descriptor.json"), &descriptor)?;
+        let mut hardware_doctor = read_json_path(&dir.path().join("hardware-doctor.json"))?;
+        hardware_doctor["tools"]["usbpcap_descriptor_capture"] = serde_json::json!({
+            "tshark_present": true,
+            "usbpcap_interfaces_present": false,
+            "usbpcap_interface_count": 0,
+            "ready_for_usbpcap_descriptor_capture": false
+        });
+        write_test_json_file(&dir.path().join("hardware-doctor.json"), &hardware_doctor)?;
+
+        let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::Passive);
+
+        assert!(!receipt.success);
+        let joined = receipt.next_commands.join("\n");
+        assert!(
+            !joined.contains("scripts/extract_usbpcap_report_descriptor.ps1"),
+            "USBPcap extractor should not be suggested when hardware doctor marks it unavailable: {joined}"
+        );
+        assert!(
+            joined.contains("--report-descriptor-hex-file target/moza-r5-report-descriptor.txt"),
+            "descriptor text import should remain available: {joined}"
+        );
+        assert!(
+            joined.contains("--report-descriptor-bin-file target/moza-r5-report-descriptor.bin"),
+            "descriptor binary import should remain available: {joined}"
+        );
+        for forbidden in ["torque-test", "direct", "high-torque"] {
+            assert!(
+                !joined.contains(forbidden),
+                "passive next_commands must not include {forbidden}: {joined}"
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn verify_bundle_zero_next_commands_wait_for_passive_gates() -> TestResult {
+        let dir = tempfile::tempdir()?;
+
+        let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::Zero);
+
+        assert!(!receipt.success);
+        let joined = receipt.next_commands.join("\n");
+        assert!(
+            joined.contains("--stage passive"),
+            "blocked zero-stage guidance should return operators to passive verification: {joined}"
+        );
+        for forbidden in [
+            "wheelctl moza zero --device",
+            "wheelctl moza watchdog-proof",
+            "wheelctl moza disconnect-proof",
+            "wheelctl moza torque-test",
+            "--stage zero",
+            "manifest-promotion-zero.json",
+            "lane-audit-zero.json",
+        ] {
+            assert!(
+                !joined.contains(forbidden),
+                "zero-stage next_commands must not include {forbidden} before passive gates pass: {joined}"
+            );
+        }
+        assert!(
+            receipt
+                .operator_actions
+                .iter()
+                .any(|action| action.contains("Export the R5 HID report descriptor byte block")),
+            "later-stage receipts should still surface passive descriptor operator action: {:?}",
+            receipt.operator_actions
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn verify_bundle_zero_next_commands_start_zero_only_after_passive_gates_pass() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_minimal_passive_bundle(dir.path())?;
+
+        let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::Zero);
+
+        assert!(!receipt.success);
+        let joined = receipt.next_commands.join("\n");
+        for expected in [
+            "wheelctl moza zero --device",
+            "--strategy direct-report0x20",
+            "wheelctl moza watchdog-proof",
+            "wheelctl moza disconnect-proof",
+            "--stage zero",
+        ] {
+            assert!(
+                joined.contains(expected),
+                "zero-stage next_commands should include {expected} after passive gates pass: {joined}"
+            );
+        }
+        for forbidden in [
+            "wheelctl moza torque-test",
+            "manifest-promotion-zero.json",
+            "lane-audit-zero.json",
+        ] {
+            assert!(
+                !joined.contains(forbidden),
+                "zero-stage next_commands must not include {forbidden} before zero gates pass: {joined}"
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn verify_bundle_zero_live_lane_passes_after_disconnect_receipt() -> TestResult {
+        let lane =
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../ci/hardware/moza-r5/2026-05-13");
+
+        let receipt = verify_bundle_dir(&lane, MozaBundleStage::Zero);
+
+        assert!(receipt.success);
+        assert_eq!(receipt.missing_artifacts, 0);
+        assert_eq!(receipt.invalid_artifacts, 0);
+        assert_eq!(receipt.failed_gates, 0);
+        assert!(
+            receipt.next_commands.is_empty(),
+            "passing zero-stage receipt should not suggest more commands: {:?}",
+            receipt.next_commands
+        );
+        let joined = receipt.next_commands.join("\n");
+        for gate in [
+            "zero_torque_real_hardware",
+            "watchdog_zero_output",
+            "disconnect_final_zero",
+        ] {
+            assert!(
+                receipt
+                    .gates
+                    .iter()
+                    .any(|check| check.name == gate && check.status == "pass"),
+                "live R5 V1 zero-stage gate {gate} should pass"
+            );
+        }
+        for completed in [
+            "wheelctl moza zero --device hid-0x346E-0x0004-if2-0x0001-0x0004",
+            "wheelctl moza watchdog-proof --device hid-0x346E-0x0004-if2-0x0001-0x0004",
+            "wheelctl moza disconnect-proof --device hid-0x346E-0x0004-if2-0x0001-0x0004",
+        ] {
+            assert!(
+                !joined.contains(completed),
+                "live R5 V1 zero-stage next_commands should not repeat completed proof {completed}: {joined}"
+            );
+        }
+        assert!(
+            !joined.contains("--strategy direct-report0x20"),
+            "live R5 V1 descriptor does not expose direct report 0x20, so next_commands must not suggest the direct strategy: {joined}"
+        );
+        assert!(
+            !joined.contains("--device <r5>"),
+            "live R5 V1 zero-stage next_commands should use the manifest topology HID selector instead of <r5>: {joined}"
+        );
+        for stale in [
+            "--stage passive",
+            "manifest-promotion-passive.json",
+            "lane-audit-passive.json",
+        ] {
+            assert!(
+                !joined.contains(stale),
+                "live R5 V1 zero-stage next_commands should not repeat completed passive-stage guidance {stale}: {joined}"
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn verify_bundle_smoke_next_commands_wait_for_zero_gates() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_minimal_passive_bundle(dir.path())?;
+
+        let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::SmokeReady);
+
+        assert!(!receipt.success);
+        let joined = receipt.next_commands.join("\n");
+        assert!(
+            joined.contains("wheelctl moza zero --device"),
+            "smoke-ready guidance should first suggest the missing zero-stage proof: {joined}"
+        );
+        for forbidden in [
+            "wheelctl moza torque-test",
+            "wheelctl moza init --device",
+            "wheelctl moza simulator-ffb-smoke",
+            "wheelctl moza pit-house-proof",
+            "--stage smoke-ready",
+            "manifest-promotion-smoke-ready.json",
+            "lane-audit-smoke-ready.json",
+        ] {
+            assert!(
+                !joined.contains(forbidden),
+                "smoke-ready next_commands must not include {forbidden} before zero gates pass: {joined}"
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn verify_bundle_next_commands_use_manifest_topology_hid_selector() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        let mut manifest = sample_lane_manifest("not_started", false, false);
+        manifest["hardware"]["wheelbase_pid"] = Value::String("0x0004".to_string());
+        manifest["topology"] = moza_lane_manifest_topology_value(product_ids::R5_V1);
+        write_test_json_file(&dir.path().join("manifest.json"), &manifest)?;
+
+        let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::Passive);
+
+        assert!(!receipt.success);
+        assert!(
+            receipt
+                .next_commands
+                .iter()
+                .all(|command| !command.contains("wheelctl moza init-lane")),
+            "valid manifest should not suggest reinitializing the lane: {}",
+            receipt.next_commands.join("\n")
+        );
+        let descriptor_fallback_command = receipt
+            .next_commands
+            .iter()
+            .find(|command| command.contains("--report-descriptor-hex-file"))
+            .ok_or("expected descriptor file fallback next command")?;
+        assert!(
+            descriptor_fallback_command.contains("--device hid-0x346E-0x0004-if2-0x0001-0x0004"),
+            "descriptor file fallback should use manifest topology endpoint: {descriptor_fallback_command}"
+        );
+        assert!(
+            !descriptor_fallback_command.contains("--device 0x346E:0x0004")
+                && !descriptor_fallback_command.contains("--device 0x346E:0x0014"),
+            "descriptor file fallback must not collapse a manifest topology endpoint to VID:PID: {descriptor_fallback_command}"
+        );
+        Ok(())
+    }
+
+    #[test]
     fn verify_bundle_root_lane_next_commands_target_dated_child() -> TestResult {
         let lane_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../ci/hardware/moza-r5");
         let receipt = verify_bundle_dir(&lane_root, MozaBundleStage::Passive);
@@ -20515,8 +33681,12 @@ mod tests {
             "root lane next_commands should point operators at a dated child lane: {joined}"
         );
         assert!(
-            joined.contains("crates/hid-moza-protocol/fixtures/moza-r5-YYYY-MM-DD"),
-            "fixture dir should use the dated lane name, not the root lane name: {joined}"
+            !joined.contains("wheelctl moza promote-fixtures"),
+            "root lane next_commands should wait for dated-lane capture validation before fixture promotion: {joined}"
+        );
+        assert!(
+            !joined.contains("wheelctl moza promote-manifest"),
+            "root lane next_commands should wait for a passing dated-lane verifier before manifest promotion: {joined}"
         );
         assert!(
             !joined.contains("--lane ci/hardware/moza-r5 --wheelbase-pid"),
@@ -20526,11 +33696,125 @@ mod tests {
     }
 
     #[test]
-    fn verify_bundle_smoke_next_commands_match_dependency_order() -> TestResult {
+    fn verify_bundle_smoke_next_commands_stop_at_current_frontier() -> TestResult {
         let dir = tempfile::tempdir()?;
-        let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::SmokeReady);
+        write_minimal_passive_bundle(dir.path())?;
+        write_zero_stage_receipts(dir.path())?;
 
-        assert!(!receipt.success);
+        let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::SmokeReady);
+        let commands = receipt.next_commands.join("\n");
+        assert!(
+            commands.contains("wheelctl moza init --device")
+                && commands.contains("--mode off")
+                && commands.contains("--confirm-init")
+                && commands.contains("--device hid-0x346E-0x0014-if2-0x0001-0x0004"),
+            "zero-ready smoke guidance should first suggest only the off init receipt: {commands}"
+        );
+        for forbidden in [
+            "--mode standard",
+            "wheelctl moza torque-test",
+            "wheelctl telemetry record",
+            "wheelctl moza simulator-ffb-smoke",
+            "wheelctl moza pit-house-proof",
+        ] {
+            assert!(
+                !commands.contains(forbidden),
+                "smoke-ready guidance must not include {forbidden} before off init passes: {commands}"
+            );
+        }
+
+        write_test_json_file(
+            &dir.path().join("init-off.json"),
+            &receipt_with_lane_path(dir.path(), "init-off.json", real_init_receipt("off")),
+        )?;
+        let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::SmokeReady);
+        let commands = receipt.next_commands.join("\n");
+        assert!(
+            commands.contains("--mode standard") && !commands.contains("wheelctl moza torque-test"),
+            "after off init passes, guidance should advance only to standard init: {commands}"
+        );
+
+        write_test_json_file(
+            &dir.path().join("init-standard.json"),
+            &receipt_with_lane_path(
+                dir.path(),
+                "init-standard.json",
+                real_init_receipt("standard"),
+            ),
+        )?;
+        let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::SmokeReady);
+        let commands = receipt.next_commands.join("\n");
+        assert!(
+            commands.contains("wheelctl moza status --device")
+                && commands.contains("wheelctl device status")
+                && commands.contains("wheelctl --json support-bundle")
+                && !commands.contains("wheelctl moza torque-test"),
+            "after both init receipts pass, guidance should refresh service/status receipts before low torque: {commands}"
+        );
+
+        write_service_status_artifacts(dir.path())?;
+        let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::SmokeReady);
+        let commands = receipt.next_commands.join("\n");
+        assert!(
+            commands.contains("wheelctl moza torque-test --device")
+                && commands.contains("--confirm-low-torque")
+                && !commands.contains("wheelctl moza simulator-ffb-smoke"),
+            "after service/status receipts pass, guidance should advance only to low torque: {commands}"
+        );
+
+        write_test_json_file(
+            &dir.path().join("low-torque-proof.json"),
+            &real_low_torque_receipt_for_lane(dir.path(), 2.0)?,
+        )?;
+        let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::SmokeReady);
+        let commands = receipt.next_commands.join("\n");
+        assert!(
+            commands.contains("wheelctl moza pre-output-readiness")
+                && !commands.contains("wheelctl telemetry record")
+                && !commands.contains("wheelctl moza simulator-ffb-smoke"),
+            "after low torque passes, guidance should wait for native steering/actuator proof before external telemetry: {commands}"
+        );
+
+        write_test_json_file(
+            &dir.path().join("steering-angle-stream-proof.json"),
+            &steering_angle_stream_receipt(dir.path()),
+        )?;
+        write_test_json_file(
+            &dir.path().join("native-actuator-profile-smoke.json"),
+            &native_actuator_profile_smoke_receipt(dir.path()),
+        )?;
+        let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::SmokeReady);
+        let commands = receipt.next_commands.join("\n");
+        assert!(
+            commands.contains("wheelctl telemetry record")
+                && commands.contains("wheelctl moza simulator-telemetry-proof")
+                && !commands.contains("wheelctl moza simulator-ffb-smoke"),
+            "after native control proofs pass, guidance should advance only to telemetry: {commands}"
+        );
+
+        write_simulator_artifacts(dir.path())?;
+        write_service_status_artifacts(dir.path())?;
+        let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::SmokeReady);
+        let commands_vec = receipt.next_commands;
+        let commands = commands_vec.join("\n");
+        let canonical_writer = commands_vec
+            .iter()
+            .position(|command| command.starts_with("wheeld --hardware-lane "))
+            .ok_or("expected lane-bound simulator writer command")?;
+        let ffb_smoke = commands_vec
+            .iter()
+            .position(|command| command.contains("wheelctl moza simulator-ffb-smoke"))
+            .ok_or("expected simulator FFB smoke command")?;
+        assert!(
+            canonical_writer < ffb_smoke && !commands.contains("wheelctl moza pit-house-proof"),
+            "after telemetry passes, guidance should advance only to simulator FFB smoke: {commands}"
+        );
+
+        write_test_json_file(
+            &dir.path().join("simulator-ffb-smoke.json"),
+            &simulator_ffb_receipt(),
+        )?;
+        let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::SmokeReady);
         let commands = &receipt.next_commands;
         let index = |needle: &str| -> Result<usize, &'static str> {
             commands
@@ -20538,19 +33822,6 @@ mod tests {
                 .position(|command| command.contains(needle))
                 .ok_or("expected command not found")
         };
-
-        let telemetry_proof = index("wheelctl moza simulator-telemetry-proof")?;
-        let canonical_writer = commands
-            .iter()
-            .enumerate()
-            .skip(telemetry_proof.saturating_add(1))
-            .find_map(|(index, command)| {
-                command
-                    .starts_with("wheeld --hardware-lane ")
-                    .then_some(index)
-            })
-            .ok_or("expected lane-bound simulator writer command")?;
-        let ffb_smoke = index("wheelctl moza simulator-ffb-smoke")?;
         let mode_change_observation =
             index("wheelctl moza pit-house-observation --case mode-change")?;
         let mode_change_case = commands
@@ -20562,19 +33833,6 @@ mod tests {
             .ok_or("expected mode-change Pit House case command")?;
         let pit_house_proof = index("wheelctl moza pit-house-proof")?;
         let smoke_verification = index("--stage smoke-ready")?;
-
-        assert!(
-            telemetry_proof < ffb_smoke,
-            "simulator FFB smoke must run after telemetry proof"
-        );
-        assert!(
-            telemetry_proof < canonical_writer && canonical_writer < ffb_smoke,
-            "lane-bound simulator writer command must run between telemetry proof and simulator FFB smoke"
-        );
-        assert!(
-            ffb_smoke < mode_change_observation,
-            "mode-change Pit House observation must run after simulator FFB smoke"
-        );
         assert!(
             mode_change_observation < mode_change_case,
             "mode-change Pit House case must run after its observation"
@@ -20586,6 +33844,13 @@ mod tests {
         assert!(
             pit_house_proof < smoke_verification,
             "smoke-ready verification must run after Pit House proof"
+        );
+        assert!(
+            commands
+                .iter()
+                .all(|command| !command.contains("wheelctl moza torque-test")
+                    && !command.contains("wheelctl moza simulator-ffb-smoke")),
+            "Pit House frontier guidance must not repeat completed low-torque or simulator FFB commands: {commands:?}"
         );
 
         let observation_commands = commands
@@ -20629,27 +33894,507 @@ mod tests {
     }
 
     #[test]
-    fn verify_bundle_next_commands_parse_as_wheelctl_commands() -> TestResult {
-        let lane_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../ci/hardware/moza-r5");
-        let receipt = verify_bundle_dir(&lane_root, MozaBundleStage::SmokeReady);
+    fn smoke_ready_low_torque_frontier_suggests_pidff_when_direct_path_is_blocked() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        let mut manifest = sample_lane_manifest("zero_torque_ready", true, false);
+        manifest["hardware"]["wheelbase_pid"] = serde_json::json!("0x0004");
+        manifest["topology"] = moza_lane_manifest_topology_value(product_ids::R5_V1);
+        write_test_json_file(&dir.path().join("manifest.json"), &manifest)?;
+        write_test_json_file(
+            &dir.path().join("descriptor.json"),
+            &serde_json::json!({
+                "success": true,
+                "command": "hid-capture descriptor",
+                "no_hid_device_opened": true,
+                "no_ffb_writes": true,
+                "no_serial_config_commands": true,
+                "no_firmware_or_dfu_commands": true,
+                "devices": [sample_trusted_r5_v1_json_device()]
+            }),
+        )?;
+        write_test_json_file(
+            &dir.path().join("zero-torque-proof.json"),
+            &receipt_with_lane_path(
+                dir.path(),
+                "zero-torque-proof.json",
+                real_pidff_zero_receipt(100),
+            ),
+        )?;
+        let mut gates = [
+            "lane_directory",
+            "manifest_no_overclaim",
+            "manifest_r5_pid_consistency",
+            "moza_r5_observed",
+            "moza_topology_observed",
+            "descriptor_metadata",
+            "passive_receipts_successful",
+            "passive_receipts_no_ffb_writes",
+            "passive_captures_parse",
+            "parser_fixture_validation",
+            "fixture_promotion",
+            "zero_torque_real_hardware",
+            "watchdog_zero_output",
+            "disconnect_final_zero",
+            "init_off_handshake",
+            "init_standard_handshake",
+            "service_status_receipts",
+        ]
+        .into_iter()
+        .map(|name| BundleGateCheck::pass(name, "ok".to_string()))
+        .collect::<Vec<_>>();
+        gates.push(BundleGateCheck::fail(
+            "low_torque_bounded",
+            "missing".to_string(),
+        ));
 
-        assert!(!receipt.success);
-        let mut checked = 0usize;
-        for command in receipt
-            .next_commands
-            .iter()
-            .filter(|command| command.starts_with("wheelctl "))
-        {
-            let command = command_with_test_placeholders(command);
+        let blockers = low_torque_frontier_blockers(dir.path());
+        assert!(
+            blockers
+                .iter()
+                .any(|blocker| blocker.contains("direct report 0x20 metadata")),
+            "R5 V1 descriptor should not satisfy direct report metadata: {blockers:?}"
+        );
+        assert!(
+            blockers
+                .iter()
+                .any(|blocker| blocker.contains("direct_report_0x20 proof")),
+            "PIDFF zero proof should not satisfy direct low-torque preflight: {blockers:?}"
+        );
+        let pidff_blockers = pidff_low_torque_frontier_blockers(dir.path());
+        assert!(
+            pidff_blockers.is_empty(),
+            "live R5 V1 descriptor and PIDFF zero proof should clear the PIDFF frontier: {pidff_blockers:?}"
+        );
+
+        let mut commands = Vec::new();
+        push_openracing_control_next_commands(dir.path(), &gates, &mut commands);
+        let joined = commands.join("\n");
+        assert!(
+            joined.contains("wheelctl moza torque-test")
+                && joined.contains("--strategy pidff-bounded-effect")
+                && joined.contains("--max-percent 1")
+                && joined.contains("--duration-ms 150")
+                && joined.contains("--confirm-low-torque"),
+            "direct-path gap with clear PIDFF frontier should suggest the bounded PIDFF command: {joined}"
+        );
+        assert!(
+            !joined.contains("--explicit-operator-override"),
+            "PIDFF guidance must not emit direct-path override guidance: {joined}"
+        );
+        for command in commands {
+            let command = command_with_test_placeholders(&command);
             let args = split_generated_command(&command)?;
             crate::Cli::try_parse_from(args).map_err(|error| {
-                format!("generated next_command failed to parse: {command}\n{error}")
+                format!(
+                    "generated direct-path readiness command failed to parse: {command}\n{error}"
+                )
             })?;
-            checked += 1;
+        }
+
+        let mut actions = Vec::new();
+        push_openracing_control_frontier_operator_action(dir.path(), &gates, &mut actions);
+        let action_text = actions.join("\n");
+        assert!(
+            action_text.contains("bounded PIDFF low-torque proof")
+                && action_text.contains("same-lane PIDFF Stop All zero proof")
+                && action_text.contains("final PIDFF Stop All cleanup")
+                && action_text.contains("1%")
+                && action_text.contains("150 ms"),
+            "operator guidance should route the live R5 V1 lane through PIDFF: {action_text}"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn openracing_control_next_commands_suggest_native_actuator_after_pidff_steering() -> TestResult
+    {
+        let dir = tempfile::tempdir()?;
+        write_native_actuator_profile_prerequisite_receipts(dir.path())?;
+        let gates = [
+            BundleGateCheck::pass("init_off_handshake", "ok".to_string()),
+            BundleGateCheck::pass("init_standard_handshake", "ok".to_string()),
+            BundleGateCheck::pass("service_status_receipts", "ok".to_string()),
+            BundleGateCheck::pass("low_torque_bounded", "ok".to_string()),
+            BundleGateCheck::pass("steering_angle_stream_proof", "ok".to_string()),
+            BundleGateCheck::fail("native_actuator_profile_smoke", "missing".to_string()),
+        ];
+        let mut commands = Vec::new();
+        push_openracing_control_next_commands(dir.path(), &gates, &mut commands);
+        let joined = commands.join("\n");
+
+        assert!(
+            joined.contains("wheelctl moza actuator-profile-smoke")
+                && joined.contains("--strategy pidff-bounded-effect")
+                && joined.contains("--confirm-actuator-profile")
+                && joined.contains("native-actuator-profile-smoke.json"),
+            "native actuator frontier should suggest the bounded PIDFF native command: {joined}"
+        );
+        assert!(
+            !joined.contains("wheelctl telemetry record")
+                && !joined.contains("pit-house")
+                && !joined.contains("simulator-ffb-smoke"),
+            "native actuator guidance must not depend on external compatibility surfaces: {joined}"
+        );
+        for command in commands {
+            let command = command_with_test_placeholders(&command);
+            let args = split_generated_command(&command)?;
+            crate::Cli::try_parse_from(args).map_err(|error| {
+                format!("generated native actuator command failed to parse: {command}\n{error}")
+            })?;
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn openracing_control_next_commands_do_not_suggest_native_actuator_for_direct_low_torque()
+    -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_low_torque_prerequisite_receipts(dir.path())?;
+        write_test_json_file(
+            &dir.path().join("low-torque-proof.json"),
+            &real_low_torque_receipt_for_lane(dir.path(), 1.0)?,
+        )?;
+        write_test_json_file(
+            &dir.path().join("steering-angle-stream-proof.json"),
+            &steering_angle_stream_receipt(dir.path()),
+        )?;
+        let gates = [
+            BundleGateCheck::pass("init_off_handshake", "ok".to_string()),
+            BundleGateCheck::pass("init_standard_handshake", "ok".to_string()),
+            BundleGateCheck::pass("service_status_receipts", "ok".to_string()),
+            BundleGateCheck::pass("low_torque_bounded", "ok".to_string()),
+            BundleGateCheck::pass("steering_angle_stream_proof", "ok".to_string()),
+            BundleGateCheck::fail("native_actuator_profile_smoke", "missing".to_string()),
+        ];
+        let mut commands = Vec::new();
+        push_openracing_control_next_commands(dir.path(), &gates, &mut commands);
+        let joined = commands.join("\n");
+
+        assert!(
+            !joined.contains("wheelctl moza actuator-profile-smoke"),
+            "native actuator command must not be suggested from a direct-report low-torque receipt: {joined}"
+        );
+        assert!(
+            joined.contains("wheelctl moza pre-output-readiness"),
+            "direct-report low-torque should fall back to readiness guidance: {joined}"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn verify_bundle_smoke_operator_actions_match_current_frontier() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_minimal_passive_bundle(dir.path())?;
+        write_zero_stage_receipts(dir.path())?;
+
+        let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::SmokeReady);
+        let actions = receipt.operator_actions.join("\n");
+        assert!(
+            actions.contains("Current OpenRacing-control frontier: staged init-off")
+                && actions.contains("feature reports 0x03 and 0x11")
+                && actions.contains("11FF0000")
+                && actions.contains("wheel is clear")
+                && actions.contains("no game/sim FFB source")
+                && actions.contains("do not run standard init, low torque, simulator FFB"),
+            "init-off frontier should explain feature-report safety boundary: {actions}"
+        );
+
+        write_test_json_file(
+            &dir.path().join("init-off.json"),
+            &receipt_with_lane_path(dir.path(), "init-off.json", real_init_receipt("off")),
+        )?;
+        let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::SmokeReady);
+        let actions = receipt.operator_actions.join("\n");
+        assert!(
+            actions.contains("Current OpenRacing-control frontier: staged init-standard")
+                && actions.contains("11000000")
+                && actions.contains("same-lane init-off receipt")
+                && actions.contains("do not run low torque, simulator FFB"),
+            "init-standard frontier should explain the standard-mode safety boundary: {actions}"
+        );
+
+        write_test_json_file(
+            &dir.path().join("init-standard.json"),
+            &receipt_with_lane_path(
+                dir.path(),
+                "init-standard.json",
+                real_init_receipt("standard"),
+            ),
+        )?;
+        let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::SmokeReady);
+        let actions = receipt.operator_actions.join("\n");
+        assert!(
+            actions.contains(
+                "Current OpenRacing-control frontier: refresh service/status/support receipts"
+            ) && actions.contains("safe_to_send_torque=false")
+                && actions.contains("no feature/output/serial/firmware actions"),
+            "service-status frontier should keep readiness diagnostic-only: {actions}"
+        );
+
+        write_service_status_artifacts(dir.path())?;
+        let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::SmokeReady);
+        let actions = receipt.operator_actions.join("\n");
+        assert!(
+            actions.contains("Current OpenRacing-control frontier: bounded low-torque proof")
+                && actions.contains("first nonzero torque step")
+                && actions.contains("explicit operator confirmation")
+                && actions.contains("trusted direct report 0x20 metadata")
+                && actions.contains("same-lane direct-report zero proof")
+                && actions.contains("same-lane zero/off/standard init receipts"),
+            "low-torque frontier should be explicitly operator-gated: {actions}"
+        );
+
+        write_test_json_file(
+            &dir.path().join("low-torque-proof.json"),
+            &real_low_torque_receipt_for_lane(dir.path(), 2.0)?,
+        )?;
+        let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::SmokeReady);
+        let actions = receipt.operator_actions.join("\n");
+        assert!(
+            actions.contains(
+                "Current OpenRacing-control frontier: native steering angle stream proof"
+            ) && actions.contains("no output reports")
+                && actions.contains("no FFB writes"),
+            "native steering frontier should stay output-free: {actions}"
+        );
+
+        write_test_json_file(
+            &dir.path().join("steering-angle-stream-proof.json"),
+            &steering_angle_stream_receipt(dir.path()),
+        )?;
+        let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::SmokeReady);
+        let actions = receipt.operator_actions.join("\n");
+        assert!(
+            actions.contains(
+                "Current OpenRacing-control frontier: native PIDFF actuator-profile smoke"
+            ) && actions.contains("final PIDFF Stop All cleanup")
+                && actions.contains("SimHub and Pit House out of this native-control claim"),
+            "native actuator frontier should stay separate from external adapters: {actions}"
+        );
+
+        write_test_json_file(
+            &dir.path().join("native-actuator-profile-smoke.json"),
+            &native_actuator_profile_smoke_receipt(dir.path()),
+        )?;
+        let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::SmokeReady);
+        let actions = receipt.operator_actions.join("\n");
+        assert!(
+            actions.contains("Current external-compatibility frontier: simulator telemetry proof")
+                && actions.contains("one real simulator telemetry path only")
+                && actions.contains("must not send Moza output reports"),
+            "telemetry frontier should stay output-free after native control proofs: {actions}"
+        );
+
+        write_simulator_artifacts(dir.path())?;
+        write_service_status_artifacts(dir.path())?;
+        let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::SmokeReady);
+        let actions = receipt.operator_actions.join("\n");
+        assert!(
+            actions
+                .contains("Current external-compatibility frontier: bounded simulator FFB smoke")
+                && actions.contains("watchdog enabled")
+                && actions.contains("duration and force bounded")
+                && actions.contains("do not claim Pit House coexistence"),
+            "simulator FFB frontier should be bounded and not overclaim Pit House: {actions}"
+        );
+
+        write_test_json_file(
+            &dir.path().join("simulator-ffb-smoke.json"),
+            &simulator_ffb_receipt(),
+        )?;
+        let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::SmokeReady);
+        let actions = receipt.operator_actions.join("\n");
+        assert!(
+            actions
+                .contains("Current external-compatibility frontier: Pit House coexistence proof")
+                && actions.contains("Pit House is not installed")
+                && actions.contains("leave smoke-ready blocked")
+                && actions.contains("firmware/update pages must be refused")
+                && actions.contains("final zero was attempted"),
+            "Pit House frontier should allow an honest blocked state instead of fabricated evidence: {actions}"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn smoke_operator_actions_describe_r5_v1_mode_only_init() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_zero_torque_ready_r5_v1_manifest(dir.path())?;
+        let gates = vec![
+            BundleGateCheck::pass("lane_directory", "lane".to_string()),
+            BundleGateCheck::pass("manifest_no_overclaim", "manifest".to_string()),
+            BundleGateCheck::pass("manifest_r5_pid_consistency", "pid".to_string()),
+            BundleGateCheck::pass("moza_r5_observed", "r5".to_string()),
+            BundleGateCheck::pass("moza_topology_observed", "topology".to_string()),
+            BundleGateCheck::pass("topology_required_evidence_supported", "roles".to_string()),
+            BundleGateCheck::pass("descriptor_metadata", "descriptor".to_string()),
+            BundleGateCheck::pass("passive_receipts_successful", "receipts".to_string()),
+            BundleGateCheck::pass("passive_receipts_no_ffb_writes", "no ffb".to_string()),
+            BundleGateCheck::pass("passive_captures_parse", "captures".to_string()),
+            BundleGateCheck::pass("parser_fixture_validation", "parser".to_string()),
+            BundleGateCheck::pass("fixture_promotion", "fixtures".to_string()),
+            BundleGateCheck::pass("zero_torque_real_hardware", "zero".to_string()),
+            BundleGateCheck::pass("watchdog_zero_output", "watchdog".to_string()),
+            BundleGateCheck::pass("disconnect_final_zero", "disconnect".to_string()),
+            BundleGateCheck::fail("init_off_handshake", "missing".to_string()),
+        ];
+        let mut actions = Vec::new();
+
+        push_openracing_control_frontier_operator_action(dir.path(), &gates, &mut actions);
+
+        let actions = actions.join("\n");
+        assert!(
+            actions.contains("feature report 0x11")
+                && actions.contains("11FF0000")
+                && !actions.contains("feature reports 0x03 and 0x11"),
+            "R5 V1 init frontier should describe mode-only feature report: {actions}"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn verify_bundle_smoke_requires_service_status_refresh_after_init() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_minimal_passive_bundle(dir.path())?;
+        write_zero_stage_receipts(dir.path())?;
+        write_service_status_artifacts(dir.path())?;
+        write_test_json_file(
+            &dir.path().join("init-off.json"),
+            &receipt_with_lane_path(dir.path(), "init-off.json", real_init_receipt("off")),
+        )?;
+        write_test_json_file(
+            &dir.path().join("init-standard.json"),
+            &receipt_with_lane_path(
+                dir.path(),
+                "init-standard.json",
+                real_init_receipt("standard"),
+            ),
+        )?;
+
+        let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::SmokeReady);
+        let service_gate = receipt
+            .gates
+            .iter()
+            .find(|gate| gate.name == "service_status_receipts")
+            .ok_or("missing service status gate")?;
+        assert_eq!(service_gate.status, "fail");
+        assert!(
+            service_gate
+                .details
+                .contains("post-init status refresh required")
+                && service_gate
+                    .details
+                    .contains("moza_status_init_receipts=false")
+                && service_gate
+                    .details
+                    .contains("support_bundle_init_receipts=false"),
+            "stale pre-init service receipts should fail after init receipts pass: {}",
+            service_gate.details
+        );
+        let commands = receipt.next_commands.join("\n");
+        assert!(
+            commands.contains("wheelctl moza status --device")
+                && commands.contains("wheelctl device status")
+                && commands.contains("wheelctl --json support-bundle"),
+            "post-init stale status receipts should suggest a service/status refresh: {commands}"
+        );
+        assert!(
+            !commands.contains("wheelctl moza torque-test"),
+            "low torque must stay blocked until service/status receipts are refreshed after init: {commands}"
+        );
+
+        write_service_status_artifacts(dir.path())?;
+        let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::SmokeReady);
+        let service_gate = receipt
+            .gates
+            .iter()
+            .find(|gate| gate.name == "service_status_receipts")
+            .ok_or("missing refreshed service status gate")?;
+        assert_eq!(service_gate.status, "pass");
+        let commands = receipt.next_commands.join("\n");
+        assert!(
+            commands.contains("wheelctl moza torque-test --device"),
+            "fresh post-init service receipts should allow the verifier to advance to low torque: {commands}"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn verify_bundle_next_commands_parse_as_wheelctl_commands() -> TestResult {
+        let lane_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../ci/hardware/moza-r5");
+        let blocked_root_receipt = verify_bundle_dir(&lane_root, MozaBundleStage::SmokeReady);
+        let staged = tempfile::tempdir()?;
+        write_minimal_passive_bundle(staged.path())?;
+        write_zero_stage_receipts(staged.path())?;
+        let smoke_ready_receipt = verify_bundle_dir(staged.path(), MozaBundleStage::SmokeReady);
+        let service_frontier = tempfile::tempdir()?;
+        write_minimal_passive_bundle(service_frontier.path())?;
+        write_zero_stage_receipts(service_frontier.path())?;
+        write_test_json_file(
+            &service_frontier.path().join("init-off.json"),
+            &receipt_with_lane_path(
+                service_frontier.path(),
+                "init-off.json",
+                real_init_receipt("off"),
+            ),
+        )?;
+        write_test_json_file(
+            &service_frontier.path().join("init-standard.json"),
+            &receipt_with_lane_path(
+                service_frontier.path(),
+                "init-standard.json",
+                real_init_receipt("standard"),
+            ),
+        )?;
+        let service_frontier_receipt =
+            verify_bundle_dir(service_frontier.path(), MozaBundleStage::SmokeReady);
+        let ffb_frontier = tempfile::tempdir()?;
+        write_openracing_control_bundle(ffb_frontier.path())?;
+        write_simulator_artifacts(ffb_frontier.path())?;
+        write_service_status_artifacts(ffb_frontier.path())?;
+        let ffb_frontier_receipt =
+            verify_bundle_dir(ffb_frontier.path(), MozaBundleStage::SmokeReady);
+        let pit_house_frontier = tempfile::tempdir()?;
+        write_minimal_passive_bundle(pit_house_frontier.path())?;
+        write_zero_stage_receipts(pit_house_frontier.path())?;
+        write_simulator_artifacts(pit_house_frontier.path())?;
+        write_service_status_artifacts(pit_house_frontier.path())?;
+        write_test_json_file(
+            &pit_house_frontier.path().join("simulator-ffb-smoke.json"),
+            &simulator_ffb_receipt(),
+        )?;
+        let pit_house_frontier_receipt =
+            verify_bundle_dir(pit_house_frontier.path(), MozaBundleStage::SmokeReady);
+
+        assert!(!blocked_root_receipt.success);
+        assert!(!smoke_ready_receipt.success);
+        assert!(!service_frontier_receipt.success);
+        assert!(!ffb_frontier_receipt.success);
+        assert!(!pit_house_frontier_receipt.success);
+        let mut checked = 0usize;
+        for receipt in [
+            &blocked_root_receipt,
+            &smoke_ready_receipt,
+            &service_frontier_receipt,
+            &ffb_frontier_receipt,
+            &pit_house_frontier_receipt,
+        ] {
+            for command in receipt
+                .next_commands
+                .iter()
+                .filter(|command| command.starts_with("wheelctl "))
+            {
+                let command = command_with_test_placeholders(command);
+                let args = split_generated_command(&command)?;
+                crate::Cli::try_parse_from(args).map_err(|error| {
+                    format!("generated next_command failed to parse: {command}\n{error}")
+                })?;
+                checked += 1;
+            }
         }
 
         assert!(
-            checked >= 40,
+            checked >= 20,
             "expected to parse the generated wheelctl bring-up commands, checked {checked}"
         );
         Ok(())
@@ -20658,59 +34403,117 @@ mod tests {
     #[test]
     fn verify_bundle_next_commands_use_known_external_command_forms() -> TestResult {
         let lane_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../ci/hardware/moza-r5");
-        let receipt = verify_bundle_dir(&lane_root, MozaBundleStage::SmokeReady);
+        let blocked_root_receipt = verify_bundle_dir(&lane_root, MozaBundleStage::SmokeReady);
+        let staged = tempfile::tempdir()?;
+        write_minimal_passive_bundle(staged.path())?;
+        write_zero_stage_receipts(staged.path())?;
+        let smoke_ready_receipt = verify_bundle_dir(staged.path(), MozaBundleStage::SmokeReady);
+        let service_frontier = tempfile::tempdir()?;
+        write_minimal_passive_bundle(service_frontier.path())?;
+        write_zero_stage_receipts(service_frontier.path())?;
+        write_test_json_file(
+            &service_frontier.path().join("init-off.json"),
+            &receipt_with_lane_path(
+                service_frontier.path(),
+                "init-off.json",
+                real_init_receipt("off"),
+            ),
+        )?;
+        write_test_json_file(
+            &service_frontier.path().join("init-standard.json"),
+            &receipt_with_lane_path(
+                service_frontier.path(),
+                "init-standard.json",
+                real_init_receipt("standard"),
+            ),
+        )?;
+        let service_frontier_receipt =
+            verify_bundle_dir(service_frontier.path(), MozaBundleStage::SmokeReady);
+        let ffb_frontier = tempfile::tempdir()?;
+        write_openracing_control_bundle(ffb_frontier.path())?;
+        write_simulator_artifacts(ffb_frontier.path())?;
+        write_service_status_artifacts(ffb_frontier.path())?;
+        let ffb_frontier_receipt =
+            verify_bundle_dir(ffb_frontier.path(), MozaBundleStage::SmokeReady);
 
-        assert!(!receipt.success);
+        assert!(!blocked_root_receipt.success);
+        assert!(!smoke_ready_receipt.success);
+        assert!(!service_frontier_receipt.success);
+        assert!(!ffb_frontier_receipt.success);
         let mut checked = 0usize;
-        for command in receipt
-            .next_commands
-            .iter()
-            .filter(|command| !command.starts_with("wheelctl "))
-        {
-            let command = command_with_test_placeholders(command);
-            let args = split_generated_command(&command)?;
-            let arg_refs = args.iter().map(String::as_str).collect::<Vec<_>>();
+        for receipt in [
+            &blocked_root_receipt,
+            &smoke_ready_receipt,
+            &service_frontier_receipt,
+            &ffb_frontier_receipt,
+        ] {
+            for command in receipt
+                .next_commands
+                .iter()
+                .filter(|command| !command.starts_with("wheelctl "))
+            {
+                let command = command_with_test_placeholders(command);
+                let args = split_generated_command(&command)?;
+                let arg_refs = args.iter().map(String::as_str).collect::<Vec<_>>();
 
-            match arg_refs.as_slice() {
-                [
-                    "hid-capture",
-                    "list",
-                    "--vendor",
-                    "0x346E",
-                    "--json-out",
-                    path,
-                ] => {
-                    assert!(
-                        path.replace('\\', "/").ends_with("/hid-list.json"),
-                        "generated hid-capture next_command should write hid-list.json: {command}"
-                    );
+                match arg_refs.as_slice() {
+                    [
+                        "hid-capture",
+                        "list",
+                        "--vendor",
+                        "0x346E",
+                        "--json-out",
+                        path,
+                    ] => {
+                        assert!(
+                            path.replace('\\', "/").ends_with("/hid-list.json"),
+                            "generated hid-capture next_command should write hid-list.json: {command}"
+                        );
+                    }
+                    ["wheeld", "--hardware-lane", "moza-r5"] => {}
+                    ["wheeld", "--hardware-lane", lane] => {
+                        assert!(
+                            Path::new(lane).ends_with(staged.path())
+                                || Path::new(lane).ends_with(service_frontier.path())
+                                || Path::new(lane).ends_with(ffb_frontier.path())
+                                || lane.replace('\\', "/").contains("ci/hardware/moza-r5/"),
+                            "generated wheeld next_command should target the staged or dated Moza lane: {command}"
+                        );
+                    }
+                    [
+                        "cargo",
+                        "test",
+                        "-p",
+                        "racing-wheel-hid-moza-protocol",
+                        "promoted_capture_fixtures_replay_through_moza_parser",
+                    ] => {}
+                    [
+                        "powershell",
+                        "-ExecutionPolicy",
+                        "Bypass",
+                        "-File",
+                        "scripts/extract_usbpcap_report_descriptor.ps1",
+                        "-InputPcapng",
+                        "target/moza-r5-usbpcap-enumeration.pcapng",
+                        "-Output",
+                        "target/moza-r5-report-descriptor.txt",
+                        "-InterfaceNumber",
+                        "2",
+                    ] => {}
+                    _ => {
+                        return Err(format!(
+                            "unexpected external generated next_command: {command}"
+                        )
+                        .into());
+                    }
                 }
-                ["wheeld", "--hardware-lane", "moza-r5"] => {}
-                ["wheeld", "--hardware-lane", lane] => {
-                    assert!(
-                        lane.replace('\\', "/").contains("ci/hardware/moza-r5/"),
-                        "generated wheeld next_command should target the dated Moza lane: {command}"
-                    );
-                }
-                [
-                    "cargo",
-                    "test",
-                    "-p",
-                    "racing-wheel-hid-moza-protocol",
-                    "promoted_capture_fixtures_replay_through_moza_parser",
-                ] => {}
-                _ => {
-                    return Err(
-                        format!("unexpected external generated next_command: {command}").into(),
-                    );
-                }
+                checked += 1;
             }
-            checked += 1;
         }
 
         assert_eq!(
             checked, 4,
-            "expected hid-capture, cargo parser replay, lane-status wheeld, and canonical simulator-writer wheeld next_commands"
+            "expected hid-capture, USBPcap descriptor extraction, lane-status wheeld, and canonical simulator-writer wheeld next_commands"
         );
         Ok(())
     }
@@ -20734,14 +34537,48 @@ mod tests {
         )?;
 
         let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::Passive);
+        let gate = receipt
+            .gates
+            .iter()
+            .find(|gate| gate.name == "descriptor_metadata")
+            .ok_or("missing descriptor metadata gate")?;
 
         assert!(!receipt.success);
+        assert_eq!(gate.status, "fail");
         assert!(
-            receipt
-                .gates
-                .iter()
-                .any(|gate| { gate.name == "descriptor_metadata" && gate.status == "fail" })
+            gate.details.contains("diagnostics=")
+                && gate.details.contains("descriptor_source")
+                && gate.details.contains("report_descriptor_crc32")
+                && gate.details.contains("identity_metadata")
+                && gate.details.contains("interface_usage_metadata")
+                && gate.details.contains("input_report_lengths")
+                && gate.details.contains("output_report_0x20_len_8")
+                && gate.details.contains("feature_report_ids_0x03_0x11"),
+            "expected actionable descriptor diagnostics, got {}",
+            gate.details
         );
+        Ok(())
+    }
+
+    #[test]
+    fn verify_bundle_passive_accepts_live_r5_v1_descriptor_input_length() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_test_json_file(
+            &dir.path().join("descriptor.json"),
+            &serde_json::json!({
+                "success": true,
+                "command": "wheelctl moza descriptor",
+                "no_hid_device_opened": true,
+                "no_ffb_writes": true,
+                "no_serial_config_commands": true,
+                "no_firmware_or_dfu_commands": true,
+                "devices": [sample_trusted_r5_v1_json_device()]
+            }),
+        )?;
+
+        let gate = verify_descriptor_metadata_gate(dir.path());
+
+        assert_eq!(gate.status, "pass", "{}", gate.details);
         Ok(())
     }
 
@@ -20958,6 +34795,47 @@ mod tests {
     }
 
     #[test]
+    fn verify_bundle_passive_accepts_windows_separator_repo_fixture_paths() -> TestResult {
+        let repo = tempfile::tempdir()?;
+        let lane = repo.path().join("ci/hardware/moza-r5/2026-05-06");
+        write_minimal_passive_bundle(&lane)?;
+
+        let mut receipt = read_json_path(&lane.join("fixture-promotion.json"))?;
+        let fixtures = receipt
+            .get_mut("fixtures")
+            .and_then(Value::as_array_mut)
+            .ok_or("expected fixture entries")?;
+        for entry in fixtures {
+            let fixture_id = json_string(entry, "fixture_id")
+                .ok_or("expected fixture id")?
+                .to_string();
+            let current_fixture_out = json_string(entry, "fixture_out")
+                .ok_or("expected fixture out")?
+                .to_string();
+            let repo_relative =
+                format!("crates/hid-moza-protocol/fixtures/moza-r5-2026-05-06/{fixture_id}.json");
+            let source = lane.join(current_fixture_out);
+            let target = repo.path().join(&repo_relative);
+            if let Some(parent) = target.parent() {
+                fs::create_dir_all(parent)?;
+            }
+            fs::copy(&source, &target)?;
+            entry["fixture_out"] = serde_json::json!(repo_relative.replace('/', "\\"));
+        }
+        fs::remove_dir_all(lane.join("fixtures"))?;
+        write_test_json_file(&lane.join("fixture-promotion.json"), &receipt)?;
+
+        let verify = verify_bundle_dir(&lane, MozaBundleStage::Passive);
+
+        assert!(
+            verify.success,
+            "expected Windows-separator repo fixture paths to verify on every platform: {:?}",
+            verify.gates
+        );
+        Ok(())
+    }
+
+    #[test]
     fn verify_bundle_passive_requires_ks_es_full_control_reports() -> TestResult {
         let dir = tempfile::tempdir()?;
         write_minimal_passive_bundle(dir.path())?;
@@ -21103,7 +34981,427 @@ mod tests {
     }
 
     #[test]
-    fn verify_bundle_passive_requires_es_hat_and_button_variation() -> TestResult {
+    fn validate_capture_maps_live_r5_v1_throttle_sweep() -> TestResult {
+        let low = format!(
+            r#"{{"product_id":"0x0004","report_len":42,"data_hex":"{}"}}"#,
+            live_r5_v1_extended_throttle_report_hex(0x0011)
+        );
+        let high = format!(
+            r#"{{"product_id":"0x0004","report_len":42,"data_hex":"{}"}}"#,
+            live_r5_v1_extended_throttle_report_hex(0xFF96)
+        );
+        let (_dir, path) = write_temp_capture(&[low.as_str(), high.as_str()])?;
+
+        let receipt = validate_capture_file(&path, None)?;
+
+        assert!(receipt.success);
+        let throttle = receipt
+            .axis_ranges
+            .get("throttle_u16")
+            .ok_or("expected throttle axis stats")?;
+        assert_eq!(throttle.min, Some(0x0011));
+        assert_eq!(throttle.max, Some(0xFF96));
+        assert_ne!(throttle.min, throttle.max);
+        assert_eq!(
+            receipt
+                .axis_ranges
+                .get("brake_u16")
+                .and_then(|axis| axis.max),
+            Some(0)
+        );
+        assert_eq!(
+            receipt
+                .axis_ranges
+                .get("clutch_u16")
+                .and_then(|axis| axis.max),
+            Some(0)
+        );
+        assert_eq!(
+            receipt
+                .axis_ranges
+                .get("handbrake_u16")
+                .and_then(|axis| axis.max),
+            Some(0)
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn analyze_lane_reports_trailer_only_throttle_capture_without_control_evidence() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_minimal_passive_bundle(dir.path())?;
+        write_text_file(
+            &dir.path().join("captures/r5-throttle-only-sweep.jsonl"),
+            &format!(
+                "{}\n{}",
+                capture_line(
+                    product_ids::R5_V1,
+                    &live_r5_v1_trailer_report_hex([0x00, 0x00, 0x00, 0x00])
+                ),
+                capture_line(
+                    product_ids::R5_V1,
+                    &live_r5_v1_trailer_report_hex([0xFF, 0xAA, 0x55, 0x40])
+                )
+            ),
+        )?;
+
+        let receipt = analyze_lane_captures(dir.path())?;
+        let throttle = receipt
+            .captures
+            .iter()
+            .find(|entry| entry.capture == "captures/r5-throttle-only-sweep.jsonl")
+            .ok_or("missing throttle analysis entry")?;
+        let throttle_role = receipt
+            .role_evidence
+            .iter()
+            .find(|entry| entry.control == "throttle")
+            .ok_or("missing throttle role evidence entry")?;
+
+        assert!(!receipt.success);
+        assert!(
+            receipt
+                .missing_control_evidence
+                .iter()
+                .any(|capture| capture == "captures/r5-throttle-only-sweep.jsonl")
+        );
+        assert!(throttle.success);
+        assert!(!throttle.control_evidence_ok);
+        assert!(throttle.moving_required_axes.is_empty());
+        assert_eq!(throttle.unique_moving_bytes_vs_idle, vec![38, 39, 40, 41]);
+        assert!(
+            throttle
+                .missing_requirements
+                .iter()
+                .any(|requirement| requirement.contains("variation in hub_control_axis group"))
+        );
+        assert_eq!(throttle_role.role, "throttle");
+        assert_eq!(throttle_role.semantic_status, "missing");
+        assert!(!throttle_role.parser_visible);
+        assert_eq!(
+            throttle_role.evidence_capture.as_deref(),
+            Some("captures/r5-throttle-only-sweep.jsonl")
+        );
+        assert!(
+            receipt.safe_diagnostics.iter().any(|diagnostic| diagnostic
+                .contains("only idle/trailer bytes moved")
+                && diagnostic.contains("do not recapture blindly")
+                && diagnostic.contains("target/moza-gas-check")
+                && diagnostic.contains("replace the lane capture only if parser-visible")),
+            "expected throttle trailer-only diagnostic, got {:?}",
+            receipt.safe_diagnostics
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn analyze_lane_throttle_diagnostic_reports_single_observed_moza_hid_endpoint() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_minimal_passive_bundle(dir.path())?;
+        replace_observation_receipt_devices(dir.path(), &[sample_trusted_r5_v1_json_device()])?;
+        write_text_file(
+            &dir.path().join("captures/r5-throttle-only-sweep.jsonl"),
+            &format!(
+                "{}\n{}",
+                capture_line(
+                    product_ids::R5_V1,
+                    &live_r5_v1_trailer_report_hex([0x00, 0x00, 0x00, 0x00])
+                ),
+                capture_line(
+                    product_ids::R5_V1,
+                    &live_r5_v1_trailer_report_hex([0xFF, 0xAA, 0x55, 0x40])
+                )
+            ),
+        )?;
+
+        let receipt = analyze_lane_captures(dir.path())?;
+
+        assert!(
+            receipt.safe_diagnostics.iter().any(|diagnostic| diagnostic
+                .contains("only the R5 HID game-controller endpoint")
+                && diagnostic.contains("must not be probed or configured")),
+            "expected single-endpoint throttle diagnostic, got {:?}",
+            receipt.safe_diagnostics
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn verify_bundle_operator_action_uses_observed_single_hid_endpoint_context() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_minimal_passive_bundle(dir.path())?;
+        replace_observation_receipt_devices(dir.path(), &[sample_trusted_r5_v1_json_device()])?;
+        write_text_file(
+            &dir.path().join("captures/r5-throttle-only-sweep.jsonl"),
+            &format!(
+                "{}\n{}",
+                capture_line(
+                    product_ids::R5_V1,
+                    &live_r5_v1_trailer_report_hex([0x00, 0x00, 0x00, 0x00])
+                ),
+                capture_line(
+                    product_ids::R5_V1,
+                    &live_r5_v1_trailer_report_hex([0xFF, 0xAA, 0x55, 0x40])
+                )
+            ),
+        )?;
+
+        let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::Passive);
+
+        assert!(
+            receipt.operator_actions.iter().any(|action| action
+                .contains("already show only the R5 HID game-controller endpoint")
+                && action.contains("target/moza-gas-check/r5-gas-after-reseat-60s.jsonl")
+                && action.contains(
+                    "wheelctl moza capture-input --device hid-0x346E-0x0014-if2-0x0001-0x0004"
+                )
+                && action.contains("wheelctl moza analyze-capture --capture")
+                && action.contains("must not be probed or configured")),
+            "expected single-endpoint operator action, got {:?}",
+            receipt.operator_actions
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn verify_bundle_passive_includes_safe_analyzer_diagnostics() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_minimal_passive_bundle(dir.path())?;
+        write_text_file(
+            &dir.path().join("captures/r5-throttle-only-sweep.jsonl"),
+            &format!(
+                "{}\n{}",
+                capture_line(
+                    product_ids::R5_V1,
+                    &live_r5_v1_trailer_report_hex([0x00, 0x00, 0x00, 0x00])
+                ),
+                capture_line(
+                    product_ids::R5_V1,
+                    &live_r5_v1_trailer_report_hex([0xFF, 0xAA, 0x55, 0x40])
+                )
+            ),
+        )?;
+
+        let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::Passive);
+        let gate = receipt
+            .gates
+            .iter()
+            .find(|gate| gate.name == "passive_captures_parse")
+            .ok_or("missing passive capture parse gate")?;
+
+        assert!(!receipt.success);
+        assert_eq!(gate.status, "fail");
+        assert!(
+            gate.details.contains("safe_diagnostics=")
+                && gate.details.contains("only idle/trailer bytes moved")
+                && gate.details.contains("do not recapture blindly")
+                && gate.details.contains("target/moza-gas-check"),
+            "expected passive verifier to include analyzer diagnostic, got {}",
+            gate.details
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn validate_lane_captures_includes_safe_analyzer_diagnostics() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_minimal_passive_bundle(dir.path())?;
+        write_text_file(
+            &dir.path().join("captures/r5-throttle-only-sweep.jsonl"),
+            &format!(
+                "{}\n{}",
+                capture_line(
+                    product_ids::R5_V1,
+                    &live_r5_v1_trailer_report_hex([0x00, 0x00, 0x00, 0x00])
+                ),
+                capture_line(
+                    product_ids::R5_V1,
+                    &live_r5_v1_trailer_report_hex([0xFF, 0xAA, 0x55, 0x40])
+                )
+            ),
+        )?;
+
+        let receipt = validate_lane_captures(dir.path())?;
+
+        assert!(!receipt.success);
+        assert!(
+            receipt.safe_diagnostics.iter().any(|diagnostic| diagnostic
+                .contains("only idle/trailer bytes moved")
+                && diagnostic.contains("do not recapture blindly")
+                && diagnostic.contains("target/moza-gas-check")),
+            "expected validate-captures to include analyzer diagnostic, got {:?}",
+            receipt.safe_diagnostics
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn verify_bundle_parser_validation_gate_includes_safe_diagnostics() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_minimal_passive_bundle(dir.path())?;
+        write_text_file(
+            &dir.path().join("captures/r5-throttle-only-sweep.jsonl"),
+            &format!(
+                "{}\n{}",
+                capture_line(
+                    product_ids::R5_V1,
+                    &live_r5_v1_trailer_report_hex([0x00, 0x00, 0x00, 0x00])
+                ),
+                capture_line(
+                    product_ids::R5_V1,
+                    &live_r5_v1_trailer_report_hex([0xFF, 0xAA, 0x55, 0x40])
+                )
+            ),
+        )?;
+        let validation = validate_lane_captures(dir.path())?;
+        write_test_json_file(
+            &dir.path().join("parser-fixture-validation.json"),
+            &serde_json::to_value(validation)?,
+        )?;
+
+        let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::Passive);
+        let gate = receipt
+            .gates
+            .iter()
+            .find(|gate| gate.name == "parser_fixture_validation")
+            .ok_or("missing parser fixture validation gate")?;
+
+        assert!(!receipt.success);
+        assert_eq!(gate.status, "fail");
+        assert!(
+            gate.details.contains("safe_diagnostics=")
+                && gate.details.contains("only idle/trailer bytes moved")
+                && gate.details.contains("do not recapture blindly"),
+            "expected parser validation gate to include analyzer diagnostic, got {}",
+            gate.details
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn analyze_lane_role_status_marks_generic_extended_axes() {
+        let entry = LaneCaptureAnalysisEntry {
+            capture: "captures/r5-clutch-only-sweep.jsonl".to_string(),
+            fixture_id: "r5_clutch_only_sweep".to_string(),
+            success: true,
+            total_reports: 2,
+            decoded_reports: 2,
+            rejected_reports: 0,
+            moving_bytes: Vec::new(),
+            unique_moving_bytes_vs_idle: Vec::new(),
+            moving_words_le: Vec::new(),
+            unique_moving_words_le_vs_idle: Vec::new(),
+            moving_required_axes: vec!["r5_v1_extended_aux0_u16".to_string()],
+            control_evidence_ok: true,
+            missing_requirements: Vec::new(),
+        };
+        let mut notes = Vec::new();
+
+        let status = role_semantic_status(true, Some(&entry), &mut notes);
+
+        assert_eq!(status, "generic_aux");
+        assert!(
+            notes
+                .iter()
+                .any(|note| note.contains("semantic control naming remains unproven"))
+        );
+    }
+
+    #[test]
+    fn sync_role_status_updates_manifest_from_lane_analysis() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_minimal_passive_bundle(dir.path())?;
+        write_text_file(
+            &dir.path().join("captures/r5-throttle-only-sweep.jsonl"),
+            &format!(
+                "{}\n{}",
+                capture_line(
+                    product_ids::R5_V1,
+                    &live_r5_v1_trailer_report_hex([0x00, 0x00, 0x00, 0x00])
+                ),
+                capture_line(
+                    product_ids::R5_V1,
+                    &live_r5_v1_trailer_report_hex([0xFF, 0xAA, 0x55, 0x40])
+                )
+            ),
+        )?;
+
+        let stale_check = sync_role_status_receipt(dir.path(), true)?;
+        assert_eq!(json_bool(&stale_check, "success"), Some(false));
+        assert!(
+            json_u64(&stale_check, "stale_control_count").ok_or("missing stale control count")? > 0
+        );
+
+        let receipt = sync_role_status_receipt(dir.path(), false)?;
+        assert_eq!(json_bool(&receipt, "success"), Some(true));
+        assert_eq!(json_bool(&receipt, "manifest_written"), Some(true));
+        assert_eq!(json_bool(&receipt, "lane_analysis_success"), Some(false));
+
+        let manifest = read_json_path(&dir.path().join("manifest.json"))?;
+        assert_eq!(
+            json_string(
+                manifest
+                    .pointer("/topology/logical_controls/steering")
+                    .ok_or("missing steering control")?,
+                "semantic_status"
+            ),
+            Some("proven")
+        );
+        assert_eq!(
+            json_string(
+                manifest
+                    .pointer("/topology/logical_controls/throttle")
+                    .ok_or("missing throttle control")?,
+                "semantic_status"
+            ),
+            Some("missing")
+        );
+
+        let fresh_check = sync_role_status_receipt(dir.path(), true)?;
+        assert_eq!(json_bool(&fresh_check, "success"), Some(true));
+        assert_eq!(json_u64(&fresh_check, "stale_control_count"), Some(0));
+        assert_eq!(json_bool(&fresh_check, "artifact_map_changed"), Some(false));
+        assert_eq!(json_bool(&fresh_check, "manifest_written"), Some(false));
+        Ok(())
+    }
+
+    #[test]
+    fn sync_role_status_refreshes_manifest_artifact_contract() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_minimal_passive_bundle(dir.path())?;
+        sync_role_status_receipt(dir.path(), false)?;
+
+        let mut manifest = read_json_path(&dir.path().join("manifest.json"))?;
+        manifest["artifacts"]
+            .as_object_mut()
+            .ok_or("expected artifacts map")?
+            .remove("hardware_doctor");
+        write_test_json_file(&dir.path().join("manifest.json"), &manifest)?;
+
+        let stale_check = sync_role_status_receipt(dir.path(), true)?;
+        assert_eq!(json_bool(&stale_check, "success"), Some(false));
+        assert_eq!(json_bool(&stale_check, "artifact_map_changed"), Some(true));
+        assert_eq!(json_u64(&stale_check, "stale_control_count"), Some(0));
+
+        let receipt = sync_role_status_receipt(dir.path(), false)?;
+        assert_eq!(json_bool(&receipt, "success"), Some(true));
+        assert_eq!(json_bool(&receipt, "manifest_written"), Some(true));
+        assert_eq!(json_bool(&receipt, "artifact_map_changed"), Some(true));
+
+        let refreshed = read_json_path(&dir.path().join("manifest.json"))?;
+        assert_eq!(
+            json_string(
+                refreshed
+                    .get("artifacts")
+                    .ok_or("missing artifacts map after refresh")?,
+                "hardware_doctor"
+            ),
+            Some("hardware-doctor.json")
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn verify_bundle_passive_accepts_es_button_only_controls() -> TestResult {
         let dir = tempfile::tempdir()?;
         write_minimal_passive_bundle(dir.path())?;
         write_text_file(
@@ -21112,24 +35410,18 @@ mod tests {
                 "{}\n{}",
                 capture_line(
                     product_ids::R5_V2,
-                    &wheelbase_full_report_hex(0x8000, 0, 0, 0, 0, 0, 8, rim_ids::ES, 0, 0)
+                    &wheelbase_full_report_hex(0x8000, 0, 0, 0, 0, 0, 0, 0, 0, 0)
                 ),
                 capture_line(
                     product_ids::R5_V2,
-                    &wheelbase_full_report_hex(0x8000, 0, 0, 0, 0, 0x02, 8, rim_ids::ES, 0, 0)
+                    &wheelbase_full_report_hex(0x8000, 0, 0, 0, 0, 0x02, 0, 0, 0, 0)
                 )
             ),
         )?;
 
         let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::Passive);
 
-        assert!(!receipt.success);
-        assert!(
-            receipt
-                .gates
-                .iter()
-                .any(|gate| { gate.name == "passive_captures_parse" && gate.status == "fail" })
-        );
+        assert!(receipt.success);
         Ok(())
     }
 
@@ -21143,11 +35435,11 @@ mod tests {
                 "{}\n{}",
                 capture_line(
                     product_ids::R5_V2,
-                    &wheelbase_full_report_hex(0x8000, 0, 0, 0, 0, 0, 8, rim_ids::ES, 0, 0)
+                    &wheelbase_full_report_hex(0x8000, 0, 0, 0, 0, 0, 0, 0, 0, 0)
                 ),
                 capture_line(
                     product_ids::R5_V2,
-                    &wheelbase_full_report_hex(0x8000, 0, 0, 0, 0, 0x02, 8, rim_ids::ES, 0, 0)
+                    &wheelbase_full_report_hex(0x8000, 0, 0, 0, 0, 0, 0, 0, 0, 0)
                 )
             ),
         )?;
@@ -21158,23 +35450,18 @@ mod tests {
             .iter()
             .find(|entry| entry.capture == "captures/es-controls.jsonl")
             .ok_or("missing es-controls validation entry")?;
-        let hat_requirement = entry
+        let button_requirement = entry
             .required_any_axis_variation
             .iter()
-            .find(|requirement| requirement.group == "hat")
-            .ok_or("missing hat requirement")?;
-        let rim_requirement = entry
-            .required_axis_values
-            .iter()
-            .find(|requirement| requirement.axis == "funky_u8")
-            .ok_or("missing ES rim requirement")?;
+            .find(|requirement| requirement.group == "buttons")
+            .ok_or("missing ES button requirement")?;
 
         assert!(!receipt.success);
         assert!(!entry.success);
-        assert_eq!(hat_requirement.axes, vec!["hat_u8".to_string()]);
-        assert_eq!(rim_requirement.value, hex_u8(rim_ids::ES));
+        assert_eq!(button_requirement.axes, vec!["buttons_any_u8".to_string()]);
+        assert!(entry.required_axis_values.is_empty());
         assert!(entry.missing_requirements.iter().any(|requirement| {
-            requirement.contains("hat group") && requirement.contains("hat_u8")
+            requirement.contains("buttons group") && requirement.contains("buttons_any_u8")
         }));
         Ok(())
     }
@@ -21305,11 +35592,15 @@ mod tests {
         )?;
         write_test_json_file(
             &dir.path().join("watchdog-proof.json"),
-            &real_watchdog_receipt(3),
+            &receipt_with_lane_path(dir.path(), "watchdog-proof.json", real_watchdog_receipt(3)),
         )?;
         write_test_json_file(
             &dir.path().join("disconnect-proof.json"),
-            &real_disconnect_receipt(),
+            &receipt_with_lane_path(
+                dir.path(),
+                "disconnect-proof.json",
+                real_disconnect_receipt(),
+            ),
         )?;
 
         let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::Zero);
@@ -21328,18 +35619,7 @@ mod tests {
     fn verify_bundle_zero_accepts_logged_real_zero_proof() -> TestResult {
         let dir = tempfile::tempdir()?;
         write_minimal_passive_bundle(dir.path())?;
-        write_test_json_file(
-            &dir.path().join("zero-torque-proof.json"),
-            &real_zero_receipt(100),
-        )?;
-        write_test_json_file(
-            &dir.path().join("watchdog-proof.json"),
-            &real_watchdog_receipt(3),
-        )?;
-        write_test_json_file(
-            &dir.path().join("disconnect-proof.json"),
-            &real_disconnect_receipt(),
-        )?;
+        write_zero_stage_receipts(dir.path())?;
 
         let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::Zero);
 
@@ -21359,15 +35639,19 @@ mod tests {
         write_minimal_passive_bundle(dir.path())?;
         write_test_json_file(
             &dir.path().join("zero-torque-proof.json"),
-            &real_zero_receipt(99),
+            &receipt_with_lane_path(dir.path(), "zero-torque-proof.json", real_zero_receipt(99)),
         )?;
         write_test_json_file(
             &dir.path().join("watchdog-proof.json"),
-            &real_watchdog_receipt(3),
+            &receipt_with_lane_path(dir.path(), "watchdog-proof.json", real_watchdog_receipt(3)),
         )?;
         write_test_json_file(
             &dir.path().join("disconnect-proof.json"),
-            &real_disconnect_receipt(),
+            &receipt_with_lane_path(
+                dir.path(),
+                "disconnect-proof.json",
+                real_disconnect_receipt(),
+            ),
         )?;
 
         let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::Zero);
@@ -21378,6 +35662,198 @@ mod tests {
                 .gates
                 .iter()
                 .any(|gate| { gate.name == "zero_torque_real_hardware" && gate.status == "fail" })
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn verify_bundle_openracing_control_ready_accepts_native_receipts_without_external_compatibility()
+    -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_openracing_control_bundle(dir.path())?;
+
+        let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::OpenRacingControlReady);
+
+        assert!(receipt.success);
+        for native_gate in [
+            "init_off_handshake",
+            "init_standard_handshake",
+            "service_status_receipts",
+            "low_torque_bounded",
+            "steering_angle_stream_proof",
+            "native_actuator_profile_smoke",
+        ] {
+            assert!(
+                receipt
+                    .gates
+                    .iter()
+                    .any(|gate| gate.name == native_gate && gate.status == "pass"),
+                "native gate {native_gate} should pass in openracing-control-ready receipt"
+            );
+        }
+        for external_gate in [
+            "pit_house_coexistence",
+            "simulator_telemetry",
+            "simulator_ffb_bounded",
+        ] {
+            assert!(
+                !receipt.gates.iter().any(|gate| gate.name == external_gate),
+                "external compatibility gate {external_gate} must not be part of openracing-control-ready"
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn verify_bundle_openracing_control_ready_reports_missing_native_receipts_promptly()
+    -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_openracing_control_bundle(dir.path())?;
+        fs::remove_file(dir.path().join("steering-angle-stream-proof.json"))?;
+        fs::remove_file(dir.path().join("native-actuator-profile-smoke.json"))?;
+
+        let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::OpenRacingControlReady);
+
+        assert!(!receipt.success);
+        assert_eq!(receipt.missing_artifacts, 2);
+        for native_artifact in [
+            "steering-angle-stream-proof.json",
+            "native-actuator-profile-smoke.json",
+        ] {
+            assert!(
+                receipt.artifacts.iter().any(|artifact| {
+                    artifact.path == native_artifact && artifact.status == "missing"
+                }),
+                "missing native artifact should be reported: {native_artifact}"
+            );
+        }
+        for native_gate in [
+            "steering_angle_stream_proof",
+            "native_actuator_profile_smoke",
+        ] {
+            assert!(
+                receipt
+                    .gates
+                    .iter()
+                    .any(|gate| gate.name == native_gate && gate.status == "fail"),
+                "missing native gate should fail: {native_gate}"
+            );
+        }
+        assert!(
+            receipt
+                .gates
+                .iter()
+                .any(|gate| gate.name == "service_status_receipts" && gate.status == "pass"),
+            "stale support-bundle freshness should not hide the same-stage missing artifact blockers"
+        );
+        for external_gate in [
+            "pit_house_coexistence",
+            "simulator_telemetry",
+            "simulator_ffb_bounded",
+        ] {
+            assert!(
+                !receipt.gates.iter().any(|gate| gate.name == external_gate),
+                "external compatibility gate {external_gate} must not be part of openracing-control-ready"
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn verify_bundle_openracing_control_ready_reports_invalid_native_receipt_promptly() -> TestResult
+    {
+        let dir = tempfile::tempdir()?;
+        write_openracing_control_bundle(dir.path())?;
+        fs::write(
+            dir.path().join("native-actuator-profile-smoke.json"),
+            "{not-json",
+        )?;
+
+        let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::OpenRacingControlReady);
+
+        assert!(!receipt.success);
+        assert_eq!(receipt.missing_artifacts, 0);
+        assert_eq!(receipt.invalid_artifacts, 1);
+        assert!(
+            receipt.artifacts.iter().any(|artifact| {
+                artifact.path == "native-actuator-profile-smoke.json"
+                    && artifact.status == "invalid"
+            }),
+            "invalid native actuator receipt should be reported"
+        );
+        assert!(
+            receipt.gates.iter().any(|gate| {
+                gate.name == "native_actuator_profile_smoke" && gate.status == "fail"
+            }),
+            "invalid native actuator receipt should fail its gate"
+        );
+        assert!(
+            receipt
+                .gates
+                .iter()
+                .any(|gate| gate.name == "service_status_receipts" && gate.status == "pass"),
+            "stale support-bundle freshness should not hide invalid same-stage artifact blockers"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn verify_bundle_smoke_ready_still_requires_external_compatibility_gates() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_openracing_control_bundle(dir.path())?;
+
+        let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::SmokeReady);
+
+        assert!(!receipt.success);
+        for external_gate in [
+            "pit_house_coexistence",
+            "simulator_telemetry",
+            "simulator_ffb_bounded",
+        ] {
+            assert!(
+                receipt
+                    .gates
+                    .iter()
+                    .any(|gate| gate.name == external_gate && gate.status == "fail"),
+                "smoke-ready must still fail missing external gate {external_gate}"
+            );
+        }
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn promote_manifest_updates_openracing_control_claims_without_simulator_validation()
+    -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_openracing_control_bundle(dir.path())?;
+        write_test_json_file(
+            &dir.path().join("manifest.json"),
+            &sample_lane_manifest("zero_torque_ready", false, false),
+        )?;
+        let receipt_path = dir
+            .path()
+            .join("manifest-promotion-openracing-control.json");
+
+        promote_manifest(
+            false,
+            dir.path(),
+            MozaBundleStage::OpenRacingControlReady,
+            Some(&receipt_path),
+        )
+        .await?;
+
+        let manifest = read_json_path(&dir.path().join("manifest.json"))?;
+        let receipt = read_json_path(&receipt_path)?;
+        assert_eq!(
+            json_string(&manifest, "completion_state"),
+            Some("openracing_control_ready")
+        );
+        assert_eq!(json_bool(&manifest, "hardware_validated"), Some(true));
+        assert_eq!(json_bool(&manifest, "simulator_validated"), Some(false));
+        assert_eq!(json_bool(&manifest, "release_ready"), Some(false));
+        assert_eq!(
+            json_string(&receipt, "stage"),
+            Some("openracing_control_ready")
         );
         Ok(())
     }
@@ -21464,6 +35940,9 @@ mod tests {
                     "manifest_no_overclaim",
                     "forced post-promotion verifier failure".to_string(),
                 )],
+                endpoint_observations: Vec::new(),
+                role_evidence: Vec::new(),
+                operator_actions: Vec::new(),
                 next_commands: Vec::new(),
                 no_hid_device_opened: true,
                 no_ffb_writes: true,
@@ -21498,7 +35977,58 @@ mod tests {
         assert!(receipt.live_verification_success);
         assert_eq!(receipt.missing_receipts, 0);
         assert_eq!(receipt.invalid_receipts, 0);
+        assert_eq!(receipt.receipt_checks.len(), 8);
+        Ok(())
+    }
+
+    #[test]
+    fn audit_lane_accepts_complete_openracing_control_ready_receipts() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_openracing_control_bundle(dir.path())?;
+        write_stage_audit_receipts(dir.path(), MozaBundleStage::OpenRacingControlReady)?;
+
+        let receipt = audit_lane_dir(dir.path(), MozaBundleStage::OpenRacingControlReady);
+
+        assert!(receipt.success);
+        assert!(receipt.live_verification_success);
+        assert_eq!(receipt.missing_receipts, 0);
+        assert_eq!(receipt.invalid_receipts, 0);
         assert_eq!(receipt.receipt_checks.len(), 6);
+        Ok(())
+    }
+
+    #[test]
+    fn audit_lane_accepts_repo_relative_windows_style_stored_receipt_paths() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        let lane = dir
+            .path()
+            .join("ci")
+            .join("hardware")
+            .join("moza-r5")
+            .join("2026-05-13");
+        write_minimal_passive_bundle(&lane)?;
+        write_stage_audit_receipts(&lane, MozaBundleStage::Passive)?;
+
+        let relative_lane = "ci\\hardware\\moza-r5\\2026-05-13";
+        let mut verification = stored_verification_receipt(&lane, MozaBundleStage::Passive);
+        verification["lane"] = serde_json::json!(relative_lane);
+        write_test_json_file(&lane.join("passive-verification.json"), &verification)?;
+
+        let mut promotion = stored_promotion_receipt(&lane, MozaBundleStage::Passive);
+        promotion["lane"] = serde_json::json!(relative_lane);
+        promotion["manifest"] = serde_json::json!(format!("{relative_lane}\\manifest.json"));
+        write_test_json_file(&lane.join("manifest-promotion-passive.json"), &promotion)?;
+
+        let receipt = audit_lane_dir(&lane, MozaBundleStage::Passive);
+
+        if !receipt.success {
+            return Err(format!(
+                "expected backslash-style repo-relative stored receipt paths to audit successfully: {}",
+                serde_json::to_string_pretty(&receipt)?
+            )
+            .into());
+        }
+        assert_eq!(receipt.invalid_receipts, 0);
         Ok(())
     }
 
@@ -21812,6 +36342,64 @@ mod tests {
             gate.details
         );
         Ok(())
+    }
+
+    #[test]
+    fn manifest_pid_gate_uses_shape_only_support_validation() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_smoke_ready_bundle(dir.path())?;
+        let path = dir.path().join("support-bundle.json");
+        let mut receipt = read_json_path(&path)?;
+        let readiness = receipt
+            .pointer_mut("/moza_lane/readiness")
+            .and_then(Value::as_object_mut)
+            .ok_or("expected support readiness")?;
+        readiness.insert(
+            "highest_passing_stage".to_string(),
+            serde_json::json!("smoke_ready"),
+        );
+        readiness.insert("next_required_stage".to_string(), Value::Null);
+        readiness.insert(
+            "ready_for_real_hardware_smoke".to_string(),
+            serde_json::json!(true),
+        );
+        write_test_json_file(&path, &receipt)?;
+
+        let manifest_gate = verify_manifest_r5_pid_consistency_gate_with_support_validation(
+            dir.path(),
+            MozaBundleStage::SmokeReady,
+            SupportBundleValidationMode::Fresh,
+        );
+        let service_gate = verify_service_status_gate(dir.path());
+
+        assert_eq!(manifest_gate.status, "pass");
+        assert!(
+            manifest_gate
+                .details
+                .contains("service-status:0x0014,0x0014,0x0014"),
+            "expected manifest PID gate to read service PID shape without fresh support recursion, got {}",
+            manifest_gate.details
+        );
+        assert_eq!(service_gate.status, "fail");
+        assert!(
+            service_gate.details.contains("moza_lane_status_ok=false"),
+            "expected dedicated service gate to reject stale support readiness, got {}",
+            service_gate.details
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn post_init_service_status_accepts_openracing_control_observe_state() {
+        let status = serde_json::json!({
+            "safety_state": "lane_openracing_control_receipts_observed",
+            "ffb_ready": false,
+            "safe_to_send_torque": false,
+            "direct_mode_allowed": false,
+            "high_torque_allowed": false
+        });
+
+        assert!(moza_status_reports_post_init_safe_state(&status));
     }
 
     #[test]

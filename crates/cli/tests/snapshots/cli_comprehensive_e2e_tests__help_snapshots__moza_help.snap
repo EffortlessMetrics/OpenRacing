@@ -1,6 +1,6 @@
 ---
 source: crates/cli/tests/cli_comprehensive_e2e_tests.rs
-assertion_line: 984
+assertion_line: 993
 expression: stdout
 ---
 Safe Moza HID probe and capture commands
@@ -13,8 +13,13 @@ Commands:
   status                     Summarize Moza device and lane readiness without opening HID devices
   descriptor                 Capture descriptor metadata for connected Moza HID devices
   capture-input              Capture input reports from one Moza HID device without FFB writes
+  steering-stream-proof      Record native steering angle samples from the lane R5 endpoint without output writes
   validate-capture           Validate captured Moza input JSONL through the parser without hardware writes
+  analyze-capture            Analyze raw byte/word movement in a captured Moza input JSONL without hardware writes
+  analyze-lane               Compare required passive lane captures against idle without hardware writes
+  sync-role-status           Sync manifest logical-control semantic_status fields from stored captures
   validate-captures          Validate every required Moza lane capture through the parser without hardware writes
+  pre-output-readiness       Summarize whether a Moza lane is ready for zero-torque or FFB output
   promote-fixture            Promote a validated Moza capture JSONL into a parser fixture file
   promote-fixtures           Promote every required Moza lane capture into parser fixture files
   zero                       Send bounded zero-torque output reports to a Moza wheelbase
@@ -22,6 +27,7 @@ Commands:
   disconnect-proof           Write zero torque until a disconnect is observed, then attempt final zero
   init                       Run the staged Moza wheelbase handshake in off or standard mode
   torque-test                Send a gated low-torque ladder after a passing real zero-torque proof
+  actuator-profile-smoke     Run a native bounded PIDFF actuator profile after steering feedback is proven
   receipt-template           Write a non-claiming starter receipt for manual Pit House or simulator evidence
   pit-house-observation      Write an observed Pit House UI/process state receipt
   pit-house-case             Build one Pit House coexistence case artifact from source receipts

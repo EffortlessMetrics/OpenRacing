@@ -35,6 +35,7 @@
         "not_started",
         "passive_capture_ready",
         "zero_torque_ready",
+        "openracing_control_ready",
         "real_hardware_smoke_ready"
       ]
     },
@@ -75,7 +76,7 @@
     "hardware": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["wheelbase", "wheelbase_pid", "rims", "pedals", "handbrake"],
+      "required": ["wheelbase", "wheelbase_pid"],
       "properties": {
         "wheelbase": {
           "type": "string",
@@ -91,10 +92,6 @@
             "type": "string",
             "enum": ["KS", "ES"]
           },
-          "contains": {
-            "const": "KS"
-          },
-          "minItems": 2,
           "uniqueItems": true
         },
         "pedals": {
@@ -103,7 +100,6 @@
             "type": "string",
             "const": "SR-P"
           },
-          "minItems": 1,
           "uniqueItems": true
         },
         "handbrake": {
@@ -190,7 +186,8 @@
               "source_endpoint",
               "connection",
               "required",
-              "evidence_capture"
+              "evidence_capture",
+              "semantic_status"
             ],
             "properties": {
               "role": {
@@ -224,6 +221,10 @@
               "evidence_capture": {
                 "type": "string",
                 "pattern": "^captures/.+\\.jsonl$"
+              },
+              "semantic_status": {
+                "type": "string",
+                "enum": ["proven", "generic_aux", "missing", "unavailable", "deferred"]
               }
             }
           }
@@ -277,6 +278,7 @@
         "device_list",
         "hid_list",
         "moza_probe",
+        "hardware_doctor",
         "descriptor",
         "captures_dir",
         "capture_r5_idle",
@@ -305,6 +307,11 @@
         "zero_manifest_promotion",
         "zero_lane_audit",
         "low_torque_proof",
+        "steering_angle_stream_proof",
+        "native_actuator_profile_smoke",
+        "openracing_control_verification",
+        "openracing_control_manifest_promotion",
+        "openracing_control_lane_audit",
         "pit_house_coexistence",
         "simulator_telemetry_proof",
         "simulator_ffb_smoke",
@@ -328,6 +335,10 @@
         "moza_probe": {
           "type": "string",
           "const": "moza-probe.json"
+        },
+        "hardware_doctor": {
+          "type": "string",
+          "const": "hardware-doctor.json"
         },
         "descriptor": {
           "type": "string",
@@ -441,6 +452,26 @@
           "type": "string",
           "const": "low-torque-proof.json"
         },
+        "steering_angle_stream_proof": {
+          "type": "string",
+          "const": "steering-angle-stream-proof.json"
+        },
+        "native_actuator_profile_smoke": {
+          "type": "string",
+          "const": "native-actuator-profile-smoke.json"
+        },
+        "openracing_control_verification": {
+          "type": "string",
+          "const": "openracing-control-verification.json"
+        },
+        "openracing_control_manifest_promotion": {
+          "type": "string",
+          "const": "manifest-promotion-openracing-control.json"
+        },
+        "openracing_control_lane_audit": {
+          "type": "string",
+          "const": "lane-audit-openracing-control.json"
+        },
         "pit_house_coexistence": {
           "type": "string",
           "const": "pit-house-coexistence.json"
@@ -475,6 +506,25 @@
     }
   },
   "allOf": [
+    {
+      "if": {
+        "properties": {
+          "completion_state": {
+            "const": "openracing_control_ready"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "hardware_validated": {
+            "const": true
+          },
+          "simulator_validated": {
+            "const": false
+          }
+        }
+      }
+    },
     {
       "if": {
         "properties": {

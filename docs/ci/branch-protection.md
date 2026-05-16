@@ -34,6 +34,13 @@ correctness checks listed below with stale-check protection enabled. Hardware
 receipt enforcement remains separate because the Moza receipt workflow is
 path-filtered and should not be required globally for ordinary pull requests.
 
+Follow-up on 2026-05-14: `Moza Focused Checks` was added to the global required
+status list. The job is defined in the main CI workflow and concludes as skipped
+for off-surface pull requests, so it can be required globally without blocking
+docs-only or unrelated changes. For Moza parser, verifier, and receipt-plumbing
+changes, it runs before merge and prevents the stable baseline from allowing an
+early auto-merge while Moza-specific Rust tests or clippy are still pending.
+
 ## Required Policy
 
 `main` must not accept a pull request until required checks have completed and
@@ -53,11 +60,9 @@ protection enabled. In the GitHub UI, configure:
 ## Required PR Checks
 
 Configure the `main` ruleset so pull requests cannot merge until the stable
-baseline summary and the selected Linux correctness checks complete
-successfully. `PR Required Baseline` is intentionally stable: it runs on every
-CI invocation, treats intentionally skipped path-scoped jobs as skipped, and
-fails when a job selected by the PR surface failed, was cancelled, or did not
-complete.
+baseline checks complete successfully. `PR Required Baseline` is intentionally
+stable: it runs on every CI invocation, depends only on the fast global checks,
+and publishes a fixed status before long path-scoped or advisory jobs finish.
 
 Global required checks:
 
@@ -67,12 +72,16 @@ Global required checks:
 - `PR Required Baseline`
 - `Game support matrix sync`
 - `track-compat-usage`
+- `Moza Focused Checks`
 
 `MSRV Check`, isolation builds, `Schemas & Trybuild`, and
-`Workspace Default Build (ubuntu-latest)` are selected by `PR Required
-Baseline` for ordinary Rust/workspace, dependency, CI, performance, release, and
+`Workspace Default Build (ubuntu-latest)` are selected by PR surface, path, or
+label for ordinary Rust/workspace, dependency, CI, performance, release, and
 `full-ci` PRs. Docs-only, Moza-focused, and UI-only PRs can skip broad Rust
 workspace gates when their focused checks cover the touched surface.
+`Moza Focused Checks` is globally required because it is always present in CI:
+it runs for Moza paths and hardware labels, and reports a skipped conclusion for
+unrelated surfaces.
 
 The regression and integration workflows (`Smoke Tests`, `User Journey Tests`,
 `Acceptance Tests`, `Deprecated Field Detection`, `Trybuild Compile-Fail Tests`,
@@ -80,14 +89,13 @@ The regression and integration workflows (`Smoke Tests`, `User Journey Tests`,
 signals, but should be path-scoped or folded into the stable baseline before
 being made globally required for every ordinary PR.
 
-Additional path-scoped or label-scoped checks should be required by
-`PR Required Baseline` and by path-scoped rulesets only when the matching PR
-surface is present:
+Additional path-scoped or label-scoped checks should be required by path-scoped
+rulesets only when the matching PR surface is present:
 
 | PR surface | Required checks |
 | --- | --- |
 | Docs-only changes | `CHANGELOG Validation`, `PR Change Filter`, `Docs & Policy Checks`, `PR Required Baseline`; Rust workspace, feature, dependency, UI, and performance checks should be skipped unless `full-ci` is requested |
-| Moza parser, verifier, or hardware receipt plumbing | `Moza Focused Checks`; `Moza Receipt Verification` for `ci/hardware/**` and `crates/hid-moza-protocol/fixtures/**` |
+| Moza parser, verifier, or hardware receipt plumbing | `Moza Focused Checks` via the global ruleset; `Moza Receipt Verification` for `ci/hardware/**` and `crates/hid-moza-protocol/fixtures/**` |
 | Hardware docs-only changes | Same docs-only lane unless the PR also changes real receipt artifacts or parser/verifier code |
 | UI or packaging paths | `UI Isolation Build (ubuntu-22.04)`, `UI Isolation Build (ubuntu-24.04)` |
 | Dependency, `Cargo.lock`, workspace feature, or `deny.toml` changes | `Feature Combinations`, `Dependency Governance`, `Security & License Audit`, `Comprehensive Lint Gates & Governance (ubuntu-latest)` |

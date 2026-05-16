@@ -20,6 +20,9 @@ pub enum DeviceCommands {
         /// Show detailed device information
         #[arg(short, long)]
         detailed: bool,
+        /// List only observe-only HID endpoints, without service/mock devices
+        #[arg(long)]
+        hid_observe_only: bool,
         /// Write the device list receipt to this JSON file
         #[arg(long)]
         json_out: Option<std::path::PathBuf>,
@@ -293,7 +296,13 @@ pub enum TelemetryCommands {
         telemetry_source: String,
         /// JSON/JSONL file containing normalized telemetry snapshots
         #[arg(long)]
-        input: String,
+        input: Option<String>,
+        /// Listen for live SimHub JSON UDP and record normalized snapshots
+        #[arg(long)]
+        live_simhub: bool,
+        /// Local UDP listen port for --live-simhub
+        #[arg(long, default_value = "5555")]
+        port: u16,
         /// Output JSONL recording path
         #[arg(long)]
         out: String,
@@ -330,6 +339,86 @@ pub enum HardwareCommands {
     /// Inspect local hardware/tooling readiness without opening devices or sending writes
     Doctor {
         /// Write the hardware doctor receipt to this JSON file
+        #[arg(long)]
+        json_out: Option<std::path::PathBuf>,
+    },
+
+    /// Print the staged hardware bring-up rail for a device family
+    BringupRail {
+        /// Device-family adapter contract to include in the rail receipt
+        #[arg(long, default_value = "generic-wheelbase")]
+        family: String,
+        /// Write the staged rail receipt to this JSON file
+        #[arg(long)]
+        json_out: Option<std::path::PathBuf>,
+    },
+
+    /// Scaffold a hardware validation lane from a device-family rail adapter
+    #[command(subcommand)]
+    Lane(Box<HardwareLaneCommands>),
+}
+
+#[derive(Subcommand)]
+pub enum HardwareLaneCommands {
+    /// Create a lane manifest, checklist, capture plan, and stage-gate scaffold
+    Init {
+        /// Lane artifact directory, e.g. ci/hardware/moza-r5/2026-05-13
+        #[arg(long)]
+        lane: std::path::PathBuf,
+        /// Device-family adapter contract to use
+        #[arg(long, default_value = "generic-wheelbase")]
+        family: String,
+        /// Declared primary topology/path for this lane
+        #[arg(long, default_value = "unknown")]
+        topology: String,
+        /// Operator name recorded in the scaffold manifest
+        #[arg(long, default_value = "Steven")]
+        operator: String,
+        /// Mark a logical role as required, adding it to the lane if needed
+        #[arg(long = "required-role")]
+        required_roles: Vec<String>,
+        /// Mark a logical role as optional, adding it to the lane if needed
+        #[arg(long = "optional-role")]
+        optional_roles: Vec<String>,
+        /// Override a role evidence artifact as role=relative/path
+        #[arg(long = "role-artifact")]
+        role_artifacts: Vec<String>,
+        /// Override a role endpoint selector as role=selector
+        #[arg(long = "role-endpoint")]
+        role_endpoints: Vec<String>,
+        /// Override a role connection path as role=path
+        #[arg(long = "role-connection")]
+        role_connections: Vec<String>,
+        /// Replace scaffold files that already exist
+        #[arg(long)]
+        overwrite: bool,
+        /// Write the lane-init receipt to this JSON file instead of <lane>/lane-init.json
+        #[arg(long)]
+        json_out: Option<std::path::PathBuf>,
+    },
+
+    /// Inventory a scaffolded hardware lane without validating hardware claims
+    Status {
+        /// Lane artifact directory, e.g. ci/hardware/moza-r5/2026-05-13
+        #[arg(long)]
+        lane: std::path::PathBuf,
+        /// Write the lane-status receipt to this JSON file
+        #[arg(long)]
+        json_out: Option<std::path::PathBuf>,
+    },
+
+    /// Update one declared role endpoint in the lane manifest after discovery
+    SetRoleEndpoint {
+        /// Lane artifact directory, e.g. ci/hardware/moza-r5/2026-05-13
+        #[arg(long)]
+        lane: std::path::PathBuf,
+        /// Declared logical role to update
+        #[arg(long)]
+        role: String,
+        /// Observed endpoint selector for that role
+        #[arg(long)]
+        endpoint: String,
+        /// Write the role-endpoint update receipt to this JSON file
         #[arg(long)]
         json_out: Option<std::path::PathBuf>,
     },
@@ -384,6 +473,12 @@ pub enum MozaCommands {
         /// Operator-supplied HID report descriptor hex, used when the OS cannot expose raw bytes
         #[arg(long)]
         report_descriptor_hex: Option<String>,
+        /// File containing operator-supplied HID report descriptor hex
+        #[arg(long)]
+        report_descriptor_hex_file: Option<std::path::PathBuf>,
+        /// Raw binary HID report descriptor file, for example Linux sysfs report_descriptor
+        #[arg(long)]
+        report_descriptor_bin_file: Option<std::path::PathBuf>,
         /// Write the descriptor receipt to this JSON file
         #[arg(long)]
         json_out: Option<std::path::PathBuf>,
@@ -405,6 +500,31 @@ pub enum MozaCommands {
         json_out: std::path::PathBuf,
     },
 
+    /// Record native steering angle samples from the lane R5 endpoint without output writes
+    SteeringStreamProof {
+        /// Exact lane R5 HID endpoint selector, e.g. hid-0x346E-0x0004-if2-0x0001-0x0004
+        #[arg(long)]
+        device: String,
+        /// Lane artifact directory, e.g. ci/hardware/moza-r5/2026-05-13
+        #[arg(long)]
+        lane: std::path::PathBuf,
+        /// Capture duration in milliseconds
+        #[arg(long, default_value = "5000")]
+        duration_ms: u64,
+        /// HID read timeout in milliseconds
+        #[arg(long, default_value = "20")]
+        read_timeout_ms: i32,
+        /// Declared steering range used only to scale raw steering samples into receipt degrees
+        #[arg(long, default_value = "1080")]
+        degrees_of_rotation: f64,
+        /// Optional JSON Lines file for per-sample steering records
+        #[arg(long)]
+        jsonl_out: Option<std::path::PathBuf>,
+        /// Write the steering proof receipt to this JSON file
+        #[arg(long)]
+        json_out: Option<std::path::PathBuf>,
+    },
+
     /// Validate captured Moza input JSONL through the parser without hardware writes
     ValidateCapture {
         /// JSON Lines file produced by `wheelctl moza capture-input`
@@ -418,12 +538,55 @@ pub enum MozaCommands {
         json_out: Option<std::path::PathBuf>,
     },
 
+    /// Analyze raw byte/word movement in a captured Moza input JSONL without hardware writes
+    AnalyzeCapture {
+        /// JSON Lines file produced by `wheelctl moza capture-input`
+        #[arg(long)]
+        capture: std::path::PathBuf,
+        /// Write the analysis receipt to this JSON file
+        #[arg(long)]
+        json_out: Option<std::path::PathBuf>,
+    },
+
+    /// Compare required passive lane captures against idle without hardware writes
+    AnalyzeLane {
+        /// Lane artifact directory, e.g. ci/hardware/moza-r5/2026-05-06
+        #[arg(long)]
+        lane: std::path::PathBuf,
+        /// Write the lane analysis receipt to this JSON file
+        #[arg(long)]
+        json_out: Option<std::path::PathBuf>,
+    },
+
+    /// Sync manifest logical-control semantic_status fields from stored captures
+    SyncRoleStatus {
+        /// Lane artifact directory, e.g. ci/hardware/moza-r5/2026-05-06
+        #[arg(long)]
+        lane: std::path::PathBuf,
+        /// Verify manifest statuses are current without writing manifest.json
+        #[arg(long)]
+        check: bool,
+        /// Write the sync receipt to this JSON file
+        #[arg(long)]
+        json_out: Option<std::path::PathBuf>,
+    },
+
     /// Validate every required Moza lane capture through the parser without hardware writes
     ValidateCaptures {
         /// Lane artifact directory, e.g. ci/hardware/moza-r5/2026-05-06
         #[arg(long)]
         lane: std::path::PathBuf,
         /// Write the aggregate validation receipt to this JSON file
+        #[arg(long)]
+        json_out: Option<std::path::PathBuf>,
+    },
+
+    /// Summarize whether a Moza lane is ready for zero-torque or FFB output
+    PreOutputReadiness {
+        /// Lane artifact directory, e.g. ci/hardware/moza-r5/2026-05-06
+        #[arg(long)]
+        lane: std::path::PathBuf,
+        /// Write the readiness receipt to this JSON file
         #[arg(long)]
         json_out: Option<std::path::PathBuf>,
     },
@@ -477,12 +640,21 @@ pub enum MozaCommands {
         /// Device selector: HID path, PID, or VID:PID
         #[arg(long)]
         device: Option<String>,
+        /// Hardware lane directory with a passing pre-output-readiness receipt
+        #[arg(long)]
+        lane: Option<std::path::PathBuf>,
         /// Moza wheelbase PID for --dry-run (hex, e.g. 0x0014)
         #[arg(long)]
         pid: Option<String>,
+        /// Zero-output report strategy to use
+        #[arg(long, value_enum, default_value_t = MozaZeroOutputStrategy::DirectReport0x20)]
+        strategy: MozaZeroOutputStrategy,
         /// Build the zero-torque receipt without opening or writing a HID device
         #[arg(long)]
         dry_run: bool,
+        /// Explicit acknowledgement required before actual zero-torque writes
+        #[arg(long)]
+        confirm_zero_torque: bool,
         /// Number of zero reports to send before the final-zero attempt
         #[arg(long, default_value = "100")]
         repeat: u32,
@@ -502,12 +674,21 @@ pub enum MozaCommands {
         /// Device selector: HID path, PID, or VID:PID
         #[arg(long)]
         device: Option<String>,
+        /// Hardware lane directory with passing pre-output and zero-torque receipts
+        #[arg(long)]
+        lane: Option<std::path::PathBuf>,
         /// Moza wheelbase PID for --dry-run (hex, e.g. 0x0014)
         #[arg(long)]
         pid: Option<String>,
+        /// Zero-output report strategy to use
+        #[arg(long, value_enum, default_value_t = MozaZeroOutputStrategy::DirectReport0x20)]
+        strategy: MozaZeroOutputStrategy,
         /// Build the watchdog proof receipt without opening or writing a HID device
         #[arg(long)]
         dry_run: bool,
+        /// Explicit acknowledgement required before the watchdog timeout test
+        #[arg(long)]
+        confirm_watchdog_test: bool,
         /// Number of zero reports to send before the injected watchdog timeout
         #[arg(long, default_value = "3")]
         pre_zero_count: u32,
@@ -527,9 +708,15 @@ pub enum MozaCommands {
         /// Device selector: HID path, PID, or VID:PID
         #[arg(long)]
         device: Option<String>,
+        /// Hardware lane directory with passing pre-output and zero-torque receipts
+        #[arg(long)]
+        lane: Option<std::path::PathBuf>,
         /// Moza wheelbase PID for --dry-run (hex, e.g. 0x0014)
         #[arg(long)]
         pid: Option<String>,
+        /// Zero-output report strategy to use
+        #[arg(long, value_enum, default_value_t = MozaZeroOutputStrategy::DirectReport0x20)]
+        strategy: MozaZeroOutputStrategy,
         /// Build the disconnect proof receipt without opening or writing a HID device
         #[arg(long)]
         dry_run: bool,
@@ -552,6 +739,9 @@ pub enum MozaCommands {
         /// Device selector: HID path, PID, or VID:PID
         #[arg(long)]
         device: Option<String>,
+        /// Hardware lane directory with passing zero-stage verification and audit receipts
+        #[arg(long)]
+        lane: Option<std::path::PathBuf>,
         /// Moza wheelbase PID for --dry-run (hex, e.g. 0x0014)
         #[arg(long)]
         pid: Option<String>,
@@ -561,6 +751,9 @@ pub enum MozaCommands {
         /// Build the init receipt without opening or writing a HID device
         #[arg(long)]
         dry_run: bool,
+        /// Explicit acknowledgement required before actual init feature-report writes
+        #[arg(long)]
+        confirm_init: bool,
         /// Write the init receipt to this JSON file
         #[arg(long)]
         json_out: Option<std::path::PathBuf>,
@@ -589,6 +782,9 @@ pub enum MozaCommands {
         /// Passing standard-mode init receipt from `wheelctl moza init --mode standard`
         #[arg(long)]
         init_standard: Option<std::path::PathBuf>,
+        /// Low-torque output strategy to prove
+        #[arg(long, value_enum, default_value_t = MozaLowTorqueStrategy::DirectReport0x20)]
+        strategy: MozaLowTorqueStrategy,
         /// Build the low-torque receipt without opening or writing a HID device
         #[arg(long)]
         dry_run: bool,
@@ -608,6 +804,43 @@ pub enum MozaCommands {
         #[arg(long, default_value = "1000")]
         hz: u32,
         /// Write the low-torque proof receipt to this JSON file
+        #[arg(long)]
+        json_out: Option<std::path::PathBuf>,
+    },
+
+    /// Run a native bounded PIDFF actuator profile after steering feedback is proven
+    ActuatorProfileSmoke {
+        /// Exact lane R5 HID endpoint selector, e.g. hid-0x346E-0x0004-if2-0x0001-0x0004
+        #[arg(long)]
+        device: String,
+        /// Hardware lane directory with passing low-torque and steering receipts
+        #[arg(long)]
+        lane: std::path::PathBuf,
+        /// Same-lane low-torque proof receipt from `wheelctl moza torque-test`
+        #[arg(long)]
+        low_torque_proof: Option<std::path::PathBuf>,
+        /// Same-lane steering stream proof receipt from `wheelctl moza steering-stream-proof`
+        #[arg(long)]
+        steering_proof: Option<std::path::PathBuf>,
+        /// Native actuator profile to run
+        #[arg(long, value_enum, default_value_t = MozaActuatorProfile::ConstantLowForce)]
+        profile: MozaActuatorProfile,
+        /// Output strategy for the native actuator profile; direct report 0x20 is not accepted
+        #[arg(long, value_enum, default_value_t = MozaLowTorqueStrategy::PidffBoundedEffect)]
+        strategy: MozaLowTorqueStrategy,
+        /// Build the actuator-profile receipt without opening or writing a HID device
+        #[arg(long)]
+        dry_run: bool,
+        /// Explicit acknowledgement required before actual actuator-profile writes
+        #[arg(long)]
+        confirm_actuator_profile: bool,
+        /// Maximum force percent, bounded to 0.1..=1.0
+        #[arg(long, default_value = "1")]
+        max_percent: f32,
+        /// Profile duration in milliseconds, bounded to 1..=2000
+        #[arg(long, default_value = "2000")]
+        duration_ms: u64,
+        /// Write the native actuator-profile proof receipt to this JSON file
         #[arg(long)]
         json_out: Option<std::path::PathBuf>,
     },
@@ -742,7 +975,10 @@ pub enum MozaCommands {
         /// Lane-relative output log artifact
         #[arg(long)]
         output_log_artifact: std::path::PathBuf,
-        /// Descriptor trust was established before direct-mode FFB
+        /// Bounded simulator FFB output strategy
+        #[arg(long, value_enum, default_value_t = MozaLowTorqueStrategy::DirectReport0x20)]
+        strategy: MozaLowTorqueStrategy,
+        /// Descriptor trust was established before simulator FFB
         #[arg(long)]
         descriptor_trusted: bool,
         /// Explicit operator override allowed direct-mode FFB without descriptor trust
@@ -822,8 +1058,39 @@ pub enum MozaBundleStage {
     Passive,
     /// Passive evidence plus real zero-torque, watchdog, and disconnect proof
     Zero,
-    /// Complete real hardware plus simulator smoke evidence
+    /// OpenRacing-owned native control receipts without external compatibility gates
+    #[value(
+        name = "openracing-control-ready",
+        alias = "native-control-ready",
+        alias = "openracing_control_ready",
+        alias = "native_control_ready"
+    )]
+    OpenRacingControlReady,
+    /// Native control plus external simulator and vendor coexistence evidence
     SmokeReady,
+}
+
+#[derive(ValueEnum, Clone, Copy, Debug, PartialEq, Eq)]
+pub enum MozaZeroOutputStrategy {
+    /// Moza proprietary direct torque report 0x20 encoded as zero torque
+    DirectReport0x20,
+    /// Standard PIDFF Device Control report 0x0C with Stop All Effects
+    PidffStopAll,
+}
+
+#[derive(ValueEnum, Clone, Copy, Debug, PartialEq, Eq)]
+pub enum MozaLowTorqueStrategy {
+    /// Moza proprietary direct torque report 0x20
+    #[value(name = "direct-report-0x20", alias = "direct-report0x20")]
+    DirectReport0x20,
+    /// Standard HID PIDFF bounded effect path
+    PidffBoundedEffect,
+}
+
+#[derive(ValueEnum, Clone, Copy, Debug, PartialEq, Eq)]
+pub enum MozaActuatorProfile {
+    /// One bounded constant-force PIDFF effect followed by Stop All cleanup
+    ConstantLowForce,
 }
 
 #[derive(ValueEnum, Clone, Copy, Debug, PartialEq, Eq)]

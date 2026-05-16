@@ -270,6 +270,7 @@ mod tests {
             cli.command,
             Commands::Device(DeviceCommands::List {
                 detailed: false,
+                hid_observe_only: false,
                 json_out: None
             })
         ));
@@ -328,6 +329,21 @@ mod tests {
             cli.command,
             Commands::Device(DeviceCommands::List {
                 detailed: true,
+                hid_observe_only: false,
+                json_out: None
+            })
+        ));
+        Ok(())
+    }
+
+    #[test]
+    fn parse_device_list_hid_observe_only() -> TestResult {
+        let cli = Cli::try_parse_from(["wheelctl", "device", "list", "--hid-observe-only"])?;
+        assert!(matches!(
+            cli.command,
+            Commands::Device(DeviceCommands::List {
+                detailed: false,
+                hid_observe_only: true,
                 json_out: None
             })
         ));
@@ -372,6 +388,182 @@ mod tests {
                 );
             }
             _ => return Err("expected Hardware Doctor command".into()),
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn parse_hardware_bringup_rail() -> TestResult {
+        let cli = Cli::try_parse_from([
+            "wheelctl",
+            "hardware",
+            "bringup-rail",
+            "--family",
+            "moza-r5",
+            "--json-out",
+            "target/hardware-bringup-rail.json",
+        ])?;
+        match &cli.command {
+            Commands::Hardware(HardwareCommands::BringupRail { family, json_out }) => {
+                assert_eq!(family, "moza-r5");
+                assert_eq!(
+                    json_out.as_ref().and_then(|p| p.to_str()),
+                    Some("target/hardware-bringup-rail.json")
+                );
+            }
+            _ => return Err("expected Hardware BringupRail command".into()),
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn parse_hardware_lane_init() -> TestResult {
+        let cli = Cli::try_parse_from([
+            "wheelctl",
+            "hardware",
+            "lane",
+            "init",
+            "--family",
+            "moza-r5",
+            "--topology",
+            "wheelbase-hub",
+            "--lane",
+            "target/hardware-lane",
+            "--json-out",
+            "target/hardware-lane/lane-init.json",
+        ])?;
+        match &cli.command {
+            Commands::Hardware(HardwareCommands::Lane(command)) => match command.as_ref() {
+                HardwareLaneCommands::Init {
+                    family,
+                    topology,
+                    lane,
+                    json_out,
+                    ..
+                } => {
+                    assert_eq!(family, "moza-r5");
+                    assert_eq!(topology, "wheelbase-hub");
+                    assert_eq!(lane.to_str(), Some("target/hardware-lane"));
+                    assert_eq!(
+                        json_out.as_ref().and_then(|p| p.to_str()),
+                        Some("target/hardware-lane/lane-init.json")
+                    );
+                }
+                _ => return Err("expected Hardware Lane Init command".into()),
+            },
+            _ => return Err("expected Hardware Lane Init command".into()),
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn parse_hardware_lane_init_role_overrides() -> TestResult {
+        let cli = Cli::try_parse_from([
+            "wheelctl",
+            "hardware",
+            "lane",
+            "init",
+            "--family",
+            "moza-r5",
+            "--lane",
+            "target/hardware-lane",
+            "--required-role",
+            "handbrake",
+            "--required-role",
+            "ks_controls",
+            "--role-artifact",
+            "ks_controls=captures/ks-controls.jsonl",
+            "--role-endpoint",
+            "ks_controls=hid-0x346E-0x0004-if2-0x0001-0x0004",
+        ])?;
+        match &cli.command {
+            Commands::Hardware(HardwareCommands::Lane(command)) => match command.as_ref() {
+                HardwareLaneCommands::Init {
+                    required_roles,
+                    role_artifacts,
+                    role_endpoints,
+                    ..
+                } => {
+                    assert_eq!(required_roles, &vec!["handbrake", "ks_controls"]);
+                    assert_eq!(
+                        role_artifacts,
+                        &vec!["ks_controls=captures/ks-controls.jsonl"]
+                    );
+                    assert_eq!(
+                        role_endpoints,
+                        &vec!["ks_controls=hid-0x346E-0x0004-if2-0x0001-0x0004"]
+                    );
+                }
+                _ => return Err("expected Hardware Lane Init command".into()),
+            },
+            _ => return Err("expected Hardware Lane Init command".into()),
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn parse_hardware_lane_status() -> TestResult {
+        let cli = Cli::try_parse_from([
+            "wheelctl",
+            "hardware",
+            "lane",
+            "status",
+            "--lane",
+            "target/hardware-lane",
+            "--json-out",
+            "target/hardware-lane/lane-status.json",
+        ])?;
+        match &cli.command {
+            Commands::Hardware(HardwareCommands::Lane(command)) => match command.as_ref() {
+                HardwareLaneCommands::Status { lane, json_out } => {
+                    assert_eq!(lane.to_str(), Some("target/hardware-lane"));
+                    assert_eq!(
+                        json_out.as_ref().and_then(|p| p.to_str()),
+                        Some("target/hardware-lane/lane-status.json")
+                    );
+                }
+                _ => return Err("expected Hardware Lane Status command".into()),
+            },
+            _ => return Err("expected Hardware Lane Status command".into()),
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn parse_hardware_lane_set_role_endpoint() -> TestResult {
+        let cli = Cli::try_parse_from([
+            "wheelctl",
+            "hardware",
+            "lane",
+            "set-role-endpoint",
+            "--lane",
+            "target/hardware-lane",
+            "--role",
+            "button_box",
+            "--endpoint",
+            "hid-0x1234-0x5678-if0-0x0001-0x0004",
+            "--json-out",
+            "target/hardware-lane/role-endpoint-button_box.json",
+        ])?;
+        match &cli.command {
+            Commands::Hardware(HardwareCommands::Lane(command)) => match command.as_ref() {
+                HardwareLaneCommands::SetRoleEndpoint {
+                    lane,
+                    role,
+                    endpoint,
+                    json_out,
+                } => {
+                    assert_eq!(lane.to_str(), Some("target/hardware-lane"));
+                    assert_eq!(role, "button_box");
+                    assert_eq!(endpoint, "hid-0x1234-0x5678-if0-0x0001-0x0004");
+                    assert_eq!(
+                        json_out.as_ref().and_then(|p| p.to_str()),
+                        Some("target/hardware-lane/role-endpoint-button_box.json")
+                    );
+                }
+                _ => return Err("expected Hardware Lane SetRoleEndpoint command".into()),
+            },
+            _ => return Err("expected Hardware Lane SetRoleEndpoint command".into()),
         }
         Ok(())
     }
@@ -999,13 +1191,62 @@ mod tests {
                 game,
                 telemetry_source,
                 input,
+                live_simhub,
+                port,
                 out,
                 session_id,
                 duration_ms,
             }) => {
                 assert_eq!(game, "simhub-bridge");
                 assert_eq!(telemetry_source, "simhub_bridge");
-                assert_eq!(input, "normalized.jsonl");
+                assert_eq!(input.as_deref(), Some("normalized.jsonl"));
+                assert!(!live_simhub);
+                assert_eq!(*port, 5555);
+                assert_eq!(out, "simulator-telemetry-recording.jsonl");
+                assert_eq!(session_id.as_deref(), Some("session-001"));
+                assert_eq!(*duration_ms, 5000);
+            }
+            _ => return Err("expected Telemetry Record command".into()),
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn parse_telemetry_record_live_simhub() -> TestResult {
+        let cli = Cli::try_parse_from([
+            "wheelctl",
+            "telemetry",
+            "record",
+            "--game",
+            "simhub-bridge",
+            "--telemetry-source",
+            "simhub_bridge",
+            "--live-simhub",
+            "--port",
+            "5556",
+            "--out",
+            "simulator-telemetry-recording.jsonl",
+            "--session-id",
+            "session-001",
+            "--duration-ms",
+            "5000",
+        ])?;
+        match &cli.command {
+            Commands::Telemetry(TelemetryCommands::Record {
+                game,
+                telemetry_source,
+                input,
+                live_simhub,
+                port,
+                out,
+                session_id,
+                duration_ms,
+            }) => {
+                assert_eq!(game, "simhub-bridge");
+                assert_eq!(telemetry_source, "simhub_bridge");
+                assert!(input.is_none());
+                assert!(*live_simhub);
+                assert_eq!(*port, 5556);
                 assert_eq!(out, "simulator-telemetry-recording.jsonl");
                 assert_eq!(session_id.as_deref(), Some("session-001"));
                 assert_eq!(*duration_ms, 5000);
@@ -1156,11 +1397,95 @@ mod tests {
                 device,
                 descriptor_hex,
                 report_descriptor_hex,
+                report_descriptor_hex_file,
+                report_descriptor_bin_file,
                 json_out,
             }) => {
                 assert_eq!(device.as_deref(), Some("0x0014"));
                 assert!(*descriptor_hex);
                 assert_eq!(report_descriptor_hex.as_deref(), Some("05010904"));
+                assert!(report_descriptor_hex_file.is_none());
+                assert!(report_descriptor_bin_file.is_none());
+                assert_eq!(
+                    json_out.as_ref().and_then(|p| p.to_str()),
+                    Some("descriptor.json")
+                );
+            }
+            _ => return Err("expected Moza Descriptor command".into()),
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn parse_moza_descriptor_with_report_descriptor_hex_file() -> TestResult {
+        let cli = Cli::try_parse_from([
+            "wheelctl",
+            "moza",
+            "descriptor",
+            "--device",
+            "0x0004",
+            "--report-descriptor-hex-file",
+            "target/r5-report-descriptor.txt",
+            "--json-out",
+            "descriptor.json",
+        ])?;
+        match &cli.command {
+            Commands::Moza(MozaCommands::Descriptor {
+                device,
+                descriptor_hex,
+                report_descriptor_hex,
+                report_descriptor_hex_file,
+                report_descriptor_bin_file,
+                json_out,
+            }) => {
+                assert_eq!(device.as_deref(), Some("0x0004"));
+                assert!(!*descriptor_hex);
+                assert!(report_descriptor_hex.is_none());
+                assert_eq!(
+                    report_descriptor_hex_file.as_ref().and_then(|p| p.to_str()),
+                    Some("target/r5-report-descriptor.txt")
+                );
+                assert!(report_descriptor_bin_file.is_none());
+                assert_eq!(
+                    json_out.as_ref().and_then(|p| p.to_str()),
+                    Some("descriptor.json")
+                );
+            }
+            _ => return Err("expected Moza Descriptor command".into()),
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn parse_moza_descriptor_with_report_descriptor_bin_file() -> TestResult {
+        let cli = Cli::try_parse_from([
+            "wheelctl",
+            "moza",
+            "descriptor",
+            "--device",
+            "0x0004",
+            "--report-descriptor-bin-file",
+            "target/r5-report-descriptor.bin",
+            "--json-out",
+            "descriptor.json",
+        ])?;
+        match &cli.command {
+            Commands::Moza(MozaCommands::Descriptor {
+                device,
+                descriptor_hex,
+                report_descriptor_hex,
+                report_descriptor_hex_file,
+                report_descriptor_bin_file,
+                json_out,
+            }) => {
+                assert_eq!(device.as_deref(), Some("0x0004"));
+                assert!(!*descriptor_hex);
+                assert!(report_descriptor_hex.is_none());
+                assert!(report_descriptor_hex_file.is_none());
+                assert_eq!(
+                    report_descriptor_bin_file.as_ref().and_then(|p| p.to_str()),
+                    Some("target/r5-report-descriptor.bin")
+                );
                 assert_eq!(
                     json_out.as_ref().and_then(|p| p.to_str()),
                     Some("descriptor.json")
@@ -1204,6 +1529,59 @@ mod tests {
     }
 
     #[test]
+    fn parse_moza_steering_stream_proof() -> TestResult {
+        let cli = Cli::try_parse_from([
+            "wheelctl",
+            "moza",
+            "steering-stream-proof",
+            "--device",
+            "hid-0x346E-0x0004-if2-0x0001-0x0004",
+            "--lane",
+            "ci/hardware/moza-r5/2026-05-13",
+            "--duration-ms",
+            "5000",
+            "--read-timeout-ms",
+            "20",
+            "--degrees-of-rotation",
+            "1080",
+            "--jsonl-out",
+            "target/steering-angle-stream.jsonl",
+            "--json-out",
+            "ci/hardware/moza-r5/2026-05-13/steering-angle-stream-proof.json",
+        ])?;
+        match &cli.command {
+            Commands::Moza(MozaCommands::SteeringStreamProof {
+                device,
+                lane,
+                duration_ms,
+                read_timeout_ms,
+                degrees_of_rotation,
+                jsonl_out,
+                json_out,
+            }) => {
+                assert_eq!(device, "hid-0x346E-0x0004-if2-0x0001-0x0004");
+                assert_eq!(
+                    lane.as_path().to_str(),
+                    Some("ci/hardware/moza-r5/2026-05-13")
+                );
+                assert_eq!(*duration_ms, 5000);
+                assert_eq!(*read_timeout_ms, 20);
+                assert_eq!(*degrees_of_rotation, 1080.0);
+                assert_eq!(
+                    jsonl_out.as_ref().and_then(|p| p.to_str()),
+                    Some("target/steering-angle-stream.jsonl")
+                );
+                assert_eq!(
+                    json_out.as_ref().and_then(|p| p.to_str()),
+                    Some("ci/hardware/moza-r5/2026-05-13/steering-angle-stream-proof.json")
+                );
+            }
+            _ => return Err("expected Moza SteeringStreamProof command".into()),
+        }
+        Ok(())
+    }
+
+    #[test]
     fn parse_moza_validate_capture() -> TestResult {
         let cli = Cli::try_parse_from([
             "wheelctl",
@@ -1235,6 +1613,93 @@ mod tests {
     }
 
     #[test]
+    fn parse_moza_analyze_capture() -> TestResult {
+        let cli = Cli::try_parse_from([
+            "wheelctl",
+            "moza",
+            "analyze-capture",
+            "--capture",
+            "captures/r5-throttle-only-sweep.jsonl",
+            "--json-out",
+            "target/r5-throttle-analysis.json",
+        ])?;
+        match &cli.command {
+            Commands::Moza(MozaCommands::AnalyzeCapture { capture, json_out }) => {
+                assert_eq!(
+                    capture.as_path().to_str(),
+                    Some("captures/r5-throttle-only-sweep.jsonl")
+                );
+                assert_eq!(
+                    json_out.as_ref().and_then(|p| p.to_str()),
+                    Some("target/r5-throttle-analysis.json")
+                );
+            }
+            _ => return Err("expected Moza AnalyzeCapture command".into()),
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn parse_moza_analyze_lane() -> TestResult {
+        let cli = Cli::try_parse_from([
+            "wheelctl",
+            "moza",
+            "analyze-lane",
+            "--lane",
+            "ci/hardware/moza-r5/2026-05-06",
+            "--json-out",
+            "target/lane-analysis.json",
+        ])?;
+        match &cli.command {
+            Commands::Moza(MozaCommands::AnalyzeLane { lane, json_out }) => {
+                assert_eq!(
+                    lane.as_path().to_str(),
+                    Some("ci/hardware/moza-r5/2026-05-06")
+                );
+                assert_eq!(
+                    json_out.as_ref().and_then(|p| p.to_str()),
+                    Some("target/lane-analysis.json")
+                );
+            }
+            _ => return Err("expected Moza AnalyzeLane command".into()),
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn parse_moza_sync_role_status() -> TestResult {
+        let cli = Cli::try_parse_from([
+            "wheelctl",
+            "moza",
+            "sync-role-status",
+            "--lane",
+            "ci/hardware/moza-r5/2026-05-06",
+            "--check",
+            "--json-out",
+            "target/role-status-sync.json",
+        ])?;
+        match &cli.command {
+            Commands::Moza(MozaCommands::SyncRoleStatus {
+                lane,
+                check,
+                json_out,
+            }) => {
+                assert_eq!(
+                    lane.as_path().to_str(),
+                    Some("ci/hardware/moza-r5/2026-05-06")
+                );
+                assert!(*check);
+                assert_eq!(
+                    json_out.as_ref().and_then(|p| p.to_str()),
+                    Some("target/role-status-sync.json")
+                );
+            }
+            _ => return Err("expected Moza SyncRoleStatus command".into()),
+        }
+        Ok(())
+    }
+
+    #[test]
     fn parse_moza_validate_captures() -> TestResult {
         let cli = Cli::try_parse_from([
             "wheelctl",
@@ -1257,6 +1722,33 @@ mod tests {
                 );
             }
             _ => return Err("expected Moza ValidateCaptures command".into()),
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn parse_moza_pre_output_readiness() -> TestResult {
+        let cli = Cli::try_parse_from([
+            "wheelctl",
+            "moza",
+            "pre-output-readiness",
+            "--lane",
+            "ci/hardware/moza-r5/2026-05-06",
+            "--json-out",
+            "pre-output-readiness.json",
+        ])?;
+        match &cli.command {
+            Commands::Moza(MozaCommands::PreOutputReadiness { lane, json_out }) => {
+                assert_eq!(
+                    lane.as_path().to_str(),
+                    Some("ci/hardware/moza-r5/2026-05-06")
+                );
+                assert_eq!(
+                    json_out.as_ref().and_then(|p| p.to_str()),
+                    Some("pre-output-readiness.json")
+                );
+            }
+            _ => return Err("expected Moza PreOutputReadiness command".into()),
         }
         Ok(())
     }
@@ -1362,9 +1854,12 @@ mod tests {
             "zero",
             "--device",
             "0x346E:0x0014",
+            "--lane",
+            "ci/hardware/moza-r5/2026-05-13",
             "--pid",
             "0x0014",
             "--dry-run",
+            "--confirm-zero-torque",
             "--repeat",
             "250",
             "--hz",
@@ -1377,22 +1872,60 @@ mod tests {
         match &cli.command {
             Commands::Moza(MozaCommands::Zero {
                 device,
+                lane,
                 pid,
+                strategy,
                 dry_run,
+                confirm_zero_torque,
                 repeat,
                 hz,
                 watchdog_timeout_ms,
                 json_out,
             }) => {
                 assert_eq!(device.as_deref(), Some("0x346E:0x0014"));
+                assert_eq!(
+                    lane.as_ref().and_then(|p| p.to_str()),
+                    Some("ci/hardware/moza-r5/2026-05-13")
+                );
                 assert_eq!(pid.as_deref(), Some("0x0014"));
+                assert_eq!(
+                    *strategy,
+                    crate::commands::MozaZeroOutputStrategy::DirectReport0x20
+                );
                 assert!(*dry_run);
+                assert!(*confirm_zero_torque);
                 assert_eq!(*repeat, 250);
                 assert_eq!(*hz, 1000);
                 assert_eq!(*watchdog_timeout_ms, 50);
                 assert_eq!(
                     json_out.as_ref().and_then(|p| p.to_str()),
                     Some("zero-torque-proof.json")
+                );
+            }
+            _ => return Err("expected Moza Zero command".into()),
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn parse_moza_zero_pidff_stop_all_strategy() -> TestResult {
+        let cli = Cli::try_parse_from([
+            "wheelctl",
+            "moza",
+            "zero",
+            "--device",
+            "0x346E:0x0004",
+            "--strategy",
+            "pidff-stop-all",
+            "--dry-run",
+            "--json-out",
+            "zero-torque-proof.json",
+        ])?;
+        match &cli.command {
+            Commands::Moza(MozaCommands::Zero { strategy, .. }) => {
+                assert_eq!(
+                    *strategy,
+                    crate::commands::MozaZeroOutputStrategy::PidffStopAll
                 );
             }
             _ => return Err("expected Moza Zero command".into()),
@@ -1408,6 +1941,9 @@ mod tests {
             "watchdog-proof",
             "--device",
             "0x346E:0x0014",
+            "--lane",
+            "ci/hardware/moza-r5/2026-05-13",
+            "--confirm-watchdog-test",
             "--pre-zero-count",
             "5",
             "--hz",
@@ -1420,6 +1956,9 @@ mod tests {
         match &cli.command {
             Commands::Moza(MozaCommands::WatchdogProof {
                 device,
+                lane,
+                strategy,
+                confirm_watchdog_test,
                 pre_zero_count,
                 hz,
                 watchdog_timeout_ms,
@@ -1427,6 +1966,15 @@ mod tests {
                 ..
             }) => {
                 assert_eq!(device.as_deref(), Some("0x346E:0x0014"));
+                assert_eq!(
+                    lane.as_ref().and_then(|p| p.to_str()),
+                    Some("ci/hardware/moza-r5/2026-05-13")
+                );
+                assert_eq!(
+                    *strategy,
+                    crate::commands::MozaZeroOutputStrategy::DirectReport0x20
+                );
+                assert!(*confirm_watchdog_test);
                 assert_eq!(*pre_zero_count, 5);
                 assert_eq!(*hz, 1000);
                 assert_eq!(*watchdog_timeout_ms, 100);
@@ -1448,6 +1996,8 @@ mod tests {
             "disconnect-proof",
             "--device",
             "0x346E:0x0014",
+            "--lane",
+            "ci/hardware/moza-r5/2026-05-13",
             "--confirm-disconnect-test",
             "--max-duration-ms",
             "5000",
@@ -1459,6 +2009,8 @@ mod tests {
         match &cli.command {
             Commands::Moza(MozaCommands::DisconnectProof {
                 device,
+                lane,
+                strategy,
                 confirm_disconnect_test,
                 max_duration_ms,
                 hz,
@@ -1466,6 +2018,14 @@ mod tests {
                 ..
             }) => {
                 assert_eq!(device.as_deref(), Some("0x346E:0x0014"));
+                assert_eq!(
+                    lane.as_ref().and_then(|p| p.to_str()),
+                    Some("ci/hardware/moza-r5/2026-05-13")
+                );
+                assert_eq!(
+                    *strategy,
+                    crate::commands::MozaZeroOutputStrategy::DirectReport0x20
+                );
                 assert!(*confirm_disconnect_test);
                 assert_eq!(*max_duration_ms, 5000);
                 assert_eq!(*hz, 1000);
@@ -1489,18 +2049,28 @@ mod tests {
             "0x346E:0x0014",
             "--mode",
             "standard",
+            "--lane",
+            "ci/hardware/moza-r5/2026-05-13",
+            "--confirm-init",
             "--json-out",
             "init-standard.json",
         ])?;
         match &cli.command {
             Commands::Moza(MozaCommands::Init {
                 device,
+                lane,
                 mode,
+                confirm_init,
                 json_out,
                 ..
             }) => {
                 assert_eq!(device.as_deref(), Some("0x346E:0x0014"));
+                assert_eq!(
+                    lane.as_ref().and_then(|p| p.to_str()),
+                    Some("ci/hardware/moza-r5/2026-05-13")
+                );
                 assert!(matches!(mode, MozaInitMode::Standard));
+                assert!(*confirm_init);
                 assert_eq!(
                     json_out.as_ref().and_then(|p| p.to_str()),
                     Some("init-standard.json")
@@ -1542,6 +2112,7 @@ mod tests {
                 zero_proof,
                 descriptor,
                 lane,
+                strategy,
                 confirm_low_torque,
                 explicit_operator_override,
                 max_percent,
@@ -1563,6 +2134,10 @@ mod tests {
                     lane.as_ref().and_then(|p| p.to_str()),
                     Some("ci/hardware/moza-r5/2026-05-06")
                 );
+                assert_eq!(
+                    *strategy,
+                    crate::commands::MozaLowTorqueStrategy::DirectReport0x20
+                );
                 assert!(*confirm_low_torque);
                 assert!(*explicit_operator_override);
                 assert!((*max_percent - 2.0).abs() < f32::EPSILON);
@@ -1574,6 +2149,111 @@ mod tests {
                 );
             }
             _ => return Err("expected Moza TorqueTest command".into()),
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn parse_moza_torque_test_pidff_strategy() -> TestResult {
+        let cli = Cli::try_parse_from([
+            "wheelctl",
+            "moza",
+            "torque-test",
+            "--device",
+            "hid-0x346E-0x0004-if2-0x0001-0x0004",
+            "--lane",
+            "ci/hardware/moza-r5/2026-05-13",
+            "--strategy",
+            "pidff-bounded-effect",
+            "--zero-proof",
+            "ci/hardware/moza-r5/2026-05-13/zero-torque-proof.json",
+            "--init-off",
+            "ci/hardware/moza-r5/2026-05-13/init-off.json",
+            "--init-standard",
+            "ci/hardware/moza-r5/2026-05-13/init-standard.json",
+            "--dry-run",
+            "--json-out",
+            "low-torque-proof.json",
+        ])?;
+        match &cli.command {
+            Commands::Moza(MozaCommands::TorqueTest {
+                strategy, dry_run, ..
+            }) => {
+                assert_eq!(
+                    *strategy,
+                    crate::commands::MozaLowTorqueStrategy::PidffBoundedEffect
+                );
+                assert!(*dry_run);
+            }
+            _ => return Err("expected Moza TorqueTest command".into()),
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn parse_moza_actuator_profile_smoke() -> TestResult {
+        let cli = Cli::try_parse_from([
+            "wheelctl",
+            "moza",
+            "actuator-profile-smoke",
+            "--device",
+            "hid-0x346E-0x0004-if2-0x0001-0x0004",
+            "--lane",
+            "ci/hardware/moza-r5/2026-05-13",
+            "--low-torque-proof",
+            "ci/hardware/moza-r5/2026-05-13/low-torque-proof.json",
+            "--steering-proof",
+            "ci/hardware/moza-r5/2026-05-13/steering-angle-stream-proof.json",
+            "--profile",
+            "constant-low-force",
+            "--strategy",
+            "pidff-bounded-effect",
+            "--max-percent",
+            "1",
+            "--duration-ms",
+            "2000",
+            "--confirm-actuator-profile",
+            "--json-out",
+            "ci/hardware/moza-r5/2026-05-13/native-actuator-profile-smoke.json",
+        ])?;
+        match &cli.command {
+            Commands::Moza(MozaCommands::ActuatorProfileSmoke {
+                device,
+                lane,
+                low_torque_proof,
+                steering_proof,
+                profile,
+                strategy,
+                confirm_actuator_profile,
+                max_percent,
+                duration_ms,
+                json_out,
+                ..
+            }) => {
+                assert_eq!(device, "hid-0x346E-0x0004-if2-0x0001-0x0004");
+                assert_eq!(
+                    lane.as_path().to_str(),
+                    Some("ci/hardware/moza-r5/2026-05-13")
+                );
+                assert_eq!(
+                    low_torque_proof.as_ref().and_then(|p| p.to_str()),
+                    Some("ci/hardware/moza-r5/2026-05-13/low-torque-proof.json")
+                );
+                assert_eq!(
+                    steering_proof.as_ref().and_then(|p| p.to_str()),
+                    Some("ci/hardware/moza-r5/2026-05-13/steering-angle-stream-proof.json")
+                );
+                assert_eq!(*profile, MozaActuatorProfile::ConstantLowForce);
+                assert_eq!(*strategy, MozaLowTorqueStrategy::PidffBoundedEffect);
+                assert!(*confirm_actuator_profile);
+                assert!((*max_percent - 1.0).abs() < f32::EPSILON);
+                assert_eq!(*duration_ms, 2000);
+                assert_eq!(
+                    json_out.as_ref().and_then(|p| p.to_str()),
+                    Some("ci/hardware/moza-r5/2026-05-13/native-actuator-profile-smoke.json")
+                );
+            }
+            _ => return Err("expected Moza ActuatorProfileSmoke command".into()),
         }
         Ok(())
     }
@@ -1859,6 +2539,7 @@ mod tests {
                 game,
                 telemetry_source,
                 output_log_artifact,
+                strategy,
                 descriptor_trusted,
                 explicit_operator_override,
                 watchdog_timeout_ms,
@@ -1878,6 +2559,7 @@ mod tests {
                     output_log_artifact.as_path().to_str(),
                     Some("simulator-ffb-output.jsonl")
                 );
+                assert_eq!(*strategy, MozaLowTorqueStrategy::DirectReport0x20);
                 assert!(*descriptor_trusted);
                 assert!(!*explicit_operator_override);
                 assert_eq!(*watchdog_timeout_ms, 100);
@@ -1889,6 +2571,39 @@ mod tests {
                     Some("simulator-ffb-smoke.json")
                 );
                 assert!(*overwrite);
+            }
+            _ => return Err("expected Moza SimulatorFfbSmoke command".into()),
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn parse_moza_simulator_ffb_smoke_pidff_strategy() -> TestResult {
+        let cli = Cli::try_parse_from([
+            "wheelctl",
+            "moza",
+            "simulator-ffb-smoke",
+            "--lane",
+            "ci/hardware/moza-r5/2026-05-13",
+            "--game",
+            "simhub-bridge",
+            "--telemetry-source",
+            "simhub_bridge",
+            "--output-log-artifact",
+            "simulator-ffb-output.jsonl",
+            "--strategy",
+            "pidff-bounded-effect",
+            "--descriptor-trusted",
+            "--watchdog-timeout-ms",
+            "100",
+            "--stop-cleared-output",
+            "--pause-cleared-output",
+            "--game-exit-cleared-output",
+        ])?;
+
+        match &cli.command {
+            Commands::Moza(MozaCommands::SimulatorFfbSmoke { strategy, .. }) => {
+                assert_eq!(*strategy, MozaLowTorqueStrategy::PidffBoundedEffect);
             }
             _ => return Err("expected Moza SimulatorFfbSmoke command".into()),
         }

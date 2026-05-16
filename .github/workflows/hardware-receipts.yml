@@ -50,9 +50,22 @@ jobs:
         run: |
           set -euo pipefail
 
+          changed_files_for_pr() {
+            local base_ref="origin/${{ github.base_ref }}"
+            git fetch --no-tags origin "${{ github.base_ref }}:refs/remotes/origin/${{ github.base_ref }}"
+            if git merge-base "$base_ref" HEAD >/dev/null 2>&1; then
+              git diff --name-only "$base_ref...HEAD"
+            else
+              {
+                echo "No merge base found for $base_ref and HEAD."
+                echo "Falling back to direct base-to-head diff for hardware lane detection."
+              } >> "$GITHUB_STEP_SUMMARY"
+              git diff --name-only "$base_ref" HEAD
+            fi
+          }
+
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
-            changed_files=$(git diff --name-only "origin/${{ github.base_ref }}...HEAD")
+            changed_files=$(changed_files_for_pr)
           elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             changed_files=$(find ci/hardware -mindepth 3 -maxdepth 3 -name manifest.json -print 2>/dev/null || true)
           elif [ -n "${{ github.event.before }}" ] && [ "${{ github.event.before }}" != "0000000000000000000000000000000000000000" ]; then
@@ -63,7 +76,7 @@ jobs:
 
           lanes=$(
             printf '%s\n' "$changed_files" |
-              awk -F/ '/^ci\/hardware\/[^/]+\/[0-9]{4}-[0-9]{2}-[0-9]{2}\// { print $1 "/" $2 "/" $3 }' |
+              awk -F/ '/^ci\/hardware\/[^/]+\/[0-9]{4}-[0-9]{2}-[0-9]{2}\// { print $1 "/" $2 "/" $3 "/" $4 }' |
               sort -u
           )
 
@@ -108,7 +121,7 @@ jobs:
             fi
 
             stage=$(
-              python3 -c 'import json, sys; state = json.load(open(sys.argv[1], encoding="utf-8")).get("completion_state"); mapping = {"passive_capture_ready": "passive", "zero_torque_ready": "zero", "real_hardware_smoke_ready": "smoke-ready"}; stage = mapping.get(state); print(stage) if stage else (_ for _ in ()).throw(SystemExit(f"unsupported or unpromoted completion_state: {state!r}"))' "$lane/manifest.json"
+              python3 -c 'import json, sys; state = json.load(open(sys.argv[1], encoding="utf-8")).get("completion_state"); mapping = {"passive_capture_ready": "passive", "zero_torque_ready": "zero", "openracing_control_ready": "openracing-control-ready", "real_hardware_smoke_ready": "smoke-ready"}; stage = mapping.get(state); print(stage) if stage else (_ for _ in ()).throw(SystemExit(f"unsupported or unpromoted completion_state: {state!r}"))' "$lane/manifest.json"
             )
 
             echo "Verifying $lane at stage $stage"

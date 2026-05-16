@@ -11,18 +11,28 @@ use std::path::Path;
 use std::time::Duration;
 use tokio::time::interval;
 
-use crate::client::{DeviceCapabilities, DeviceInfo, DeviceState, DeviceType, WheelClient};
+use crate::client::{
+    DeviceCapabilities, DeviceInfo, DeviceState, DeviceStatus, DeviceType, MozaReadinessStatus,
+    TelemetryData, WheelClient,
+};
 use crate::commands::{CalibrationType, DeviceCommands, moza};
 use crate::error::CliError;
 use crate::output;
 
 /// Execute device command
 pub async fn execute(cmd: &DeviceCommands, json: bool, endpoint: Option<&str>) -> Result<()> {
-    let client = WheelClient::connect_or_mock(endpoint).await?;
-
     match cmd {
-        DeviceCommands::List { detailed, json_out } => {
-            list_devices(&client, json, *detailed, json_out.as_deref()).await
+        DeviceCommands::List {
+            detailed,
+            hid_observe_only,
+            json_out,
+        } => {
+            if *hid_observe_only {
+                list_hid_observed_devices(json, *detailed, json_out.as_deref()).await
+            } else {
+                let client = WheelClient::connect_or_mock(endpoint).await?;
+                list_devices(&client, json, *detailed, json_out.as_deref()).await
+            }
         }
         DeviceCommands::Status {
             device,
@@ -30,6 +40,7 @@ pub async fn execute(cmd: &DeviceCommands, json: bool, endpoint: Option<&str>) -
             json_out,
             watch,
         } => {
+            let client = WheelClient::connect_or_mock(endpoint).await?;
             device_status(
                 &client,
                 device,
@@ -44,8 +55,12 @@ pub async fn execute(cmd: &DeviceCommands, json: bool, endpoint: Option<&str>) -
             device,
             calibration_type,
             yes,
-        } => calibrate_device(&client, device, calibration_type, json, *yes).await,
+        } => {
+            let client = WheelClient::connect_or_mock(endpoint).await?;
+            calibrate_device(&client, device, calibration_type, json, *yes).await
+        }
         DeviceCommands::Reset { device, force } => {
+            let client = WheelClient::connect_or_mock(endpoint).await?;
             reset_device(&client, device, json, *force).await
         }
     }
@@ -62,7 +77,24 @@ async fn list_devices(
     let hid_observation = observe_known_hid_devices();
     let devices = merge_device_lists(service_devices, hid_observation.devices.clone());
     if let Some(path) = json_out {
-        write_device_list_receipt(path, &devices, &hid_observation)?;
+        write_device_list_receipt(path, &devices, &hid_observation, false)?;
+    }
+    output::print_device_list(&devices, json, detailed);
+    if !json && let Some(path) = json_out {
+        println!("Receipt: {}", path.display());
+    }
+    Ok(())
+}
+
+async fn list_hid_observed_devices(
+    json: bool,
+    detailed: bool,
+    json_out: Option<&Path>,
+) -> Result<()> {
+    let hid_observation = observe_known_hid_devices();
+    let devices = hid_observation.devices.clone();
+    if let Some(path) = json_out {
+        write_device_list_receipt(path, &devices, &hid_observation, true)?;
     }
     output::print_device_list(&devices, json, detailed);
     if !json && let Some(path) = json_out {
@@ -75,6 +107,7 @@ fn write_device_list_receipt(
     path: &Path,
     devices: &[DeviceInfo],
     hid_observation: &HidDeviceListObservation,
+    hid_observe_only: bool,
 ) -> Result<()> {
     if let Some(parent) = path.parent().filter(|p| !p.as_os_str().is_empty()) {
         fs::create_dir_all(parent)
@@ -84,6 +117,7 @@ fn write_device_list_receipt(
     let receipt = json!({
         "success": true,
         "command": "wheelctl device list",
+        "hid_observe_only": hid_observe_only,
         "no_hid_device_opened": true,
         "no_ffb_writes": true,
         "no_output_reports": true,
@@ -137,6 +171,10 @@ fn observe_known_hid_devices() -> HidDeviceListObservation {
             devices: Vec::new(),
         },
     }
+}
+
+pub(crate) fn known_hid_observe_devices() -> Vec<DeviceInfo> {
+    observe_known_hid_devices().devices
 }
 
 fn hid_device_info(
@@ -224,6 +262,54 @@ fn hex_u16(value: u16) -> String {
     format!("0x{value:04X}")
 }
 
+fn hid_observe_device_status(selector: &str) -> Result<Option<DeviceStatus>> {
+    let devices = known_hid_observe_devices();
+    let matches = devices
+        .into_iter()
+        .filter(|device| hid_observe_selector_matches(device, selector))
+        .collect::<Vec<_>>();
+    match matches.as_slice() {
+        [] => Ok(None),
+        [device] => Ok(Some(device_status_from_hid_observe_device(device))),
+        _ => Err(CliError::ValidationError(format!(
+            "HID observe selector '{selector}' matched {} devices; use the full hid-* device id",
+            matches.len()
+        ))
+        .into()),
+    }
+}
+
+fn hid_observe_selector_matches(device: &DeviceInfo, selector: &str) -> bool {
+    if device.id.eq_ignore_ascii_case(selector) || device.name.eq_ignore_ascii_case(selector) {
+        return true;
+    }
+    if device
+        .product_string
+        .as_deref()
+        .is_some_and(|product| product.eq_ignore_ascii_case(selector))
+    {
+        return true;
+    }
+    let Some(vendor_id) = device.vendor_id.as_deref() else {
+        return false;
+    };
+    let Some(product_id) = device.product_id.as_deref() else {
+        return false;
+    };
+    selector.eq_ignore_ascii_case(&format!("{vendor_id}:{product_id}"))
+        || selector.eq_ignore_ascii_case(product_id)
+}
+
+fn device_status_from_hid_observe_device(device: &DeviceInfo) -> DeviceStatus {
+    DeviceStatus {
+        device: device.clone(),
+        last_seen: chrono::Utc::now(),
+        active_faults: Vec::new(),
+        telemetry: TelemetryData::default(),
+        moza: MozaReadinessStatus::from_device(device),
+    }
+}
+
 /// Show device status
 async fn device_status(
     client: &WheelClient,
@@ -243,10 +329,11 @@ async fn device_status(
     if watch {
         watch_device_status(client, device, json, moza_lane).await
     } else {
-        let mut status = client
-            .get_device_status(device)
-            .await
-            .map_err(|_| CliError::DeviceNotFound(device.to_string()))?;
+        let mut status = match client.get_device_status(device).await {
+            Ok(status) => status,
+            Err(_) => hid_observe_device_status(device)?
+                .ok_or_else(|| CliError::DeviceNotFound(device.to_string()))?,
+        };
         if let Some(lane) = moza_lane {
             moza::apply_lane_readiness_to_device_status(&mut status, lane);
         }
@@ -279,6 +366,8 @@ fn write_device_status_receipt(
         "moza_lane": moza_lane.map(|lane| lane.display().to_string()),
         "no_hid_device_opened": true,
         "no_ffb_writes": true,
+        "no_output_reports": true,
+        "no_feature_reports": true,
         "no_serial_config_commands": true,
         "no_firmware_or_dfu_commands": true,
         "status": status,
@@ -498,7 +587,7 @@ mod tests {
             devices: devices.clone(),
         };
 
-        write_device_list_receipt(&path, &devices, &hid_observation)?;
+        write_device_list_receipt(&path, &devices, &hid_observation, true)?;
 
         let text = fs::read_to_string(&path)?;
         let value: serde_json::Value = serde_json::from_str(&text)?;
@@ -506,6 +595,10 @@ mod tests {
         assert_eq!(
             value.get("command").and_then(|v| v.as_str()),
             Some("wheelctl device list")
+        );
+        assert_eq!(
+            value.get("hid_observe_only").and_then(|v| v.as_bool()),
+            Some(true)
         );
         assert_eq!(
             value.get("no_ffb_writes").and_then(|v| v.as_bool()),
@@ -573,6 +666,7 @@ mod tests {
         let path = dir.path().join("device-list.json");
         let command = DeviceCommands::List {
             detailed: true,
+            hid_observe_only: false,
             json_out: Some(path.clone()),
         };
 
@@ -600,6 +694,41 @@ mod tests {
                 .get("hid_enumeration")
                 .and_then(|v| v.as_object())
                 .is_some()
+        );
+        assert_eq!(
+            value.get("hid_observe_only").and_then(|v| v.as_bool()),
+            Some(false)
+        );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn execute_list_hid_observe_only_excludes_mock_backend() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        let path = dir.path().join("device-list.json");
+        let command = DeviceCommands::List {
+            detailed: true,
+            hid_observe_only: true,
+            json_out: Some(path.clone()),
+        };
+
+        execute(&command, true, Some("http://127.0.0.1:9")).await?;
+
+        let text = fs::read_to_string(&path)?;
+        let value: serde_json::Value = serde_json::from_str(&text)?;
+        assert_eq!(
+            value.get("hid_observe_only").and_then(|v| v.as_bool()),
+            Some(true)
+        );
+        let devices = value
+            .get("devices")
+            .and_then(|v| v.as_array())
+            .ok_or_else(|| anyhow::anyhow!("missing devices array"))?;
+        assert!(
+            devices.iter().all(|device| {
+                device.get("source").and_then(|v| v.as_str()) == Some("hid-observe")
+            }),
+            "hid-observe-only receipt must not include service/mock devices: {devices:?}"
         );
         Ok(())
     }
@@ -629,6 +758,14 @@ mod tests {
         );
         assert_eq!(
             value.get("no_hid_device_opened").and_then(|v| v.as_bool()),
+            Some(true)
+        );
+        assert_eq!(
+            value.get("no_output_reports").and_then(|v| v.as_bool()),
+            Some(true)
+        );
+        assert_eq!(
+            value.get("no_feature_reports").and_then(|v| v.as_bool()),
             Some(true)
         );
         assert_eq!(
@@ -724,6 +861,47 @@ mod tests {
     }
 
     #[test]
+    fn hid_observe_status_accepts_device_list_id_without_enabling_output() -> TestResult {
+        let device = DeviceInfo {
+            id: "hid-0x346E-0x0004-if2-0x0001-0x0004".to_string(),
+            name: "MOZA R5 Base".to_string(),
+            source: Some("hid-observe".to_string()),
+            vendor_id: Some("0x346E".to_string()),
+            product_id: Some("0x0004".to_string()),
+            manufacturer: Some("Gudsen".to_string()),
+            product_string: Some("MOZA R5 Base".to_string()),
+            serial_number_present: Some(true),
+            interface_number: Some(2),
+            usage_page: Some("0x0001".to_string()),
+            usage: Some("0x0004".to_string()),
+            hid_path_present: Some(true),
+            device_type: DeviceType::WheelBase,
+            state: DeviceState::Connected,
+            capabilities: DeviceCapabilities {
+                supports_health_stream: true,
+                ..DeviceCapabilities::default()
+            },
+        };
+
+        assert!(hid_observe_selector_matches(&device, &device.id));
+        assert!(hid_observe_selector_matches(&device, "0x346E:0x0004"));
+
+        let status = device_status_from_hid_observe_device(&device);
+        assert_eq!(status.device.id, device.id);
+        assert_eq!(status.device.source.as_deref(), Some("hid-observe"));
+        let moza = status
+            .moza
+            .ok_or_else(|| anyhow::anyhow!("expected Moza readiness status"))?;
+        assert_eq!(moza.product_id, "0x0004");
+        assert!(moza.output_capable);
+        assert!(!moza.ffb_ready);
+        assert!(!moza.direct_mode_allowed);
+        assert!(!moza.high_torque_allowed);
+        assert!(!moza.safe_to_send_torque);
+        Ok(())
+    }
+
+    #[test]
     fn merge_device_lists_deduplicates_matching_hid_identity() {
         let service_device = DeviceInfo {
             id: "service-r5".to_string(),
@@ -772,6 +950,7 @@ mod tests {
         let path = dir.path().join("device-list.json");
         let command = DeviceCommands::List {
             detailed: false,
+            hid_observe_only: false,
             json_out: Some(path.clone()),
         };
 

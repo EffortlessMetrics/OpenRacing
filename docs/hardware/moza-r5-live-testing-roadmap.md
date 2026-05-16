@@ -20,7 +20,7 @@ not a single fixed kit shape. A lane proves that a logical role was observed fro
 a concrete endpoint through a declared connection path:
 
 ```text
-logical role -> observed endpoint -> connection path -> capture evidence
+logical role -> observed endpoint -> connection path -> capture evidence -> semantic status
 ```
 
 For the primary Moza R5 lane, the R5 HID endpoint is the wheelbase hub and
@@ -28,6 +28,12 @@ expected source for steering, rim controls, throttle, brake, clutch when
 present, and handbrake. Standalone USB pedals, standalone USB handbrakes, button
 boxes, shifters, or mixed-vendor devices can be added later as separate observed
 endpoints that provide specific logical roles.
+
+The declared `semantic_status` is explicit: `deferred` is a planned lane role,
+`unavailable` is missing capture or endpoint evidence, `missing` is a parsed
+capture without parser-visible role movement, `generic_aux` is visible generic
+R5 V1 extended movement without a semantic field name, and `proven` is
+parser-visible role-specific evidence.
 
 If multiple output-capable endpoints are visible, passive enumeration may record
 all of them. Any later output-capable test must require one explicit selected
@@ -199,6 +205,7 @@ ci/hardware/moza-r5/<date>/manifest.json
 ci/hardware/moza-r5/<date>/device-list.json
 ci/hardware/moza-r5/<date>/moza-probe.json
 ci/hardware/moza-r5/<date>/hid-list.json
+ci/hardware/moza-r5/<date>/hardware-doctor.json
 ci/hardware/moza-r5/<date>/descriptor.json
 ci/hardware/moza-r5/<date>/captures/r5-idle.jsonl
 ci/hardware/moza-r5/<date>/captures/r5-steering-sweep.jsonl
@@ -257,9 +264,10 @@ Do not skip steps.
 2. Zero-output safety receipts
 3. Watchdog, disconnect, and final-zero receipts
 4. Bounded low-torque proof
-5. Pit House coexistence
-6. Simulator telemetry only
-7. Bounded simulator-to-Moza FFB smoke
+5. Native steering input proof
+6. Native actuator profile smoke
+7. Optional simulator telemetry / SimHub compatibility
+8. Optional Pit House coexistence and release compatibility
 ```
 
 The first output test must be zero output only:
@@ -273,14 +281,19 @@ The first output test must be zero output only:
 The first non-zero output test must be bounded low torque only:
 
 - same-lane passive and zero receipts already present
-- descriptor trusted or explicit operator override recorded
+- explicit output strategy selected
+- direct path requires descriptor-trusted direct report `0x20` metadata and a same-lane `direct_report_0x20` zero proof accepted by `torque-test`
+- live R5 V1 path uses descriptor-proven PIDFF bounded effects, same-lane PIDFF Stop All zero proof, off/standard init receipts, and final Stop All cleanup
+- no generated `--explicit-operator-override`; any direct-path override is a separate manual operator decision
 - hard output cap
 - final-zero proof
 - no high torque
 
-Simulator FFB smoke is last. It requires passive, zero, low-torque, Pit House,
-and simulator telemetry receipts first. The virtual FFB output log flow is a
-planning and rehearsal tool only; it is not real simulator-to-device evidence.
+Native OpenRacing movement proof comes before optional simulator or vendor-app
+compatibility. Simulator FFB smoke requires passive, zero, low-torque, and the
+chosen input-source receipt first; Pit House remains a separate
+coexistence/release gate. The virtual FFB output log flow is a planning and
+rehearsal tool only; it is not real simulator-to-device evidence.
 
 ## Stop Conditions
 

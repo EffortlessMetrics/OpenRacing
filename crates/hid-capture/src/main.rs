@@ -139,6 +139,7 @@ struct HidDeviceRecord {
     output_report_ids: Vec<String>,
     output_reports: Vec<HidReportRecord>,
     feature_report_ids: Vec<String>,
+    feature_reports: Vec<HidReportRecord>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -177,6 +178,14 @@ impl HidDeviceRecord {
                 .feature_report_ids
                 .into_iter()
                 .map(hex_u8)
+                .collect();
+            self.feature_reports = metadata
+                .feature_reports
+                .into_iter()
+                .map(|report| HidReportRecord {
+                    report_id: hex_u8(report.report_id),
+                    report_len: report.report_len,
+                })
                 .collect();
         }
     }
@@ -388,6 +397,7 @@ fn enumerate_devices(
             let output_reports = expected_output_reports(device.vendor_id(), device.product_id());
             let feature_report_ids =
                 expected_feature_report_ids(device.vendor_id(), device.product_id());
+            let feature_reports = Vec::new();
 
             let descriptor_source = descriptor_source_label(descriptor.as_ref());
             let mut record = HidDeviceRecord {
@@ -412,6 +422,7 @@ fn enumerate_devices(
                 output_report_ids,
                 output_reports,
                 feature_report_ids,
+                feature_reports,
             };
             if let Some(descriptor) = descriptor {
                 record.apply_report_descriptor(descriptor, &descriptor_source);
@@ -594,7 +605,8 @@ fn expected_input_report_lengths(vendor_id: u16, product_id: u16) -> Vec<usize> 
     }
 
     match product_id {
-        MOZA_R5_V1_PID | MOZA_R5_V2_PID => vec![7, 31],
+        MOZA_R5_V1_PID => vec![42],
+        MOZA_R5_V2_PID => vec![7, 31],
         MOZA_SRP_PID => vec![5],
         MOZA_HBP_PID => vec![2, 3, 4, 5],
         _ => Vec::new(),
@@ -868,6 +880,19 @@ mod tests {
         assert_eq!(
             device.feature_report_ids,
             vec!["0x03".to_string(), "0x11".to_string()]
+        );
+        assert_eq!(
+            device.feature_reports,
+            vec![
+                HidReportRecord {
+                    report_id: "0x03".to_string(),
+                    report_len: 4,
+                },
+                HidReportRecord {
+                    report_id: "0x11".to_string(),
+                    report_len: 4,
+                },
+            ]
         );
         Ok(())
     }
@@ -1507,6 +1532,7 @@ mod tests {
             output_report_ids: Vec::new(),
             output_reports: Vec::new(),
             feature_report_ids: Vec::new(),
+            feature_reports: Vec::new(),
         }
     }
 
@@ -1543,6 +1569,10 @@ mod tests {
 
     #[test]
     fn given_moza_r5_when_expected_metadata_requested_then_lane_reports_are_returned() {
+        assert_eq!(
+            expected_input_report_lengths(MOZA_VENDOR_ID, MOZA_R5_V1_PID),
+            vec![42]
+        );
         assert_eq!(
             expected_input_report_lengths(MOZA_VENDOR_ID, MOZA_R5_V2_PID),
             vec![7, 31]

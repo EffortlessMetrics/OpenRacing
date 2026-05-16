@@ -1,0 +1,170 @@
+{
+  "success": true,
+  "command": "wheelctl moza pre-output-readiness",
+  "generated_at_utc": "2026-05-16T08:12:22Z",
+  "lane": "ci\\hardware\\moza-r5\\2026-05-13",
+  "stage": "pre_output_readiness",
+  "ready_for_zero_torque": true,
+  "ready_for_ffb": false,
+  "ready_for_native_control": true,
+  "ready_for_external_compatibility": false,
+  "blocking_items": [],
+  "ffb_blocking_items": [
+    "simulator_telemetry"
+  ],
+  "native_control_blocking_items": [],
+  "external_compatibility_blocking_items": [
+    "pit_house_coexistence",
+    "simulator_ffb_bounded",
+    "simulator_telemetry"
+  ],
+  "zero_output_strategies": [
+    {
+      "name": "direct_report_0x20",
+      "description": "Moza proprietary direct zero-torque report",
+      "implemented": true,
+      "descriptor_report_observed": false,
+      "descriptor_metadata_trusted": true,
+      "ready": false,
+      "required_output_reports": [
+        {
+          "report_id": "0x20",
+          "report_len": 8
+        }
+      ],
+      "blocking_items": [
+        "direct_zero_report_metadata"
+      ],
+      "notes": [
+        "implemented by wheelctl moza zero",
+        "requires descriptor-derived output report 0x20 with the expected 8-byte shape"
+      ]
+    },
+    {
+      "name": "pidff_device_control_stop_all",
+      "description": "standard HID PIDFF Device Control Stop All Effects zero-output candidate",
+      "implemented": true,
+      "descriptor_report_observed": true,
+      "descriptor_metadata_trusted": true,
+      "ready": true,
+      "required_output_reports": [
+        {
+          "report_id": "0x0C",
+          "report_len": 2
+        }
+      ],
+      "blocking_items": [],
+      "notes": [
+        "implemented by wheelctl moza zero --strategy pidff-stop-all",
+        "the candidate report carries a stop-all-effects command, not a force magnitude"
+      ]
+    }
+  ],
+  "passed_items": [
+    "r5_endpoint_observed",
+    "topology_endpoint_observed",
+    "role_evidence_complete",
+    "passive_captures_parse",
+    "parser_fixture_validation",
+    "descriptor_metadata",
+    "fixture_promotion",
+    "status_receipts_no_output",
+    "support_bundle_no_output",
+    "zero_output_strategy_ready",
+    "passive_verification",
+    "passive_audit",
+    "ready_for_zero_torque",
+    "ready_for_native_control"
+  ],
+  "status_receipts": [
+    {
+      "name": "moza_status",
+      "status": "pass",
+      "details": "moza-status.json is observe-only and bound to ci\\hardware\\moza-r5\\2026-05-13"
+    },
+    {
+      "name": "device_status",
+      "status": "pass",
+      "details": "device-status.json is observe-only and bound to ci\\hardware\\moza-r5\\2026-05-13"
+    },
+    {
+      "name": "support_bundle",
+      "status": "pass",
+      "details": "support-bundle.json is observe-only and bound to ci\\hardware\\moza-r5\\2026-05-13"
+    }
+  ],
+  "passive_verification": {
+    "failed_gate_names": [],
+    "failed_gates": 0,
+    "invalid_artifact_paths": [],
+    "invalid_artifacts": 0,
+    "missing_artifact_paths": [],
+    "missing_artifacts": 0,
+    "requested_stage": "passive",
+    "success": true
+  },
+  "zero_verification": {
+    "failed_gate_names": [],
+    "failed_gates": 0,
+    "invalid_artifact_paths": [],
+    "invalid_artifacts": 0,
+    "missing_artifact_paths": [],
+    "missing_artifacts": 0,
+    "requested_stage": "zero",
+    "success": true
+  },
+  "openracing_control_verification": {
+    "failed_gate_names": [],
+    "failed_gates": 0,
+    "invalid_artifact_paths": [],
+    "invalid_artifacts": 0,
+    "missing_artifact_paths": [],
+    "missing_artifacts": 0,
+    "requested_stage": "openracing_control_ready",
+    "success": true
+  },
+  "smoke_ready_verification": {
+    "failed_gate_names": [
+      "pit_house_coexistence",
+      "simulator_telemetry",
+      "simulator_ffb_bounded"
+    ],
+    "failed_gates": 3,
+    "invalid_artifact_paths": [],
+    "invalid_artifacts": 0,
+    "missing_artifact_paths": [
+      "pit-house-coexistence.json",
+      "simulator-telemetry-proof.json",
+      "simulator-ffb-smoke.json"
+    ],
+    "missing_artifacts": 3,
+    "requested_stage": "smoke_ready",
+    "success": false
+  },
+  "passive_audit_passed": true,
+  "zero_audit_passed": true,
+  "openracing_control_audit_passed": true,
+  "smoke_ready_audit_passed": false,
+  "no_hid_device_opened": true,
+  "no_ffb_writes": true,
+  "no_output_reports": true,
+  "no_feature_reports": true,
+  "no_serial_config_commands": true,
+  "no_firmware_or_dfu_commands": true,
+  "hard_forbidden_until_ready": [
+    "ffb",
+    "direct_mode",
+    "nonzero_torque",
+    "output_reports",
+    "feature_reports",
+    "serial_config",
+    "firmware_dfu"
+  ],
+  "notes": [
+    "pre-output-readiness reads existing lane receipts only; it opens no HID device and sends no reports",
+    "ready_for_zero_torque is the first output-adjacent gate and still does not permit nonzero torque or FFB",
+    "ready_for_native_control is the OpenRacing-owned movement path and does not require SimHub, Pit House, or direct report 0x20",
+    "ready_for_external_compatibility tracks optional adapter/vendor-app surfaces such as simulator telemetry bridges and Pit House coexistence; it is not required for native control",
+    "ready_for_ffb is the legacy bounded simulator FFB preflight; keep it separate from native-control and release-readiness claims"
+  ]
+}
