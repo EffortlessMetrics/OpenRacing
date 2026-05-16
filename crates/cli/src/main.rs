@@ -1529,6 +1529,59 @@ mod tests {
     }
 
     #[test]
+    fn parse_moza_steering_stream_proof() -> TestResult {
+        let cli = Cli::try_parse_from([
+            "wheelctl",
+            "moza",
+            "steering-stream-proof",
+            "--device",
+            "hid-0x346E-0x0004-if2-0x0001-0x0004",
+            "--lane",
+            "ci/hardware/moza-r5/2026-05-13",
+            "--duration-ms",
+            "5000",
+            "--read-timeout-ms",
+            "20",
+            "--degrees-of-rotation",
+            "1080",
+            "--jsonl-out",
+            "target/steering-angle-stream.jsonl",
+            "--json-out",
+            "ci/hardware/moza-r5/2026-05-13/steering-angle-stream-proof.json",
+        ])?;
+        match &cli.command {
+            Commands::Moza(MozaCommands::SteeringStreamProof {
+                device,
+                lane,
+                duration_ms,
+                read_timeout_ms,
+                degrees_of_rotation,
+                jsonl_out,
+                json_out,
+            }) => {
+                assert_eq!(device, "hid-0x346E-0x0004-if2-0x0001-0x0004");
+                assert_eq!(
+                    lane.as_path().to_str(),
+                    Some("ci/hardware/moza-r5/2026-05-13")
+                );
+                assert_eq!(*duration_ms, 5000);
+                assert_eq!(*read_timeout_ms, 20);
+                assert_eq!(*degrees_of_rotation, 1080.0);
+                assert_eq!(
+                    jsonl_out.as_ref().and_then(|p| p.to_str()),
+                    Some("target/steering-angle-stream.jsonl")
+                );
+                assert_eq!(
+                    json_out.as_ref().and_then(|p| p.to_str()),
+                    Some("ci/hardware/moza-r5/2026-05-13/steering-angle-stream-proof.json")
+                );
+            }
+            _ => return Err("expected Moza SteeringStreamProof command".into()),
+        }
+        Ok(())
+    }
+
+    #[test]
     fn parse_moza_validate_capture() -> TestResult {
         let cli = Cli::try_parse_from([
             "wheelctl",
@@ -2138,6 +2191,74 @@ mod tests {
     }
 
     #[test]
+    fn parse_moza_actuator_profile_smoke() -> TestResult {
+        let cli = Cli::try_parse_from([
+            "wheelctl",
+            "moza",
+            "actuator-profile-smoke",
+            "--device",
+            "hid-0x346E-0x0004-if2-0x0001-0x0004",
+            "--lane",
+            "ci/hardware/moza-r5/2026-05-13",
+            "--low-torque-proof",
+            "ci/hardware/moza-r5/2026-05-13/low-torque-proof.json",
+            "--steering-proof",
+            "ci/hardware/moza-r5/2026-05-13/steering-angle-stream-proof.json",
+            "--profile",
+            "constant-low-force",
+            "--strategy",
+            "pidff-bounded-effect",
+            "--max-percent",
+            "1",
+            "--duration-ms",
+            "2000",
+            "--confirm-actuator-profile",
+            "--json-out",
+            "ci/hardware/moza-r5/2026-05-13/native-actuator-profile-smoke.json",
+        ])?;
+        match &cli.command {
+            Commands::Moza(MozaCommands::ActuatorProfileSmoke {
+                device,
+                lane,
+                low_torque_proof,
+                steering_proof,
+                profile,
+                strategy,
+                confirm_actuator_profile,
+                max_percent,
+                duration_ms,
+                json_out,
+                ..
+            }) => {
+                assert_eq!(device, "hid-0x346E-0x0004-if2-0x0001-0x0004");
+                assert_eq!(
+                    lane.as_path().to_str(),
+                    Some("ci/hardware/moza-r5/2026-05-13")
+                );
+                assert_eq!(
+                    low_torque_proof.as_ref().and_then(|p| p.to_str()),
+                    Some("ci/hardware/moza-r5/2026-05-13/low-torque-proof.json")
+                );
+                assert_eq!(
+                    steering_proof.as_ref().and_then(|p| p.to_str()),
+                    Some("ci/hardware/moza-r5/2026-05-13/steering-angle-stream-proof.json")
+                );
+                assert_eq!(*profile, MozaActuatorProfile::ConstantLowForce);
+                assert_eq!(*strategy, MozaLowTorqueStrategy::PidffBoundedEffect);
+                assert!(*confirm_actuator_profile);
+                assert!((*max_percent - 1.0).abs() < f32::EPSILON);
+                assert_eq!(*duration_ms, 2000);
+                assert_eq!(
+                    json_out.as_ref().and_then(|p| p.to_str()),
+                    Some("ci/hardware/moza-r5/2026-05-13/native-actuator-profile-smoke.json")
+                );
+            }
+            _ => return Err("expected Moza ActuatorProfileSmoke command".into()),
+        }
+        Ok(())
+    }
+
+    #[test]
     fn parse_moza_receipt_template() -> TestResult {
         let cli = Cli::try_parse_from([
             "wheelctl",
@@ -2418,6 +2539,7 @@ mod tests {
                 game,
                 telemetry_source,
                 output_log_artifact,
+                strategy,
                 descriptor_trusted,
                 explicit_operator_override,
                 watchdog_timeout_ms,
@@ -2437,6 +2559,7 @@ mod tests {
                     output_log_artifact.as_path().to_str(),
                     Some("simulator-ffb-output.jsonl")
                 );
+                assert_eq!(*strategy, MozaLowTorqueStrategy::DirectReport0x20);
                 assert!(*descriptor_trusted);
                 assert!(!*explicit_operator_override);
                 assert_eq!(*watchdog_timeout_ms, 100);
@@ -2448,6 +2571,39 @@ mod tests {
                     Some("simulator-ffb-smoke.json")
                 );
                 assert!(*overwrite);
+            }
+            _ => return Err("expected Moza SimulatorFfbSmoke command".into()),
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn parse_moza_simulator_ffb_smoke_pidff_strategy() -> TestResult {
+        let cli = Cli::try_parse_from([
+            "wheelctl",
+            "moza",
+            "simulator-ffb-smoke",
+            "--lane",
+            "ci/hardware/moza-r5/2026-05-13",
+            "--game",
+            "simhub-bridge",
+            "--telemetry-source",
+            "simhub_bridge",
+            "--output-log-artifact",
+            "simulator-ffb-output.jsonl",
+            "--strategy",
+            "pidff-bounded-effect",
+            "--descriptor-trusted",
+            "--watchdog-timeout-ms",
+            "100",
+            "--stop-cleared-output",
+            "--pause-cleared-output",
+            "--game-exit-cleared-output",
+        ])?;
+
+        match &cli.command {
+            Commands::Moza(MozaCommands::SimulatorFfbSmoke { strategy, .. }) => {
+                assert_eq!(*strategy, MozaLowTorqueStrategy::PidffBoundedEffect);
             }
             _ => return Err("expected Moza SimulatorFfbSmoke command".into()),
         }
