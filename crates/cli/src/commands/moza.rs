@@ -28,8 +28,9 @@ use std::path::{Component, Path, PathBuf};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use crate::commands::{
-    MozaBundleStage, MozaCommands, MozaInitMode, MozaLowTorqueStrategy, MozaPitHouseEvidenceKind,
-    MozaPitHouseObservationCase, MozaReceiptTemplateKind, MozaZeroOutputStrategy,
+    MozaActuatorProfile, MozaBundleStage, MozaCommands, MozaInitMode, MozaLowTorqueStrategy,
+    MozaPitHouseEvidenceKind, MozaPitHouseObservationCase, MozaReceiptTemplateKind,
+    MozaZeroOutputStrategy,
 };
 use crate::error::CliError;
 
@@ -142,6 +143,21 @@ struct TorqueTestRequest<'a> {
     json_out: Option<&'a Path>,
 }
 
+struct ActuatorProfileSmokeRequest<'a> {
+    json: bool,
+    selector: &'a str,
+    lane: &'a Path,
+    low_torque_proof: Option<&'a Path>,
+    steering_proof: Option<&'a Path>,
+    profile: MozaActuatorProfile,
+    strategy: MozaLowTorqueStrategy,
+    dry_run: bool,
+    confirm_actuator_profile: bool,
+    max_percent: f32,
+    duration_ms: u64,
+    json_out: Option<&'a Path>,
+}
+
 struct ZeroOutputStagePreflight {
     lane: PathBuf,
     lane_display: String,
@@ -225,6 +241,12 @@ fn low_torque_strategy_name(strategy: MozaLowTorqueStrategy) -> &'static str {
     match strategy {
         MozaLowTorqueStrategy::DirectReport0x20 => "direct_report_0x20",
         MozaLowTorqueStrategy::PidffBoundedEffect => "pidff_bounded_effect",
+    }
+}
+
+fn actuator_profile_name(profile: MozaActuatorProfile) -> &'static str {
+    match profile {
+        MozaActuatorProfile::ConstantLowForce => "constant_low_force",
     }
 }
 
@@ -338,6 +360,27 @@ pub async fn execute(cmd: &MozaCommands, json: bool) -> Result<()> {
                 *duration_ms,
                 *read_timeout_ms,
                 json_out,
+            )
+            .await
+        }
+        MozaCommands::SteeringStreamProof {
+            device,
+            lane,
+            duration_ms,
+            read_timeout_ms,
+            degrees_of_rotation,
+            jsonl_out,
+            json_out,
+        } => {
+            steering_stream_proof(
+                json,
+                device,
+                lane,
+                *duration_ms,
+                *read_timeout_ms,
+                *degrees_of_rotation,
+                jsonl_out.as_deref(),
+                json_out.as_deref(),
             )
             .await
         }
@@ -534,6 +577,35 @@ pub async fn execute(cmd: &MozaCommands, json: bool) -> Result<()> {
                 max_percent: *max_percent,
                 duration_ms: *duration_ms,
                 hz: *hz,
+                json_out: json_out.as_deref(),
+            })
+            .await
+        }
+        MozaCommands::ActuatorProfileSmoke {
+            device,
+            lane,
+            low_torque_proof,
+            steering_proof,
+            profile,
+            strategy,
+            dry_run,
+            confirm_actuator_profile,
+            max_percent,
+            duration_ms,
+            json_out,
+        } => {
+            actuator_profile_smoke(ActuatorProfileSmokeRequest {
+                json,
+                selector: device,
+                lane,
+                low_torque_proof: low_torque_proof.as_deref(),
+                steering_proof: steering_proof.as_deref(),
+                profile: *profile,
+                strategy: *strategy,
+                dry_run: *dry_run,
+                confirm_actuator_profile: *confirm_actuator_profile,
+                max_percent: *max_percent,
+                duration_ms: *duration_ms,
                 json_out: json_out.as_deref(),
             })
             .await
@@ -1230,6 +1302,202 @@ async fn capture_input(
     };
 
     print_capture_summary(json, &summary)
+}
+
+async fn steering_stream_proof(
+    json: bool,
+    selector: &str,
+    lane: &Path,
+    duration_ms: u64,
+    read_timeout_ms: i32,
+    degrees_of_rotation: f64,
+    jsonl_out: Option<&Path>,
+    json_out: Option<&Path>,
+) -> Result<()> {
+    if duration_ms == 0 {
+        return Err(anyhow!("--duration-ms must be greater than zero"));
+    }
+    if read_timeout_ms < 0 {
+        return Err(anyhow!("--read-timeout-ms must be non-negative"));
+    }
+    if !degrees_of_rotation.is_finite() || degrees_of_rotation <= 0.0 {
+        return Err(anyhow!(
+            "--degrees-of-rotation must be a positive finite value"
+        ));
+    }
+    let expected_selector = lane_manifest_r5_hid_observe_selector(lane)
+        .ok_or_else(|| anyhow!("lane manifest does not declare an exact R5 HID endpoint"))?;
+    if !selector.eq_ignore_ascii_case(&expected_selector) {
+        return Err(anyhow!(
+            "--device must match the lane R5 endpoint exactly ({expected_selector}); got {selector}"
+        ));
+    }
+
+    let receipt_path = proof_output_path(lane, json_out, "steering-angle-stream-proof.json");
+    let api = HidApi::new().context("failed to initialize HID API")?;
+    let (device, snapshot) = open_single_moza_device(&api, Some(selector))?;
+    device
+        .set_blocking_mode(true)
+        .context("failed to set HID blocking mode")?;
+
+    let product_id = parse_hex_selector(&snapshot.product_id).ok_or_else(|| {
+        anyhow!(
+            "selected Moza device has invalid product_id {}",
+            snapshot.product_id
+        )
+    })?;
+    if !matches!(product_id, product_ids::R5_V1 | product_ids::R5_V2) {
+        return Err(anyhow!(
+            "steering-stream-proof requires an R5 wheelbase endpoint; selected {}",
+            snapshot.product_id
+        ));
+    }
+    let protocol = MozaProtocol::new(product_id);
+
+    let mut sample_writer = match jsonl_out {
+        Some(path) => {
+            if let Some(parent) = path.parent().filter(|p| !p.as_os_str().is_empty()) {
+                fs::create_dir_all(parent)
+                    .with_context(|| format!("failed to create '{}'", parent.display()))?;
+            }
+            Some(BufWriter::new(File::create(path).with_context(|| {
+                format!("failed to create '{}'", path.display())
+            })?))
+        }
+        None => None,
+    };
+
+    let started_at = Instant::now();
+    let deadline = started_at + Duration::from_millis(duration_ms);
+    let mut buf = [0u8; 256];
+    let mut sample_count = 0u64;
+    let mut rejected_reports = 0u64;
+    let mut raw_min: Option<u16> = None;
+    let mut raw_max: Option<u16> = None;
+    let mut angle_min: Option<f64> = None;
+    let mut angle_max: Option<f64> = None;
+    let mut previous_elapsed_us = 0u64;
+    let mut timestamps_monotonic = true;
+    let sequence_monotonic = true;
+    let mut baseline_sum = 0.0f64;
+    let mut baseline_count = 0u64;
+
+    while Instant::now() < deadline {
+        let n = device
+            .read_timeout(&mut buf, read_timeout_ms)
+            .context("HID read error")?;
+        if n == 0 {
+            continue;
+        }
+
+        let elapsed_us = started_at.elapsed().as_micros() as u64;
+        if sample_count > 0 && elapsed_us < previous_elapsed_us {
+            timestamps_monotonic = false;
+        }
+        previous_elapsed_us = elapsed_us;
+
+        let data = &buf[..n];
+        let Some(state) = protocol.parse_input_state(data) else {
+            rejected_reports = rejected_reports.saturating_add(1);
+            continue;
+        };
+
+        let steering_u16 = state.steering_u16;
+        let angle_degrees = steering_u16_to_degrees(steering_u16, degrees_of_rotation);
+        raw_min = Some(raw_min.map_or(steering_u16, |value| value.min(steering_u16)));
+        raw_max = Some(raw_max.map_or(steering_u16, |value| value.max(steering_u16)));
+        angle_min = Some(angle_min.map_or(angle_degrees, |value| value.min(angle_degrees)));
+        angle_max = Some(angle_max.map_or(angle_degrees, |value| value.max(angle_degrees)));
+        if baseline_count < 64 {
+            baseline_sum += angle_degrees;
+            baseline_count += 1;
+        }
+
+        if let Some(writer) = sample_writer.as_mut() {
+            let sample = serde_json::json!({
+                "sequence": sample_count,
+                "ts_ns": unix_now_ns(),
+                "elapsed_us": elapsed_us,
+                "steering_u16": steering_u16,
+                "angle_degrees": angle_degrees,
+                "product_id": snapshot.product_id.clone(),
+                "report_id": data.first().map(|id| hex_u8(*id)).unwrap_or_else(|| "0x00".to_string()),
+                "report_len": n,
+                "hardware_output_enabled": false,
+                "no_ffb_writes": true,
+                "no_output_reports": true,
+                "no_feature_reports": true,
+                "no_serial_config_commands": true,
+                "no_firmware_or_dfu_commands": true
+            });
+            writeln!(writer, "{}", serde_json::to_string(&sample)?)
+                .context("failed to write steering sample line")?;
+        }
+
+        sample_count = sample_count.saturating_add(1);
+    }
+
+    if let Some(writer) = sample_writer.as_mut() {
+        writer
+            .flush()
+            .context("failed to flush steering sample file")?;
+    }
+
+    let center_baseline = (baseline_count > 0).then_some(baseline_sum / baseline_count as f64);
+    let success = sample_count > 0;
+    let mut receipt = serde_json::json!({
+        "success": success,
+        "command": "wheelctl moza steering-stream-proof",
+        "generated_at_utc": now_utc(),
+        "receipt_path": receipt_path_string(&receipt_path),
+        "selector": selector,
+        "device": snapshot,
+        "duration_ms": duration_ms,
+        "read_timeout_ms": read_timeout_ms,
+        "sample_count": sample_count,
+        "parsed_reports": sample_count,
+        "rejected_reports": rejected_reports,
+        "sample_rate_hz": sample_count as f64 * 1000.0 / duration_ms as f64,
+        "angle_units": "degrees",
+        "degrees_of_rotation_assumption": degrees_of_rotation,
+        "center_baseline_degrees": center_baseline,
+        "steering_u16_min": raw_min,
+        "steering_u16_max": raw_max,
+        "angle_degrees_min": angle_min,
+        "angle_degrees_max": angle_max,
+        "movement_observed": raw_min.zip(raw_max).map(|(min, max)| min != max).unwrap_or(false),
+        "timestamps_monotonic": timestamps_monotonic,
+        "sequence_monotonic": sequence_monotonic,
+        "hardware_output_enabled": false,
+        "no_hid_device_opened": false,
+        "no_output_reports": true,
+        "no_feature_reports": true,
+        "no_ffb_writes": true,
+        "no_serial_config_commands": true,
+        "no_firmware_or_dfu_commands": true,
+        "notes": [
+            "steering-stream-proof opens the selected HID endpoint for input reads only",
+            "the command sends no output reports, feature reports, FFB writes, serial config, firmware, or DFU commands",
+            "degrees are scaled from the parsed steering_u16 range using the declared degrees_of_rotation assumption"
+        ]
+    });
+    if let Some(path) = jsonl_out {
+        receipt["sample_artifact"] = Value::String(receipt_path_string(path));
+        receipt["sample_artifact_records"] = Value::Number(sample_count.into());
+    }
+
+    write_json_receipt(Some(&receipt_path), &receipt)?;
+    print_proof_receipt(json, &receipt_path, "steering stream", &receipt)?;
+    if !success {
+        return Err(receipt_failure(format!(
+            "Moza steering stream proof failed: parsed_reports={sample_count}, rejected_reports={rejected_reports}"
+        )));
+    }
+    Ok(())
+}
+
+fn steering_u16_to_degrees(value: u16, degrees_of_rotation: f64) -> f64 {
+    (f64::from(value) / f64::from(u16::MAX) - 0.5) * degrees_of_rotation
 }
 
 async fn validate_capture(
@@ -2545,6 +2813,128 @@ async fn torque_test(request: TorqueTestRequest<'_>) -> Result<()> {
     Ok(())
 }
 
+async fn actuator_profile_smoke(request: ActuatorProfileSmokeRequest<'_>) -> Result<()> {
+    let ActuatorProfileSmokeRequest {
+        json,
+        selector,
+        lane,
+        low_torque_proof,
+        steering_proof,
+        profile,
+        strategy,
+        dry_run,
+        confirm_actuator_profile,
+        max_percent,
+        duration_ms,
+        json_out,
+    } = request;
+
+    validate_actuator_profile_smoke_args(strategy, max_percent, duration_ms)?;
+    if !dry_run && !confirm_actuator_profile {
+        return Err(anyhow!(
+            "--confirm-actuator-profile is required before actual native actuator-profile writes"
+        ));
+    }
+
+    let preflight = validate_native_actuator_profile_smoke_preflight(
+        selector,
+        lane,
+        low_torque_proof,
+        steering_proof,
+        json_out,
+        dry_run,
+    )?;
+
+    if dry_run {
+        let pid = parse_required_hex_u16(&preflight.target_product_id)?;
+        let device = synthetic_moza_device_record(pid);
+        let mut receipt = NativeActuatorProfileSmokeReceipt::new(
+            selector.to_string(),
+            lane,
+            device,
+            preflight,
+            profile,
+            max_percent,
+            duration_ms,
+            true,
+        );
+        receipt.plan_only();
+        receipt.success = receipt.no_nonzero_above_limit
+            && receipt.final_stop_all_sent
+            && receipt.no_high_torque
+            && !receipt.high_torque;
+        receipt
+            .notes
+            .push("dry-run mode opened no HID device and sent no reports".to_string());
+        receipt.set_receipt_path(json_out);
+        write_json_receipt(json_out, &receipt)?;
+        print_actuator_profile_smoke_receipt(json, json_out, &receipt)?;
+        return Ok(());
+    }
+
+    let api = HidApi::new().context("failed to initialize HID API")?;
+    let (device, snapshot) = open_single_moza_device(&api, Some(selector))?;
+    if !snapshot.output_capable {
+        return Err(anyhow!(
+            "selected Moza device is not an output-capable wheelbase: {} {}",
+            snapshot.product_name,
+            snapshot.product_id
+        ));
+    }
+    if preflight.target_product_id != snapshot.product_id {
+        return Err(anyhow!(
+            "native actuator-profile preflight target PID {} does not match selected device PID {}",
+            preflight.target_product_id,
+            snapshot.product_id
+        ));
+    }
+
+    let mut receipt = NativeActuatorProfileSmokeReceipt::new(
+        selector.to_string(),
+        lane,
+        snapshot,
+        preflight,
+        profile,
+        max_percent,
+        duration_ms,
+        false,
+    );
+    let started_at = Instant::now();
+    execute_pidff_bounded_actuator_profile_sequence(&mut receipt, started_at, true, |payload| {
+        device.write(payload).map_err(|error| error.to_string())
+    });
+    receipt.success = receipt.confirmed
+        && receipt.hardware_output_enabled
+        && !receipt.no_hid_device_opened
+        && receipt.low_torque_proof_validated
+        && receipt.steering_proof_validated
+        && receipt.no_feature_reports
+        && !receipt.no_ffb_writes
+        && receipt.no_direct_torque_reports
+        && receipt.no_high_torque
+        && !receipt.high_torque
+        && receipt.no_serial_config_commands
+        && receipt.no_firmware_or_dfu_commands
+        && receipt.no_nonzero_above_limit
+        && receipt.pidff_effect_setup_proven
+        && receipt.write_errors == 0
+        && receipt.final_stop_all_sent;
+    receipt.set_receipt_path(json_out);
+
+    write_json_receipt(json_out, &receipt)?;
+    print_actuator_profile_smoke_receipt(json, json_out, &receipt)?;
+    if !receipt.success {
+        return Err(receipt_failure(format!(
+            "Moza native actuator-profile smoke failed: {} writes ok, {} write errors, effect_setup_proven={}, final_stop_all_sent={}",
+            receipt.writes_ok,
+            receipt.write_errors,
+            receipt.pidff_effect_setup_proven,
+            receipt.final_stop_all_sent
+        )));
+    }
+    Ok(())
+}
+
 fn execute_pidff_bounded_low_torque_sequence<F>(
     receipt: &mut LowTorqueProofReceipt,
     started_at: Instant,
@@ -2600,13 +2990,114 @@ fn execute_pidff_bounded_low_torque_sequence<F>(
     if receipt.pidff_effect_setup_proven {
         receipt.pidff_effect_block_index = Some(PIDFF_LOW_TORQUE_EFFECT_BLOCK_INDEX);
         if sleep_before_cleanup {
-            std::thread::sleep(Duration::from_millis(receipt.duration_ms.min(1000)));
+            std::thread::sleep(Duration::from_millis(receipt.duration_ms.min(2_000)));
         }
     }
 
     let stop_all = ZeroOutputPayload::pidff_stop_all();
     receipt.final_zero_attempted = true;
     receipt.final_stop_all_attempted = true;
+    match write(&stop_all.bytes) {
+        Ok(bytes_written) => {
+            receipt.bytes_written_total = receipt.bytes_written_total.saturating_add(bytes_written);
+            if let Some(error) = short_zero_output_write_error(stop_all.report_len, bytes_written) {
+                receipt.write_errors = receipt.write_errors.saturating_add(1);
+                receipt.final_zero_error = Some(error.clone());
+                receipt.record_command(LowTorqueCommandRecord::partial_pidff_stop_all(
+                    sequence,
+                    "final_stop_all",
+                    started_at,
+                    bytes_written,
+                    error,
+                ));
+            } else {
+                receipt.writes_ok = receipt.writes_ok.saturating_add(1);
+                receipt.final_zero_sent = true;
+                receipt.final_stop_all_sent = true;
+                receipt.record_command(LowTorqueCommandRecord::ok_pidff_stop_all(
+                    sequence,
+                    "final_stop_all",
+                    started_at,
+                    bytes_written,
+                ));
+            }
+        }
+        Err(error) => {
+            receipt.write_errors = receipt.write_errors.saturating_add(1);
+            receipt.final_zero_error = Some(error.clone());
+            receipt.record_command(LowTorqueCommandRecord::error_pidff_stop_all(
+                sequence,
+                "final_stop_all",
+                started_at,
+                error,
+            ));
+        }
+    }
+}
+
+fn execute_pidff_bounded_actuator_profile_sequence<F>(
+    receipt: &mut NativeActuatorProfileSmokeReceipt,
+    started_at: Instant,
+    sleep_before_cleanup: bool,
+    mut write: F,
+) where
+    F: FnMut(&[u8]) -> std::result::Result<usize, String>,
+{
+    let mut sequence = receipt.command_log.len().min(u32::MAX as usize) as u32;
+    let mut setup_ok = true;
+    for report in pidff_low_torque_reports(receipt.max_percent, receipt.duration_ms) {
+        receipt.write_attempts = receipt.write_attempts.saturating_add(1);
+        match write(&report.payload) {
+            Ok(bytes_written) => {
+                receipt.bytes_written_total =
+                    receipt.bytes_written_total.saturating_add(bytes_written);
+                if let Some(error) = short_zero_output_write_error(report.report_len, bytes_written)
+                {
+                    setup_ok = false;
+                    receipt.write_errors = receipt.write_errors.saturating_add(1);
+                    receipt.abort_reason = Some(error.clone());
+                    receipt.record_command(LowTorqueCommandRecord::partial_pidff_output(
+                        sequence,
+                        &report,
+                        started_at,
+                        bytes_written,
+                        error,
+                    ));
+                    break;
+                }
+                receipt.writes_ok = receipt.writes_ok.saturating_add(1);
+                receipt.record_command(LowTorqueCommandRecord::ok_pidff_output(
+                    sequence,
+                    &report,
+                    started_at,
+                    bytes_written,
+                ));
+            }
+            Err(error) => {
+                setup_ok = false;
+                receipt.write_errors = receipt.write_errors.saturating_add(1);
+                receipt.abort_reason = Some(format!("hid_write_error: {error}"));
+                receipt.record_command(LowTorqueCommandRecord::error_pidff_output(
+                    sequence, &report, started_at, error,
+                ));
+                break;
+            }
+        }
+        sequence = sequence.saturating_add(1);
+    }
+
+    receipt.pidff_effect_setup_proven = setup_ok && receipt.write_errors == 0;
+    if receipt.pidff_effect_setup_proven {
+        receipt.pidff_effect_block_index = Some(PIDFF_LOW_TORQUE_EFFECT_BLOCK_INDEX);
+        if sleep_before_cleanup {
+            std::thread::sleep(Duration::from_millis(receipt.duration_ms.min(2_000)));
+        }
+    }
+
+    let stop_all = ZeroOutputPayload::pidff_stop_all();
+    receipt.final_zero_attempted = true;
+    receipt.final_stop_all_attempted = true;
+    receipt.write_attempts = receipt.write_attempts.saturating_add(1);
     match write(&stop_all.bytes) {
         Ok(bytes_written) => {
             receipt.bytes_written_total = receipt.bytes_written_total.saturating_add(bytes_written);
@@ -3674,7 +4165,13 @@ async fn promote_manifest(
         completion_state,
         hardware_validated,
         simulator_validated,
-        || verify_bundle_dir(lane, stage),
+        || {
+            verify_bundle_dir_with_support_validation(
+                lane,
+                stage,
+                SupportBundleValidationMode::ShapeOnly,
+            )
+        },
     )?;
 
     let receipt = serde_json::json!({
@@ -3700,6 +4197,7 @@ async fn promote_manifest(
         "verification_after": bundle_verification_summary_value(&verification_after),
         "notes": [
             "promote-manifest runs live bundle verification before changing manifest claims",
+            "post-promotion verification uses shape-only support bundle validation because manifest promotion intentionally changes the lane snapshot that support-bundle records",
             "release_ready and high_torque_validated remain false"
         ]
     });
@@ -3858,6 +4356,25 @@ fn validate_torque_test_args(max_percent: f32, duration_ms: u64, hz: u32) -> Res
     }
     if hz == 0 || hz > 1000 {
         return Err(anyhow!("--hz must be in 1..=1000"));
+    }
+    Ok(())
+}
+
+fn validate_actuator_profile_smoke_args(
+    strategy: MozaLowTorqueStrategy,
+    max_percent: f32,
+    duration_ms: u64,
+) -> Result<()> {
+    if strategy != MozaLowTorqueStrategy::PidffBoundedEffect {
+        return Err(anyhow!(
+            "native actuator-profile smoke only supports --strategy pidff-bounded-effect"
+        ));
+    }
+    if !max_percent.is_finite() || !(0.1..=1.0).contains(&max_percent) {
+        return Err(anyhow!("--max-percent must be in 0.1..=1.0"));
+    }
+    if duration_ms == 0 || duration_ms > 2_000 {
+        return Err(anyhow!("--duration-ms must be in 1..=2000"));
     }
     Ok(())
 }
@@ -4070,6 +4587,12 @@ struct PidffLowTorqueRealHardwarePreflight {
     zero_proof: ZeroProofSummary,
     init_proofs: InitProofSet,
     target_product_id: String,
+}
+
+struct NativeActuatorProfileSmokePreflight {
+    target_product_id: String,
+    low_torque_generated_at: Option<String>,
+    steering_generated_at: Option<String>,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -4287,6 +4810,102 @@ fn validate_pidff_low_torque_real_hardware_preflight(
         zero_proof,
         init_proofs,
         target_product_id,
+    })
+}
+
+fn validate_native_actuator_profile_smoke_preflight(
+    selector: &str,
+    lane: &Path,
+    low_torque_proof: Option<&Path>,
+    steering_proof: Option<&Path>,
+    json_out: Option<&Path>,
+    dry_run: bool,
+) -> Result<NativeActuatorProfileSmokePreflight> {
+    validate_lane_manifest_endpoint_selector(
+        lane,
+        Some(selector),
+        "native actuator-profile smoke",
+    )?;
+    if let Some(path) = low_torque_proof {
+        require_lane_artifact_path(lane, path, "low-torque-proof.json", "--low-torque-proof")?;
+    }
+    if let Some(path) = steering_proof {
+        require_lane_artifact_path(
+            lane,
+            path,
+            "steering-angle-stream-proof.json",
+            "--steering-proof",
+        )?;
+    }
+    if !dry_run {
+        let json_out = json_out.ok_or_else(|| {
+            anyhow!("--json-out is required before actual native actuator-profile smoke writes")
+        })?;
+        require_lane_artifact_path(
+            lane,
+            json_out,
+            "native-actuator-profile-smoke.json",
+            "--json-out",
+        )?;
+    }
+
+    validate_zero_output_pidff_stop_all_report_metadata(lane)?;
+    let descriptor_blockers = pidff_bounded_effect_descriptor_blockers(lane);
+    if !descriptor_blockers.is_empty() {
+        return Err(anyhow!(
+            "native actuator-profile smoke requires descriptor-proven PIDFF bounded-effect reports: {}",
+            descriptor_blockers.join("; ")
+        ));
+    }
+
+    let low_torque_gate = verify_low_torque_gate(lane);
+    if low_torque_gate.status != "pass" {
+        return Err(anyhow!(
+            "same-lane low-torque proof must pass before native actuator-profile smoke: {}",
+            low_torque_gate.details
+        ));
+    }
+    let steering_gate = verify_steering_angle_stream_gate(lane);
+    if steering_gate.status != "pass" {
+        return Err(anyhow!(
+            "same-lane steering stream proof must pass before native actuator-profile smoke: {}",
+            steering_gate.details
+        ));
+    }
+
+    let low_torque_receipt = read_json_value(lane, "low-torque-proof.json")?;
+    if json_string(&low_torque_receipt, "low_torque_strategy")
+        != Some(low_torque_strategy_name(
+            MozaLowTorqueStrategy::PidffBoundedEffect,
+        ))
+    {
+        return Err(anyhow!(
+            "native actuator-profile smoke requires a same-lane PIDFF low-torque proof"
+        ));
+    }
+    let target_product_id = low_torque_receipt
+        .get("device")
+        .and_then(|device| json_string(device, "product_id"))
+        .map(str::to_string)
+        .ok_or_else(|| anyhow!("low-torque proof device.product_id is missing"))?;
+    let steering_receipt = read_json_value(lane, "steering-angle-stream-proof.json")?;
+    let steering_product_id = steering_receipt
+        .get("device")
+        .and_then(|device| json_string(device, "product_id"));
+    if steering_product_id != Some(target_product_id.as_str()) {
+        return Err(anyhow!(
+            "steering proof PID {:?} does not match low-torque proof PID {}",
+            steering_product_id,
+            target_product_id
+        ));
+    }
+
+    Ok(NativeActuatorProfileSmokePreflight {
+        target_product_id,
+        low_torque_generated_at: json_string(&low_torque_receipt, "generated_at_utc")
+            .map(str::to_string),
+        steering_generated_at: json_string(&steering_receipt, "generated_at_utc")
+            .map(str::to_string),
     })
 }
 
@@ -4965,6 +5584,17 @@ fn verify_bundle_dir_with_support_validation(
         .filter(|requirement| stage_rank(requirement.stage) <= stage_rank(stage))
         .map(|requirement| check_bundle_artifact(lane, requirement))
         .collect();
+    // Missing stage artifacts already make the receipt fail; avoid recursively
+    // rebuilding fresh support status before writing that diagnostic receipt.
+    let support_validation = if matches!(support_validation, SupportBundleValidationMode::Fresh)
+        && artifact_checks
+            .iter()
+            .any(|check| check.status == "missing" || check.status == "invalid")
+    {
+        SupportBundleValidationMode::ShapeOnly
+    } else {
+        support_validation
+    };
 
     let mut gates = Vec::new();
     gates.push(if lane.is_dir() {
@@ -4999,7 +5629,7 @@ fn verify_bundle_dir_with_support_validation(
         gates.push(verify_disconnect_proof_gate(lane));
     }
 
-    if stage_rank(stage) >= stage_rank(MozaBundleStage::SmokeReady) {
+    if stage_rank(stage) >= stage_rank(MozaBundleStage::OpenRacingControlReady) {
         gates.push(verify_init_receipt_gate(
             lane,
             "init_off_handshake",
@@ -5017,6 +5647,11 @@ fn verify_bundle_dir_with_support_validation(
             support_validation,
         ));
         gates.push(verify_low_torque_gate(lane));
+        gates.push(verify_steering_angle_stream_gate(lane));
+        gates.push(verify_native_actuator_profile_smoke_gate(lane));
+    }
+
+    if stage_rank(stage) >= stage_rank(MozaBundleStage::SmokeReady) {
         gates.push(verify_pit_house_coexistence_gate_with_support_validation(
             lane,
             support_validation,
@@ -5273,14 +5908,18 @@ fn operator_actions_for_bundle_stage(
         );
     }
 
-    if stage == MozaBundleStage::SmokeReady {
-        push_smoke_ready_frontier_operator_action(lane, gates, &mut actions);
+    if stage_rank(stage) >= stage_rank(MozaBundleStage::OpenRacingControlReady) {
+        push_openracing_control_frontier_operator_action(lane, gates, &mut actions);
+    }
+
+    if stage == MozaBundleStage::SmokeReady && openracing_control_stage_gates_passed(gates) {
+        push_smoke_ready_frontier_operator_action(gates, &mut actions);
     }
 
     actions
 }
 
-fn push_smoke_ready_frontier_operator_action(
+fn push_openracing_control_frontier_operator_action(
     lane: &Path,
     gates: &[BundleGateCheck],
     actions: &mut Vec<String>,
@@ -5297,7 +5936,7 @@ fn push_smoke_ready_frontier_operator_action(
     };
     if !bundle_gate_check_passed(gates, "init_off_handshake") {
         actions.push(format!(
-            "Current smoke-ready frontier: staged init-off. This sends only {init_off_report_text}, and still sends no output reports or torque. Before running it, confirm the operator is at the bench, the wheel is clear, power cutoff is understood, no game/sim FFB source is active, and Pit House firmware/update flows are closed or not installed. Run only the lane-bound `wheelctl moza init --device {r5_selector} --mode off --confirm-init ...` command; do not run standard init, low torque, simulator FFB, direct mode, serial config, firmware, or DFU until this receipt passes."
+            "Current OpenRacing-control frontier: staged init-off. This sends only {init_off_report_text}, and still sends no output reports or torque. Before running it, confirm the operator is at the bench, the wheel is clear, power cutoff is understood, no game/sim FFB source is active, and vendor firmware/update flows are closed or not installed. Run only the lane-bound `wheelctl moza init --device {r5_selector} --mode off --confirm-init ...` command; do not run standard init, low torque, simulator FFB, direct mode, serial config, firmware, or DFU until this receipt passes."
         ));
         return;
     }
@@ -5309,14 +5948,14 @@ fn push_smoke_ready_frontier_operator_action(
     };
     if !bundle_gate_check_passed(gates, "init_standard_handshake") {
         actions.push(format!(
-            "Current smoke-ready frontier: staged init-standard. This sends only {init_standard_report_text}, after the same-lane init-off receipt has passed; it still must not send output reports or torque. Confirm the operator is at the bench, the wheel is clear, power cutoff is understood, and no game/sim FFB source or firmware/update flow is active. Run only the lane-bound `wheelctl moza init --device {r5_selector} --mode standard --confirm-init ...` command; do not run low torque, simulator FFB, direct mode, serial config, firmware, or DFU until this receipt passes."
+            "Current OpenRacing-control frontier: staged init-standard. This sends only {init_standard_report_text}, after the same-lane init-off receipt has passed; it still must not send output reports or torque. Confirm the operator is at the bench, the wheel is clear, power cutoff is understood, and no game/sim FFB source or firmware/update flow is active. Run only the lane-bound `wheelctl moza init --device {r5_selector} --mode standard --confirm-init ...` command; do not run low torque, simulator FFB, direct mode, serial config, firmware, or DFU until this receipt passes."
         ));
         return;
     }
 
     if !bundle_gate_check_passed(gates, "service_status_receipts") {
         actions.push(
-            "Current smoke-ready frontier: refresh service/status/support receipts after staged init. These are diagnostic/no-output receipts only; keep safe_to_send_torque=false, ffb_ready=false, high torque disabled, and no feature/output/serial/firmware actions while collecting moza-status.json, device-status.json, and support-bundle.json."
+            "Current OpenRacing-control frontier: refresh service/status/support receipts after staged init. These are diagnostic/no-output receipts only; keep safe_to_send_torque=false, ffb_ready=false, high torque disabled, and no feature/output/serial/firmware actions while collecting moza-status.json, device-status.json, and support-bundle.json."
                 .to_string(),
         );
         return;
@@ -5326,19 +5965,19 @@ fn push_smoke_ready_frontier_operator_action(
         let blockers = low_torque_frontier_blockers(lane);
         if blockers.is_empty() {
             actions.push(
-                "Current smoke-ready frontier: bounded low-torque proof. This is the first nonzero torque step; run it only with explicit operator confirmation, wheel clear, power cutoff understood, no game/sim FFB source active, no Pit House firmware/update flow active, trusted direct report 0x20 metadata, a same-lane direct-report zero proof, and same-lane zero/off/standard init receipts passing. Keep the cap and duration bounded, and do not proceed to simulator FFB, direct-mode expansion, serial config, firmware, or DFU until low-torque-proof.json passes."
+                "Current OpenRacing-control frontier: bounded low-torque proof. This is the first nonzero torque step; run it only with explicit operator confirmation, wheel clear, power cutoff understood, no game/sim FFB source active, no vendor firmware/update flow active, trusted direct report 0x20 metadata, a same-lane direct-report zero proof, and same-lane zero/off/standard init receipts passing. Keep the cap and duration bounded, and do not proceed to simulator FFB, direct-mode expansion, serial config, firmware, or DFU until low-torque-proof.json passes."
                     .to_string(),
             );
         } else {
             let pidff_blockers = pidff_low_torque_frontier_blockers(lane);
             if pidff_blockers.is_empty() {
                 actions.push(
-                    "Current smoke-ready frontier: bounded PIDFF low-torque proof. This is the first nonzero torque step for the live R5 V1 lane; run it only with explicit operator confirmation, wheel clear, power cutoff understood, no game/sim FFB source active, no Pit House firmware/update flow active, same-lane PIDFF Stop All zero proof, same-lane off/standard init receipts, and descriptor-proven PIDFF output reports. Keep the cap at 1% and duration at 150 ms for the first receipt, require final PIDFF Stop All cleanup, and do not proceed to simulator FFB, direct-mode expansion, serial config, firmware, or DFU until low-torque-proof.json passes."
+                    "Current OpenRacing-control frontier: bounded PIDFF low-torque proof. This is the first nonzero torque step for the live R5 V1 lane; run it only with explicit operator confirmation, wheel clear, power cutoff understood, no game/sim FFB source active, no vendor firmware/update flow active, same-lane PIDFF Stop All zero proof, same-lane off/standard init receipts, and descriptor-proven PIDFF output reports. Keep the cap at 1% and duration at 150 ms for the first receipt, require final PIDFF Stop All cleanup, and do not proceed to simulator FFB, direct-mode expansion, serial config, firmware, or DFU until low-torque-proof.json passes."
                         .to_string(),
                 );
             } else {
                 actions.push(format!(
-                    "Current smoke-ready frontier: bounded low-torque proof is blocked before any write because direct path blockers are [{}] and PIDFF path blockers are [{}]. Resolve the PIDFF bounded-effect software/receipt path or prove the direct report 0x20 path before running `wheelctl moza torque-test`; generated guidance must not add `--explicit-operator-override`. No low torque, simulator FFB, direct-mode expansion, serial config, firmware, or DFU until low-torque-proof.json passes.",
+                    "Current OpenRacing-control frontier: bounded low-torque proof is blocked before any write because direct path blockers are [{}] and PIDFF path blockers are [{}]. Resolve the PIDFF bounded-effect software/receipt path or prove the direct report 0x20 path before running `wheelctl moza torque-test`; generated guidance must not add `--explicit-operator-override`. No low torque, simulator FFB, direct-mode expansion, serial config, firmware, or DFU until low-torque-proof.json passes.",
                     blockers.join("; "),
                     pidff_blockers.join("; ")
                 ));
@@ -5347,9 +5986,26 @@ fn push_smoke_ready_frontier_operator_action(
         return;
     }
 
+    if !bundle_gate_check_passed(gates, "steering_angle_stream_proof") {
+        actions.push(
+            "Current OpenRacing-control frontier: native steering angle stream proof. Record same-endpoint steering feedback with no output reports, no FFB writes, no feature reports, no serial config, and no firmware/DFU before any native movement-control claim."
+                .to_string(),
+        );
+        return;
+    }
+
+    if !bundle_gate_check_passed(gates, "native_actuator_profile_smoke") {
+        actions.push(
+            "Current OpenRacing-control frontier: native PIDFF actuator-profile smoke. Run only after steering feedback is proven, keep the force profile bounded, require final PIDFF Stop All cleanup, and keep SimHub and Pit House out of this native-control claim."
+                .to_string(),
+        );
+    }
+}
+
+fn push_smoke_ready_frontier_operator_action(gates: &[BundleGateCheck], actions: &mut Vec<String>) {
     if !bundle_gate_check_passed(gates, "simulator_telemetry") {
         actions.push(
-            "Current smoke-ready frontier: simulator telemetry proof. Capture one real simulator telemetry path only; this step must not send Moza output reports, feature reports, torque, serial config, firmware, or DFU commands."
+            "Current external-compatibility frontier: simulator telemetry proof. Capture one real simulator telemetry path only; this step must not send Moza output reports, feature reports, torque, serial config, firmware, or DFU commands."
                 .to_string(),
         );
         return;
@@ -5357,7 +6013,7 @@ fn push_smoke_ready_frontier_operator_action(
 
     if !bundle_gate_check_passed(gates, "simulator_ffb_bounded") {
         actions.push(
-            "Current smoke-ready frontier: bounded simulator FFB smoke. Run it only after telemetry passes, with the operator at the bench, wheel clear, power cutoff understood, watchdog enabled, descriptor trusted, low-torque proof passing, and no vendor firmware/update flow active. Keep duration and force bounded, record stop/pause/game-exit final-zero behavior, and do not claim Pit House coexistence until the later Pit House mode-change proof links to this receipt."
+            "Current external-compatibility frontier: bounded simulator FFB smoke. Run it only after telemetry passes, with the operator at the bench, wheel clear, power cutoff understood, watchdog enabled, descriptor trusted, low-torque proof passing, and no vendor firmware/update flow active. Keep duration and force bounded, record stop/pause/game-exit final-zero behavior, and do not claim Pit House coexistence until the later Pit House mode-change proof links to this receipt."
                 .to_string(),
         );
         return;
@@ -5365,7 +6021,7 @@ fn push_smoke_ready_frontier_operator_action(
 
     if !bundle_gate_check_passed(gates, "pit_house_coexistence") {
         actions.push(
-            "Current smoke-ready frontier: Pit House coexistence proof. If Pit House is not installed or we choose not to use it, leave smoke-ready blocked instead of fabricating coexistence evidence. If it is used, collect the closed, open-standard, direct-blocked, mode-change, and firmware/update-page observations as lane artifacts; firmware/update pages must be refused, and the mode-change case must prove output cleared and final zero was attempted after simulator FFB smoke."
+            "Current external-compatibility frontier: Pit House coexistence proof. If Pit House is not installed or we choose not to use it, leave smoke-ready blocked instead of fabricating coexistence evidence. If it is used, collect the closed, open-standard, direct-blocked, mode-change, and firmware/update-page observations as lane artifacts; firmware/update pages must be refused, and the mode-change case must prove output cleared and final zero was attempted after simulator FFB smoke."
                 .to_string(),
         );
     }
@@ -5414,9 +6070,13 @@ fn audit_lane_dir(lane: &Path, stage: MozaBundleStage) -> LaneAuditReceipt {
 fn pre_output_readiness_dir(lane: &Path) -> PreOutputReadinessReceipt {
     let passive = pre_output_stored_verification_receipt(lane, MozaBundleStage::Passive);
     let zero = pre_output_stored_verification_receipt(lane, MozaBundleStage::Zero);
+    let openracing_control =
+        pre_output_stored_verification_receipt(lane, MozaBundleStage::OpenRacingControlReady);
     let smoke_ready = pre_output_stored_verification_receipt(lane, MozaBundleStage::SmokeReady);
     let passive_audit_passed = stored_lane_audit_receipt_passed(lane, MozaBundleStage::Passive);
     let zero_audit_passed = stored_lane_audit_receipt_passed(lane, MozaBundleStage::Zero);
+    let openracing_control_audit_passed =
+        stored_lane_audit_receipt_passed(lane, MozaBundleStage::OpenRacingControlReady);
     let smoke_ready_audit_passed =
         stored_lane_audit_receipt_passed(lane, MozaBundleStage::SmokeReady);
     let status_receipts = pre_output_status_receipt_checks(lane);
@@ -5434,6 +6094,16 @@ fn pre_output_readiness_dir(lane: &Path) -> PreOutputReadinessReceipt {
         && zero.success
         && zero_audit_passed
         && pre_output_bounded_ffb_prerequisite_gates_passed(&smoke_ready);
+    let native_control_blocking_items = pre_output_native_control_blocking_items(
+        &zero,
+        &openracing_control,
+        zero_audit_passed,
+        openracing_control_audit_passed,
+    );
+    let ready_for_native_control = native_control_blocking_items.is_empty();
+    let external_compatibility_blocking_items =
+        pre_output_external_compatibility_blocking_items(&smoke_ready, smoke_ready_audit_passed);
+    let ready_for_external_compatibility = external_compatibility_blocking_items.is_empty();
 
     let blocking_items = pre_output_zero_blocking_items(
         &passive,
@@ -5444,12 +6114,16 @@ fn pre_output_readiness_dir(lane: &Path) -> PreOutputReadinessReceipt {
     let ffb_blocking_items = pre_output_ffb_blocking_items(&zero, &smoke_ready, zero_audit_passed);
     let passed_items = pre_output_passed_items(
         &passive,
-        role_evidence_complete,
-        passive_audit_passed,
-        status_receipts_no_output,
-        zero_output_strategy_ready,
-        ready_for_zero_torque,
-        ready_for_ffb,
+        PreOutputPassedItemState {
+            role_evidence_complete,
+            passive_audit_passed,
+            status_receipts_no_output,
+            zero_output_strategy_ready,
+            ready_for_zero_torque,
+            ready_for_ffb,
+            ready_for_native_control,
+            ready_for_external_compatibility,
+        },
     );
 
     PreOutputReadinessReceipt {
@@ -5460,16 +6134,22 @@ fn pre_output_readiness_dir(lane: &Path) -> PreOutputReadinessReceipt {
         stage: "pre_output_readiness",
         ready_for_zero_torque,
         ready_for_ffb,
+        ready_for_native_control,
+        ready_for_external_compatibility,
         blocking_items,
         ffb_blocking_items,
+        native_control_blocking_items,
+        external_compatibility_blocking_items,
         zero_output_strategies,
         passed_items,
         status_receipts,
         passive_verification: pre_output_verification_summary(&passive),
         zero_verification: pre_output_verification_summary(&zero),
+        openracing_control_verification: pre_output_verification_summary(&openracing_control),
         smoke_ready_verification: pre_output_verification_summary(&smoke_ready),
         passive_audit_passed,
         zero_audit_passed,
+        openracing_control_audit_passed,
         smoke_ready_audit_passed,
         no_hid_device_opened: true,
         no_ffb_writes: true,
@@ -5489,19 +6169,27 @@ fn pre_output_readiness_dir(lane: &Path) -> PreOutputReadinessReceipt {
         notes: vec![
             "pre-output-readiness reads existing lane receipts only; it opens no HID device and sends no reports".to_string(),
             "ready_for_zero_torque is the first output-adjacent gate and still does not permit nonzero torque or FFB".to_string(),
-            "ready_for_ffb is false until zero, watchdog, disconnect, low-torque, and simulator telemetry prerequisites are present; Pit House coexistence remains a separate smoke-ready proof before promotion".to_string(),
+            "ready_for_native_control is the OpenRacing-owned movement path and does not require SimHub, Pit House, or direct report 0x20".to_string(),
+            "ready_for_external_compatibility tracks optional adapter/vendor-app surfaces such as simulator telemetry bridges and Pit House coexistence; it is not required for native control".to_string(),
+            "ready_for_ffb is the legacy bounded simulator FFB preflight; keep it separate from native-control and release-readiness claims".to_string(),
         ],
     }
 }
 
-fn pre_output_passed_items(
-    passive: &PreOutputVerificationReceipt,
+struct PreOutputPassedItemState {
     role_evidence_complete: bool,
     passive_audit_passed: bool,
     status_receipts_no_output: bool,
     zero_output_strategy_ready: bool,
     ready_for_zero_torque: bool,
     ready_for_ffb: bool,
+    ready_for_native_control: bool,
+    ready_for_external_compatibility: bool,
+}
+
+fn pre_output_passed_items(
+    passive: &PreOutputVerificationReceipt,
+    state: PreOutputPassedItemState,
 ) -> Vec<String> {
     let mut passed = Vec::new();
     if pre_output_gate_passed(passive, "moza_r5_observed") {
@@ -5510,7 +6198,7 @@ fn pre_output_passed_items(
     if pre_output_gate_passed(passive, "moza_topology_observed") {
         passed.push("topology_endpoint_observed".to_string());
     }
-    if role_evidence_complete {
+    if state.role_evidence_complete {
         passed.push("role_evidence_complete".to_string());
     }
     if pre_output_gate_passed(passive, "passive_captures_parse") {
@@ -5525,24 +6213,30 @@ fn pre_output_passed_items(
     if pre_output_gate_passed(passive, "fixture_promotion") {
         passed.push("fixture_promotion".to_string());
     }
-    if status_receipts_no_output {
+    if state.status_receipts_no_output {
         passed.push("status_receipts_no_output".to_string());
         passed.push("support_bundle_no_output".to_string());
     }
-    if zero_output_strategy_ready {
+    if state.zero_output_strategy_ready {
         passed.push("zero_output_strategy_ready".to_string());
     }
     if passive.success {
         passed.push("passive_verification".to_string());
     }
-    if passive_audit_passed {
+    if state.passive_audit_passed {
         passed.push("passive_audit".to_string());
     }
-    if ready_for_zero_torque {
+    if state.ready_for_zero_torque {
         passed.push("ready_for_zero_torque".to_string());
     }
-    if ready_for_ffb {
+    if state.ready_for_ffb {
         passed.push("ready_for_ffb".to_string());
+    }
+    if state.ready_for_native_control {
+        passed.push("ready_for_native_control".to_string());
+    }
+    if state.ready_for_external_compatibility {
+        passed.push("ready_for_external_compatibility".to_string());
     }
     passed
 }
@@ -5832,6 +6526,79 @@ fn pre_output_ffb_blocking_items(
         if !pre_output_gate_passed(smoke_ready, gate) {
             blockers.push(gate.to_string());
         }
+    }
+    blockers.sort();
+    blockers.dedup();
+    blockers
+}
+
+fn pre_output_native_control_blocking_items(
+    zero: &PreOutputVerificationReceipt,
+    openracing_control: &PreOutputVerificationReceipt,
+    zero_audit_passed: bool,
+    openracing_control_audit_passed: bool,
+) -> Vec<String> {
+    let mut blockers = Vec::new();
+    append_verification_blocking_items(&mut blockers, zero);
+    if !zero.success || !zero_audit_passed {
+        if !zero_audit_passed {
+            blockers.push("zero_audit".to_string());
+        }
+        blockers.sort();
+        blockers.dedup();
+        return blockers;
+    }
+    if openracing_control.gates.is_empty() {
+        append_verification_blocking_items(&mut blockers, openracing_control);
+        blockers.sort();
+        blockers.dedup();
+        return blockers;
+    }
+    for gate in [
+        "init_off_handshake",
+        "init_standard_handshake",
+        "service_status_receipts",
+        "low_torque_bounded",
+        "steering_angle_stream_proof",
+        "native_actuator_profile_smoke",
+    ] {
+        if !pre_output_gate_passed(openracing_control, gate) {
+            blockers.push(gate.to_string());
+        }
+    }
+    if blockers.is_empty() && !openracing_control.success {
+        append_verification_blocking_items(&mut blockers, openracing_control);
+    }
+    if blockers.is_empty() && !openracing_control_audit_passed {
+        blockers.push("openracing_control_audit".to_string());
+    }
+    blockers.sort();
+    blockers.dedup();
+    blockers
+}
+
+fn pre_output_external_compatibility_blocking_items(
+    smoke_ready: &PreOutputVerificationReceipt,
+    smoke_ready_audit_passed: bool,
+) -> Vec<String> {
+    let mut blockers = Vec::new();
+    if smoke_ready.gates.is_empty() {
+        append_verification_blocking_items(&mut blockers, smoke_ready);
+        blockers.sort();
+        blockers.dedup();
+        return blockers;
+    }
+    for gate in [
+        "simulator_telemetry",
+        "simulator_ffb_bounded",
+        "pit_house_coexistence",
+    ] {
+        if !pre_output_gate_passed(smoke_ready, gate) {
+            blockers.push(gate.to_string());
+        }
+    }
+    if blockers.is_empty() && !smoke_ready_audit_passed {
+        blockers.push("smoke_ready_audit".to_string());
     }
     blockers.sort();
     blockers.dedup();
@@ -6188,7 +6955,16 @@ fn next_commands_for_bundle_stage(
         push_zero_next_commands(&lane, gates, &mut commands);
     }
 
-    if stage_rank(stage) >= stage_rank(MozaBundleStage::SmokeReady) && zero_ready {
+    let openracing_control_ready = openracing_control_stage_gates_passed(gates);
+
+    if stage_rank(stage) >= stage_rank(MozaBundleStage::OpenRacingControlReady)
+        && zero_ready
+        && !openracing_control_ready
+    {
+        push_openracing_control_next_commands(&lane, gates, &mut commands);
+    }
+
+    if stage_rank(stage) >= stage_rank(MozaBundleStage::SmokeReady) && openracing_control_ready {
         push_smoke_ready_next_commands(&lane, gates, &mut commands);
     }
 
@@ -6486,7 +7262,7 @@ fn zero_stage_gates_passed(gates: &[BundleGateCheck]) -> bool {
         )
 }
 
-fn smoke_ready_stage_gates_passed(gates: &[BundleGateCheck]) -> bool {
+fn openracing_control_stage_gates_passed(gates: &[BundleGateCheck]) -> bool {
     zero_stage_gates_passed(gates)
         && bundle_gate_checks_passed(
             gates,
@@ -6495,6 +7271,17 @@ fn smoke_ready_stage_gates_passed(gates: &[BundleGateCheck]) -> bool {
                 "init_standard_handshake",
                 "service_status_receipts",
                 "low_torque_bounded",
+                "steering_angle_stream_proof",
+                "native_actuator_profile_smoke",
+            ],
+        )
+}
+
+fn smoke_ready_stage_gates_passed(gates: &[BundleGateCheck]) -> bool {
+    openracing_control_stage_gates_passed(gates)
+        && bundle_gate_checks_passed(
+            gates,
+            &[
                 "pit_house_coexistence",
                 "simulator_telemetry",
                 "simulator_ffb_bounded",
@@ -6698,18 +7485,21 @@ fn pidff_bounded_effect_descriptor_blockers(lane: &Path) -> Vec<&'static str> {
 }
 
 fn simulator_ffb_smoke_strategy_arg(lane: &Path) -> &'static str {
-    let Ok(receipt) = read_json_value(lane, "low-torque-proof.json") else {
-        return "";
-    };
-    if json_string(&receipt, "low_torque_strategy")
-        == Some(low_torque_strategy_name(
-            MozaLowTorqueStrategy::PidffBoundedEffect,
-        ))
-    {
+    if lane_low_torque_strategy_is_pidff(lane) {
         " --strategy pidff-bounded-effect"
     } else {
         ""
     }
+}
+
+fn lane_low_torque_strategy_is_pidff(lane: &Path) -> bool {
+    let Ok(receipt) = read_json_value(lane, "low-torque-proof.json") else {
+        return false;
+    };
+    json_string(&receipt, "low_torque_strategy")
+        == Some(low_torque_strategy_name(
+            MozaLowTorqueStrategy::PidffBoundedEffect,
+        ))
 }
 
 fn low_torque_direct_zero_proof_ready(lane: &Path) -> bool {
@@ -6732,7 +7522,7 @@ fn low_torque_pidff_zero_proof_ready(lane: &Path) -> bool {
         .is_ok()
 }
 
-fn push_smoke_ready_next_commands(
+fn push_openracing_control_next_commands(
     lane: &Path,
     gates: &[BundleGateCheck],
     commands: &mut Vec<String>,
@@ -6797,6 +7587,63 @@ fn push_smoke_ready_next_commands(
         }
         return;
     }
+
+    if !bundle_gate_check_passed(gates, "steering_angle_stream_proof") {
+        commands.push(format!(
+            "wheelctl moza pre-output-readiness --lane {lane_arg} --json-out {} --json",
+            lane_path_arg(lane, "pre-output-readiness.json")
+        ));
+        return;
+    }
+
+    if !bundle_gate_check_passed(gates, "native_actuator_profile_smoke") {
+        if lane_low_torque_strategy_is_pidff(lane) {
+            commands.push(format!(
+                "wheelctl moza actuator-profile-smoke --device {r5_selector} --lane {lane_arg} --low-torque-proof {} --steering-proof {} --profile constant-low-force --strategy pidff-bounded-effect --max-percent 1 --duration-ms 2000 --confirm-actuator-profile --json-out {} --json",
+                lane_path_arg(lane, "low-torque-proof.json"),
+                lane_path_arg(lane, "steering-angle-stream-proof.json"),
+                lane_path_arg(lane, "native-actuator-profile-smoke.json")
+            ));
+        } else {
+            commands.push(format!(
+                "wheelctl moza pre-output-readiness --lane {lane_arg} --json-out {} --json",
+                lane_path_arg(lane, "pre-output-readiness.json")
+            ));
+        }
+        return;
+    }
+
+    commands.push(format!(
+        "wheelctl moza verify-bundle --lane {lane_arg} --stage openracing-control-ready --json-out {}",
+        lane_path_arg(
+            lane,
+            verification_receipt_path(MozaBundleStage::OpenRacingControlReady)
+        )
+    ));
+    if openracing_control_stage_gates_passed(gates) {
+        commands.push(format!(
+            "wheelctl moza promote-manifest --lane {lane_arg} --stage openracing-control-ready --json-out {}",
+            lane_path_arg(
+                lane,
+                promotion_receipt_path(MozaBundleStage::OpenRacingControlReady)
+            )
+        ));
+        commands.push(format!(
+            "wheelctl moza audit-lane --lane {lane_arg} --stage openracing-control-ready --json-out {}",
+            lane_path_arg(
+                lane,
+                audit_receipt_path(MozaBundleStage::OpenRacingControlReady)
+            )
+        ));
+    }
+}
+
+fn push_smoke_ready_next_commands(
+    lane: &Path,
+    gates: &[BundleGateCheck],
+    commands: &mut Vec<String>,
+) {
+    let lane_arg = command_arg(&lane.display().to_string());
 
     if !bundle_gate_check_passed(gates, "simulator_telemetry") {
         commands.push(format!(
@@ -6983,9 +7830,15 @@ fn audit_stages_through(stage: MozaBundleStage) -> Vec<MozaBundleStage> {
     match stage {
         MozaBundleStage::Passive => vec![MozaBundleStage::Passive],
         MozaBundleStage::Zero => vec![MozaBundleStage::Passive, MozaBundleStage::Zero],
+        MozaBundleStage::OpenRacingControlReady => vec![
+            MozaBundleStage::Passive,
+            MozaBundleStage::Zero,
+            MozaBundleStage::OpenRacingControlReady,
+        ],
         MozaBundleStage::SmokeReady => vec![
             MozaBundleStage::Passive,
             MozaBundleStage::Zero,
+            MozaBundleStage::OpenRacingControlReady,
             MozaBundleStage::SmokeReady,
         ],
     }
@@ -7170,6 +8023,7 @@ fn verification_receipt_path(stage: MozaBundleStage) -> &'static str {
     match stage {
         MozaBundleStage::Passive => "passive-verification.json",
         MozaBundleStage::Zero => "zero-verification.json",
+        MozaBundleStage::OpenRacingControlReady => "openracing-control-verification.json",
         MozaBundleStage::SmokeReady => "smoke-ready-verification.json",
     }
 }
@@ -7194,6 +8048,7 @@ fn promotion_receipt_path(stage: MozaBundleStage) -> &'static str {
     match stage {
         MozaBundleStage::Passive => "manifest-promotion-passive.json",
         MozaBundleStage::Zero => "manifest-promotion-zero.json",
+        MozaBundleStage::OpenRacingControlReady => "manifest-promotion-openracing-control.json",
         MozaBundleStage::SmokeReady => "manifest-promotion-smoke-ready.json",
     }
 }
@@ -7202,6 +8057,7 @@ fn audit_receipt_path(stage: MozaBundleStage) -> &'static str {
     match stage {
         MozaBundleStage::Passive => "lane-audit-passive.json",
         MozaBundleStage::Zero => "lane-audit-zero.json",
+        MozaBundleStage::OpenRacingControlReady => "lane-audit-openracing-control.json",
         MozaBundleStage::SmokeReady => "lane-audit-smoke-ready.json",
     }
 }
@@ -7241,6 +8097,11 @@ fn support_bundle_status_with_support_validation(
     );
     let zero =
         verify_bundle_dir_with_support_validation(lane, MozaBundleStage::Zero, support_validation);
+    let openracing_control = verify_bundle_dir_with_support_validation(
+        lane,
+        MozaBundleStage::OpenRacingControlReady,
+        support_validation,
+    );
     let smoke_ready = verify_bundle_dir_with_support_validation(
         lane,
         MozaBundleStage::SmokeReady,
@@ -7248,17 +8109,23 @@ fn support_bundle_status_with_support_validation(
     );
     let passive_audit_passed = stored_lane_audit_receipt_passed(lane, MozaBundleStage::Passive);
     let zero_audit_passed = stored_lane_audit_receipt_passed(lane, MozaBundleStage::Zero);
+    let openracing_control_audit_passed =
+        stored_lane_audit_receipt_passed(lane, MozaBundleStage::OpenRacingControlReady);
     let smoke_ready_audit_passed =
         stored_lane_audit_receipt_passed(lane, MozaBundleStage::SmokeReady);
-    let readiness = support_readiness_summary(
+    let readiness = support_readiness_summary(SupportReadinessInputs {
         lane,
-        &passive,
-        &zero,
-        &smoke_ready,
-        passive_audit_passed,
-        zero_audit_passed,
-        smoke_ready_audit_passed,
-    );
+        passive: &passive,
+        zero: &zero,
+        openracing_control: &openracing_control,
+        smoke_ready: &smoke_ready,
+        audits: SupportReadinessAudits {
+            passive: passive_audit_passed,
+            zero: zero_audit_passed,
+            openracing_control: openracing_control_audit_passed,
+            smoke_ready: smoke_ready_audit_passed,
+        },
+    });
     let artifact_index: Vec<_> = lane_artifact_index_requirements()
         .map(|requirement| check_bundle_artifact(lane, &requirement))
         .collect();
@@ -7273,6 +8140,7 @@ fn support_bundle_status_with_support_validation(
         "verifications": {
             "passive": support_verification_summary(&passive),
             "zero": support_verification_summary(&zero),
+            "openracing_control_ready": support_verification_summary(&openracing_control),
             "smoke_ready": support_verification_summary(&smoke_ready)
         },
         "notes": [
@@ -7282,21 +8150,45 @@ fn support_bundle_status_with_support_validation(
     })
 }
 
-fn support_readiness_summary(
-    lane: &Path,
-    passive: &BundleVerificationReceipt,
-    zero: &BundleVerificationReceipt,
-    smoke_ready: &BundleVerificationReceipt,
-    passive_audit_passed: bool,
-    zero_audit_passed: bool,
-    smoke_ready_audit_passed: bool,
-) -> Value {
-    let init_handshakes_pass = bundle_gate_passed(smoke_ready, "init_off_handshake")
-        && bundle_gate_passed(smoke_ready, "init_standard_handshake");
+struct SupportReadinessAudits {
+    passive: bool,
+    zero: bool,
+    openracing_control: bool,
+    smoke_ready: bool,
+}
+
+struct SupportReadinessInputs<'a> {
+    lane: &'a Path,
+    passive: &'a BundleVerificationReceipt,
+    zero: &'a BundleVerificationReceipt,
+    openracing_control: &'a BundleVerificationReceipt,
+    smoke_ready: &'a BundleVerificationReceipt,
+    audits: SupportReadinessAudits,
+}
+
+fn support_readiness_summary(inputs: SupportReadinessInputs<'_>) -> Value {
+    let SupportReadinessInputs {
+        lane,
+        passive,
+        zero,
+        openracing_control,
+        smoke_ready,
+        audits,
+    } = inputs;
+    let init_handshakes_pass = bundle_gate_passed(openracing_control, "init_off_handshake")
+        && bundle_gate_passed(openracing_control, "init_standard_handshake");
     let (highest_passing_stage, next_required_stage) = if smoke_ready.success {
         ("smoke_ready", Value::Null)
+    } else if openracing_control.success {
+        (
+            "openracing_control_ready",
+            Value::String("smoke_ready".to_string()),
+        )
     } else if zero.success {
-        ("zero", Value::String("smoke_ready".to_string()))
+        (
+            "zero",
+            Value::String("openracing_control_ready".to_string()),
+        )
     } else if passive.success {
         ("passive", Value::String("zero".to_string()))
     } else {
@@ -7307,25 +8199,109 @@ fn support_readiness_summary(
         support_verification_summary(passive)
     } else if !zero.success {
         support_verification_summary(zero)
+    } else if !openracing_control.success {
+        support_verification_summary(openracing_control)
     } else if !smoke_ready.success {
         support_verification_summary(smoke_ready)
     } else {
         Value::Null
     };
+    let native_control_blocking_items = support_native_control_blocking_items(
+        zero.success,
+        audits.zero,
+        openracing_control,
+        audits.openracing_control,
+    );
+    let ready_for_native_control = native_control_blocking_items.is_empty();
 
     serde_json::json!({
         "highest_passing_stage": highest_passing_stage,
         "next_required_stage": next_required_stage,
-        "ready_for_zero_torque": passive.success && passive_audit_passed,
-        "ready_for_low_torque": support_ready_for_low_torque(lane, zero.success, zero_audit_passed, init_handshakes_pass),
-        "ready_for_real_hardware_smoke": smoke_ready.success && smoke_ready_audit_passed,
-        "passive_lane_audit_passed": passive_audit_passed,
-        "zero_lane_audit_passed": zero_audit_passed,
-        "smoke_ready_lane_audit_passed": smoke_ready_audit_passed,
+        "ready_for_zero_torque": passive.success && audits.passive,
+        "ready_for_low_torque": support_ready_for_low_torque(lane, zero.success, audits.zero, init_handshakes_pass),
+        "ready_for_native_control": ready_for_native_control,
+        "native_control_blocking_items": native_control_blocking_items,
+        "ready_for_external_compatibility": smoke_ready.success && audits.smoke_ready,
+        "external_compatibility_blocking_items": support_external_compatibility_blocking_items(smoke_ready, audits.smoke_ready),
+        "ready_for_real_hardware_smoke": smoke_ready.success && audits.smoke_ready,
+        "passive_lane_audit_passed": audits.passive,
+        "zero_lane_audit_passed": audits.zero,
+        "openracing_control_lane_audit_passed": audits.openracing_control,
+        "smoke_ready_lane_audit_passed": audits.smoke_ready,
         "release_ready": false,
         "first_blocking_stage": first_blocking,
         "claim_scope": "diagnostic_context_only"
     })
+}
+
+fn support_native_control_blocking_items(
+    zero_success: bool,
+    zero_audit_passed: bool,
+    openracing_control: &BundleVerificationReceipt,
+    openracing_control_audit_passed: bool,
+) -> Vec<String> {
+    let zero = PreOutputVerificationReceipt {
+        success: zero_success,
+        requested_stage: "zero".to_string(),
+        missing_artifacts: 0,
+        invalid_artifacts: 0,
+        failed_gates: if zero_success { 0 } else { 1 },
+        artifacts: Vec::new(),
+        gates: Vec::new(),
+        role_evidence: Vec::new(),
+    };
+    let native = pre_output_receipt_from_bundle(openracing_control);
+    pre_output_native_control_blocking_items(
+        &zero,
+        &native,
+        zero_audit_passed,
+        openracing_control_audit_passed,
+    )
+}
+
+fn support_external_compatibility_blocking_items(
+    smoke_ready: &BundleVerificationReceipt,
+    smoke_ready_audit_passed: bool,
+) -> Vec<String> {
+    let smoke = pre_output_receipt_from_bundle(smoke_ready);
+    pre_output_external_compatibility_blocking_items(&smoke, smoke_ready_audit_passed)
+}
+
+fn pre_output_receipt_from_bundle(
+    receipt: &BundleVerificationReceipt,
+) -> PreOutputVerificationReceipt {
+    PreOutputVerificationReceipt {
+        success: receipt.success,
+        requested_stage: receipt.requested_stage.clone(),
+        missing_artifacts: receipt.missing_artifacts,
+        invalid_artifacts: receipt.invalid_artifacts,
+        failed_gates: receipt.failed_gates,
+        artifacts: receipt
+            .artifacts
+            .iter()
+            .map(|artifact| PreOutputVerificationArtifact {
+                path: artifact.path.clone(),
+                status: artifact.status.clone(),
+            })
+            .collect(),
+        gates: receipt
+            .gates
+            .iter()
+            .map(|gate| PreOutputVerificationGate {
+                name: gate.name.to_string(),
+                status: gate.status.to_string(),
+            })
+            .collect(),
+        role_evidence: receipt
+            .role_evidence
+            .iter()
+            .map(|role| PreOutputRoleEvidence {
+                required: role.required,
+                parser_visible: role.parser_visible,
+                missing_requirements: role.missing_requirements.clone(),
+            })
+            .collect(),
+    }
 }
 
 fn support_ready_for_low_torque(
@@ -7557,15 +8533,38 @@ fn bundle_artifact_requirements() -> &'static [BundleArtifactRequirement] {
         BundleArtifactRequirement::jsonl("captures/es-controls.jsonl", MozaBundleStage::Passive),
         BundleArtifactRequirement::json("parser-fixture-validation.json", MozaBundleStage::Passive),
         BundleArtifactRequirement::json("fixture-promotion.json", MozaBundleStage::Passive),
-        BundleArtifactRequirement::json("init-off.json", MozaBundleStage::SmokeReady),
-        BundleArtifactRequirement::json("init-standard.json", MozaBundleStage::SmokeReady),
-        BundleArtifactRequirement::json("moza-status.json", MozaBundleStage::SmokeReady),
-        BundleArtifactRequirement::json("device-status.json", MozaBundleStage::SmokeReady),
-        BundleArtifactRequirement::json("support-bundle.json", MozaBundleStage::SmokeReady),
+        BundleArtifactRequirement::json("init-off.json", MozaBundleStage::OpenRacingControlReady),
+        BundleArtifactRequirement::json(
+            "init-standard.json",
+            MozaBundleStage::OpenRacingControlReady,
+        ),
+        BundleArtifactRequirement::json(
+            "moza-status.json",
+            MozaBundleStage::OpenRacingControlReady,
+        ),
+        BundleArtifactRequirement::json(
+            "device-status.json",
+            MozaBundleStage::OpenRacingControlReady,
+        ),
+        BundleArtifactRequirement::json(
+            "support-bundle.json",
+            MozaBundleStage::OpenRacingControlReady,
+        ),
         BundleArtifactRequirement::json("zero-torque-proof.json", MozaBundleStage::Zero),
         BundleArtifactRequirement::json("watchdog-proof.json", MozaBundleStage::Zero),
         BundleArtifactRequirement::json("disconnect-proof.json", MozaBundleStage::Zero),
-        BundleArtifactRequirement::json("low-torque-proof.json", MozaBundleStage::SmokeReady),
+        BundleArtifactRequirement::json(
+            "low-torque-proof.json",
+            MozaBundleStage::OpenRacingControlReady,
+        ),
+        BundleArtifactRequirement::json(
+            "steering-angle-stream-proof.json",
+            MozaBundleStage::OpenRacingControlReady,
+        ),
+        BundleArtifactRequirement::json(
+            "native-actuator-profile-smoke.json",
+            MozaBundleStage::OpenRacingControlReady,
+        ),
         BundleArtifactRequirement::json("pit-house-coexistence.json", MozaBundleStage::SmokeReady),
         BundleArtifactRequirement::json(
             "simulator-telemetry-proof.json",
@@ -7615,6 +8614,18 @@ fn stored_receipt_artifact_requirements() -> &'static [BundleArtifactRequirement
         BundleArtifactRequirement::json("zero-verification.json", MozaBundleStage::Zero),
         BundleArtifactRequirement::json("manifest-promotion-zero.json", MozaBundleStage::Zero),
         BundleArtifactRequirement::json("lane-audit-zero.json", MozaBundleStage::Zero),
+        BundleArtifactRequirement::json(
+            "openracing-control-verification.json",
+            MozaBundleStage::OpenRacingControlReady,
+        ),
+        BundleArtifactRequirement::json(
+            "manifest-promotion-openracing-control.json",
+            MozaBundleStage::OpenRacingControlReady,
+        ),
+        BundleArtifactRequirement::json(
+            "lane-audit-openracing-control.json",
+            MozaBundleStage::OpenRacingControlReady,
+        ),
         BundleArtifactRequirement::json(
             "smoke-ready-verification.json",
             MozaBundleStage::SmokeReady,
@@ -7744,14 +8755,20 @@ fn verify_manifest_gate(lane: &Path, stage: MozaBundleStage) -> BundleGateCheck 
             completion_state,
             Some("not_started" | "passive_capture_ready" | "zero_torque_ready")
         );
+    let openracing_control_manifest = completion_state == Some("openracing_control_ready")
+        && hardware_validated == Some(true)
+        && simulator_validated == Some(false);
+    let smoke_ready_manifest = completion_state == Some("real_hardware_smoke_ready")
+        && hardware_validated == Some(true)
+        && simulator_validated == Some(true);
+    let safe_progressed_manifest =
+        non_claiming_manifest || openracing_control_manifest || smoke_ready_manifest;
     let stage_ok = match stage {
-        MozaBundleStage::Passive | MozaBundleStage::Zero => non_claiming_manifest,
-        MozaBundleStage::SmokeReady => {
-            non_claiming_manifest
-                || (completion_state == Some("real_hardware_smoke_ready")
-                    && hardware_validated == Some(true)
-                    && simulator_validated == Some(true))
+        MozaBundleStage::Passive | MozaBundleStage::Zero => safe_progressed_manifest,
+        MozaBundleStage::OpenRacingControlReady => {
+            non_claiming_manifest || openracing_control_manifest || smoke_ready_manifest
         }
+        MozaBundleStage::SmokeReady => safe_progressed_manifest,
     };
 
     if schema_ok && contract_ok && base_ok && stage_ok {
@@ -7780,7 +8797,7 @@ fn verify_manifest_gate(lane: &Path, stage: MozaBundleStage) -> BundleGateCheck 
 fn verify_manifest_r5_pid_consistency_gate_with_support_validation(
     lane: &Path,
     stage: MozaBundleStage,
-    support_validation: SupportBundleValidationMode,
+    _support_validation: SupportBundleValidationMode,
 ) -> BundleGateCheck {
     let Some(expected_pid) = lane_manifest_r5_pid(lane) else {
         return BundleGateCheck::fail(
@@ -7862,12 +8879,11 @@ fn verify_manifest_r5_pid_consistency_gate_with_support_validation(
         }
     }
 
-    if stage_rank(stage) >= stage_rank(MozaBundleStage::SmokeReady) {
+    if stage_rank(stage) >= stage_rank(MozaBundleStage::OpenRacingControlReady) {
         for path in [
             "init-off.json",
             "init-standard.json",
             "low-torque-proof.json",
-            "simulator-ffb-smoke.json",
         ] {
             match manifest_pid_receipt_device_pid(lane, path) {
                 Ok(pid) if pid == expected => observed.push(format!("{path}:{pid}")),
@@ -7875,17 +8891,33 @@ fn verify_manifest_r5_pid_consistency_gate_with_support_validation(
                 Err(error) => unavailable.push(format!("{path}:{error}")),
             }
         }
-        match manifest_pid_simulator_writer_pid(lane) {
-            Ok(pid) if pid == expected => observed.push(format!("simulator-ffb-writer:{pid}")),
-            Ok(pid) => mismatches.push(format!("simulator-ffb-writer:{pid}")),
-            Err(error) => unavailable.push(format!("simulator-ffb-writer:{error}")),
-        }
-        match manifest_pid_service_receipts_with_support_validation(lane, support_validation) {
+        // PID consistency only needs the observed service receipt product IDs. Fresh
+        // support-bundle validation recursively rebuilds lane status and is covered
+        // by the dedicated service_status_receipts gate below.
+        match manifest_pid_service_receipts_with_support_validation(
+            lane,
+            SupportBundleValidationMode::ShapeOnly,
+        ) {
             Ok(pids) if pids.iter().all(|pid| pid == &expected) => {
                 observed.push(format!("service-status:{}", pids.join(",")));
             }
             Ok(pids) => mismatches.push(format!("service-status:{}", pids.join(","))),
             Err(error) => unavailable.push(format!("service-status:{error}")),
+        }
+    }
+
+    if stage_rank(stage) >= stage_rank(MozaBundleStage::SmokeReady) {
+        match manifest_pid_receipt_device_pid(lane, "simulator-ffb-smoke.json") {
+            Ok(pid) if pid == expected => {
+                observed.push(format!("simulator-ffb-smoke.json:{pid}"));
+            }
+            Ok(pid) => mismatches.push(format!("simulator-ffb-smoke.json:{pid}")),
+            Err(error) => unavailable.push(format!("simulator-ffb-smoke.json:{error}")),
+        }
+        match manifest_pid_simulator_writer_pid(lane) {
+            Ok(pid) if pid == expected => observed.push(format!("simulator-ffb-writer:{pid}")),
+            Ok(pid) => mismatches.push(format!("simulator-ffb-writer:{pid}")),
+            Err(error) => unavailable.push(format!("simulator-ffb-writer:{error}")),
         }
     }
 
@@ -8303,6 +9335,26 @@ fn manifest_artifacts_match_lane_contract(artifacts: Option<&Value>) -> bool {
         ("zero_manifest_promotion", "manifest-promotion-zero.json"),
         ("zero_lane_audit", "lane-audit-zero.json"),
         ("low_torque_proof", "low-torque-proof.json"),
+        (
+            "steering_angle_stream_proof",
+            "steering-angle-stream-proof.json",
+        ),
+        (
+            "native_actuator_profile_smoke",
+            "native-actuator-profile-smoke.json",
+        ),
+        (
+            "openracing_control_verification",
+            "openracing-control-verification.json",
+        ),
+        (
+            "openracing_control_manifest_promotion",
+            "manifest-promotion-openracing-control.json",
+        ),
+        (
+            "openracing_control_lane_audit",
+            "lane-audit-openracing-control.json",
+        ),
         ("pit_house_coexistence", "pit-house-coexistence.json"),
         (
             "simulator_telemetry_proof",
@@ -8856,6 +9908,7 @@ fn apply_lane_verification_stage(readiness: &mut crate::client::MozaReadinessSta
 struct StoredLaneVerificationStage {
     passive_success: bool,
     zero_success: bool,
+    openracing_control_success: bool,
     smoke_ready_success: bool,
     init_off_success: bool,
     init_standard_success: bool,
@@ -8866,6 +9919,8 @@ impl StoredLaneVerificationStage {
     fn highest_passing_stage(&self) -> &'static str {
         if self.smoke_ready_success {
             "smoke_ready"
+        } else if self.openracing_control_success {
+            "openracing_control_ready"
         } else if self.zero_success {
             "zero"
         } else if self.passive_success {
@@ -8878,8 +9933,10 @@ impl StoredLaneVerificationStage {
     fn next_required_stage(&self) -> &'static str {
         if self.smoke_ready_success {
             "none"
-        } else if self.zero_success {
+        } else if self.openracing_control_success {
             "smoke_ready"
+        } else if self.zero_success {
+            "openracing_control_ready"
         } else if self.passive_success {
             "zero"
         } else {
@@ -8890,6 +9947,8 @@ impl StoredLaneVerificationStage {
     fn safety_state(&self) -> &'static str {
         if self.smoke_ready_success {
             "lane_smoke_ready_receipts_observed"
+        } else if self.openracing_control_success {
+            "lane_openracing_control_receipts_observed"
         } else if self.low_torque_ready {
             "lane_low_torque_gate_receipts_observed"
         } else if self.zero_success && self.init_off_success && self.init_standard_success {
@@ -8907,6 +9966,8 @@ impl StoredLaneVerificationStage {
 fn stored_lane_verification_stage(lane: &Path) -> StoredLaneVerificationStage {
     let passive = read_stored_verification_receipt(lane, MozaBundleStage::Passive);
     let zero = read_stored_verification_receipt(lane, MozaBundleStage::Zero);
+    let openracing_control =
+        read_stored_verification_receipt(lane, MozaBundleStage::OpenRacingControlReady);
     let smoke_ready = read_stored_verification_receipt(lane, MozaBundleStage::SmokeReady);
     let init_off_observed =
         verify_init_receipt_gate(lane, "init_off_handshake", "init-off.json", "off").status
@@ -8931,12 +9992,24 @@ fn stored_lane_verification_stage(lane: &Path) -> StoredLaneVerificationStage {
         .as_ref()
         .map(|receipt| receipt.success)
         .unwrap_or(false);
+    let openracing_control_success = openracing_control
+        .as_ref()
+        .map(|receipt| receipt.success)
+        .unwrap_or(false);
     let init_off_success = init_off_observed
+        || openracing_control
+            .as_ref()
+            .map(|receipt| receipt.gate_passed("init_off_handshake"))
+            .unwrap_or(false)
         || smoke_ready
             .as_ref()
             .map(|receipt| receipt.gate_passed("init_off_handshake"))
             .unwrap_or(false);
     let init_standard_success = init_standard_observed
+        || openracing_control
+            .as_ref()
+            .map(|receipt| receipt.gate_passed("init_standard_handshake"))
+            .unwrap_or(false)
         || smoke_ready
             .as_ref()
             .map(|receipt| receipt.gate_passed("init_standard_handshake"))
@@ -8951,6 +10024,7 @@ fn stored_lane_verification_stage(lane: &Path) -> StoredLaneVerificationStage {
     StoredLaneVerificationStage {
         passive_success,
         zero_success,
+        openracing_control_success,
         smoke_ready_success,
         init_off_success,
         init_standard_success,
@@ -11084,7 +12158,11 @@ fn artifact_index_has_pass(artifacts: &[Value], path: &str) -> bool {
 fn moza_status_reports_post_init_safe_state(moza: &Value) -> bool {
     matches!(
         json_string(moza, "safety_state"),
-        Some("lane_init_handshakes_observed" | "lane_low_torque_gate_receipts_observed")
+        Some(
+            "lane_init_handshakes_observed"
+                | "lane_low_torque_gate_receipts_observed"
+                | "lane_openracing_control_receipts_observed"
+        )
     ) && json_bool(moza, "ffb_ready") == Some(false)
         && json_bool(moza, "safe_to_send_torque") == Some(false)
         && json_bool(moza, "direct_mode_allowed") == Some(false)
@@ -11350,9 +12428,12 @@ fn support_readiness_matches_expected(actual: Option<&Value>, expected: Option<&
     let booleans_do_not_overclaim = [
         "ready_for_zero_torque",
         "ready_for_low_torque",
+        "ready_for_native_control",
+        "ready_for_external_compatibility",
         "ready_for_real_hardware_smoke",
         "passive_lane_audit_passed",
         "zero_lane_audit_passed",
+        "openracing_control_lane_audit_passed",
         "smoke_ready_lane_audit_passed",
     ]
     .iter()
@@ -11372,7 +12453,8 @@ fn support_readiness_stage_rank(stage: Option<&str>) -> Option<u8> {
         Some("none") => Some(0),
         Some("passive") => Some(1),
         Some("zero") => Some(2),
-        Some("smoke_ready") => Some(3),
+        Some("openracing_control_ready") => Some(3),
+        Some("smoke_ready") => Some(4),
         _ => None,
     }
 }
@@ -11439,24 +12521,44 @@ fn support_readiness_is_diagnostic(readiness: &Value) -> bool {
     let next = readiness.get("next_required_stage");
     let ready_zero = json_bool(readiness, "ready_for_zero_torque");
     let ready_low = json_bool(readiness, "ready_for_low_torque");
+    let ready_native = json_bool(readiness, "ready_for_native_control");
+    let ready_external = json_bool(readiness, "ready_for_external_compatibility");
     let ready_smoke = json_bool(readiness, "ready_for_real_hardware_smoke");
     let passive_audit = json_bool(readiness, "passive_lane_audit_passed");
     let zero_audit = json_bool(readiness, "zero_lane_audit_passed");
+    let openracing_audit = json_bool(readiness, "openracing_control_lane_audit_passed");
     let smoke_audit = json_bool(readiness, "smoke_ready_lane_audit_passed");
     let first_blocking = readiness.get("first_blocking_stage");
-    let highest_ok = matches!(highest, Some("none" | "passive" | "zero" | "smoke_ready"));
+    let highest_ok = matches!(
+        highest,
+        Some("none" | "passive" | "zero" | "openracing_control_ready" | "smoke_ready")
+    );
     let next_ok = next.map(|value| {
-        value.is_null() || matches!(value.as_str(), Some("passive" | "zero" | "smoke_ready"))
+        value.is_null()
+            || matches!(
+                value.as_str(),
+                Some("passive" | "zero" | "openracing_control_ready" | "smoke_ready")
+            )
     }) == Some(true);
     let first_blocking_ok = first_blocking.is_some();
-    let readiness_fields_present =
-        ready_zero.is_some() && ready_low.is_some() && ready_smoke.is_some();
-    let audit_fields_present =
-        passive_audit.is_some() && zero_audit.is_some() && smoke_audit.is_some();
+    let readiness_fields_present = ready_zero.is_some()
+        && ready_low.is_some()
+        && ready_native.is_some()
+        && ready_external.is_some()
+        && ready_smoke.is_some();
+    let audit_fields_present = passive_audit.is_some()
+        && zero_audit.is_some()
+        && openracing_audit.is_some()
+        && smoke_audit.is_some();
     let readiness_progression_ok = ready_low != Some(true) || ready_zero == Some(true);
-    let smoke_progression_ok = ready_smoke != Some(true) || ready_low == Some(true);
+    let native_progression_ok = ready_native != Some(true) || ready_low == Some(true);
+    let external_progression_ok = ready_external != Some(true) || ready_low == Some(true);
+    let smoke_progression_ok =
+        ready_smoke != Some(true) || (ready_low == Some(true) && ready_external == Some(true));
     let audit_gate_consistency_ok = (ready_zero != Some(true) || passive_audit == Some(true))
         && (ready_low != Some(true) || zero_audit == Some(true))
+        && (ready_native != Some(true) || openracing_audit == Some(true))
+        && (ready_external != Some(true) || smoke_audit == Some(true))
         && (ready_smoke != Some(true) || smoke_audit == Some(true));
 
     highest_ok
@@ -11465,6 +12567,8 @@ fn support_readiness_is_diagnostic(readiness: &Value) -> bool {
         && readiness_fields_present
         && audit_fields_present
         && readiness_progression_ok
+        && native_progression_ok
+        && external_progression_ok
         && smoke_progression_ok
         && audit_gate_consistency_ok
         && json_bool(readiness, "release_ready") == Some(false)
@@ -11793,6 +12897,181 @@ fn verify_pidff_low_torque_gate(lane: &Path, receipt: &Value) -> BundleGateCheck
             ),
         )
     }
+}
+
+fn verify_steering_angle_stream_gate(lane: &Path) -> BundleGateCheck {
+    let receipt = match read_json_value(lane, "steering-angle-stream-proof.json") {
+        Ok(value) => value,
+        Err(e) => return BundleGateCheck::fail("steering_angle_stream_proof", e.to_string()),
+    };
+
+    let success = json_bool(&receipt, "success") == Some(true);
+    let command_ok =
+        json_string(&receipt, "command") == Some("wheelctl moza steering-stream-proof");
+    let receipt_path_ok = receipt_path_matches(lane, &receipt, "steering-angle-stream-proof.json");
+    let selector_matches_lane_endpoint = receipt_selector_matches_lane_endpoint(lane, &receipt);
+    let no_output_reports = json_bool(&receipt, "no_output_reports");
+    let no_feature_reports = json_bool(&receipt, "no_feature_reports");
+    let no_ffb_writes = json_bool(&receipt, "no_ffb_writes");
+    let hardware_output_enabled = json_bool(&receipt, "hardware_output_enabled");
+    let no_out_of_scope = no_out_of_scope_device_commands(&receipt);
+    let generated_at_utc = json_string(&receipt, "generated_at_utc");
+    let generated_at_valid = generated_at_utc
+        .map(|value| utc_timestamp_pair_is_ordered(value, value))
+        .unwrap_or(false);
+    let duration_ms = json_u64(&receipt, "duration_ms").unwrap_or(0);
+    let sample_count = json_u64(&receipt, "sample_count").unwrap_or(0);
+    let timestamps_monotonic = json_bool(&receipt, "timestamps_monotonic");
+    let sequence_monotonic = json_bool(&receipt, "sequence_monotonic");
+    let angle_units_ok = json_string(&receipt, "angle_units") == Some("degrees");
+    let center_baseline_present = receipt.get("center_baseline_degrees").is_some();
+    let device = receipt.get("device");
+    let r5_device = device.map(is_r5_device_value).unwrap_or(false);
+
+    let safe = success
+        && command_ok
+        && receipt_path_ok
+        && selector_matches_lane_endpoint
+        && no_output_reports == Some(true)
+        && no_feature_reports == Some(true)
+        && no_ffb_writes == Some(true)
+        && hardware_output_enabled == Some(false)
+        && no_out_of_scope
+        && generated_at_valid
+        && duration_ms > 0
+        && sample_count > 0
+        && timestamps_monotonic == Some(true)
+        && sequence_monotonic == Some(true)
+        && angle_units_ok
+        && center_baseline_present
+        && r5_device;
+
+    if safe {
+        BundleGateCheck::pass(
+            "steering_angle_stream_proof",
+            format!(
+                "native steering angle stream recorded {sample_count} sample(s) with no output"
+            ),
+        )
+    } else {
+        BundleGateCheck::fail(
+            "steering_angle_stream_proof",
+            format!(
+                "success={success}, command_ok={command_ok}, receipt_path_ok={receipt_path_ok}, selector_matches_lane_endpoint={selector_matches_lane_endpoint}, no_output_reports={no_output_reports:?}, no_feature_reports={no_feature_reports:?}, no_ffb_writes={no_ffb_writes:?}, hardware_output_enabled={hardware_output_enabled:?}, no_out_of_scope={no_out_of_scope}, generated_at_valid={generated_at_valid}, duration_ms={duration_ms}, sample_count={sample_count}, timestamps_monotonic={timestamps_monotonic:?}, sequence_monotonic={sequence_monotonic:?}, angle_units_ok={angle_units_ok}, center_baseline_present={center_baseline_present}, r5_device={r5_device}"
+            ),
+        )
+    }
+}
+
+fn verify_native_actuator_profile_smoke_gate(lane: &Path) -> BundleGateCheck {
+    let receipt = match read_json_value(lane, "native-actuator-profile-smoke.json") {
+        Ok(value) => value,
+        Err(e) => return BundleGateCheck::fail("native_actuator_profile_smoke", e.to_string()),
+    };
+
+    let success = json_bool(&receipt, "success") == Some(true);
+    let command_ok =
+        json_string(&receipt, "command") == Some("wheelctl moza actuator-profile-smoke");
+    let receipt_path_ok =
+        receipt_path_matches(lane, &receipt, "native-actuator-profile-smoke.json");
+    let selector_matches_lane_endpoint = receipt_selector_matches_lane_endpoint(lane, &receipt);
+    let confirmed = json_bool(&receipt, "confirmed");
+    let no_hid_device_opened = json_bool(&receipt, "no_hid_device_opened");
+    let hardware_output_enabled = json_bool(&receipt, "hardware_output_enabled");
+    let no_feature_reports = json_bool(&receipt, "no_feature_reports");
+    let no_ffb_writes = json_bool(&receipt, "no_ffb_writes");
+    let no_direct_torque_reports = json_bool(&receipt, "no_direct_torque_reports");
+    let no_high_torque = json_bool(&receipt, "no_high_torque");
+    let high_torque = json_bool(&receipt, "high_torque");
+    let no_nonzero_above_limit = json_bool(&receipt, "no_nonzero_above_limit");
+    let no_out_of_scope = no_out_of_scope_device_commands(&receipt);
+    let pidff_effect_setup_proven = json_bool(&receipt, "pidff_effect_setup_proven");
+    let final_stop_all_attempted = json_bool(&receipt, "final_stop_all_attempted");
+    let final_stop_all_sent = json_bool(&receipt, "final_stop_all_sent");
+    let generated_at_utc = json_string(&receipt, "generated_at_utc");
+    let generated_at_valid = generated_at_utc
+        .map(|value| utc_timestamp_pair_is_ordered(value, value))
+        .unwrap_or(false);
+    let strategy_ok = json_string(&receipt, "output_strategy")
+        == Some(low_torque_strategy_name(
+            MozaLowTorqueStrategy::PidffBoundedEffect,
+        ));
+    let profile_present = json_string(&receipt, "profile").is_some();
+    let max_percent = json_f64(&receipt, "max_percent").unwrap_or(f64::NAN);
+    let duration_ms = json_u64(&receipt, "duration_ms").unwrap_or(0);
+    let write_attempts = json_u64(&receipt, "write_attempts").unwrap_or(0);
+    let writes_ok = json_u64(&receipt, "writes_ok").unwrap_or(0);
+    let write_errors = json_u64(&receipt, "write_errors").unwrap_or(u64::MAX);
+    let command_log_entries = receipt
+        .get("command_log")
+        .and_then(Value::as_array)
+        .map(|records| records.len().min(u64::MAX as usize) as u64)
+        .unwrap_or(0);
+    let command_log_no_direct_report =
+        command_log_omits_report_id(&receipt, DIRECT_TORQUE_REPORT_ID);
+    let device = receipt.get("device");
+    let r5_device = device.map(is_r5_device_value).unwrap_or(false);
+
+    let bounded = max_percent.is_finite() && max_percent > 0.0 && max_percent <= 1.0;
+    let safe = success
+        && command_ok
+        && receipt_path_ok
+        && selector_matches_lane_endpoint
+        && confirmed == Some(true)
+        && no_hid_device_opened == Some(false)
+        && hardware_output_enabled == Some(true)
+        && no_feature_reports == Some(true)
+        && no_ffb_writes == Some(false)
+        && no_direct_torque_reports == Some(true)
+        && no_high_torque == Some(true)
+        && high_torque == Some(false)
+        && no_nonzero_above_limit == Some(true)
+        && no_out_of_scope
+        && pidff_effect_setup_proven == Some(true)
+        && final_stop_all_attempted == Some(true)
+        && final_stop_all_sent == Some(true)
+        && generated_at_valid
+        && strategy_ok
+        && profile_present
+        && bounded
+        && duration_ms > 0
+        && duration_ms <= 2000
+        && write_attempts > 0
+        && write_attempts == command_log_entries
+        && writes_ok == write_attempts
+        && write_errors == 0
+        && command_log_no_direct_report
+        && r5_device;
+
+    if safe {
+        BundleGateCheck::pass(
+            "native_actuator_profile_smoke",
+            format!(
+                "native PIDFF actuator profile recorded {write_attempts} write attempt(s), including Stop All cleanup"
+            ),
+        )
+    } else {
+        BundleGateCheck::fail(
+            "native_actuator_profile_smoke",
+            format!(
+                "success={success}, command_ok={command_ok}, receipt_path_ok={receipt_path_ok}, selector_matches_lane_endpoint={selector_matches_lane_endpoint}, confirmed={confirmed:?}, no_hid_device_opened={no_hid_device_opened:?}, hardware_output_enabled={hardware_output_enabled:?}, no_feature_reports={no_feature_reports:?}, no_ffb_writes={no_ffb_writes:?}, no_direct_torque_reports={no_direct_torque_reports:?}, no_high_torque={no_high_torque:?}, high_torque={high_torque:?}, no_nonzero_above_limit={no_nonzero_above_limit:?}, no_out_of_scope={no_out_of_scope}, pidff_effect_setup_proven={pidff_effect_setup_proven:?}, final_stop_all_attempted={final_stop_all_attempted:?}, final_stop_all_sent={final_stop_all_sent:?}, generated_at_valid={generated_at_valid}, strategy_ok={strategy_ok}, profile_present={profile_present}, max_percent={max_percent}, duration_ms={duration_ms}, write_attempts={write_attempts}, writes_ok={writes_ok}, write_errors={write_errors}, command_log_entries={command_log_entries}, command_log_no_direct_report={command_log_no_direct_report}, r5_device={r5_device}"
+            ),
+        )
+    }
+}
+
+fn command_log_omits_report_id(receipt: &Value, forbidden_report_id: &str) -> bool {
+    receipt
+        .get("command_log")
+        .and_then(Value::as_array)
+        .map(|records| {
+            !records.iter().any(|record| {
+                json_string(record, "report_id")
+                    .map(|report_id| report_id.eq_ignore_ascii_case(forbidden_report_id))
+                    .unwrap_or(false)
+            })
+        })
+        .unwrap_or(false)
 }
 
 fn receipt_selector_matches_lane_endpoint(lane: &Path, receipt: &Value) -> bool {
@@ -14306,47 +15585,103 @@ fn fixture_repo_root_for_lane(lane: &Path) -> Option<PathBuf> {
 }
 
 fn moza_lane_manifest_artifacts_value() -> Value {
-    serde_json::json!({
-        "manifest": "manifest.json",
-        "device_list": "device-list.json",
-        "hid_list": "hid-list.json",
-        "moza_probe": "moza-probe.json",
-        "hardware_doctor": "hardware-doctor.json",
-        "descriptor": "descriptor.json",
-        "captures_dir": "captures",
-        "capture_r5_idle": "captures/r5-idle.jsonl",
-        "capture_r5_steering_sweep": "captures/r5-steering-sweep.jsonl",
-        "capture_r5_throttle_only_sweep": "captures/r5-throttle-only-sweep.jsonl",
-        "capture_r5_brake_only_sweep": "captures/r5-brake-only-sweep.jsonl",
-        "capture_r5_clutch_only_sweep": "captures/r5-clutch-only-sweep.jsonl",
-        "capture_r5_handbrake_only_sweep": "captures/r5-handbrake-only-sweep.jsonl",
-        "capture_r5_aggregated_idle_after_controls": "captures/r5-aggregated-idle-after-controls.jsonl",
-        "capture_ks_controls": "captures/ks-controls.jsonl",
-        "capture_es_controls": "captures/es-controls.jsonl",
-        "parser_fixture_validation": "parser-fixture-validation.json",
-        "fixture_promotion": "fixture-promotion.json",
-        "passive_verification": "passive-verification.json",
-        "passive_manifest_promotion": "manifest-promotion-passive.json",
-        "passive_lane_audit": "lane-audit-passive.json",
-        "init_off": "init-off.json",
-        "init_standard": "init-standard.json",
-        "moza_status": "moza-status.json",
-        "device_status": "device-status.json",
-        "support_bundle": "support-bundle.json",
-        "zero_torque_proof": "zero-torque-proof.json",
-        "watchdog_proof": "watchdog-proof.json",
-        "disconnect_proof": "disconnect-proof.json",
-        "zero_verification": "zero-verification.json",
-        "zero_manifest_promotion": "manifest-promotion-zero.json",
-        "zero_lane_audit": "lane-audit-zero.json",
-        "low_torque_proof": "low-torque-proof.json",
-        "pit_house_coexistence": "pit-house-coexistence.json",
-        "simulator_telemetry_proof": "simulator-telemetry-proof.json",
-        "simulator_ffb_smoke": "simulator-ffb-smoke.json",
-        "smoke_ready_verification": "smoke-ready-verification.json",
-        "smoke_ready_manifest_promotion": "manifest-promotion-smoke-ready.json",
-        "smoke_ready_lane_audit": "lane-audit-smoke-ready.json"
-    })
+    let artifacts = [
+        ("manifest", "manifest.json"),
+        ("device_list", "device-list.json"),
+        ("hid_list", "hid-list.json"),
+        ("moza_probe", "moza-probe.json"),
+        ("hardware_doctor", "hardware-doctor.json"),
+        ("descriptor", "descriptor.json"),
+        ("captures_dir", "captures"),
+        ("capture_r5_idle", "captures/r5-idle.jsonl"),
+        (
+            "capture_r5_steering_sweep",
+            "captures/r5-steering-sweep.jsonl",
+        ),
+        (
+            "capture_r5_throttle_only_sweep",
+            "captures/r5-throttle-only-sweep.jsonl",
+        ),
+        (
+            "capture_r5_brake_only_sweep",
+            "captures/r5-brake-only-sweep.jsonl",
+        ),
+        (
+            "capture_r5_clutch_only_sweep",
+            "captures/r5-clutch-only-sweep.jsonl",
+        ),
+        (
+            "capture_r5_handbrake_only_sweep",
+            "captures/r5-handbrake-only-sweep.jsonl",
+        ),
+        (
+            "capture_r5_aggregated_idle_after_controls",
+            "captures/r5-aggregated-idle-after-controls.jsonl",
+        ),
+        ("capture_ks_controls", "captures/ks-controls.jsonl"),
+        ("capture_es_controls", "captures/es-controls.jsonl"),
+        (
+            "parser_fixture_validation",
+            "parser-fixture-validation.json",
+        ),
+        ("fixture_promotion", "fixture-promotion.json"),
+        ("passive_verification", "passive-verification.json"),
+        (
+            "passive_manifest_promotion",
+            "manifest-promotion-passive.json",
+        ),
+        ("passive_lane_audit", "lane-audit-passive.json"),
+        ("init_off", "init-off.json"),
+        ("init_standard", "init-standard.json"),
+        ("moza_status", "moza-status.json"),
+        ("device_status", "device-status.json"),
+        ("support_bundle", "support-bundle.json"),
+        ("zero_torque_proof", "zero-torque-proof.json"),
+        ("watchdog_proof", "watchdog-proof.json"),
+        ("disconnect_proof", "disconnect-proof.json"),
+        ("zero_verification", "zero-verification.json"),
+        ("zero_manifest_promotion", "manifest-promotion-zero.json"),
+        ("zero_lane_audit", "lane-audit-zero.json"),
+        ("low_torque_proof", "low-torque-proof.json"),
+        (
+            "steering_angle_stream_proof",
+            "steering-angle-stream-proof.json",
+        ),
+        (
+            "native_actuator_profile_smoke",
+            "native-actuator-profile-smoke.json",
+        ),
+        (
+            "openracing_control_verification",
+            "openracing-control-verification.json",
+        ),
+        (
+            "openracing_control_manifest_promotion",
+            "manifest-promotion-openracing-control.json",
+        ),
+        (
+            "openracing_control_lane_audit",
+            "lane-audit-openracing-control.json",
+        ),
+        ("pit_house_coexistence", "pit-house-coexistence.json"),
+        (
+            "simulator_telemetry_proof",
+            "simulator-telemetry-proof.json",
+        ),
+        ("simulator_ffb_smoke", "simulator-ffb-smoke.json"),
+        ("smoke_ready_verification", "smoke-ready-verification.json"),
+        (
+            "smoke_ready_manifest_promotion",
+            "manifest-promotion-smoke-ready.json",
+        ),
+        ("smoke_ready_lane_audit", "lane-audit-smoke-ready.json"),
+    ];
+    Value::Object(
+        artifacts
+            .into_iter()
+            .map(|(key, path)| (key.to_string(), Value::String(path.to_string())))
+            .collect(),
+    )
 }
 
 fn moza_lane_manifest_topology_value(wheelbase_pid: u16) -> Value {
@@ -14747,6 +16082,7 @@ fn manifest_promotion_values(stage: MozaBundleStage) -> (&'static str, bool, boo
     match stage {
         MozaBundleStage::Passive => ("passive_capture_ready", false, false),
         MozaBundleStage::Zero => ("zero_torque_ready", false, false),
+        MozaBundleStage::OpenRacingControlReady => ("openracing_control_ready", true, false),
         MozaBundleStage::SmokeReady => ("real_hardware_smoke_ready", true, true),
     }
 }
@@ -14868,7 +16204,8 @@ fn stage_rank(stage: MozaBundleStage) -> u8 {
     match stage {
         MozaBundleStage::Passive => 0,
         MozaBundleStage::Zero => 1,
-        MozaBundleStage::SmokeReady => 2,
+        MozaBundleStage::OpenRacingControlReady => 2,
+        MozaBundleStage::SmokeReady => 3,
     }
 }
 
@@ -14876,6 +16213,7 @@ fn stage_label(stage: MozaBundleStage) -> &'static str {
     match stage {
         MozaBundleStage::Passive => "passive",
         MozaBundleStage::Zero => "zero",
+        MozaBundleStage::OpenRacingControlReady => "openracing_control_ready",
         MozaBundleStage::SmokeReady => "smoke_ready",
     }
 }
@@ -16713,6 +18051,162 @@ impl LowTorqueProofReceipt {
     }
 }
 
+#[derive(Debug, Serialize)]
+struct NativeActuatorProfileSmokeReceipt {
+    success: bool,
+    command: &'static str,
+    generated_at_utc: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    receipt_path: Option<String>,
+    lane: String,
+    selector: String,
+    profile: &'static str,
+    output_strategy: &'static str,
+    max_percent: f32,
+    duration_ms: u64,
+    confirmed: bool,
+    dry_run: bool,
+    hardware_output_enabled: bool,
+    no_hid_device_opened: bool,
+    no_feature_reports: bool,
+    no_ffb_writes: bool,
+    no_direct_torque_reports: bool,
+    no_high_torque: bool,
+    high_torque: bool,
+    no_serial_config_commands: bool,
+    no_firmware_or_dfu_commands: bool,
+    no_nonzero_above_limit: bool,
+    low_torque_proof_validated: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    low_torque_generated_at: Option<String>,
+    steering_proof_validated: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    steering_generated_at: Option<String>,
+    pidff_effect_setup_proven: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pidff_effect_block_index: Option<u8>,
+    device: MozaDeviceRecord,
+    write_attempts: u64,
+    writes_ok: u64,
+    write_errors: u64,
+    bytes_written_total: usize,
+    final_zero_attempted: bool,
+    final_zero_sent: bool,
+    final_stop_all_attempted: bool,
+    final_stop_all_sent: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    final_zero_error: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    abort_reason: Option<String>,
+    command_log: Vec<LowTorqueCommandRecord>,
+    notes: Vec<String>,
+}
+
+impl NativeActuatorProfileSmokeReceipt {
+    fn new(
+        selector: String,
+        lane: &Path,
+        device: MozaDeviceRecord,
+        preflight: NativeActuatorProfileSmokePreflight,
+        profile: MozaActuatorProfile,
+        max_percent: f32,
+        duration_ms: u64,
+        dry_run: bool,
+    ) -> Self {
+        Self {
+            success: false,
+            command: "wheelctl moza actuator-profile-smoke",
+            generated_at_utc: now_utc(),
+            receipt_path: None,
+            lane: lane.display().to_string(),
+            selector,
+            profile: actuator_profile_name(profile),
+            output_strategy: low_torque_strategy_name(MozaLowTorqueStrategy::PidffBoundedEffect),
+            max_percent,
+            duration_ms,
+            confirmed: !dry_run,
+            dry_run,
+            hardware_output_enabled: !dry_run,
+            no_hid_device_opened: dry_run,
+            no_feature_reports: true,
+            no_ffb_writes: dry_run,
+            no_direct_torque_reports: true,
+            no_high_torque: true,
+            high_torque: false,
+            no_serial_config_commands: true,
+            no_firmware_or_dfu_commands: true,
+            no_nonzero_above_limit: true,
+            low_torque_proof_validated: true,
+            low_torque_generated_at: preflight.low_torque_generated_at,
+            steering_proof_validated: true,
+            steering_generated_at: preflight.steering_generated_at,
+            pidff_effect_setup_proven: false,
+            pidff_effect_block_index: None,
+            device,
+            write_attempts: 0,
+            writes_ok: 0,
+            write_errors: 0,
+            bytes_written_total: 0,
+            final_zero_attempted: false,
+            final_zero_sent: false,
+            final_stop_all_attempted: false,
+            final_stop_all_sent: false,
+            final_zero_error: None,
+            abort_reason: None,
+            command_log: Vec::new(),
+            notes: vec![
+                "actuator-profile-smoke runs a native OpenRacing-owned PIDFF profile without SimHub or Pit House".to_string(),
+                "the command uses descriptor-proven PIDFF bounded-effect output reports and must end with PIDFF Stop All cleanup".to_string(),
+                "direct report 0x20, high torque, feature reports, serial config, firmware, and DFU remain forbidden".to_string(),
+            ],
+        }
+    }
+
+    fn set_receipt_path(&mut self, path: Option<&Path>) {
+        self.receipt_path = path.map(|path| path.display().to_string());
+    }
+
+    fn plan_only(&mut self) {
+        let started_at = Instant::now();
+        let mut sequence = 0u32;
+        for report in pidff_low_torque_reports(self.max_percent, self.duration_ms) {
+            self.record_command(LowTorqueCommandRecord::planned_pidff_output(
+                sequence, &report, started_at,
+            ));
+            sequence = sequence.saturating_add(1);
+        }
+        self.pidff_effect_setup_proven = true;
+        self.pidff_effect_block_index = Some(PIDFF_LOW_TORQUE_EFFECT_BLOCK_INDEX);
+        self.final_zero_attempted = true;
+        self.final_zero_sent = true;
+        self.final_stop_all_attempted = true;
+        self.final_stop_all_sent = true;
+        self.record_command(LowTorqueCommandRecord::planned_pidff_stop_all(
+            sequence,
+            "final_stop_all",
+            started_at,
+        ));
+    }
+
+    fn record_command(&mut self, record: LowTorqueCommandRecord) {
+        let safe = record.report_id != DIRECT_TORQUE_REPORT_ID
+            && record
+                .safety_classification
+                .map(|classification| {
+                    classification == PIDFF_PLANNED_STOP_ALL_CLASSIFICATION
+                        || classification == PIDFF_EFFECT_SETUP_CLASSIFICATION
+                        || classification == PIDFF_BOUNDED_EFFECT_CLASSIFICATION
+                        || classification == PIDFF_STOP_ALL_CLEANUP_CLASSIFICATION
+                })
+                .unwrap_or(false)
+            && record.percent <= self.max_percent;
+        if !safe {
+            self.no_nonzero_above_limit = false;
+        }
+        self.command_log.push(record);
+    }
+}
+
 #[derive(Debug, Clone, Serialize)]
 struct LowTorqueStage {
     percent: f32,
@@ -17566,16 +19060,22 @@ struct PreOutputReadinessReceipt {
     stage: &'static str,
     ready_for_zero_torque: bool,
     ready_for_ffb: bool,
+    ready_for_native_control: bool,
+    ready_for_external_compatibility: bool,
     blocking_items: Vec<String>,
     ffb_blocking_items: Vec<String>,
+    native_control_blocking_items: Vec<String>,
+    external_compatibility_blocking_items: Vec<String>,
     zero_output_strategies: Vec<ZeroOutputStrategyCandidate>,
     passed_items: Vec<String>,
     status_receipts: Vec<PreOutputReadinessCheck>,
     passive_verification: Value,
     zero_verification: Value,
+    openracing_control_verification: Value,
     smoke_ready_verification: Value,
     passive_audit_passed: bool,
     zero_audit_passed: bool,
+    openracing_control_audit_passed: bool,
     smoke_ready_audit_passed: bool,
     no_hid_device_opened: bool,
     no_ffb_writes: bool,
@@ -18733,6 +20233,30 @@ fn print_low_torque_receipt(
     Ok(())
 }
 
+fn print_actuator_profile_smoke_receipt(
+    json: bool,
+    json_out: Option<&Path>,
+    receipt: &NativeActuatorProfileSmokeReceipt,
+) -> Result<()> {
+    if json {
+        println!("{}", serde_json::to_string_pretty(receipt)?);
+    } else {
+        println!(
+            "Moza actuator-profile smoke success={}, dry_run={}, profile={}, writes_ok={}, final_stop_all_sent={}, max_percent={}.",
+            receipt.success,
+            receipt.dry_run,
+            receipt.profile,
+            receipt.writes_ok,
+            receipt.final_stop_all_sent,
+            receipt.max_percent
+        );
+        if let Some(path) = json_out {
+            println!("Receipt: {}", path.display());
+        }
+    }
+    Ok(())
+}
+
 fn print_bundle_verification_receipt(
     json: bool,
     json_out: Option<&Path>,
@@ -18765,8 +20289,10 @@ fn print_pre_output_readiness_receipt(
         println!("{}", serde_json::to_string_pretty(receipt)?);
     } else {
         println!(
-            "Moza pre-output readiness: zero_torque={}, ffb={}; {} blocker(s).",
+            "Moza pre-output readiness: zero_torque={}, native_control={}, external_compatibility={}, ffb={}; {} blocker(s).",
             receipt.ready_for_zero_torque,
+            receipt.ready_for_native_control,
+            receipt.ready_for_external_compatibility,
             receipt.ready_for_ffb,
             receipt.blocking_items.len()
         );
@@ -18936,6 +20462,18 @@ mod tests {
             fs::create_dir_all(parent)?;
         }
         fs::write(path, contents)?;
+        Ok(())
+    }
+
+    #[test]
+    fn steering_u16_to_degrees_scales_declared_range() -> TestResult {
+        let full_left = steering_u16_to_degrees(0, 1080.0);
+        let center = steering_u16_to_degrees(32768, 1080.0);
+        let full_right = steering_u16_to_degrees(u16::MAX, 1080.0);
+
+        assert!((full_left + 540.0).abs() < 0.001);
+        assert!(center.abs() < 0.01);
+        assert!((full_right - 540.0).abs() < 0.001);
         Ok(())
     }
 
@@ -19771,7 +21309,7 @@ mod tests {
         assert!(
             readiness
                 .safety_reason
-                .contains("next_required_stage=smoke_ready")
+                .contains("next_required_stage=openracing_control_ready")
         );
         assert!(!readiness.direct_mode_allowed);
         assert!(!readiness.high_torque_allowed);
@@ -20337,6 +21875,96 @@ mod tests {
             !blockers.iter().any(|item| item == "simulator_ffb_bounded"),
             "ready_for_ffb should be true before the bounded simulator FFB receipt exists"
         );
+        Ok(())
+    }
+
+    #[test]
+    fn pre_output_native_control_readiness_does_not_require_external_adapters() -> TestResult {
+        let zero = pre_output_verification_receipt_for_gates(
+            MozaBundleStage::Zero,
+            &[
+                ("zero_torque_real_hardware", "pass"),
+                ("watchdog_zero_output", "pass"),
+                ("disconnect_final_zero", "pass"),
+            ],
+        );
+        let openracing_control = pre_output_verification_receipt_for_gates(
+            MozaBundleStage::OpenRacingControlReady,
+            &[
+                ("init_off_handshake", "pass"),
+                ("init_standard_handshake", "pass"),
+                ("service_status_receipts", "pass"),
+                ("low_torque_bounded", "pass"),
+            ],
+        );
+        let smoke_ready = pre_output_verification_receipt_for_gates(
+            MozaBundleStage::SmokeReady,
+            &[
+                ("simulator_telemetry", "fail"),
+                ("simulator_ffb_bounded", "fail"),
+                ("pit_house_coexistence", "fail"),
+            ],
+        );
+
+        let native_blockers =
+            pre_output_native_control_blocking_items(&zero, &openracing_control, true, true);
+        assert!(
+            native_blockers
+                .iter()
+                .any(|item| item == "steering_angle_stream_proof"),
+            "native control should wait for native steering feedback proof: {native_blockers:?}"
+        );
+        assert!(
+            native_blockers
+                .iter()
+                .any(|item| item == "native_actuator_profile_smoke"),
+            "native control should wait for native actuator profile proof: {native_blockers:?}"
+        );
+        for external_gate in [
+            "simulator_telemetry",
+            "simulator_ffb_bounded",
+            "pit_house_coexistence",
+        ] {
+            assert!(
+                !native_blockers.iter().any(|item| item == external_gate),
+                "native control readiness must not be blocked by external adapter gate {external_gate}: {native_blockers:?}"
+            );
+        }
+
+        let complete_openracing_control = pre_output_verification_receipt_for_gates(
+            MozaBundleStage::OpenRacingControlReady,
+            &[
+                ("init_off_handshake", "pass"),
+                ("init_standard_handshake", "pass"),
+                ("service_status_receipts", "pass"),
+                ("low_torque_bounded", "pass"),
+                ("steering_angle_stream_proof", "pass"),
+                ("native_actuator_profile_smoke", "pass"),
+            ],
+        );
+        let complete_native_blockers = pre_output_native_control_blocking_items(
+            &zero,
+            &complete_openracing_control,
+            true,
+            true,
+        );
+        assert!(
+            complete_native_blockers.is_empty(),
+            "complete native OpenRacing gates should clear native blockers without external adapters: {complete_native_blockers:?}"
+        );
+
+        let external_blockers =
+            pre_output_external_compatibility_blocking_items(&smoke_ready, false);
+        for external_gate in [
+            "simulator_telemetry",
+            "simulator_ffb_bounded",
+            "pit_house_coexistence",
+        ] {
+            assert!(
+                external_blockers.iter().any(|item| item == external_gate),
+                "external compatibility should track {external_gate}: {external_blockers:?}"
+            );
+        }
         Ok(())
     }
 
@@ -22281,6 +23909,65 @@ mod tests {
         }))
     }
 
+    fn write_native_actuator_profile_prerequisite_receipts(root: &Path) -> TestResult {
+        write_pidff_low_torque_prerequisite_receipts(root)?;
+        write_test_json_file(
+            &root.join("low-torque-proof.json"),
+            &real_pidff_low_torque_receipt_for_lane(root)?,
+        )?;
+        write_test_json_file(
+            &root.join("steering-angle-stream-proof.json"),
+            &steering_angle_stream_receipt_for_pid(root, product_ids::R5_V1),
+        )?;
+        Ok(())
+    }
+
+    fn successful_native_actuator_profile_receipt(root: &Path) -> TestResult<Value> {
+        write_native_actuator_profile_prerequisite_receipts(root)?;
+        let preflight = validate_native_actuator_profile_smoke_preflight(
+            "hid-0x346E-0x0004-if2-0x0001-0x0004",
+            root,
+            Some(&root.join("low-torque-proof.json")),
+            Some(&root.join("steering-angle-stream-proof.json")),
+            Some(&root.join("native-actuator-profile-smoke.json")),
+            false,
+        )?;
+        let mut receipt = NativeActuatorProfileSmokeReceipt::new(
+            "hid-0x346E-0x0004-if2-0x0001-0x0004".to_string(),
+            root,
+            synthetic_moza_device_record(product_ids::R5_V1),
+            preflight,
+            MozaActuatorProfile::ConstantLowForce,
+            1.0,
+            150,
+            false,
+        );
+        execute_pidff_bounded_actuator_profile_sequence(
+            &mut receipt,
+            Instant::now(),
+            false,
+            |payload| Ok(payload.len()),
+        );
+        receipt.success = receipt.confirmed
+            && receipt.hardware_output_enabled
+            && !receipt.no_hid_device_opened
+            && receipt.low_torque_proof_validated
+            && receipt.steering_proof_validated
+            && receipt.no_feature_reports
+            && !receipt.no_ffb_writes
+            && receipt.no_direct_torque_reports
+            && receipt.no_high_torque
+            && !receipt.high_torque
+            && receipt.no_serial_config_commands
+            && receipt.no_firmware_or_dfu_commands
+            && receipt.no_nonzero_above_limit
+            && receipt.pidff_effect_setup_proven
+            && receipt.write_errors == 0
+            && receipt.final_stop_all_sent;
+        receipt.set_receipt_path(Some(&root.join("native-actuator-profile-smoke.json")));
+        Ok(serde_json::to_value(receipt)?)
+    }
+
     #[test]
     fn r5_v1_pidff_set_effect_payload_matches_live_descriptor_layout() -> TestResult {
         let payload =
@@ -22924,13 +24611,90 @@ mod tests {
         Ok(())
     }
 
-    fn write_smoke_ready_bundle(root: &Path) -> TestResult {
+    fn steering_angle_stream_receipt_for_pid(root: &Path, pid: u16) -> Value {
+        let product_id = hex_u16(pid);
+        let product_name = if pid == product_ids::R5_V1 {
+            "Moza R5 V1"
+        } else {
+            "Moza R5"
+        };
+        let selector = format!("hid-0x346E-{product_id}-if2-0x0001-0x0004");
+        serde_json::json!({
+            "success": true,
+            "command": "wheelctl moza steering-stream-proof",
+            "generated_at_utc": "2026-05-06T00:00:00Z",
+            "receipt_path": root.join("steering-angle-stream-proof.json").display().to_string(),
+            "selector": selector,
+            "device": {
+                "vendor_id": "0x346E",
+                "product_id": product_id,
+                "product_name": product_name,
+                "output_capable": true
+            },
+            "duration_ms": 5000,
+            "sample_count": 500,
+            "sample_rate_hz": 100,
+            "angle_units": "degrees",
+            "center_baseline_degrees": 0.0,
+            "timestamps_monotonic": true,
+            "sequence_monotonic": true,
+            "hardware_output_enabled": false,
+            "no_output_reports": true,
+            "no_feature_reports": true,
+            "no_ffb_writes": true,
+            "no_serial_config_commands": true,
+            "no_firmware_or_dfu_commands": true
+        })
+    }
+
+    fn steering_angle_stream_receipt(root: &Path) -> Value {
+        steering_angle_stream_receipt_for_pid(root, product_ids::R5_V2)
+    }
+
+    fn native_actuator_profile_smoke_receipt(root: &Path) -> Value {
+        serde_json::json!({
+            "success": true,
+            "command": "wheelctl moza actuator-profile-smoke",
+            "generated_at_utc": "2026-05-06T00:00:00Z",
+            "receipt_path": root.join("native-actuator-profile-smoke.json").display().to_string(),
+            "selector": "hid-0x346E-0x0014-if2-0x0001-0x0004",
+            "device": {
+                "vendor_id": "0x346E",
+                "product_id": "0x0014",
+                "product_name": "Moza R5",
+                "output_capable": true
+            },
+            "profile": "constant_low_force",
+            "output_strategy": "pidff_bounded_effect",
+            "max_percent": 1.0,
+            "duration_ms": 2000,
+            "confirmed": true,
+            "hardware_output_enabled": true,
+            "no_hid_device_opened": false,
+            "no_feature_reports": true,
+            "no_ffb_writes": false,
+            "no_direct_torque_reports": true,
+            "no_high_torque": true,
+            "high_torque": false,
+            "no_serial_config_commands": true,
+            "no_firmware_or_dfu_commands": true,
+            "no_nonzero_above_limit": true,
+            "pidff_effect_setup_proven": true,
+            "pidff_effect_block_index": 1,
+            "final_stop_all_attempted": true,
+            "final_stop_all_sent": true,
+            "write_attempts": 4,
+            "writes_ok": 4,
+            "write_errors": 0,
+            "command_log": pidff_bounded_command_log()
+        })
+    }
+
+    fn write_openracing_control_bundle(root: &Path) -> TestResult {
         write_minimal_passive_bundle(root)?;
-        write_pit_house_artifacts(root)?;
-        write_simulator_artifacts(root)?;
         write_test_json_file(
             &root.join("manifest.json"),
-            &sample_lane_manifest("real_hardware_smoke_ready", true, true),
+            &sample_lane_manifest("openracing_control_ready", true, false),
         )?;
         write_zero_stage_receipts(root)?;
         write_test_json_file(
@@ -22946,6 +24710,26 @@ mod tests {
             &real_low_torque_receipt_for_lane(root, 2.0)?,
         )?;
         write_test_json_file(
+            &root.join("steering-angle-stream-proof.json"),
+            &steering_angle_stream_receipt(root),
+        )?;
+        write_test_json_file(
+            &root.join("native-actuator-profile-smoke.json"),
+            &native_actuator_profile_smoke_receipt(root),
+        )?;
+        write_service_status_artifacts(root)?;
+        Ok(())
+    }
+
+    fn write_smoke_ready_bundle(root: &Path) -> TestResult {
+        write_openracing_control_bundle(root)?;
+        write_pit_house_artifacts(root)?;
+        write_simulator_artifacts(root)?;
+        write_test_json_file(
+            &root.join("manifest.json"),
+            &sample_lane_manifest("real_hardware_smoke_ready", true, true),
+        )?;
+        write_test_json_file(
             &root.join("pit-house-coexistence.json"),
             &pit_house_receipt(),
         )?;
@@ -22957,8 +24741,6 @@ mod tests {
             &root.join("simulator-ffb-smoke.json"),
             &simulator_ffb_receipt(),
         )?;
-        write_service_status_artifacts(root)?;
-
         Ok(())
     }
 
@@ -23779,10 +25561,10 @@ mod tests {
         assert!(matrix.contains("moza-r5-artifact-checklist.md"));
         assert!(ci_readme.contains("docs/hardware/moza-r5-artifact-checklist.md"));
 
-        assert!(matrix.contains("| `moza-r5-windows-usb` | R5 + KS/ES + SR-P + HBP | Windows | HID only | Zero proof ready; bounded FFB blocked | Zero-output only | No | No | No |"));
+        assert!(matrix.contains("| `moza-r5-windows-usb` | R5 + KS/ES + SR-P + HBP | Windows | HID only | Zero proof ready; bounded PIDFF low torque proven; simulator FFB blocked | Bounded low torque only | No | No | No |"));
         for non_claim in [
-            "Staged init or direct mode readiness",
-            "Low-torque or nonzero force output safety",
+            "Direct mode or direct report `0x20` readiness",
+            "Simulator-scale FFB output safety",
             "Pit House coexistence safety",
             "Simulator-to-Moza FFB smoke coverage",
             "Release readiness",
@@ -26234,6 +28016,246 @@ mod tests {
             gate.status, "pass",
             "expected PIDFF gate pass: {}",
             gate.details
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn actuator_profile_smoke_args_require_pidff_and_tight_bounds() -> TestResult {
+        validate_actuator_profile_smoke_args(
+            MozaLowTorqueStrategy::PidffBoundedEffect,
+            1.0,
+            2_000,
+        )?;
+
+        let direct_message = validate_actuator_profile_smoke_args(
+            MozaLowTorqueStrategy::DirectReport0x20,
+            1.0,
+            2_000,
+        )
+        .err()
+        .map(|error| error.to_string())
+        .ok_or("expected direct report strategy rejection")?;
+        assert!(direct_message.contains("pidff-bounded-effect"));
+
+        let percent_message = validate_actuator_profile_smoke_args(
+            MozaLowTorqueStrategy::PidffBoundedEffect,
+            1.1,
+            2_000,
+        )
+        .err()
+        .map(|error| error.to_string())
+        .ok_or("expected max percent rejection")?;
+        assert!(percent_message.contains("0.1..=1.0"));
+
+        let duration_message = validate_actuator_profile_smoke_args(
+            MozaLowTorqueStrategy::PidffBoundedEffect,
+            1.0,
+            2_001,
+        )
+        .err()
+        .map(|error| error.to_string())
+        .ok_or("expected duration rejection")?;
+        assert!(duration_message.contains("1..=2000"));
+        Ok(())
+    }
+
+    #[test]
+    fn validate_native_actuator_profile_preflight_accepts_same_lane_prerequisites() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_native_actuator_profile_prerequisite_receipts(dir.path())?;
+
+        let preflight = validate_native_actuator_profile_smoke_preflight(
+            "hid-0x346E-0x0004-if2-0x0001-0x0004",
+            dir.path(),
+            Some(&dir.path().join("low-torque-proof.json")),
+            Some(&dir.path().join("steering-angle-stream-proof.json")),
+            Some(&dir.path().join("native-actuator-profile-smoke.json")),
+            false,
+        )?;
+
+        assert_eq!(preflight.target_product_id, "0x0004");
+        assert!(preflight.low_torque_generated_at.is_some());
+        assert!(preflight.steering_generated_at.is_some());
+        Ok(())
+    }
+
+    #[test]
+    fn validate_native_actuator_profile_preflight_requires_exact_endpoint() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_native_actuator_profile_prerequisite_receipts(dir.path())?;
+
+        let message = validate_native_actuator_profile_smoke_preflight(
+            "0x346E:0x0004",
+            dir.path(),
+            Some(&dir.path().join("low-torque-proof.json")),
+            Some(&dir.path().join("steering-angle-stream-proof.json")),
+            Some(&dir.path().join("native-actuator-profile-smoke.json")),
+            false,
+        )
+        .err()
+        .map(|error| error.to_string())
+        .ok_or("expected exact endpoint preflight rejection")?;
+
+        assert!(message.contains("lane manifest wheelbase endpoint selector"));
+        assert!(message.contains("native actuator-profile smoke"));
+        Ok(())
+    }
+
+    #[test]
+    fn validate_native_actuator_profile_preflight_requires_low_torque_and_steering() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_native_actuator_profile_prerequisite_receipts(dir.path())?;
+        fs::remove_file(dir.path().join("low-torque-proof.json"))?;
+
+        let missing_low_torque = validate_native_actuator_profile_smoke_preflight(
+            "hid-0x346E-0x0004-if2-0x0001-0x0004",
+            dir.path(),
+            Some(&dir.path().join("low-torque-proof.json")),
+            Some(&dir.path().join("steering-angle-stream-proof.json")),
+            Some(&dir.path().join("native-actuator-profile-smoke.json")),
+            false,
+        )
+        .err()
+        .map(|error| error.to_string())
+        .ok_or("expected missing low-torque rejection")?;
+        assert!(missing_low_torque.contains("same-lane low-torque proof"));
+
+        write_test_json_file(
+            &dir.path().join("low-torque-proof.json"),
+            &real_pidff_low_torque_receipt_for_lane(dir.path())?,
+        )?;
+        let mut steering_receipt =
+            steering_angle_stream_receipt_for_pid(dir.path(), product_ids::R5_V1);
+        steering_receipt["device"]["product_id"] = serde_json::json!("0x0014");
+        write_test_json_file(
+            &dir.path().join("steering-angle-stream-proof.json"),
+            &steering_receipt,
+        )?;
+        let mismatched_steering = validate_native_actuator_profile_smoke_preflight(
+            "hid-0x346E-0x0004-if2-0x0001-0x0004",
+            dir.path(),
+            Some(&dir.path().join("low-torque-proof.json")),
+            Some(&dir.path().join("steering-angle-stream-proof.json")),
+            Some(&dir.path().join("native-actuator-profile-smoke.json")),
+            false,
+        )
+        .err()
+        .map(|error| error.to_string())
+        .ok_or("expected steering PID mismatch rejection")?;
+        assert!(mismatched_steering.contains("steering proof PID"));
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn actuator_profile_smoke_actual_requires_exact_endpoint_before_hid_open() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_native_actuator_profile_prerequisite_receipts(dir.path())?;
+
+        let result = actuator_profile_smoke(ActuatorProfileSmokeRequest {
+            json: false,
+            selector: "0x346E:0x0004",
+            lane: dir.path(),
+            low_torque_proof: Some(&dir.path().join("low-torque-proof.json")),
+            steering_proof: Some(&dir.path().join("steering-angle-stream-proof.json")),
+            profile: MozaActuatorProfile::ConstantLowForce,
+            strategy: MozaLowTorqueStrategy::PidffBoundedEffect,
+            dry_run: false,
+            confirm_actuator_profile: true,
+            max_percent: 1.0,
+            duration_ms: 150,
+            json_out: Some(&dir.path().join("native-actuator-profile-smoke.json")),
+        })
+        .await;
+
+        let message = result
+            .err()
+            .map(|error| error.to_string())
+            .ok_or("expected exact endpoint preflight failure")?;
+        assert!(message.contains("lane manifest wheelbase endpoint selector"));
+        assert!(
+            !dir.path()
+                .join("native-actuator-profile-smoke.json")
+                .exists()
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn execute_pidff_actuator_profile_sequence_records_setup_and_cleanup() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        let receipt = successful_native_actuator_profile_receipt(dir.path())?;
+        write_test_json_file(
+            &dir.path().join("native-actuator-profile-smoke.json"),
+            &receipt,
+        )?;
+
+        let records = receipt
+            .get("command_log")
+            .and_then(Value::as_array)
+            .ok_or("expected actuator profile command log")?;
+        assert_eq!(records.len(), 4);
+        assert_eq!(json_u64(&receipt, "write_attempts"), Some(4));
+        assert_eq!(json_u64(&receipt, "writes_ok"), Some(4));
+        assert!(records.iter().all(|record| {
+            json_string(record, "report_id")
+                .map(|report_id| report_id != DIRECT_TORQUE_REPORT_ID)
+                .unwrap_or(false)
+        }));
+        assert!(records.iter().any(|record| {
+            json_string(record, "kind") == Some("final_stop_all")
+                && json_string(record, "payload_hex") == Some("0C04")
+        }));
+
+        let gate = verify_native_actuator_profile_smoke_gate(dir.path());
+        assert_eq!(
+            gate.status, "pass",
+            "expected native actuator gate pass: {}",
+            gate.details
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn verify_native_actuator_profile_gate_rejects_direct_report_log() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        let mut receipt = successful_native_actuator_profile_receipt(dir.path())?;
+        let records = receipt
+            .get_mut("command_log")
+            .and_then(Value::as_array_mut)
+            .ok_or("expected actuator profile command log")?;
+        let record = records
+            .get_mut(1)
+            .ok_or("expected bounded PIDFF command record")?;
+        record["report_id"] = serde_json::json!(DIRECT_TORQUE_REPORT_ID);
+        write_test_json_file(
+            &dir.path().join("native-actuator-profile-smoke.json"),
+            &receipt,
+        )?;
+
+        let gate = verify_native_actuator_profile_smoke_gate(dir.path());
+
+        assert_eq!(gate.status, "fail");
+        assert!(gate.details.contains("command_log_no_direct_report=false"));
+        Ok(())
+    }
+
+    #[test]
+    fn verify_native_actuator_profile_gate_rejects_missing_pidff_setup_proof() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        let mut receipt = successful_native_actuator_profile_receipt(dir.path())?;
+        receipt["pidff_effect_setup_proven"] = serde_json::json!(false);
+        write_test_json_file(
+            &dir.path().join("native-actuator-profile-smoke.json"),
+            &receipt,
+        )?;
+
+        let gate = verify_native_actuator_profile_smoke_gate(dir.path());
+
+        assert_eq!(gate.status, "fail");
+        assert!(
+            gate.details
+                .contains("pidff_effect_setup_proven=Some(false)")
         );
         Ok(())
     }
@@ -29706,6 +31728,22 @@ mod tests {
     }
 
     #[test]
+    fn verify_manifest_gate_accepts_progressed_manifest_for_lower_stage_summaries() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_test_json_file(
+            &dir.path().join("manifest.json"),
+            &sample_lane_manifest("openracing_control_ready", true, false),
+        )?;
+
+        let passive = verify_manifest_gate(dir.path(), MozaBundleStage::Passive);
+        let zero = verify_manifest_gate(dir.path(), MozaBundleStage::Zero);
+
+        assert_eq!(passive.status, "pass");
+        assert_eq!(zero.status, "pass");
+        Ok(())
+    }
+
+    #[test]
     fn verify_bundle_passive_rejects_manifest_pid_mismatch() -> TestResult {
         let dir = tempfile::tempdir()?;
         write_minimal_passive_bundle(dir.path())?;
@@ -31731,10 +33769,27 @@ mod tests {
         let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::SmokeReady);
         let commands = receipt.next_commands.join("\n");
         assert!(
+            commands.contains("wheelctl moza pre-output-readiness")
+                && !commands.contains("wheelctl telemetry record")
+                && !commands.contains("wheelctl moza simulator-ffb-smoke"),
+            "after low torque passes, guidance should wait for native steering/actuator proof before external telemetry: {commands}"
+        );
+
+        write_test_json_file(
+            &dir.path().join("steering-angle-stream-proof.json"),
+            &steering_angle_stream_receipt(dir.path()),
+        )?;
+        write_test_json_file(
+            &dir.path().join("native-actuator-profile-smoke.json"),
+            &native_actuator_profile_smoke_receipt(dir.path()),
+        )?;
+        let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::SmokeReady);
+        let commands = receipt.next_commands.join("\n");
+        assert!(
             commands.contains("wheelctl telemetry record")
                 && commands.contains("wheelctl moza simulator-telemetry-proof")
                 && !commands.contains("wheelctl moza simulator-ffb-smoke"),
-            "after low torque passes, guidance should advance only to telemetry: {commands}"
+            "after native control proofs pass, guidance should advance only to telemetry: {commands}"
         );
 
         write_simulator_artifacts(dir.path())?;
@@ -31912,7 +33967,7 @@ mod tests {
         );
 
         let mut commands = Vec::new();
-        push_smoke_ready_next_commands(dir.path(), &gates, &mut commands);
+        push_openracing_control_next_commands(dir.path(), &gates, &mut commands);
         let joined = commands.join("\n");
         assert!(
             joined.contains("wheelctl moza torque-test")
@@ -31937,7 +33992,7 @@ mod tests {
         }
 
         let mut actions = Vec::new();
-        push_smoke_ready_frontier_operator_action(dir.path(), &gates, &mut actions);
+        push_openracing_control_frontier_operator_action(dir.path(), &gates, &mut actions);
         let action_text = actions.join("\n");
         assert!(
             action_text.contains("bounded PIDFF low-torque proof")
@@ -31951,6 +34006,82 @@ mod tests {
     }
 
     #[test]
+    fn openracing_control_next_commands_suggest_native_actuator_after_pidff_steering() -> TestResult
+    {
+        let dir = tempfile::tempdir()?;
+        write_native_actuator_profile_prerequisite_receipts(dir.path())?;
+        let gates = [
+            BundleGateCheck::pass("init_off_handshake", "ok".to_string()),
+            BundleGateCheck::pass("init_standard_handshake", "ok".to_string()),
+            BundleGateCheck::pass("service_status_receipts", "ok".to_string()),
+            BundleGateCheck::pass("low_torque_bounded", "ok".to_string()),
+            BundleGateCheck::pass("steering_angle_stream_proof", "ok".to_string()),
+            BundleGateCheck::fail("native_actuator_profile_smoke", "missing".to_string()),
+        ];
+        let mut commands = Vec::new();
+        push_openracing_control_next_commands(dir.path(), &gates, &mut commands);
+        let joined = commands.join("\n");
+
+        assert!(
+            joined.contains("wheelctl moza actuator-profile-smoke")
+                && joined.contains("--strategy pidff-bounded-effect")
+                && joined.contains("--confirm-actuator-profile")
+                && joined.contains("native-actuator-profile-smoke.json"),
+            "native actuator frontier should suggest the bounded PIDFF native command: {joined}"
+        );
+        assert!(
+            !joined.contains("wheelctl telemetry record")
+                && !joined.contains("pit-house")
+                && !joined.contains("simulator-ffb-smoke"),
+            "native actuator guidance must not depend on external compatibility surfaces: {joined}"
+        );
+        for command in commands {
+            let command = command_with_test_placeholders(&command);
+            let args = split_generated_command(&command)?;
+            crate::Cli::try_parse_from(args).map_err(|error| {
+                format!("generated native actuator command failed to parse: {command}\n{error}")
+            })?;
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn openracing_control_next_commands_do_not_suggest_native_actuator_for_direct_low_torque()
+    -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_low_torque_prerequisite_receipts(dir.path())?;
+        write_test_json_file(
+            &dir.path().join("low-torque-proof.json"),
+            &real_low_torque_receipt_for_lane(dir.path(), 1.0)?,
+        )?;
+        write_test_json_file(
+            &dir.path().join("steering-angle-stream-proof.json"),
+            &steering_angle_stream_receipt(dir.path()),
+        )?;
+        let gates = [
+            BundleGateCheck::pass("init_off_handshake", "ok".to_string()),
+            BundleGateCheck::pass("init_standard_handshake", "ok".to_string()),
+            BundleGateCheck::pass("service_status_receipts", "ok".to_string()),
+            BundleGateCheck::pass("low_torque_bounded", "ok".to_string()),
+            BundleGateCheck::pass("steering_angle_stream_proof", "ok".to_string()),
+            BundleGateCheck::fail("native_actuator_profile_smoke", "missing".to_string()),
+        ];
+        let mut commands = Vec::new();
+        push_openracing_control_next_commands(dir.path(), &gates, &mut commands);
+        let joined = commands.join("\n");
+
+        assert!(
+            !joined.contains("wheelctl moza actuator-profile-smoke"),
+            "native actuator command must not be suggested from a direct-report low-torque receipt: {joined}"
+        );
+        assert!(
+            joined.contains("wheelctl moza pre-output-readiness"),
+            "direct-report low-torque should fall back to readiness guidance: {joined}"
+        );
+        Ok(())
+    }
+
+    #[test]
     fn verify_bundle_smoke_operator_actions_match_current_frontier() -> TestResult {
         let dir = tempfile::tempdir()?;
         write_minimal_passive_bundle(dir.path())?;
@@ -31959,7 +34090,7 @@ mod tests {
         let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::SmokeReady);
         let actions = receipt.operator_actions.join("\n");
         assert!(
-            actions.contains("Current smoke-ready frontier: staged init-off")
+            actions.contains("Current OpenRacing-control frontier: staged init-off")
                 && actions.contains("feature reports 0x03 and 0x11")
                 && actions.contains("11FF0000")
                 && actions.contains("wheel is clear")
@@ -31975,7 +34106,7 @@ mod tests {
         let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::SmokeReady);
         let actions = receipt.operator_actions.join("\n");
         assert!(
-            actions.contains("Current smoke-ready frontier: staged init-standard")
+            actions.contains("Current OpenRacing-control frontier: staged init-standard")
                 && actions.contains("11000000")
                 && actions.contains("same-lane init-off receipt")
                 && actions.contains("do not run low torque, simulator FFB"),
@@ -31993,9 +34124,9 @@ mod tests {
         let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::SmokeReady);
         let actions = receipt.operator_actions.join("\n");
         assert!(
-            actions
-                .contains("Current smoke-ready frontier: refresh service/status/support receipts")
-                && actions.contains("safe_to_send_torque=false")
+            actions.contains(
+                "Current OpenRacing-control frontier: refresh service/status/support receipts"
+            ) && actions.contains("safe_to_send_torque=false")
                 && actions.contains("no feature/output/serial/firmware actions"),
             "service-status frontier should keep readiness diagnostic-only: {actions}"
         );
@@ -32004,7 +34135,7 @@ mod tests {
         let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::SmokeReady);
         let actions = receipt.operator_actions.join("\n");
         assert!(
-            actions.contains("Current smoke-ready frontier: bounded low-torque proof")
+            actions.contains("Current OpenRacing-control frontier: bounded low-torque proof")
                 && actions.contains("first nonzero torque step")
                 && actions.contains("explicit operator confirmation")
                 && actions.contains("trusted direct report 0x20 metadata")
@@ -32020,10 +34151,38 @@ mod tests {
         let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::SmokeReady);
         let actions = receipt.operator_actions.join("\n");
         assert!(
-            actions.contains("Current smoke-ready frontier: simulator telemetry proof")
+            actions.contains(
+                "Current OpenRacing-control frontier: native steering angle stream proof"
+            ) && actions.contains("no output reports")
+                && actions.contains("no FFB writes"),
+            "native steering frontier should stay output-free: {actions}"
+        );
+
+        write_test_json_file(
+            &dir.path().join("steering-angle-stream-proof.json"),
+            &steering_angle_stream_receipt(dir.path()),
+        )?;
+        let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::SmokeReady);
+        let actions = receipt.operator_actions.join("\n");
+        assert!(
+            actions.contains(
+                "Current OpenRacing-control frontier: native PIDFF actuator-profile smoke"
+            ) && actions.contains("final PIDFF Stop All cleanup")
+                && actions.contains("SimHub and Pit House out of this native-control claim"),
+            "native actuator frontier should stay separate from external adapters: {actions}"
+        );
+
+        write_test_json_file(
+            &dir.path().join("native-actuator-profile-smoke.json"),
+            &native_actuator_profile_smoke_receipt(dir.path()),
+        )?;
+        let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::SmokeReady);
+        let actions = receipt.operator_actions.join("\n");
+        assert!(
+            actions.contains("Current external-compatibility frontier: simulator telemetry proof")
                 && actions.contains("one real simulator telemetry path only")
                 && actions.contains("must not send Moza output reports"),
-            "telemetry frontier should stay output-free: {actions}"
+            "telemetry frontier should stay output-free after native control proofs: {actions}"
         );
 
         write_simulator_artifacts(dir.path())?;
@@ -32031,7 +34190,8 @@ mod tests {
         let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::SmokeReady);
         let actions = receipt.operator_actions.join("\n");
         assert!(
-            actions.contains("Current smoke-ready frontier: bounded simulator FFB smoke")
+            actions
+                .contains("Current external-compatibility frontier: bounded simulator FFB smoke")
                 && actions.contains("watchdog enabled")
                 && actions.contains("duration and force bounded")
                 && actions.contains("do not claim Pit House coexistence"),
@@ -32045,7 +34205,8 @@ mod tests {
         let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::SmokeReady);
         let actions = receipt.operator_actions.join("\n");
         assert!(
-            actions.contains("Current smoke-ready frontier: Pit House coexistence proof")
+            actions
+                .contains("Current external-compatibility frontier: Pit House coexistence proof")
                 && actions.contains("Pit House is not installed")
                 && actions.contains("leave smoke-ready blocked")
                 && actions.contains("firmware/update pages must be refused")
@@ -32079,7 +34240,7 @@ mod tests {
         ];
         let mut actions = Vec::new();
 
-        push_smoke_ready_frontier_operator_action(dir.path(), &gates, &mut actions);
+        push_openracing_control_frontier_operator_action(dir.path(), &gates, &mut actions);
 
         let actions = actions.join("\n");
         assert!(
@@ -32188,8 +34349,7 @@ mod tests {
         let service_frontier_receipt =
             verify_bundle_dir(service_frontier.path(), MozaBundleStage::SmokeReady);
         let ffb_frontier = tempfile::tempdir()?;
-        write_minimal_passive_bundle(ffb_frontier.path())?;
-        write_zero_stage_receipts(ffb_frontier.path())?;
+        write_openracing_control_bundle(ffb_frontier.path())?;
         write_simulator_artifacts(ffb_frontier.path())?;
         write_service_status_artifacts(ffb_frontier.path())?;
         let ffb_frontier_receipt =
@@ -32270,8 +34430,7 @@ mod tests {
         let service_frontier_receipt =
             verify_bundle_dir(service_frontier.path(), MozaBundleStage::SmokeReady);
         let ffb_frontier = tempfile::tempdir()?;
-        write_minimal_passive_bundle(ffb_frontier.path())?;
-        write_zero_stage_receipts(ffb_frontier.path())?;
+        write_openracing_control_bundle(ffb_frontier.path())?;
         write_simulator_artifacts(ffb_frontier.path())?;
         write_service_status_artifacts(ffb_frontier.path())?;
         let ffb_frontier_receipt =
@@ -33507,6 +35666,198 @@ mod tests {
         Ok(())
     }
 
+    #[test]
+    fn verify_bundle_openracing_control_ready_accepts_native_receipts_without_external_compatibility()
+    -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_openracing_control_bundle(dir.path())?;
+
+        let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::OpenRacingControlReady);
+
+        assert!(receipt.success);
+        for native_gate in [
+            "init_off_handshake",
+            "init_standard_handshake",
+            "service_status_receipts",
+            "low_torque_bounded",
+            "steering_angle_stream_proof",
+            "native_actuator_profile_smoke",
+        ] {
+            assert!(
+                receipt
+                    .gates
+                    .iter()
+                    .any(|gate| gate.name == native_gate && gate.status == "pass"),
+                "native gate {native_gate} should pass in openracing-control-ready receipt"
+            );
+        }
+        for external_gate in [
+            "pit_house_coexistence",
+            "simulator_telemetry",
+            "simulator_ffb_bounded",
+        ] {
+            assert!(
+                !receipt.gates.iter().any(|gate| gate.name == external_gate),
+                "external compatibility gate {external_gate} must not be part of openracing-control-ready"
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn verify_bundle_openracing_control_ready_reports_missing_native_receipts_promptly()
+    -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_openracing_control_bundle(dir.path())?;
+        fs::remove_file(dir.path().join("steering-angle-stream-proof.json"))?;
+        fs::remove_file(dir.path().join("native-actuator-profile-smoke.json"))?;
+
+        let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::OpenRacingControlReady);
+
+        assert!(!receipt.success);
+        assert_eq!(receipt.missing_artifacts, 2);
+        for native_artifact in [
+            "steering-angle-stream-proof.json",
+            "native-actuator-profile-smoke.json",
+        ] {
+            assert!(
+                receipt.artifacts.iter().any(|artifact| {
+                    artifact.path == native_artifact && artifact.status == "missing"
+                }),
+                "missing native artifact should be reported: {native_artifact}"
+            );
+        }
+        for native_gate in [
+            "steering_angle_stream_proof",
+            "native_actuator_profile_smoke",
+        ] {
+            assert!(
+                receipt
+                    .gates
+                    .iter()
+                    .any(|gate| gate.name == native_gate && gate.status == "fail"),
+                "missing native gate should fail: {native_gate}"
+            );
+        }
+        assert!(
+            receipt
+                .gates
+                .iter()
+                .any(|gate| gate.name == "service_status_receipts" && gate.status == "pass"),
+            "stale support-bundle freshness should not hide the same-stage missing artifact blockers"
+        );
+        for external_gate in [
+            "pit_house_coexistence",
+            "simulator_telemetry",
+            "simulator_ffb_bounded",
+        ] {
+            assert!(
+                !receipt.gates.iter().any(|gate| gate.name == external_gate),
+                "external compatibility gate {external_gate} must not be part of openracing-control-ready"
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn verify_bundle_openracing_control_ready_reports_invalid_native_receipt_promptly() -> TestResult
+    {
+        let dir = tempfile::tempdir()?;
+        write_openracing_control_bundle(dir.path())?;
+        fs::write(
+            dir.path().join("native-actuator-profile-smoke.json"),
+            "{not-json",
+        )?;
+
+        let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::OpenRacingControlReady);
+
+        assert!(!receipt.success);
+        assert_eq!(receipt.missing_artifacts, 0);
+        assert_eq!(receipt.invalid_artifacts, 1);
+        assert!(
+            receipt.artifacts.iter().any(|artifact| {
+                artifact.path == "native-actuator-profile-smoke.json"
+                    && artifact.status == "invalid"
+            }),
+            "invalid native actuator receipt should be reported"
+        );
+        assert!(
+            receipt.gates.iter().any(|gate| {
+                gate.name == "native_actuator_profile_smoke" && gate.status == "fail"
+            }),
+            "invalid native actuator receipt should fail its gate"
+        );
+        assert!(
+            receipt
+                .gates
+                .iter()
+                .any(|gate| gate.name == "service_status_receipts" && gate.status == "pass"),
+            "stale support-bundle freshness should not hide invalid same-stage artifact blockers"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn verify_bundle_smoke_ready_still_requires_external_compatibility_gates() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_openracing_control_bundle(dir.path())?;
+
+        let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::SmokeReady);
+
+        assert!(!receipt.success);
+        for external_gate in [
+            "pit_house_coexistence",
+            "simulator_telemetry",
+            "simulator_ffb_bounded",
+        ] {
+            assert!(
+                receipt
+                    .gates
+                    .iter()
+                    .any(|gate| gate.name == external_gate && gate.status == "fail"),
+                "smoke-ready must still fail missing external gate {external_gate}"
+            );
+        }
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn promote_manifest_updates_openracing_control_claims_without_simulator_validation()
+    -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_openracing_control_bundle(dir.path())?;
+        write_test_json_file(
+            &dir.path().join("manifest.json"),
+            &sample_lane_manifest("zero_torque_ready", false, false),
+        )?;
+        let receipt_path = dir
+            .path()
+            .join("manifest-promotion-openracing-control.json");
+
+        promote_manifest(
+            false,
+            dir.path(),
+            MozaBundleStage::OpenRacingControlReady,
+            Some(&receipt_path),
+        )
+        .await?;
+
+        let manifest = read_json_path(&dir.path().join("manifest.json"))?;
+        let receipt = read_json_path(&receipt_path)?;
+        assert_eq!(
+            json_string(&manifest, "completion_state"),
+            Some("openracing_control_ready")
+        );
+        assert_eq!(json_bool(&manifest, "hardware_validated"), Some(true));
+        assert_eq!(json_bool(&manifest, "simulator_validated"), Some(false));
+        assert_eq!(json_bool(&manifest, "release_ready"), Some(false));
+        assert_eq!(
+            json_string(&receipt, "stage"),
+            Some("openracing_control_ready")
+        );
+        Ok(())
+    }
+
     #[tokio::test]
     async fn promote_manifest_updates_smoke_claims_after_live_verification() -> TestResult {
         let dir = tempfile::tempdir()?;
@@ -33621,6 +35972,22 @@ mod tests {
         write_stage_audit_receipts(dir.path(), MozaBundleStage::SmokeReady)?;
 
         let receipt = audit_lane_dir(dir.path(), MozaBundleStage::SmokeReady);
+
+        assert!(receipt.success);
+        assert!(receipt.live_verification_success);
+        assert_eq!(receipt.missing_receipts, 0);
+        assert_eq!(receipt.invalid_receipts, 0);
+        assert_eq!(receipt.receipt_checks.len(), 8);
+        Ok(())
+    }
+
+    #[test]
+    fn audit_lane_accepts_complete_openracing_control_ready_receipts() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_openracing_control_bundle(dir.path())?;
+        write_stage_audit_receipts(dir.path(), MozaBundleStage::OpenRacingControlReady)?;
+
+        let receipt = audit_lane_dir(dir.path(), MozaBundleStage::OpenRacingControlReady);
 
         assert!(receipt.success);
         assert!(receipt.live_verification_success);
@@ -33975,6 +36342,64 @@ mod tests {
             gate.details
         );
         Ok(())
+    }
+
+    #[test]
+    fn manifest_pid_gate_uses_shape_only_support_validation() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_smoke_ready_bundle(dir.path())?;
+        let path = dir.path().join("support-bundle.json");
+        let mut receipt = read_json_path(&path)?;
+        let readiness = receipt
+            .pointer_mut("/moza_lane/readiness")
+            .and_then(Value::as_object_mut)
+            .ok_or("expected support readiness")?;
+        readiness.insert(
+            "highest_passing_stage".to_string(),
+            serde_json::json!("smoke_ready"),
+        );
+        readiness.insert("next_required_stage".to_string(), Value::Null);
+        readiness.insert(
+            "ready_for_real_hardware_smoke".to_string(),
+            serde_json::json!(true),
+        );
+        write_test_json_file(&path, &receipt)?;
+
+        let manifest_gate = verify_manifest_r5_pid_consistency_gate_with_support_validation(
+            dir.path(),
+            MozaBundleStage::SmokeReady,
+            SupportBundleValidationMode::Fresh,
+        );
+        let service_gate = verify_service_status_gate(dir.path());
+
+        assert_eq!(manifest_gate.status, "pass");
+        assert!(
+            manifest_gate
+                .details
+                .contains("service-status:0x0014,0x0014,0x0014"),
+            "expected manifest PID gate to read service PID shape without fresh support recursion, got {}",
+            manifest_gate.details
+        );
+        assert_eq!(service_gate.status, "fail");
+        assert!(
+            service_gate.details.contains("moza_lane_status_ok=false"),
+            "expected dedicated service gate to reject stale support readiness, got {}",
+            service_gate.details
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn post_init_service_status_accepts_openracing_control_observe_state() {
+        let status = serde_json::json!({
+            "safety_state": "lane_openracing_control_receipts_observed",
+            "ffb_ready": false,
+            "safe_to_send_torque": false,
+            "direct_mode_allowed": false,
+            "high_torque_allowed": false
+        });
+
+        assert!(moza_status_reports_post_init_safe_state(&status));
     }
 
     #[test]
