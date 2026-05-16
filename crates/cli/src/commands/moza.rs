@@ -6550,8 +6550,12 @@ fn native_visible_smoke_failed_real_receipt_action(lane: &Path) -> Option<String
         let output_authorized = optional_bool_text(json_bool(&plan, "hardware_output_authorized"));
         let force_escalation_authorized =
             optional_bool_text(json_bool(&plan, "force_escalation_authorized"));
+        let profile_design_status = plan
+            .get("intentional_profile_design")
+            .and_then(|design| json_string(design, "status"))
+            .unwrap_or("missing_profile_design");
         return Some(format!(
-            "Current native-visible frontier: native actuator response is recorded, but visible-motion remains unclaimed: movement_observed={movement_observed}, angle_delta_degrees={delta}, movement_threshold_degrees={threshold}. Final Stop All sent={stop_all_sent}, no direct report 0x20={no_direct}, no high torque={no_high_torque}. Follow-up plan exists at {NATIVE_VISIBLE_FOLLOW_UP_PLAN_FILE}: review_decision={review_decision}, hardware_output_authorized={output_authorized}, force_escalation_authorized={force_escalation_authorized}. Do not run output until the follow-up requirements are complete and a fresh bench-clear is recorded for the exact next output command. Pit House, SimHub, and simulators are not required for this native diagnosis."
+            "Current native-visible frontier: native actuator response is recorded, but visible-motion remains unclaimed: movement_observed={movement_observed}, angle_delta_degrees={delta}, movement_threshold_degrees={threshold}. Final Stop All sent={stop_all_sent}, no direct report 0x20={no_direct}, no high torque={no_high_torque}. Follow-up plan exists at {NATIVE_VISIBLE_FOLLOW_UP_PLAN_FILE}: review_decision={review_decision}, profile_design_status={profile_design_status}, hardware_output_authorized={output_authorized}, force_escalation_authorized={force_escalation_authorized}. Do not run output until the follow-up requirements are complete and a fresh bench-clear is recorded for the exact next output command. Pit House, SimHub, and simulators are not required for this native diagnosis."
         ));
     }
     Some(format!(
@@ -17547,6 +17551,40 @@ fn moza_receipt_template(kind: MozaReceiptTemplateKind) -> Value {
                 "final_stop_all_sent": "copy_from_failed_receipt",
                 "no_direct_torque_reports": "copy_from_failed_receipt",
                 "no_high_torque": "copy_from_failed_receipt"
+            },
+            "response_classification": {
+                "classification": "actuator_response_recorded_visible_motion_unproven",
+                "interpretation": "Small measured steering delta is positive native PIDFF response evidence only; it is not a visible-motion pass and not evidence that the output path is dead.",
+                "response_threshold_degrees": "set_by_verifier",
+                "visible_threshold_degrees": "copy_from_failed_receipt"
+            },
+            "intentional_profile_design": {
+                "status": "no_output_authorized",
+                "objective": "Record the next visible-motion profile decision before any output command is authorized.",
+                "current_cli_limits": {
+                    "profile_options": ["constant-low-force"],
+                    "strategy": "pidff-bounded-effect",
+                    "max_percent_limit": 5,
+                    "duration_ms_limit": 2000,
+                    "direct_report_0x20_allowed": false,
+                    "high_torque_allowed": false,
+                    "serial_firmware_dfu_allowed": false
+                },
+                "candidate_profiles": [
+                    {
+                        "name": "repeat_current_profile_after_specific_setup_fix",
+                        "status": "not_authorized",
+                        "profile": "constant-low-force",
+                        "max_percent": 5,
+                        "duration_ms": 2000,
+                        "use_only_if": "Bench, setup, or FFB-mode review identifies a specific reason the previous 5 percent response stayed below the visible threshold."
+                    },
+                    {
+                        "name": "higher_longer_or_shaped_profile",
+                        "status": "requires_separate_software_and_safety_plan",
+                        "reason": "The current visible smoke command is capped at 5 percent and 2000 ms and implements only constant-low-force."
+                    }
+                ]
             },
             "required_before_next_output": [
                 {
@@ -32932,6 +32970,20 @@ mod tests {
             json_string(&follow_up, "prior_receipt"),
             Some("native-actuator-visible-smoke.json")
         );
+        let Some(profile_design) = follow_up.get("intentional_profile_design") else {
+            return Err("visible follow-up template missing intentional_profile_design".into());
+        };
+        assert_eq!(
+            json_string(profile_design, "status"),
+            Some("no_output_authorized")
+        );
+        let Some(limits) = profile_design.get("current_cli_limits") else {
+            return Err("visible follow-up template missing current_cli_limits".into());
+        };
+        assert_eq!(json_u64(limits, "max_percent_limit"), Some(5));
+        assert_eq!(json_u64(limits, "duration_ms_limit"), Some(2000));
+        assert_eq!(json_bool(limits, "direct_report_0x20_allowed"), Some(false));
+        assert_eq!(json_bool(limits, "high_torque_allowed"), Some(false));
         assert_eq!(json_bool(&telemetry, "success"), Some(false));
         assert_eq!(json_bool(&ffb, "success"), Some(false));
         assert_eq!(json_bool(&telemetry, "no_ffb_writes"), Some(true));
@@ -37156,6 +37208,8 @@ mod tests {
         follow_up_plan["review_decision"] = serde_json::json!("no_output_retry_authorized");
         follow_up_plan["hardware_output_authorized"] = serde_json::json!(false);
         follow_up_plan["force_escalation_authorized"] = serde_json::json!(false);
+        follow_up_plan["intentional_profile_design"]["status"] =
+            serde_json::json!("profile_design_recorded_no_output_authorized");
         write_test_json_file(
             &dir.path().join(NATIVE_VISIBLE_FOLLOW_UP_PLAN_FILE),
             &follow_up_plan,
@@ -37165,6 +37219,8 @@ mod tests {
         assert!(
             actions.contains("Follow-up plan exists")
                 && actions.contains("review_decision=no_output_retry_authorized")
+                && actions
+                    .contains("profile_design_status=profile_design_recorded_no_output_authorized")
                 && actions.contains("hardware_output_authorized=false")
                 && actions
                     .contains("fresh bench-clear is recorded for the exact next output command"),
