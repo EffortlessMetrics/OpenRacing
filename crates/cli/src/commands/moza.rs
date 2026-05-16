@@ -13702,7 +13702,7 @@ fn support_artifact_index_is_diagnostic(artifacts: &[Value]) -> bool {
                 && support_artifact_index_status_is_consistent(artifact)
         })
     }) && lane_artifact_index_requirements()
-        .filter(|required| support_artifact_required_for_diagnostic_shape(required))
+        .filter(support_artifact_required_for_diagnostic_shape)
         .all(|required| {
             support_artifact_index_contains_required_shape_artifact(artifacts, &required)
         })
