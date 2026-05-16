@@ -168,7 +168,7 @@ impl CurveType {
                 }
                 let log_base = base.ln();
                 let value = 1.0 + input * (base - 1.0);
-                (value.ln() / log_base) / 1.0
+                value.ln() / log_base
             }
             CurveType::Bezier(curve) => curve.map(input),
             CurveType::Custom(lut) => lut.lookup(input),
