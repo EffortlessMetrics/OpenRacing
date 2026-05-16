@@ -39,9 +39,11 @@ impl ShifterInput {
 
     pub fn from_sequential(up: bool, down: bool, current_gear: i32) -> Self {
         let gear = if up {
-            GearPosition::new((current_gear + 1).min(MAX_GEARS as i32))
+            // saturating_add prevents panic at i32::MAX before the clamp.
+            GearPosition::new(current_gear.saturating_add(1).min(MAX_GEARS as i32))
         } else if down {
-            GearPosition::new((current_gear - 1).max(1))
+            // saturating_sub prevents panic at i32::MIN before the clamp.
+            GearPosition::new(current_gear.saturating_sub(1).max(1))
         } else {
             GearPosition::new(current_gear)
         };
