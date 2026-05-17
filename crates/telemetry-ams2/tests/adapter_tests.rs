@@ -3,25 +3,14 @@
 //! AMS2 uses Windows shared memory, so most behavioral tests are adapter-level
 //! (game_id, update_rate, etc.). Shared memory tests require a running AMS2 instance.
 
+mod common;
+
+use common::{default_shared_memory, shared_memory_to_bytes};
 use racing_wheel_telemetry_adapters::ams2::{AMS2SharedMemory, DrsState, HighestFlag, PitMode};
 use racing_wheel_telemetry_ams2::{AMS2Adapter, TelemetryAdapter};
 use std::time::Duration;
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
-
-/// Helper: serialize an `AMS2SharedMemory` to its raw byte representation.
-fn shared_memory_to_bytes(data: &AMS2SharedMemory) -> Vec<u8> {
-    let size = std::mem::size_of::<AMS2SharedMemory>();
-    let ptr = data as *const AMS2SharedMemory as *const u8;
-    // SAFETY: AMS2SharedMemory is repr(C) and fully initialized via Default.
-    unsafe { std::slice::from_raw_parts(ptr, size) }.to_vec()
-}
-
-/// Helper: create a default AMS2SharedMemory (avoids private-field issues with
-/// struct update syntax).
-fn default_shared_memory() -> AMS2SharedMemory {
-    AMS2SharedMemory::default()
-}
 
 #[test]
 fn test_game_id() {

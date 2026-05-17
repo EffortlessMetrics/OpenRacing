@@ -3,37 +3,13 @@
 //! These tests lock down the normalized output format so that any change to
 //! the adapter's output is caught as a snapshot diff.
 
-use racing_wheel_telemetry_adapters::ams2::{AMS2SharedMemory, HighestFlag, PitMode, SessionState};
-use racing_wheel_telemetry_ams2::{AMS2Adapter, TelemetryAdapter};
+mod common;
+
+use common::{adapter, default_shared_memory, shared_memory_to_bytes, write_fixed_str};
+use racing_wheel_telemetry_adapters::ams2::{HighestFlag, PitMode, SessionState};
+use racing_wheel_telemetry_ams2::TelemetryAdapter;
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-fn adapter() -> AMS2Adapter {
-    AMS2Adapter::new()
-}
-
-fn shared_memory_to_bytes(data: &AMS2SharedMemory) -> Vec<u8> {
-    let size = std::mem::size_of::<AMS2SharedMemory>();
-    let ptr = data as *const AMS2SharedMemory as *const u8;
-    // SAFETY: AMS2SharedMemory is repr(C) and fully initialized via Default.
-    unsafe { std::slice::from_raw_parts(ptr, size) }.to_vec()
-}
-
-fn default_shared_memory() -> AMS2SharedMemory {
-    AMS2SharedMemory::default()
-}
-
-fn set_car_name(data: &mut AMS2SharedMemory, name: &[u8]) {
-    data.car_name[..name.len()].copy_from_slice(name);
-}
-
-fn set_track_location(data: &mut AMS2SharedMemory, name: &[u8]) {
-    data.track_location[..name.len()].copy_from_slice(name);
-}
 
 // ---------------------------------------------------------------------------
 // Snapshot tests
@@ -51,8 +27,8 @@ fn snapshot_ams2_gt3_race() -> TestResult {
     data.highest_flag = HighestFlag::Green as u32;
 
     // Car identity
-    set_car_name(&mut data, b"mclaren_720s_gt3");
-    set_track_location(&mut data, b"interlagos");
+    write_fixed_str(&mut data.car_name, "mclaren_720s_gt3");
+    write_fixed_str(&mut data.track_location, "interlagos");
 
     // Motion
     data.speed = 55.5; // ~200 km/h
@@ -100,8 +76,8 @@ fn snapshot_ams2_wet_conditions() -> TestResult {
     data.highest_flag = HighestFlag::Yellow as u32;
 
     // Car identity
-    set_car_name(&mut data, b"porsche_911_gt3_r");
-    set_track_location(&mut data, b"spa_francorchamps");
+    write_fixed_str(&mut data.car_name, "porsche_911_gt3_r");
+    write_fixed_str(&mut data.track_location, "spa_francorchamps");
 
     // Motion — slower in the wet
     data.speed = 34.7; // ~125 km/h
@@ -150,8 +126,8 @@ fn snapshot_ams2_practice_session() -> TestResult {
     data.pit_mode = PitMode::InGarage as u32;
 
     // Car identity
-    set_car_name(&mut data, b"ferrari_488_gt3_evo");
-    set_track_location(&mut data, b"nurburgring_gp");
+    write_fixed_str(&mut data.car_name, "ferrari_488_gt3_evo");
+    write_fixed_str(&mut data.track_location, "nurburgring_gp");
 
     // Motion — stationary
     data.speed = 0.0;

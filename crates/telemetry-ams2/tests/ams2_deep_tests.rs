@@ -4,6 +4,12 @@
 //! exclusivity, weather/tire edge cases, boost pressure, crash state,
 //! extended data completeness, and shared memory struct integrity.
 
+mod common;
+
+use common::{
+    default_shared_memory as default_mem, shared_memory_to_bytes as to_bytes,
+    write_fixed_str as write_str,
+};
 use racing_wheel_telemetry_adapters::ams2::{
     AMS2Adapter, AMS2SharedMemory, DrsState, GameState, HighestFlag, PitMode, RaceState,
     SessionState,
@@ -11,24 +17,6 @@ use racing_wheel_telemetry_adapters::ams2::{
 use racing_wheel_telemetry_ams2::TelemetryAdapter;
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
-
-fn to_bytes(data: &AMS2SharedMemory) -> Vec<u8> {
-    let size = std::mem::size_of::<AMS2SharedMemory>();
-    let ptr = data as *const AMS2SharedMemory as *const u8;
-    // SAFETY: AMS2SharedMemory is repr(C) and fully initialized via Default.
-    unsafe { std::slice::from_raw_parts(ptr, size) }.to_vec()
-}
-
-fn write_str(buf: &mut [u8; 64], s: &str) {
-    let bytes = s.as_bytes();
-    let len = bytes.len().min(63);
-    buf[..len].copy_from_slice(&bytes[..len]);
-    buf[len] = 0;
-}
-
-fn default_mem() -> AMS2SharedMemory {
-    AMS2SharedMemory::default()
-}
 
 // ── Session state enum coverage ──────────────────────────────────────────────
 

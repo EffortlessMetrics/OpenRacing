@@ -3,30 +3,16 @@
 //! Covers packet parsing, normalization edge cases, flag handling,
 //! tire data, fuel calculations, and game-specific AMS2 features.
 
+mod common;
+
+use common::{
+    default_shared_memory as default_mem, shared_memory_to_bytes as to_bytes,
+    write_fixed_str as write_str,
+};
 use racing_wheel_telemetry_adapters::ams2::{AMS2SharedMemory, DrsState, HighestFlag, PitMode};
 use racing_wheel_telemetry_ams2::{AMS2Adapter, TelemetryAdapter};
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
-
-/// Serialize an `AMS2SharedMemory` to raw bytes for the normalize() API.
-fn to_bytes(data: &AMS2SharedMemory) -> Vec<u8> {
-    let size = std::mem::size_of::<AMS2SharedMemory>();
-    let ptr = data as *const AMS2SharedMemory as *const u8;
-    // SAFETY: AMS2SharedMemory is repr(C) and fully initialized.
-    unsafe { std::slice::from_raw_parts(ptr, size) }.to_vec()
-}
-
-fn write_str(buf: &mut [u8; 64], s: &str) {
-    let bytes = s.as_bytes();
-    let len = bytes.len().min(63);
-    buf[..len].copy_from_slice(&bytes[..len]);
-    buf[len] = 0;
-}
-
-/// Create a default AMS2SharedMemory (avoids private-field issues).
-fn default_mem() -> AMS2SharedMemory {
-    AMS2SharedMemory::default()
-}
 
 // ── Packet parsing tests ─────────────────────────────────────────────────────
 
