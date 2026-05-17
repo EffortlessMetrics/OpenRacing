@@ -84,6 +84,44 @@ pub const INFINITE_DURATION: u16 = 0xFFFF;
 /// Condition hardcoded values (from `condition_values[]` in the driver).
 pub const CONDITION_HARDCODED: [u8; 8] = [0xfe, 0xff, 0xfe, 0xff, 0xfe, 0xff, 0xfe, 0xff];
 
+#[inline]
+fn write_bytes<const N: usize>(buf: &mut [u8], offset: usize, bytes: [u8; N]) {
+    buf[offset..offset + N].copy_from_slice(&bytes);
+}
+
+#[inline]
+fn write_u16(buf: &mut [u8], offset: usize, value: u16) {
+    write_bytes(buf, offset, value.to_le_bytes());
+}
+
+#[inline]
+fn write_i16(buf: &mut [u8], offset: usize, value: i16) {
+    write_bytes(buf, offset, value.to_le_bytes());
+}
+
+#[inline]
+fn write_header(buf: &mut [u8], effect_id: u8, opcode: u8) {
+    write_bytes(buf, 0, encode_header(effect_id, opcode));
+}
+
+#[inline]
+fn write_envelope(buf: &mut [u8], offset: usize, envelope: &Envelope) {
+    write_bytes(buf, offset, envelope.encode());
+}
+
+#[inline]
+fn write_timing(buf: &mut [u8], offset: usize, duration: u16, effect_offset: u16) {
+    write_bytes(
+        buf,
+        offset,
+        Timing {
+            duration,
+            offset: effect_offset,
+        }
+        .encode(),
+    );
+}
+
 /// Spring max saturation.
 pub const SPRING_MAX_SATURATION: u16 = 0x6aa6;
 
@@ -140,10 +178,10 @@ impl Envelope {
     /// Encode to 8 bytes (LE16 × 4).
     pub fn encode(&self) -> [u8; 8] {
         let mut buf = [0u8; 8];
-        buf[0..2].copy_from_slice(&self.attack_length.to_le_bytes());
-        buf[2..4].copy_from_slice(&self.attack_level.to_le_bytes());
-        buf[4..6].copy_from_slice(&self.fade_length.to_le_bytes());
-        buf[6..8].copy_from_slice(&self.fade_level.to_le_bytes());
+        write_u16(&mut buf, 0, self.attack_length);
+        write_u16(&mut buf, 2, self.attack_level);
+        write_u16(&mut buf, 4, self.fade_length);
+        write_u16(&mut buf, 6, self.fade_level);
         buf
     }
 }
@@ -168,17 +206,15 @@ impl Timing {
         }
     }
 
-    /// Encode to 9 bytes: `[0x4f, dur_lo, dur_hi, 0, 0, off_lo, off_hi, 0, 0xff, 0xff]`.
+    /// Encode to 10 bytes: `[0x4f, dur_lo, dur_hi, 0, 0, off_lo, off_hi, 0, 0xff, 0xff]`.
     pub fn encode(&self) -> [u8; 10] {
         let mut buf = [0u8; 10];
         buf[0] = TIMING_START_MARKER;
-        buf[1..3].copy_from_slice(&self.duration.to_le_bytes());
+        write_u16(&mut buf, 1, self.duration);
         // buf[3..5] = zeroes
-        buf[5..7].copy_from_slice(&self.offset.to_le_bytes());
+        write_u16(&mut buf, 5, self.offset);
         // buf[7] = zero
-        let end = TIMING_END_MARKER.to_le_bytes();
-        buf[8] = end[0];
-        buf[9] = end[1];
+        write_u16(&mut buf, 8, TIMING_END_MARKER);
         buf
     }
 }
@@ -224,13 +260,11 @@ pub fn encode_constant_upload(
     offset: u16,
 ) -> [u8; 24] {
     let mut buf = [0u8; 24];
-    let hdr = encode_header(effect_id, 0x6a);
-    buf[0..3].copy_from_slice(&hdr);
-    buf[3..5].copy_from_slice(&level.to_le_bytes());
-    buf[5..13].copy_from_slice(&envelope.encode());
+    write_header(&mut buf, effect_id, 0x6a);
+    write_i16(&mut buf, 3, level);
+    write_envelope(&mut buf, 5, envelope);
     // buf[13] = 0x00
-    let timing = Timing { duration, offset };
-    buf[14..24].copy_from_slice(&timing.encode());
+    write_timing(&mut buf, 14, duration, offset);
     buf
 }
 
@@ -254,14 +288,13 @@ pub fn encode_constant_modify(
     offset: u16,
 ) -> [u8; 19] {
     let mut buf = [0u8; 19];
-    let hdr = encode_header(effect_id, 0x6a);
-    buf[0..3].copy_from_slice(&hdr);
-    buf[3..5].copy_from_slice(&level.to_le_bytes());
-    buf[5..13].copy_from_slice(&envelope.encode());
+    write_header(&mut buf, effect_id, 0x6a);
+    write_i16(&mut buf, 3, level);
+    write_envelope(&mut buf, 5, envelope);
     buf[13] = 0x00; // effect_type
     buf[14] = 0x45; // update_type
-    buf[15..17].copy_from_slice(&duration.to_le_bytes());
-    buf[17..19].copy_from_slice(&offset.to_le_bytes());
+    write_u16(&mut buf, 15, duration);
+    write_u16(&mut buf, 17, offset);
     buf
 }
 
@@ -294,17 +327,15 @@ pub fn encode_periodic_upload(
     offset: u16,
 ) -> [u8; 32] {
     let mut buf = [0u8; 32];
-    let hdr = encode_header(effect_id, 0x6b);
-    buf[0..3].copy_from_slice(&hdr);
-    buf[3..5].copy_from_slice(&magnitude.to_le_bytes());
-    buf[5..7].copy_from_slice(&periodic_offset.to_le_bytes());
-    buf[7..9].copy_from_slice(&phase.to_le_bytes());
-    buf[9..11].copy_from_slice(&period.to_le_bytes());
-    buf[11..13].copy_from_slice(&0x8000u16.to_le_bytes());
-    buf[13..21].copy_from_slice(&envelope.encode());
+    write_header(&mut buf, effect_id, 0x6b);
+    write_i16(&mut buf, 3, magnitude);
+    write_i16(&mut buf, 5, periodic_offset);
+    write_u16(&mut buf, 7, phase);
+    write_u16(&mut buf, 9, period);
+    write_u16(&mut buf, 11, 0x8000);
+    write_envelope(&mut buf, 13, envelope);
     buf[21] = waveform as u8;
-    let timing = Timing { duration, offset };
-    buf[22..32].copy_from_slice(&timing.encode());
+    write_timing(&mut buf, 22, duration, offset);
     buf
 }
 
@@ -335,17 +366,15 @@ pub fn encode_ramp_upload(
     offset: u16,
 ) -> [u8; 32] {
     let mut buf = [0u8; 32];
-    let hdr = encode_header(effect_id, 0x6b);
-    buf[0..3].copy_from_slice(&hdr);
-    buf[3..5].copy_from_slice(&slope.to_le_bytes());
-    buf[5..7].copy_from_slice(&center.to_le_bytes());
+    write_header(&mut buf, effect_id, 0x6b);
+    write_u16(&mut buf, 3, slope);
+    write_i16(&mut buf, 5, center);
     // buf[7..9] = zero padding
-    buf[9..11].copy_from_slice(&duration.to_le_bytes());
-    buf[11..13].copy_from_slice(&0x8000u16.to_le_bytes());
-    buf[13..21].copy_from_slice(&envelope.encode());
+    write_u16(&mut buf, 9, duration);
+    write_u16(&mut buf, 11, 0x8000);
+    write_envelope(&mut buf, 13, envelope);
     buf[21] = invert;
-    let timing = Timing { duration, offset };
-    buf[22..32].copy_from_slice(&timing.encode());
+    write_timing(&mut buf, 22, duration, offset);
     buf
 }
 
@@ -387,20 +416,18 @@ pub fn encode_condition_upload(
     };
 
     let mut buf = [0u8; 38];
-    let hdr = encode_header(effect_id, 0x64);
-    buf[0..3].copy_from_slice(&hdr);
-    buf[3..5].copy_from_slice(&right_coeff.to_le_bytes());
-    buf[5..7].copy_from_slice(&left_coeff.to_le_bytes());
-    buf[7..9].copy_from_slice(&right_deadband.to_le_bytes());
-    buf[9..11].copy_from_slice(&left_deadband.to_le_bytes());
-    buf[11..13].copy_from_slice(&right_saturation.to_le_bytes());
-    buf[13..15].copy_from_slice(&left_saturation.to_le_bytes());
-    buf[15..23].copy_from_slice(&CONDITION_HARDCODED);
-    buf[23..25].copy_from_slice(&max_sat.to_le_bytes());
-    buf[25..27].copy_from_slice(&max_sat.to_le_bytes());
+    write_header(&mut buf, effect_id, 0x64);
+    write_i16(&mut buf, 3, right_coeff);
+    write_i16(&mut buf, 5, left_coeff);
+    write_i16(&mut buf, 7, right_deadband);
+    write_i16(&mut buf, 9, left_deadband);
+    write_u16(&mut buf, 11, right_saturation);
+    write_u16(&mut buf, 13, left_saturation);
+    write_bytes(&mut buf, 15, CONDITION_HARDCODED);
+    write_u16(&mut buf, 23, max_sat);
+    write_u16(&mut buf, 25, max_sat);
     buf[27] = condition_type as u8;
-    let timing = Timing { duration, offset };
-    buf[28..38].copy_from_slice(&timing.encode());
+    write_timing(&mut buf, 28, duration, offset);
     buf
 }
 
@@ -413,17 +440,15 @@ pub fn encode_condition_upload(
 /// `count`: 0 for infinite, otherwise the number of iterations.
 pub fn encode_play(effect_id: u8, count: u16) -> [u8; 5] {
     let mut buf = [0u8; 5];
-    let hdr = encode_header(effect_id, 0x89);
-    buf[0..3].copy_from_slice(&hdr);
-    buf[3..5].copy_from_slice(&count.to_le_bytes());
+    write_header(&mut buf, effect_id, 0x89);
+    write_u16(&mut buf, 3, count);
     buf
 }
 
 /// Encode a stop effect command.
 pub fn encode_stop(effect_id: u8) -> [u8; 5] {
     let mut buf = [0u8; 5];
-    let hdr = encode_header(effect_id, 0x89);
-    buf[0..3].copy_from_slice(&hdr);
+    write_header(&mut buf, effect_id, 0x89);
     // count = 0 means stop
     buf
 }
@@ -466,7 +491,7 @@ pub fn encode_range(degrees: u16) -> [u8; 4] {
     let mut buf = [0u8; 4];
     buf[0] = 0x08;
     buf[1] = 0x11;
-    buf[2..4].copy_from_slice(&scaled.to_le_bytes());
+    write_u16(&mut buf, 2, scaled);
     buf
 }
 
@@ -478,7 +503,7 @@ pub fn encode_range(degrees: u16) -> [u8; 4] {
 pub fn encode_autocenter(strength: u16) -> ([u8; 4], [u8; 4]) {
     let enable = [0x08u8, 0x04, 0x01, 0x00];
     let mut set = [0x08u8, 0x03, 0x00, 0x00];
-    set[2..4].copy_from_slice(&strength.to_le_bytes());
+    write_u16(&mut set, 2, strength);
     (enable, set)
 }
 
