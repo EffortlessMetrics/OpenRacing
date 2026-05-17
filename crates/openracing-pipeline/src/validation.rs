@@ -222,130 +222,225 @@ impl PipelineValidator {
 }
 
 #[cfg(test)]
-#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
     use racing_wheel_schemas::prelude::{FrequencyHz, Gain, NotchFilter};
 
-    fn must<T, E: std::fmt::Debug>(r: Result<T, E>) -> T {
-        match r {
-            Ok(v) => v,
-            Err(e) => panic!("must() failed: {:?}", e),
+    type TestResult = Result<(), Box<dyn std::error::Error>>;
+
+    fn create_valid_config() -> Result<FilterConfig, Box<dyn std::error::Error>> {
+        Ok(FilterConfig::new_complete(
+            4,
+            Gain::new(0.1)?,
+            Gain::new(0.15)?,
+            Gain::new(0.05)?,
+            vec![NotchFilter::new(FrequencyHz::new(60.0)?, 2.0, -12.0)?],
+            Gain::new(0.8)?,
+            vec![
+                CurvePoint::new(0.0, 0.0)?,
+                CurvePoint::new(0.5, 0.6)?,
+                CurvePoint::new(1.0, 1.0)?,
+            ],
+            Gain::new(0.9)?,
+            racing_wheel_schemas::entities::BumpstopConfig::default(),
+            racing_wheel_schemas::entities::HandsOffConfig::default(),
+        )?)
+    }
+
+    fn assert_invalid_parameters(
+        result: Result<(), PipelineError>,
+        expected_message: &str,
+    ) -> TestResult {
+        match result {
+            Err(PipelineError::InvalidParameters(message)) => {
+                assert!(
+                    message.contains(expected_message),
+                    "expected error message to contain '{expected_message}', got '{message}'"
+                );
+                Ok(())
+            }
+            other => Err(format!("expected InvalidParameters, got {other:?}").into()),
         }
     }
 
-    fn create_valid_config() -> FilterConfig {
-        FilterConfig::new_complete(
-            4,
-            must(Gain::new(0.1)),
-            must(Gain::new(0.15)),
-            must(Gain::new(0.05)),
-            vec![must(NotchFilter::new(
-                must(FrequencyHz::new(60.0)),
-                2.0,
-                -12.0,
-            ))],
-            must(Gain::new(0.8)),
-            vec![
-                must(CurvePoint::new(0.0, 0.0)),
-                must(CurvePoint::new(0.5, 0.6)),
-                must(CurvePoint::new(1.0, 1.0)),
-            ],
-            must(Gain::new(0.9)),
-            racing_wheel_schemas::entities::BumpstopConfig::default(),
-            racing_wheel_schemas::entities::HandsOffConfig::default(),
-        )
-        .unwrap()
+    #[test]
+    fn test_validate_valid_config() -> TestResult {
+        let validator = PipelineValidator::new();
+        let config = create_valid_config()?;
+        validator.validate_config(&config)?;
+        Ok(())
     }
 
     #[test]
-    fn test_validate_valid_config() {
+    fn test_validate_invalid_reconstruction() -> TestResult {
         let validator = PipelineValidator::new();
-        let config = create_valid_config();
-        assert!(validator.validate_config(&config).is_ok());
-    }
-
-    #[test]
-    fn test_validate_invalid_reconstruction() {
-        let validator = PipelineValidator::new();
-        let mut config = create_valid_config();
+        let mut config = create_valid_config()?;
         config.reconstruction = 10;
 
         let result = validator.validate_config(&config);
-        assert!(result.is_err());
         match result {
-            Err(PipelineError::InvalidConfig(_)) => {}
-            _ => panic!("Expected InvalidConfig error"),
+            Err(PipelineError::InvalidConfig(message)) => {
+                assert!(message.contains("Reconstruction level"));
+                Ok(())
+            }
+            other => Err(format!("expected InvalidConfig error, got {other:?}").into()),
         }
     }
 
     #[test]
-    fn test_validate_invalid_friction() {
+    fn test_validate_boundary_gains_accepts_zero_and_one() -> TestResult {
         let validator = PipelineValidator::new();
-        let mut config = create_valid_config();
-        // Gain::new() validates at construction, so we need to construct an invalid config differently
-        // The validation at compile time will catch this
-        // For now, test with a valid config modified
-        config.friction = must(Gain::new(1.0)); // This is valid
+        let mut config = create_valid_config()?;
+        config.friction = Gain::ZERO;
+        config.damper = Gain::FULL;
+        config.inertia = Gain::ZERO;
+        config.slew_rate = Gain::FULL;
+        config.torque_cap = Gain::FULL;
 
-        let result = validator.validate_config(&config);
-        assert!(result.is_ok(), "1.0 is a valid friction value");
+        validator.validate_config(&config)?;
+        Ok(())
     }
 
     #[test]
-    fn test_validate_non_monotonic_curve() {
-        // Non-monotonic curves are rejected at construction time
+    fn test_validate_non_monotonic_curve_is_rejected_by_schema() -> TestResult {
         let config_result = FilterConfig::new_complete(
             4,
-            must(Gain::new(0.1)),
-            must(Gain::new(0.15)),
-            must(Gain::new(0.05)),
+            Gain::new(0.1)?,
+            Gain::new(0.15)?,
+            Gain::new(0.05)?,
             vec![],
-            must(Gain::new(0.8)),
+            Gain::new(0.8)?,
             vec![
-                must(CurvePoint::new(0.0, 0.0)),
-                must(CurvePoint::new(0.7, 0.6)),
-                must(CurvePoint::new(0.5, 0.8)),
-                must(CurvePoint::new(1.0, 1.0)),
+                CurvePoint::new(0.0, 0.0)?,
+                CurvePoint::new(0.7, 0.6)?,
+                CurvePoint::new(0.5, 0.8)?,
+                CurvePoint::new(1.0, 1.0)?,
             ],
-            must(Gain::new(1.0)),
+            Gain::new(1.0)?,
             racing_wheel_schemas::entities::BumpstopConfig::default(),
             racing_wheel_schemas::entities::HandsOffConfig::default(),
         );
 
         assert!(config_result.is_err());
+        Ok(())
     }
 
     #[test]
-    fn test_validate_invalid_notch_frequency() {
+    fn test_validate_notch_frequency_above_pipeline_limit() -> TestResult {
         let validator = PipelineValidator::new();
         let config = FilterConfig::new_complete(
             4,
-            must(Gain::new(0.1)),
-            must(Gain::new(0.15)),
-            must(Gain::new(0.05)),
-            vec![must(NotchFilter::new(
-                must(FrequencyHz::new(600.0)),
-                2.0,
-                -12.0,
-            ))],
-            must(Gain::new(0.8)),
-            vec![
-                must(CurvePoint::new(0.0, 0.0)),
-                must(CurvePoint::new(1.0, 1.0)),
-            ],
-            must(Gain::new(1.0)),
+            Gain::new(0.1)?,
+            Gain::new(0.15)?,
+            Gain::new(0.05)?,
+            vec![NotchFilter::new(FrequencyHz::new(600.0)?, 2.0, -12.0)?],
+            Gain::new(0.8)?,
+            vec![CurvePoint::new(0.0, 0.0)?, CurvePoint::new(1.0, 1.0)?],
+            Gain::new(1.0)?,
             racing_wheel_schemas::entities::BumpstopConfig::default(),
             racing_wheel_schemas::entities::HandsOffConfig::default(),
-        )
-        .unwrap();
+        )?;
 
-        let result = validator.validate_config(&config);
-        assert!(result.is_err());
+        assert_invalid_parameters(validator.validate_config(&config), "frequency")
     }
 
     #[test]
-    fn test_is_empty_config() {
+    fn test_validate_notch_q_factor_above_pipeline_limit() -> TestResult {
+        let validator = PipelineValidator::new();
+        let mut config = create_valid_config()?;
+        config.notch_filters = vec![NotchFilter::new(FrequencyHz::new(60.0)?, 20.1, -12.0)?];
+
+        assert_invalid_parameters(validator.validate_config(&config), "Q factor")
+    }
+
+    #[test]
+    fn test_validate_enabled_bumpstop_requires_ordered_angles() -> TestResult {
+        let validator = PipelineValidator::new();
+        let mut config = create_valid_config()?;
+        config.bumpstop = racing_wheel_schemas::entities::BumpstopConfig {
+            enabled: true,
+            start_angle: 540.0,
+            max_angle: 540.0,
+            stiffness: 0.5,
+            damping: 0.5,
+        };
+
+        assert_invalid_parameters(validator.validate_config(&config), "max_angle")
+    }
+
+    #[test]
+    fn test_validate_enabled_bumpstop_rejects_stiffness_out_of_range() -> TestResult {
+        let validator = PipelineValidator::new();
+        let mut config = create_valid_config()?;
+        config.bumpstop = racing_wheel_schemas::entities::BumpstopConfig {
+            enabled: true,
+            start_angle: 450.0,
+            max_angle: 540.0,
+            stiffness: 1.1,
+            damping: 0.5,
+        };
+
+        assert_invalid_parameters(validator.validate_config(&config), "stiffness")
+    }
+
+    #[test]
+    fn test_validate_disabled_bumpstop_ignores_inert_parameters() -> TestResult {
+        let validator = PipelineValidator::new();
+        let mut config = create_valid_config()?;
+        config.bumpstop = racing_wheel_schemas::entities::BumpstopConfig {
+            enabled: false,
+            start_angle: 540.0,
+            max_angle: 450.0,
+            stiffness: f32::NAN,
+            damping: f32::INFINITY,
+        };
+
+        validator.validate_config(&config)?;
+        Ok(())
+    }
+
+    #[test]
+    fn test_validate_enabled_hands_off_rejects_threshold_out_of_range() -> TestResult {
+        let validator = PipelineValidator::new();
+        let mut config = create_valid_config()?;
+        config.hands_off = racing_wheel_schemas::entities::HandsOffConfig {
+            enabled: true,
+            threshold: 1.1,
+            timeout_seconds: 5.0,
+        };
+
+        assert_invalid_parameters(validator.validate_config(&config), "threshold")
+    }
+
+    #[test]
+    fn test_validate_enabled_hands_off_requires_positive_timeout() -> TestResult {
+        let validator = PipelineValidator::new();
+        let mut config = create_valid_config()?;
+        config.hands_off = racing_wheel_schemas::entities::HandsOffConfig {
+            enabled: true,
+            threshold: 0.05,
+            timeout_seconds: 0.0,
+        };
+
+        assert_invalid_parameters(validator.validate_config(&config), "timeout")
+    }
+
+    #[test]
+    fn test_validate_disabled_hands_off_ignores_inert_parameters() -> TestResult {
+        let validator = PipelineValidator::new();
+        let mut config = create_valid_config()?;
+        config.hands_off = racing_wheel_schemas::entities::HandsOffConfig {
+            enabled: false,
+            threshold: f32::NAN,
+            timeout_seconds: -1.0,
+        };
+
+        validator.validate_config(&config)?;
+        Ok(())
+    }
+
+    #[test]
+    fn test_is_empty_config() -> TestResult {
         let validator = PipelineValidator::new();
 
         let mut empty_config = FilterConfig::default();
@@ -354,21 +449,35 @@ mod tests {
         empty_config.hands_off.enabled = false;
         assert!(validator.is_empty_config(&empty_config));
 
-        let non_empty_config = create_valid_config();
+        let non_empty_config = create_valid_config()?;
         assert!(!validator.is_empty_config(&non_empty_config));
+        Ok(())
     }
 
     #[test]
-    fn test_validate_response_curve() {
+    fn test_is_empty_config_requires_exact_linear_identity_curve() -> TestResult {
+        let validator = PipelineValidator::new();
+        let mut config = FilterConfig::default();
+        config.bumpstop.enabled = false;
+        config.hands_off.enabled = false;
+        config.curve_points = vec![
+            CurvePoint::new(0.0, 0.0)?,
+            CurvePoint::new(0.5, 0.5)?,
+            CurvePoint::new(1.0, 1.0)?,
+        ];
+
+        assert!(!validator.is_empty_config(&config));
+        Ok(())
+    }
+
+    #[test]
+    fn test_validate_response_curve() -> TestResult {
         let validator = PipelineValidator::new();
 
-        assert!(
-            validator
-                .validate_response_curve(&CurveType::Linear)
-                .is_ok()
-        );
+        validator.validate_response_curve(&CurveType::Linear)?;
 
-        let exp_curve = CurveType::exponential(2.0).unwrap();
-        assert!(validator.validate_response_curve(&exp_curve).is_ok());
+        let exp_curve = CurveType::exponential(2.0)?;
+        validator.validate_response_curve(&exp_curve)?;
+        Ok(())
     }
 }
