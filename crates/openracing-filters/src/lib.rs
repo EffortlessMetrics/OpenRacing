@@ -76,6 +76,36 @@ pub use response_curve::{ResponseCurveState, response_curve_filter};
 pub use slew_rate::{SlewRateState, slew_rate_filter};
 pub use state::*;
 
+/// Clamp an unsigned force/torque magnitude to the normalized filter domain.
+#[inline]
+pub(crate) fn clamp_unit_magnitude(value: f32) -> f32 {
+    value.abs().clamp(0.0, 1.0)
+}
+
+/// Restore the sign of an original force/torque value after mapping its magnitude.
+#[inline]
+pub(crate) fn restore_signed_magnitude(original: f32, mapped_magnitude: f32) -> f32 {
+    original.signum() * mapped_magnitude
+}
+
+/// Linearly interpolate through a lookup table over the normalized [0.0, 1.0] input domain.
+#[inline]
+pub(crate) fn lookup_lerp(lut: &[f32], lut_size: usize, input: f32) -> f32 {
+    debug_assert!(lut_size >= 2);
+    debug_assert!(lut_size <= lut.len());
+
+    let clamped = input.clamp(0.0, 1.0);
+    let scaled = clamped * (lut_size - 1) as f32;
+    let index_low = (scaled as usize).min(lut_size - 2);
+    let index_high = index_low + 1;
+    let fraction = scaled - index_low as f32;
+
+    let low = lut[index_low];
+    let high = lut[index_high];
+
+    low + fraction * (high - low)
+}
+
 /// Real-time frame data processed at 1kHz
 ///
 /// This is a minimal frame type for filter processing.

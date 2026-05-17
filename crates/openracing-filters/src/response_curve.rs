@@ -3,7 +3,7 @@
 //! This module provides a response curve filter that applies a curve
 //! transformation to torque outputs using a pre-computed lookup table.
 
-use crate::Frame;
+use crate::{Frame, clamp_unit_magnitude, lookup_lerp, restore_signed_magnitude};
 use openracing_curves::CurveLut;
 
 /// State for response curve filter using CurveLut.
@@ -27,6 +27,19 @@ pub struct ResponseCurveState {
 }
 
 impl ResponseCurveState {
+    const LUT_SIZE: usize = 256;
+
+    fn from_generator(mut generator: impl FnMut(f32) -> f32) -> Self {
+        let mut lut = [0.0f32; Self::LUT_SIZE];
+
+        for (i, entry) in lut.iter_mut().enumerate() {
+            let input = i as f32 / (Self::LUT_SIZE - 1) as f32;
+            *entry = generator(input);
+        }
+
+        Self { lut }
+    }
+
     /// Create a new response curve state from a CurveLut.
     ///
     /// This should be called at profile load time, not in the RT path.
@@ -45,14 +58,7 @@ impl ResponseCurveState {
     /// let state = ResponseCurveState::from_lut(&curve_lut);
     /// ```
     pub fn from_lut(curve_lut: &CurveLut) -> Self {
-        let mut lut = [0.0f32; 256];
-
-        for (i, entry) in lut.iter_mut().enumerate() {
-            let input = i as f32 / 255.0;
-            *entry = curve_lut.lookup(input);
-        }
-
-        Self { lut }
+        Self::from_generator(|input| curve_lut.lookup(input))
     }
 
     /// Create a linear (identity) response curve state.
@@ -67,13 +73,7 @@ impl ResponseCurveState {
     /// assert!((curve.lookup(0.5) - 0.5).abs() < 0.01);
     /// ```
     pub fn linear() -> Self {
-        let mut lut = [0.0f32; 256];
-
-        for (i, entry) in lut.iter_mut().enumerate() {
-            *entry = i as f32 / 255.0;
-        }
-
-        Self { lut }
+        Self::from_generator(|input| input)
     }
 
     /// Create a soft response curve (reduced sensitivity near center).
@@ -88,15 +88,8 @@ impl ResponseCurveState {
     /// assert!(curve.lookup(0.5) < 0.5);
     /// ```
     pub fn soft() -> Self {
-        let mut lut = [0.0f32; 256];
-
-        for (i, entry) in lut.iter_mut().enumerate() {
-            let input = i as f32 / 255.0;
-            // Soft curve: x^1.5 normalized
-            *entry = input.powf(1.5);
-        }
-
-        Self { lut }
+        // Soft curve: x^1.5 normalized
+        Self::from_generator(|input| input.powf(1.5))
     }
 
     /// Create a hard response curve (increased sensitivity near limits).
@@ -111,15 +104,8 @@ impl ResponseCurveState {
     /// assert!(curve.lookup(0.5) > 0.5);
     /// ```
     pub fn hard() -> Self {
-        let mut lut = [0.0f32; 256];
-
-        for (i, entry) in lut.iter_mut().enumerate() {
-            let input = i as f32 / 255.0;
-            // Hard curve: x^0.7 normalized
-            *entry = input.powf(0.7);
-        }
-
-        Self { lut }
+        // Hard curve: x^0.7 normalized
+        Self::from_generator(|input| input.powf(0.7))
     }
 
     /// Fast lookup with linear interpolation (RT-safe).
@@ -144,17 +130,7 @@ impl ResponseCurveState {
     /// * `input` - Input value (will be clamped to [0.0, 1.0])
     #[inline]
     pub fn lookup(&self, input: f32) -> f32 {
-        let input = input.clamp(0.0, 1.0);
-
-        let scaled = input * 255.0;
-        let index_low = (scaled as usize).min(254);
-        let index_high = index_low + 1;
-        let fraction = scaled - index_low as f32;
-
-        let low_value = self.lut[index_low];
-        let high_value = self.lut[index_high];
-
-        low_value + fraction * (high_value - low_value)
+        lookup_lerp(&self.lut, Self::LUT_SIZE, input)
     }
 }
 
@@ -201,11 +177,10 @@ impl Copy for ResponseCurveState {}
 /// ```
 #[inline]
 pub fn response_curve_filter(frame: &mut Frame, state: &ResponseCurveState) {
-    let input = frame.torque_out.abs().clamp(0.0, 1.0);
-
+    let input = clamp_unit_magnitude(frame.torque_out);
     let mapped_output = state.lookup(input);
 
-    frame.torque_out = frame.torque_out.signum() * mapped_output;
+    frame.torque_out = restore_signed_magnitude(frame.torque_out, mapped_output);
 }
 
 #[cfg(test)]

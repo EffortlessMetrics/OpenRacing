@@ -3,7 +3,7 @@
 //! This module provides a lookup table-based curve mapping filter
 //! for applying custom force curves to the FFB signal.
 
-use crate::Frame;
+use crate::{Frame, clamp_unit_magnitude, lookup_lerp, restore_signed_magnitude};
 
 /// State for curve mapping (lookup table).
 ///
@@ -175,16 +175,7 @@ impl CurveState {
     /// - Bounded execution time
     #[inline]
     pub fn lookup(&self, input: f32) -> f32 {
-        let clamped = input.clamp(0.0, 1.0);
-        let scaled = clamped * (self.lut_size - 1) as f32;
-        let index_low = (scaled as usize).min(self.lut_size - 2);
-        let index_high = index_low + 1;
-        let fraction = scaled - index_low as f32;
-
-        let low = self.lut[index_low];
-        let high = self.lut[index_high];
-
-        low + fraction * (high - low)
+        lookup_lerp(&self.lut, self.lut_size, input)
     }
 }
 
@@ -227,12 +218,10 @@ impl Default for CurveState {
 /// ```
 #[inline]
 pub fn curve_filter(frame: &mut Frame, state: &CurveState) {
-    let input = frame.torque_out.abs().clamp(0.0, 1.0);
-    let index = (input * (state.lut_size - 1) as f32) as usize;
-    let index = index.min(state.lut_size - 1);
+    let input = clamp_unit_magnitude(frame.torque_out);
+    let mapped_output = state.lookup(input);
 
-    let mapped_output = state.lut[index];
-    frame.torque_out = frame.torque_out.signum() * mapped_output;
+    frame.torque_out = restore_signed_magnitude(frame.torque_out, mapped_output);
 }
 
 #[cfg(test)]
