@@ -684,6 +684,165 @@ mod tests {
     }
 
     #[test]
+    fn test_merge_engine_default_child_scalars_do_not_erase_parent_overrides() {
+        let engine = ProfileMergeEngine;
+        let mut global_profile = create_test_profile("global", ProfileScope::global());
+        let mut game_profile =
+            create_test_profile("iracing", ProfileScope::for_game("iracing".to_string()));
+        let car_profile = create_test_profile(
+            "gt3",
+            ProfileScope::for_car("iracing".to_string(), "gt3".to_string()),
+        );
+
+        global_profile.base_settings.ffb_gain = must(Gain::new(0.55));
+        game_profile.base_settings.ffb_gain = must(Gain::new(0.82));
+        game_profile.base_settings.degrees_of_rotation = must(Degrees::new_dor(540.0));
+        game_profile.base_settings.torque_cap = must(TorqueNm::new(18.0));
+
+        let result = engine.merge_profiles(
+            &global_profile,
+            Some(&game_profile),
+            Some(&car_profile),
+            None,
+        );
+
+        assert_eq!(result.profile.base_settings.ffb_gain.value(), 0.82);
+        assert_eq!(
+            result.profile.base_settings.degrees_of_rotation.value(),
+            540.0
+        );
+        assert_eq!(result.profile.base_settings.torque_cap.value(), 18.0);
+    }
+
+    #[test]
+    fn test_merge_engine_child_filter_config_replaces_parent_filter_config() {
+        let engine = ProfileMergeEngine;
+        let mut global_profile = create_test_profile("global", ProfileScope::global());
+        let mut game_profile =
+            create_test_profile("iracing", ProfileScope::for_game("iracing".to_string()));
+
+        global_profile.base_settings.filters.reconstruction = 8;
+        global_profile.base_settings.filters.friction = must(Gain::new(0.4));
+        global_profile.base_settings.filters.damper = must(Gain::new(0.5));
+        global_profile.base_settings.filters.inertia = must(Gain::new(0.6));
+        global_profile.base_settings.filters.slew_rate = must(Gain::new(0.7));
+        global_profile.base_settings.filters.curve_points = vec![
+            must(CurvePoint::new(0.0, 0.0)),
+            must(CurvePoint::new(0.4, 0.2)),
+            must(CurvePoint::new(1.0, 1.0)),
+        ];
+
+        game_profile.base_settings.filters.reconstruction = 2;
+        game_profile.base_settings.filters.friction = must(Gain::new(0.1));
+        game_profile.base_settings.filters.damper = must(Gain::new(0.2));
+        game_profile.base_settings.filters.inertia = must(Gain::new(0.3));
+        game_profile.base_settings.filters.slew_rate = must(Gain::new(0.9));
+        game_profile.base_settings.filters.curve_points = vec![
+            must(CurvePoint::new(0.0, 0.0)),
+            must(CurvePoint::new(0.6, 0.8)),
+            must(CurvePoint::new(1.0, 1.0)),
+        ];
+
+        let result = engine.merge_profiles(&global_profile, Some(&game_profile), None, None);
+        let merged_filters = &result.profile.base_settings.filters;
+
+        assert_eq!(merged_filters.reconstruction, 2);
+        assert_eq!(merged_filters.friction.value(), 0.1);
+        assert_eq!(merged_filters.damper.value(), 0.2);
+        assert_eq!(merged_filters.inertia.value(), 0.3);
+        assert_eq!(merged_filters.slew_rate.value(), 0.9);
+        assert_eq!(
+            merged_filters.curve_points,
+            game_profile.base_settings.filters.curve_points
+        );
+    }
+
+    #[test]
+    fn test_merge_engine_absent_led_haptics_do_not_clear_parent_configs() {
+        let engine = ProfileMergeEngine;
+        let mut global_profile = create_test_profile("global", ProfileScope::global());
+        let mut game_profile =
+            create_test_profile("iracing", ProfileScope::for_game("iracing".to_string()));
+        game_profile.led_config = None;
+        game_profile.haptics_config = None;
+
+        let led_config = LedConfig {
+            pattern: "global-progressive".to_string(),
+            ..LedConfig::default()
+        };
+        let haptics_config = HapticsConfig {
+            enabled: false,
+            ..HapticsConfig::default()
+        };
+        global_profile.led_config = Some(led_config.clone());
+        global_profile.haptics_config = Some(haptics_config.clone());
+
+        let result = engine.merge_profiles(&global_profile, Some(&game_profile), None, None);
+
+        assert_eq!(result.stats.led_overrides, 0);
+        assert_eq!(result.stats.haptics_overrides, 0);
+        assert_eq!(result.profile.led_config, Some(led_config));
+        assert_eq!(result.profile.haptics_config, Some(haptics_config));
+    }
+
+    #[test]
+    fn test_merge_engine_most_specific_led_haptics_configs_win() {
+        let engine = ProfileMergeEngine;
+        let mut global_profile = create_test_profile("global", ProfileScope::global());
+        let mut game_profile =
+            create_test_profile("iracing", ProfileScope::for_game("iracing".to_string()));
+        let mut car_profile = create_test_profile(
+            "gt3",
+            ProfileScope::for_car("iracing".to_string(), "gt3".to_string()),
+        );
+
+        let global_led = LedConfig {
+            pattern: "global".to_string(),
+            ..LedConfig::default()
+        };
+        let game_led = LedConfig {
+            pattern: "game".to_string(),
+            ..LedConfig::default()
+        };
+        let car_led = LedConfig {
+            pattern: "car".to_string(),
+            ..LedConfig::default()
+        };
+
+        let global_haptics = HapticsConfig {
+            enabled: false,
+            ..HapticsConfig::default()
+        };
+        let game_haptics = HapticsConfig {
+            intensity: must(Gain::new(0.25)),
+            ..HapticsConfig::default()
+        };
+        let car_haptics = HapticsConfig {
+            intensity: must(Gain::new(0.9)),
+            ..HapticsConfig::default()
+        };
+
+        global_profile.led_config = Some(global_led);
+        global_profile.haptics_config = Some(global_haptics);
+        game_profile.led_config = Some(game_led);
+        game_profile.haptics_config = Some(game_haptics);
+        car_profile.led_config = Some(car_led.clone());
+        car_profile.haptics_config = Some(car_haptics.clone());
+
+        let result = engine.merge_profiles(
+            &global_profile,
+            Some(&game_profile),
+            Some(&car_profile),
+            None,
+        );
+
+        assert_eq!(result.stats.led_overrides, 2);
+        assert_eq!(result.stats.haptics_overrides, 2);
+        assert_eq!(result.profile.led_config, Some(car_led));
+        assert_eq!(result.profile.haptics_config, Some(car_haptics));
+    }
+
+    #[test]
     fn test_merge_engine_complex_hierarchy() {
         let engine = ProfileMergeEngine;
 
