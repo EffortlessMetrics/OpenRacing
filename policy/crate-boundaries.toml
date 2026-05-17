@@ -1,0 +1,515 @@
+schema_version = 1
+
+[public]
+packages = [
+  "openracing",
+  "openracing-engine",
+  "openracing-ffb",
+  "openracing-calibration",
+  "openracing-curves",
+  "openracing-profile",
+  "openracing-hid",
+  "openracing-pidff",
+  "openracing-moza",
+  "openracing-firmware-update",
+  "openracing-plugin-abi",
+  "openracing-plugin-sdk",
+  "openracing-telemetry",
+  "openracing-telemetry-adapters",
+  "openracing-telemetry-config",
+  "openracing-telemetry-recorder",
+  "openracing-service",
+  "wheelctl",
+]
+
+[internal]
+packages = [
+  "openracing-tools",
+  "workspace-hack",
+  "racing-wheel-ui",
+  "racing-wheel-integration-tests",
+  "compat",
+  "openracing-test-helpers",
+  "openracing-plugin-examples",
+]
+
+[transitional]
+note = "Current package names are accepted until the naming-spine and collapse PRs land."
+current_public_names = [
+  { current = "racing-wheel-engine", target = "openracing-engine" },
+  { current = "racing-wheel-service", target = "openracing-service" },
+  { current = "racing-wheel-telemetry-core", target = "openracing-telemetry" },
+  { current = "racing-wheel-telemetry-adapters", target = "openracing-telemetry-adapters" },
+  { current = "racing-wheel-telemetry-config", target = "openracing-telemetry-config" },
+  { current = "racing-wheel-telemetry-recorder", target = "openracing-telemetry-recorder" },
+  { current = "openracing-pidff-common", target = "openracing-pidff" },
+]
+
+[[collapse]]
+from = "racing-wheel-ks"
+to = "openracing-moza::rims::ks"
+owner = "openracing-moza"
+reason = "Moza accessory leaf; same public audience and cadence as Moza family."
+transitional_note = "Kept as a package only until the Moza family collapse PR."
+
+[[collapse]]
+from = "racing-wheel-srp"
+to = "openracing-moza::pedals::srp"
+owner = "openracing-moza"
+reason = "Moza accessory leaf; not an independent public API."
+transitional_note = "Kept as a package only until the Moza family collapse PR."
+
+[[collapse]]
+from = "racing-wheel-hbp"
+to = "openracing-moza::handbrake::hbp"
+owner = "openracing-moza"
+reason = "Moza accessory leaf; not an independent public API."
+transitional_note = "Kept as a package only until the Moza family collapse PR."
+
+[[collapse]]
+from = "racing-wheel-moza-wheelbase-report"
+to = "openracing-moza::wheelbase::reports"
+owner = "openracing-moza"
+reason = "Moza wheelbase report model belongs to the validated Moza family."
+transitional_note = "Kept as a package only until the Moza family collapse PR."
+
+[[collapse]]
+from = "racing-wheel-hid-moza-protocol"
+to = "openracing-moza::protocol"
+owner = "openracing-moza"
+reason = "Moza protocol implementation belongs to the validated Moza family."
+transitional_note = "Kept as a package only until the Moza family collapse PR."
+
+[[collapse]]
+from = "racing-wheel-hid-fanatec-protocol"
+to = "openracing-hid::protocol::fanatec"
+owner = "openracing-hid"
+reason = "Vendor HID leaf; keep as module until receipt-backed enough to graduate."
+transitional_note = "Kept as a package only until the HID vendor collapse PR."
+
+[[collapse]]
+from = "racing-wheel-hid-logitech-protocol"
+to = "openracing-hid::protocol::logitech"
+owner = "openracing-hid"
+reason = "Vendor HID leaf; not a separate public support promise."
+transitional_note = "Kept as a package only until the HID vendor collapse PR."
+
+[[collapse]]
+from = "racing-wheel-hid-thrustmaster-protocol"
+to = "openracing-hid::protocol::thrustmaster"
+owner = "openracing-hid"
+reason = "Vendor HID leaf; not a separate public support promise."
+transitional_note = "Kept as a package only until the HID vendor collapse PR."
+
+[[collapse]]
+from = "racing-wheel-hid-simagic-protocol"
+to = "openracing-hid::protocol::simagic"
+owner = "openracing-hid"
+reason = "Vendor HID leaf; not a separate public support promise."
+transitional_note = "Kept as a package only until the HID vendor collapse PR."
+
+[[collapse]]
+from = "racing-wheel-hid-vrs-protocol"
+to = "openracing-hid::protocol::vrs"
+owner = "openracing-hid"
+reason = "Vendor HID leaf; not a separate public support promise."
+transitional_note = "Kept as a package only until the HID vendor collapse PR."
+
+[[collapse]]
+from = "hid-simucube-protocol"
+to = "openracing-hid::protocol::simucube"
+owner = "openracing-hid"
+reason = "Vendor HID leaf; not a separate public support promise."
+transitional_note = "Current package name will be normalized before collapse."
+
+[[collapse]]
+from = "hid-heusinkveld-protocol"
+to = "openracing-hid::protocol::heusinkveld"
+owner = "openracing-hid"
+reason = "Vendor HID leaf; not a separate public support promise."
+transitional_note = "Current package name will be normalized before collapse."
+
+[[collapse]]
+from = "hid-asetek-protocol"
+to = "openracing-hid::protocol::asetek"
+owner = "openracing-hid"
+reason = "Vendor HID leaf; not a separate public support promise."
+transitional_note = "Current package name will be normalized before collapse."
+
+[[collapse]]
+from = "hid-button-box-protocol"
+to = "openracing-hid::protocol::button_box"
+owner = "openracing-hid"
+reason = "Vendor HID leaf; not a separate public support promise."
+transitional_note = "Current package name will be normalized before collapse."
+
+[[collapse]]
+from = "racing-wheel-hid-leo-bodnar-protocol"
+to = "openracing-hid::protocol::leo_bodnar"
+owner = "openracing-hid"
+reason = "Vendor HID leaf; not a separate public support promise."
+transitional_note = "Kept as a package only until the HID vendor collapse PR."
+
+[[collapse]]
+from = "racing-wheel-hid-accuforce-protocol"
+to = "openracing-hid::protocol::accuforce"
+owner = "openracing-hid"
+reason = "Vendor HID leaf; not a separate public support promise."
+transitional_note = "Kept as a package only until the HID vendor collapse PR."
+
+[[collapse]]
+from = "racing-wheel-hid-openffboard-protocol"
+to = "openracing-hid::protocol::openffboard"
+owner = "openracing-hid"
+reason = "Vendor HID leaf; not a separate public support promise."
+transitional_note = "Kept as a package only until the HID vendor collapse PR."
+
+[[collapse]]
+from = "racing-wheel-hid-ffbeast-protocol"
+to = "openracing-hid::protocol::ffbeast"
+owner = "openracing-hid"
+reason = "Vendor HID leaf; not a separate public support promise."
+transitional_note = "Kept as a package only until the HID vendor collapse PR."
+
+[[collapse]]
+from = "racing-wheel-hid-cammus-protocol"
+to = "openracing-hid::protocol::cammus"
+owner = "openracing-hid"
+reason = "Vendor HID leaf; not a separate public support promise."
+transitional_note = "Kept as a package only until the HID vendor collapse PR."
+
+[[collapse]]
+from = "hid-cube-controls-protocol"
+to = "openracing-hid::protocol::cube_controls"
+owner = "openracing-hid"
+reason = "Vendor HID leaf; not a separate public support promise."
+transitional_note = "Current package name will be normalized before collapse."
+
+[[collapse]]
+from = "racing-wheel-hid-pxn-protocol"
+to = "openracing-hid::protocol::pxn"
+owner = "openracing-hid"
+reason = "Vendor HID leaf; not a separate public support promise."
+transitional_note = "Kept as a package only until the HID vendor collapse PR."
+
+[[collapse]]
+from = "racing-wheel-simplemotion-v2"
+to = "openracing-hid::protocol::simplemotion_v2"
+owner = "openracing-hid"
+reason = "Vendor motion-control leaf; not a separate public support promise."
+transitional_note = "Kept as a package only until the HID vendor collapse PR."
+
+[[collapse]]
+from = "openracing-hid-common"
+to = "openracing-hid::transport"
+owner = "openracing-hid"
+reason = "Generic HID transport belongs under the public HID contract."
+transitional_note = "Kept as a package only until the HID core collapse PR."
+
+[[collapse]]
+from = "openracing-device-types"
+to = "openracing-hid::registry::device_types"
+owner = "openracing-hid"
+reason = "Device registry types belong under the public HID contract."
+transitional_note = "Kept as a package only until the HID core collapse PR."
+
+[[collapse]]
+from = "openracing-capture-ids"
+to = "openracing-hid::capture::ids"
+owner = "openracing-hid"
+reason = "Capture identifiers belong to the HID capture family."
+transitional_note = "Kept as a package only until the HID core collapse PR."
+
+[[collapse]]
+from = "openracing-capture-format"
+to = "openracing-hid::capture::format"
+owner = "openracing-hid"
+reason = "Capture format belongs to the HID capture family."
+transitional_note = "Kept as a package only until the HID core collapse PR."
+
+[[collapse]]
+from = "racing-wheel-hid-capture"
+to = "openracing-hid::capture"
+owner = "openracing-hid"
+reason = "HID capture/replay belongs under the public HID contract."
+transitional_note = "Kept as a package only until the HID core collapse PR."
+
+[[collapse]]
+from = "openracing-shifter"
+to = "openracing-hid::devices::shifter"
+owner = "openracing-hid"
+reason = "Generic HID device leaf; not an independent public package."
+transitional_note = "Kept as a package only until the HID core collapse PR."
+
+[[collapse]]
+from = "openracing-handbrake"
+to = "openracing-hid::devices::handbrake"
+owner = "openracing-hid"
+reason = "Generic HID device leaf; not an independent public package."
+transitional_note = "Kept as a package only until the HID core collapse PR."
+
+[[collapse]]
+from = "openracing-filters"
+to = "openracing-ffb::filters"
+owner = "openracing-ffb"
+reason = "FFB implementation kernel; public API belongs to openracing-ffb."
+transitional_note = "Kept as a package only until the FFB collapse PR."
+
+[[collapse]]
+from = "openracing-pipeline"
+to = "openracing-ffb::pipeline"
+owner = "openracing-ffb"
+reason = "FFB orchestration seam; not an independent public package."
+transitional_note = "Kept as a package only until the FFB collapse PR."
+
+[[collapse]]
+from = "openracing-atomic"
+to = "openracing-engine::rt::atomic"
+owner = "openracing-engine"
+reason = "Runtime helper; engine-owned implementation seam."
+transitional_note = "Kept as a package only until the engine helper collapse PR."
+
+[[collapse]]
+from = "openracing-scheduler"
+to = "openracing-engine::rt::scheduler"
+owner = "openracing-engine"
+reason = "Runtime scheduler; engine-owned implementation seam."
+transitional_note = "Kept as a package only until the engine helper collapse PR."
+
+[[collapse]]
+from = "openracing-tracing"
+to = "openracing-engine::observability"
+owner = "openracing-engine"
+reason = "Runtime observability; not a standalone public contract."
+transitional_note = "Kept as a package only until the engine helper collapse PR."
+
+[[collapse]]
+from = "openracing-fmea"
+to = "openracing-engine::safety::fmea"
+owner = "openracing-engine"
+reason = "Safety analysis model currently serves engine/service/wheelctl lifecycle."
+transitional_note = "Kept as a package only until the engine helper collapse PR."
+
+[[collapse]]
+from = "openracing-watchdog"
+to = "openracing-engine::safety::watchdog"
+owner = "openracing-engine"
+reason = "Engine safety runtime seam."
+transitional_note = "Kept as a package only until the engine helper collapse PR."
+
+[[collapse]]
+from = "openracing-hardware-watchdog"
+to = "openracing-engine::safety::hardware_watchdog"
+owner = "openracing-engine"
+reason = "Hardware safety runtime seam."
+transitional_note = "Kept as a package only until the engine helper collapse PR."
+
+[[collapse]]
+from = "openracing-hardware-core"
+to = "openracing-engine::hardware::evidence"
+owner = "openracing-engine"
+reason = "Evidence model is important, but not yet a standalone external SDK."
+transitional_note = "Kept as a package only until the engine helper collapse PR."
+
+[[collapse]]
+from = "openracing-diagnostic"
+to = "openracing-engine::diagnostic"
+owner = "openracing-engine"
+reason = "Diagnostics are engine/service lifecycle internals, not an independent public contract."
+transitional_note = "Kept as a package only until the engine helper collapse PR."
+
+[[collapse]]
+from = "openracing-errors"
+to = "openracing-engine::error"
+owner = "openracing-engine"
+reason = "Shared errors should collapse into owner-specific public errors."
+transitional_note = "Kept as a package only until the engine helper collapse PR."
+
+[[collapse]]
+from = "openracing-crypto"
+to = "openracing-engine::crypto"
+owner = "openracing-engine"
+reason = "Repository crypto helpers are implementation support, not a durable public package in the target surface."
+transitional_note = "Kept as a package only until owner-specific collapse."
+
+[[collapse]]
+from = "openracing-ipc"
+to = "openracing-service::ipc"
+owner = "openracing-service"
+reason = "IPC transport is service/product infrastructure, not a standalone public contract."
+transitional_note = "Kept as a package only until the app boundary PR."
+
+[[collapse]]
+from = "openracing-profile-repository"
+to = "openracing-profile::repository"
+owner = "openracing-profile"
+reason = "Profile storage belongs to the profile contract."
+transitional_note = "Kept as a package only until the profile collapse PR."
+
+[[collapse]]
+from = "racing-wheel-input-maps"
+to = "openracing-profile::input_maps"
+owner = "openracing-profile"
+reason = "Input mapping is profile-facing, not a separate package."
+transitional_note = "Kept as a package only until the profile collapse PR."
+
+[[collapse]]
+from = "openracing-native-plugin"
+to = "openracing-service::plugins::native_host"
+owner = "openracing-service"
+reason = "Host runtime, not plugin-author API."
+transitional_note = "Kept as a package only until the plugin SDK split PR."
+
+[[collapse]]
+from = "openracing-wasm-runtime"
+to = "openracing-service::plugins::wasm_host"
+owner = "openracing-service"
+reason = "Host runtime, not plugin-author API."
+transitional_note = "Kept as a package only until the plugin SDK split PR."
+
+[[collapse]]
+from = "racing-wheel-plugins"
+to = "openracing-service::plugins"
+owner = "openracing-service"
+reason = "Plugin host orchestration is a service runtime detail, not plugin-author API."
+transitional_note = "Kept as a package only until the plugin SDK split PR."
+
+[[collapse]]
+from = "racing-wheel-telemetry-lfs"
+to = "openracing-telemetry-adapters::games::live_for_speed"
+owner = "openracing-telemetry-adapters"
+reason = "Game telemetry leaf; adapter family owns game-specific modules."
+transitional_note = "Kept as a package only until telemetry finish PR."
+
+[[collapse]]
+from = "racing-wheel-telemetry-ams2"
+to = "openracing-telemetry-adapters::games::ams2"
+owner = "openracing-telemetry-adapters"
+reason = "Game telemetry leaf; adapter family owns game-specific modules."
+transitional_note = "Kept as a package only until telemetry finish PR."
+
+[[collapse]]
+from = "racing-wheel-telemetry-simhub"
+to = "openracing-telemetry-adapters::games::simhub"
+owner = "openracing-telemetry-adapters"
+reason = "Game telemetry leaf; adapter family owns game-specific modules."
+transitional_note = "Kept as a package only until telemetry finish PR."
+
+[[collapse]]
+from = "racing-wheel-telemetry-mudrunner"
+to = "openracing-telemetry-adapters::games::mudrunner"
+owner = "openracing-telemetry-adapters"
+reason = "Game telemetry leaf; adapter family owns game-specific modules."
+transitional_note = "Kept as a package only until telemetry finish PR."
+
+[[collapse]]
+from = "racing-wheel-telemetry-f1"
+to = "openracing-telemetry-adapters::games::f1"
+owner = "openracing-telemetry-adapters"
+reason = "Game telemetry leaf; adapter family owns game-specific modules."
+transitional_note = "Kept as a package only until telemetry finish PR."
+
+[[collapse]]
+from = "racing-wheel-telemetry-forza"
+to = "openracing-telemetry-adapters::games::forza"
+owner = "openracing-telemetry-adapters"
+reason = "Game telemetry leaf; adapter family owns game-specific modules."
+transitional_note = "Kept as a package only until telemetry finish PR."
+
+[[collapse]]
+from = "racing-wheel-telemetry-rennsport"
+to = "openracing-telemetry-adapters::games::rennsport"
+owner = "openracing-telemetry-adapters"
+reason = "Game telemetry leaf; adapter family owns game-specific modules."
+transitional_note = "Kept as a package only until telemetry finish PR."
+
+[[collapse]]
+from = "racing-wheel-telemetry-wrc-generations"
+to = "openracing-telemetry-adapters::games::wrc_generations"
+owner = "openracing-telemetry-adapters"
+reason = "Game telemetry leaf; adapter family owns game-specific modules."
+transitional_note = "Kept as a package only until telemetry finish PR."
+
+[[collapse]]
+from = "racing-wheel-telemetry-kartkraft"
+to = "openracing-telemetry-adapters::games::kartkraft"
+owner = "openracing-telemetry-adapters"
+reason = "Game telemetry leaf; adapter family owns game-specific modules."
+transitional_note = "Kept as a package only until telemetry finish PR."
+
+[[collapse]]
+from = "racing-wheel-telemetry-raceroom"
+to = "openracing-telemetry-adapters::games::raceroom"
+owner = "openracing-telemetry-adapters"
+reason = "Game telemetry leaf; adapter family owns game-specific modules."
+transitional_note = "Kept as a package only until telemetry finish PR."
+
+[[collapse]]
+from = "racing-wheel-telemetry-config-writers"
+to = "openracing-telemetry-config::writers"
+owner = "openracing-telemetry-config"
+reason = "Config writers belong to the telemetry config contract."
+transitional_note = "Kept as a package only until telemetry finish PR."
+
+[[collapse]]
+from = "racing-wheel-telemetry-rate-limiter"
+to = "openracing-telemetry::rate_limiter"
+owner = "openracing-telemetry"
+reason = "Telemetry runtime helper; not an independent public package."
+transitional_note = "Kept as a package only until telemetry finish PR."
+
+[[collapse]]
+from = "racing-wheel-telemetry-orchestrator"
+to = "openracing-telemetry::orchestrator"
+owner = "openracing-telemetry"
+reason = "Telemetry orchestration belongs to the telemetry model contract."
+transitional_note = "Kept as a package only until telemetry finish PR."
+
+[[collapse]]
+from = "racing-wheel-telemetry-bdd-metrics"
+to = "openracing-telemetry::bdd_metrics"
+owner = "openracing-telemetry"
+reason = "Telemetry metrics support is not a separate public contract."
+transitional_note = "Kept as a package only until telemetry finish PR."
+
+[[collapse]]
+from = "racing-wheel-telemetry-support"
+to = "openracing-telemetry-config::support_matrix"
+owner = "openracing-telemetry-config"
+reason = "Support matrix data belongs with telemetry configuration."
+transitional_note = "Kept as a package only until telemetry finish PR."
+
+[[collapse]]
+from = "racing-wheel-telemetry-integration"
+to = "openracing-telemetry-adapters::integration"
+owner = "openracing-telemetry-adapters"
+reason = "Telemetry integration glue belongs to adapter orchestration."
+transitional_note = "Kept as a package only until telemetry finish PR."
+
+[[collapse]]
+from = "racing-wheel-telemetry-contracts"
+to = "openracing-telemetry::contracts"
+owner = "openracing-telemetry"
+reason = "Telemetry contracts belong under the public telemetry model."
+transitional_note = "Kept as a package only until telemetry finish PR."
+
+[[collapse]]
+from = "openracing-telemetry-streams"
+to = "openracing-telemetry::streams"
+owner = "openracing-telemetry"
+reason = "Telemetry stream helpers belong under the public telemetry model."
+transitional_note = "Kept as a package only until telemetry finish PR."
+
+[[collapse]]
+from = "racing-wheel-schemas"
+to = "openracing-telemetry-config::schemas"
+owner = "openracing-telemetry-config"
+reason = "Schema support is repository/product configuration support, not a standalone public package."
+transitional_note = "Kept as a package only until configuration ownership is finalized."
+
+[[collapse]]
+from = "racing-wheel-changelog"
+to = "openracing-service::release_notes"
+owner = "openracing-service"
+reason = "Changelog tooling/data is product support, not a standalone public package."
+transitional_note = "Kept as a package only until app/tool boundary cleanup."
