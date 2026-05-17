@@ -4759,6 +4759,7 @@ dependencies = [
  "serde_json",
  "serde_yaml_ng",
  "tempfile",
+ "toml 0.8.2",
 ]
 
 [[package]]

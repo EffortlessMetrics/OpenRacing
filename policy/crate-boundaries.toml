@@ -1,0 +1,594 @@
+schema_version = 1
+
+[public]
+packages = [
+  "openracing",
+  "openracing-engine",
+  "openracing-ffb",
+  "openracing-calibration",
+  "openracing-curves",
+  "openracing-profile",
+  "openracing-hid",
+  "openracing-pidff",
+  "openracing-moza",
+  "openracing-firmware-update",
+  "openracing-plugin-abi",
+  "openracing-plugin-sdk",
+  "openracing-telemetry",
+  "openracing-telemetry-adapters",
+  "openracing-telemetry-config",
+  "openracing-telemetry-recorder",
+  "openracing-service",
+  "wheelctl",
+]
+
+[internal]
+packages = [
+  "openracing-tools",
+  "workspace-hack",
+  "racing-wheel-ui",
+  "racing-wheel-integration-tests",
+  "compat",
+  "openracing-test-helpers",
+  "plugin-examples",
+  "openracing-plugin-examples",
+  "racing-wheel-changelog",
+]
+
+[temporary]
+packages = [
+  "racing-wheel-changelog",
+]
+
+[[collapse]]
+from = "racing-wheel-ks"
+to = "openracing-moza::rims::ks"
+owner = "openracing-moza"
+reason = "Moza accessory leaf; same public audience and cadence as Moza family."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "racing-wheel-srp"
+to = "openracing-moza::pedals::srp"
+owner = "openracing-moza"
+reason = "Moza accessory leaf; not an independent public API."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "racing-wheel-hbp"
+to = "openracing-moza::handbrake::hbp"
+owner = "openracing-moza"
+reason = "Moza accessory leaf; not an independent public API."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "racing-wheel-moza-wheelbase-report"
+to = "openracing-moza::wheelbase::reports"
+owner = "openracing-moza"
+reason = "Moza wheelbase report model belongs to the validated Moza family."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "racing-wheel-hid-moza-protocol"
+to = "openracing-moza::protocol"
+owner = "openracing-moza"
+reason = "Moza protocol implementation belongs to the validated Moza family."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "racing-wheel-hid-fanatec-protocol"
+to = "openracing-hid::protocol::fanatec"
+owner = "openracing-hid"
+reason = "Vendor HID leaf; keep as module until receipt-backed enough to graduate."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "racing-wheel-hid-logitech-protocol"
+to = "openracing-hid::protocol::logitech"
+owner = "openracing-hid"
+reason = "Vendor HID leaf; not a separate public support promise."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "racing-wheel-hid-thrustmaster-protocol"
+to = "openracing-hid::protocol::thrustmaster"
+owner = "openracing-hid"
+reason = "Vendor HID leaf; not a separate public support promise."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "openracing-filters"
+to = "openracing-ffb::filters"
+owner = "openracing-ffb"
+reason = "FFB implementation kernel; public API belongs to openracing-ffb."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "openracing-pipeline"
+to = "openracing-ffb::pipeline"
+owner = "openracing-ffb"
+reason = "FFB orchestration seam; not an independent public package."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "openracing-atomic"
+to = "openracing-engine::rt::atomic"
+owner = "openracing-engine"
+reason = "Runtime helper; engine-owned implementation seam."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "openracing-scheduler"
+to = "openracing-engine::rt::scheduler"
+owner = "openracing-engine"
+reason = "Runtime scheduler; engine-owned implementation seam."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "openracing-tracing"
+to = "openracing-engine::observability"
+owner = "openracing-engine"
+reason = "Runtime observability; not a standalone public contract."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "openracing-fmea"
+to = "openracing-engine::safety::fmea"
+owner = "openracing-engine"
+reason = "Safety analysis model currently serves engine/service/wheelctl lifecycle."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "openracing-watchdog"
+to = "openracing-engine::safety::watchdog"
+owner = "openracing-engine"
+reason = "Engine safety runtime seam."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "openracing-hardware-watchdog"
+to = "openracing-engine::safety::hardware_watchdog"
+owner = "openracing-engine"
+reason = "Hardware safety runtime seam."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "openracing-hardware-core"
+to = "openracing-engine::hardware::evidence"
+owner = "openracing-engine"
+reason = "Evidence model is important, but not yet a standalone external SDK."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "openracing-profile-repository"
+to = "openracing-profile::repository"
+owner = "openracing-profile"
+reason = "Profile storage belongs to the profile contract."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "racing-wheel-input-maps"
+to = "openracing-profile::input_maps"
+owner = "openracing-profile"
+reason = "Input mapping is profile-facing, not a separate package."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "input-maps"
+to = "openracing-profile::input_maps"
+owner = "openracing-profile"
+reason = "Input mapping is profile-facing, not a separate package."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "openracing-native-plugin"
+to = "openracing-service::plugins::native_host"
+owner = "openracing-service"
+reason = "Host runtime, not plugin-author API."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "openracing-wasm-runtime"
+to = "openracing-service::plugins::wasm_host"
+owner = "openracing-service"
+reason = "Host runtime, not plugin-author API."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "racing-wheel-hid-simagic-protocol"
+to = "openracing-hid::protocol::simagic"
+owner = "openracing-hid"
+reason = "Vendor HID leaf; keep as module until receipt-backed enough to graduate."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "racing-wheel-hid-vrs-protocol"
+to = "openracing-hid::protocol::vrs"
+owner = "openracing-hid"
+reason = "Vendor HID leaf; keep as module until receipt-backed enough to graduate."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "racing-wheel-hid-simucube-protocol"
+to = "openracing-hid::protocol::simucube"
+owner = "openracing-hid"
+reason = "Vendor HID leaf; keep as module until receipt-backed enough to graduate."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "racing-wheel-hid-heusinkveld-protocol"
+to = "openracing-hid::protocol::heusinkveld"
+owner = "openracing-hid"
+reason = "Vendor HID leaf; keep as module until receipt-backed enough to graduate."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "racing-wheel-hid-asetek-protocol"
+to = "openracing-hid::protocol::asetek"
+owner = "openracing-hid"
+reason = "Vendor HID leaf; keep as module until receipt-backed enough to graduate."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "racing-wheel-hid-button-box-protocol"
+to = "openracing-hid::protocol::button_box"
+owner = "openracing-hid"
+reason = "Vendor HID leaf; keep as module until receipt-backed enough to graduate."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "racing-wheel-hid-leo-bodnar-protocol"
+to = "openracing-hid::protocol::leo_bodnar"
+owner = "openracing-hid"
+reason = "Vendor HID leaf; keep as module until receipt-backed enough to graduate."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "racing-wheel-hid-accuforce-protocol"
+to = "openracing-hid::protocol::accuforce"
+owner = "openracing-hid"
+reason = "Vendor HID leaf; keep as module until receipt-backed enough to graduate."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "racing-wheel-hid-openffboard-protocol"
+to = "openracing-hid::protocol::openffboard"
+owner = "openracing-hid"
+reason = "Vendor HID leaf; keep as module until receipt-backed enough to graduate."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "racing-wheel-hid-ffbeast-protocol"
+to = "openracing-hid::protocol::ffbeast"
+owner = "openracing-hid"
+reason = "Vendor HID leaf; keep as module until receipt-backed enough to graduate."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "racing-wheel-hid-cammus-protocol"
+to = "openracing-hid::protocol::cammus"
+owner = "openracing-hid"
+reason = "Vendor HID leaf; keep as module until receipt-backed enough to graduate."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "racing-wheel-hid-cube-controls-protocol"
+to = "openracing-hid::protocol::cube_controls"
+owner = "openracing-hid"
+reason = "Vendor HID leaf; keep as module until receipt-backed enough to graduate."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "racing-wheel-hid-pxn-protocol"
+to = "openracing-hid::protocol::pxn"
+owner = "openracing-hid"
+reason = "Vendor HID leaf; keep as module until receipt-backed enough to graduate."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "racing-wheel-simplemotion-v2"
+to = "openracing-hid::protocol::simplemotion_v2"
+owner = "openracing-hid"
+reason = "Device motion protocol leaf; not a separate public support promise."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "openracing-hid-common"
+to = "openracing-hid::transport"
+owner = "openracing-hid"
+reason = "Generic HID transport belongs to the public HID family."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "openracing-device-types"
+to = "openracing-hid::registry::device_types"
+owner = "openracing-hid"
+reason = "Device registry types belong to the HID family."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "openracing-capture-ids"
+to = "openracing-hid::capture::ids"
+owner = "openracing-hid"
+reason = "Capture identifiers belong to HID capture/replay."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "openracing-capture-format"
+to = "openracing-hid::capture::format"
+owner = "openracing-hid"
+reason = "Capture format belongs to HID capture/replay."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "racing-wheel-hid-capture"
+to = "openracing-hid::capture"
+owner = "openracing-hid"
+reason = "HID capture is a module family under the HID contract."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "openracing-shifter"
+to = "openracing-hid::devices::shifter"
+owner = "openracing-hid"
+reason = "Generic shifter support belongs to HID devices."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "openracing-handbrake"
+to = "openracing-hid::devices::handbrake"
+owner = "openracing-hid"
+reason = "Generic handbrake support belongs to HID devices."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "openracing-diagnostic"
+to = "openracing-engine::diagnostic"
+owner = "openracing-engine"
+reason = "Diagnostics are engine-owned runtime support until they graduate."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "openracing-errors"
+to = "openracing-engine::error"
+owner = "openracing-engine"
+reason = "Shared error helpers should become crate-local or engine-owned errors."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "openracing-crypto"
+to = "openracing-firmware-update::crypto"
+owner = "openracing-firmware-update"
+reason = "Firmware/update crypto support is not an independent public contract."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "openracing-ipc"
+to = "openracing-service::ipc"
+owner = "openracing-service"
+reason = "Service IPC is product runtime infrastructure."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "racing-wheel-plugins"
+to = "openracing-service::plugins"
+owner = "openracing-service"
+reason = "Plugin host runtime belongs to service, not plugin-author APIs."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "racing-wheel-schemas"
+to = "openracing-telemetry-config::schemas"
+owner = "openracing-telemetry-config"
+reason = "Schema generation/validation supports telemetry configuration."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "racing-wheel-telemetry-lfs"
+to = "openracing-telemetry-adapters::games::lfs"
+owner = "openracing-telemetry-adapters"
+reason = "Game adapter leaf; cadence belongs to telemetry adapters."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "racing-wheel-telemetry-ams2"
+to = "openracing-telemetry-adapters::games::ams2"
+owner = "openracing-telemetry-adapters"
+reason = "Game adapter leaf; cadence belongs to telemetry adapters."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "racing-wheel-telemetry-simhub"
+to = "openracing-telemetry-adapters::games::simhub"
+owner = "openracing-telemetry-adapters"
+reason = "Game adapter leaf; cadence belongs to telemetry adapters."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "racing-wheel-telemetry-mudrunner"
+to = "openracing-telemetry-adapters::games::mudrunner"
+owner = "openracing-telemetry-adapters"
+reason = "Game adapter leaf; cadence belongs to telemetry adapters."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "racing-wheel-telemetry-f1"
+to = "openracing-telemetry-adapters::games::f1"
+owner = "openracing-telemetry-adapters"
+reason = "Game adapter leaf; cadence belongs to telemetry adapters."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "racing-wheel-telemetry-forza"
+to = "openracing-telemetry-adapters::games::forza"
+owner = "openracing-telemetry-adapters"
+reason = "Game adapter leaf; cadence belongs to telemetry adapters."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "racing-wheel-telemetry-rennsport"
+to = "openracing-telemetry-adapters::games::rennsport"
+owner = "openracing-telemetry-adapters"
+reason = "Game adapter leaf; cadence belongs to telemetry adapters."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "racing-wheel-telemetry-wrc-generations"
+to = "openracing-telemetry-adapters::games::wrc_generations"
+owner = "openracing-telemetry-adapters"
+reason = "Game adapter leaf; cadence belongs to telemetry adapters."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "racing-wheel-telemetry-kartkraft"
+to = "openracing-telemetry-adapters::games::kartkraft"
+owner = "openracing-telemetry-adapters"
+reason = "Game adapter leaf; cadence belongs to telemetry adapters."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "racing-wheel-telemetry-raceroom"
+to = "openracing-telemetry-adapters::games::raceroom"
+owner = "openracing-telemetry-adapters"
+reason = "Game adapter leaf; cadence belongs to telemetry adapters."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "racing-wheel-telemetry-core"
+to = "openracing-telemetry"
+owner = "openracing-telemetry"
+reason = "Current name for normalized telemetry core before naming-spine migration."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "racing-wheel-telemetry-adapters"
+to = "openracing-telemetry-adapters"
+owner = "openracing-telemetry-adapters"
+reason = "Current name for telemetry adapter family before naming-spine migration."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "racing-wheel-telemetry-config"
+to = "openracing-telemetry-config"
+owner = "openracing-telemetry-config"
+reason = "Current name for telemetry config before naming-spine migration."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "racing-wheel-telemetry-recorder"
+to = "openracing-telemetry-recorder"
+owner = "openracing-telemetry-recorder"
+reason = "Current name for telemetry recorder before naming-spine migration."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "racing-wheel-engine"
+to = "openracing-engine"
+owner = "openracing-engine"
+reason = "Current name for engine before naming-spine migration."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "racing-wheel-service"
+to = "openracing-service"
+owner = "openracing-service"
+reason = "Current name for service before naming-spine migration."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "openracing-pidff-common"
+to = "openracing-pidff"
+owner = "openracing-pidff"
+reason = "Current PIDFF package before promotion rename."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "racing-wheel-telemetry-config-writers"
+to = "openracing-telemetry-config::writers"
+owner = "openracing-telemetry-config"
+reason = "Config writers belong to telemetry config."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "openracing-telemetry-streams"
+to = "openracing-telemetry::streams"
+owner = "openracing-telemetry"
+reason = "Telemetry stream helpers belong to the core telemetry contract."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "racing-wheel-telemetry-rate-limiter"
+to = "openracing-telemetry::rate_limiter"
+owner = "openracing-telemetry"
+reason = "Telemetry rate limiting is an implementation family under telemetry."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "racing-wheel-telemetry-orchestrator"
+to = "openracing-telemetry::orchestrator"
+owner = "openracing-telemetry"
+reason = "Telemetry orchestration belongs under telemetry."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "racing-wheel-telemetry-support"
+to = "openracing-telemetry-config::support_matrix"
+owner = "openracing-telemetry-config"
+reason = "Support matrix mirror/config support belongs to telemetry config."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "racing-wheel-telemetry-integration"
+to = "openracing-telemetry-adapters::integration"
+owner = "openracing-telemetry-adapters"
+reason = "Telemetry integration helpers belong to adapters/integration tests."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "racing-wheel-telemetry-contracts"
+to = "openracing-telemetry::contracts"
+owner = "openracing-telemetry"
+reason = "Telemetry contracts are part of the normalized telemetry surface."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "racing-wheel-telemetry-bdd-metrics"
+to = "openracing-telemetry::test_support::bdd_metrics"
+owner = "openracing-telemetry"
+reason = "BDD metrics are test/support instrumentation, not a public crate."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "hid-asetek-protocol"
+to = "openracing-hid::protocol::asetek"
+owner = "openracing-hid"
+reason = "Vendor HID leaf; keep as module until receipt-backed enough to graduate."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "hid-button-box-protocol"
+to = "openracing-hid::protocol::button_box"
+owner = "openracing-hid"
+reason = "Vendor HID leaf; keep as module until receipt-backed enough to graduate."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "hid-cube-controls-protocol"
+to = "openracing-hid::protocol::cube_controls"
+owner = "openracing-hid"
+reason = "Vendor HID leaf; keep as module until receipt-backed enough to graduate."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "hid-heusinkveld-protocol"
+to = "openracing-hid::protocol::heusinkveld"
+owner = "openracing-hid"
+reason = "Vendor HID leaf; keep as module until receipt-backed enough to graduate."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."
+
+[[collapse]]
+from = "hid-simucube-protocol"
+to = "openracing-hid::protocol::simucube"
+owner = "openracing-hid"
+reason = "Vendor HID leaf; keep as module until receipt-backed enough to graduate."
+transitional_note = "Current workspace package remains until its scheduled collapse PR moves code into the owner module family."

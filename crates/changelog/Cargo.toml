@@ -7,7 +7,7 @@ authors.workspace = true
 repository.workspace = true
 homepage = "https://github.com/EffortlessMetrics/OpenRacing"
 documentation = "https://docs.rs/racing-wheel-changelog"
-publish = true
+publish = false
 description = "Keep a Changelog parsing and formatting helpers for OpenRacing"
 
 readme = "README.md"
