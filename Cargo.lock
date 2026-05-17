@@ -10882,6 +10882,7 @@ dependencies = [
  "tokio",
  "tokio-rustls",
  "tokio-stream",
+ "toml 0.8.2",
  "tower",
  "tracing",
  "tracing-core",
