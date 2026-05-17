@@ -32,10 +32,16 @@ path = "src/bin/check_private_imports.rs"
 name = "xtask"
 path = "src/bin/xtask.rs"
 
+[[bin]]
+name = "package-surface"
+path = "src/bin/package_surface.rs"
+
 [dependencies]
 anyhow = { workspace = true }
+chrono = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+toml = "0.9.12"
 serde_yaml = { workspace = true }
 
 [lints]

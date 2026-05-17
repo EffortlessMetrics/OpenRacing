@@ -7,12 +7,12 @@ authors.workspace = true
 repository.workspace = true
 homepage = "https://github.com/EffortlessMetrics/OpenRacing"
 documentation = "https://docs.rs/racing-wheel-changelog"
-publish = true
 description = "Keep a Changelog parsing and formatting helpers for OpenRacing"
 
 readme = "README.md"
 keywords = ["changelog", "parsing", "semver", "release", "openracing"]
 categories = ["development-tools", "parsing"]
+publish = false
 [package.metadata.cargo-udeps.ignore]
 normal = ["workspace-hack"]
 

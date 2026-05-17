@@ -7,14 +7,14 @@ authors.workspace = true
 repository.workspace = true
 
 
+publish = false
+description = "Internal protobuf schemas and domain models for OpenRacing IPC and configuration"
 [package.metadata.cargo-udeps.ignore]
 normal = ["workspace-hack"]
 
-publish = true
 homepage = "https://github.com/EffortlessMetrics/OpenRacing"
 documentation = "https://docs.rs/racing-wheel-schemas"
 readme = "README.md"
-description = "Protobuf schemas and domain models for OpenRacing IPC and configuration"
 keywords = ["schemas", "protobuf", "ipc", "openracing", "grpc"]
 categories = ["game-development", "data-structures"]
 [dependencies]
