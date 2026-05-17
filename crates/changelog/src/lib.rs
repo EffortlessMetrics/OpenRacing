@@ -480,6 +480,85 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_prerelease_and_build_metadata_header() -> Result<(), ChangelogError> {
+        let (version, date) = parse_version_header("## [1.2.3-beta.1+build.7] - 2025-06-15")?;
+
+        assert_eq!(
+            version,
+            Version::parse("1.2.3-beta.1+build.7").map_err(|e| {
+                ChangelogError::VersionParse(format!("test fixture failed to parse: {}", e))
+            })?
+        );
+        assert_eq!(
+            date,
+            NaiveDate::from_ymd_opt(2025, 6, 15)
+                .ok_or_else(|| ChangelogError::DateParse("Invalid date".to_string()))?
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_rejects_misordered_version_brackets() {
+        let result = ChangelogEntry::from_markdown("## ]1.0.0[ - 2025-01-15");
+
+        assert!(matches!(
+            result,
+            Err(ChangelogError::InvalidFormat(message))
+                if message == "Invalid version brackets"
+        ));
+    }
+
+    #[test]
+    fn test_parse_rejects_invalid_semver() {
+        let result = ChangelogEntry::from_markdown("## [1.0] - 2025-01-15");
+
+        assert!(
+            matches!(result, Err(ChangelogError::VersionParse(message)) if message.contains("1.0"))
+        );
+    }
+
+    #[test]
+    fn test_parse_ignores_list_items_before_any_section() -> Result<(), ChangelogError> {
+        let markdown = r#"## [1.0.0] - 2025-01-15
+
+- This should not be assigned to a section
+
+### Fixed
+
+- Assigned fix
+"#;
+        let entry = ChangelogEntry::from_markdown(markdown)?;
+
+        assert!(entry.added.is_empty());
+        assert_eq!(entry.fixed, ["Assigned fix".to_string()]);
+        assert_eq!(entry.changed, Vec::<String>::new());
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_roundtrip_preserves_security_and_deprecation_sections() -> Result<(), ChangelogError> {
+        let entry = ChangelogEntry {
+            version: Version::new(3, 4, 5),
+            date: NaiveDate::from_ymd_opt(2025, 12, 31)
+                .ok_or_else(|| ChangelogError::DateParse("Invalid date".to_string()))?,
+            deprecated: vec!["Legacy profile schema".to_string()],
+            security: vec!["Hardened release signing checks".to_string()],
+            ..Default::default()
+        };
+
+        let parsed = ChangelogEntry::from_markdown(&entry.to_markdown())?;
+
+        assert_eq!(parsed.deprecated, entry.deprecated);
+        assert_eq!(parsed.security, entry.security);
+        assert!(parsed.added.is_empty());
+        assert!(parsed.fixed.is_empty());
+
+        Ok(())
+    }
+
+    #[test]
     fn test_changelog_error_display() {
         let err = ChangelogError::InvalidFormat("test error".to_string());
         assert_eq!(format!("{}", err), "Invalid changelog format: test error");
