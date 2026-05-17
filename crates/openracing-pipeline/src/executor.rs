@@ -154,10 +154,39 @@ impl Pipeline {
 }
 
 #[cfg(test)]
-#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
+    use crate::types::FilterNodeFn;
     use openracing_curves::CurveType;
+
+    fn test_frame(torque_out: f32) -> Frame {
+        Frame {
+            ffb_in: torque_out,
+            torque_out,
+            wheel_speed: 0.0,
+            hands_off: false,
+            ts_mono_ns: 0,
+            seq: 1,
+        }
+    }
+
+    fn set_torque_to_nan(frame: &mut Frame, _state: *mut u8) {
+        frame.torque_out = f32::NAN;
+    }
+
+    fn set_torque_out_of_bounds(frame: &mut Frame, _state: *mut u8) {
+        frame.torque_out = 1.01;
+    }
+
+    fn halve_torque(frame: &mut Frame, _state: *mut u8) {
+        frame.torque_out *= 0.5;
+    }
+
+    fn pipeline_with_node(node: FilterNodeFn) -> Pipeline {
+        let mut pipeline = Pipeline::new();
+        pipeline.nodes.push(node);
+        pipeline
+    }
 
     #[test]
     fn test_pipeline_process_empty() {
@@ -234,7 +263,7 @@ mod tests {
             ts_mono_ns: 0,
             seq: 1,
         };
-        pipeline.process(&mut frame_pos).unwrap();
+        assert_eq!(pipeline.process(&mut frame_pos), Ok(()));
         assert!(frame_pos.torque_out > 0.0);
 
         let mut frame_neg = Frame {
@@ -245,7 +274,7 @@ mod tests {
             ts_mono_ns: 0,
             seq: 1,
         };
-        pipeline.process(&mut frame_neg).unwrap();
+        assert_eq!(pipeline.process(&mut frame_neg), Ok(()));
         assert!(frame_neg.torque_out < 0.0);
 
         assert!(
@@ -265,6 +294,50 @@ mod tests {
         pipeline1.swap_at_tick_boundary(pipeline2);
 
         assert_eq!(pipeline1.config_hash(), 0x12345678);
+    }
+
+    #[test]
+    fn test_pipeline_returns_fault_when_node_outputs_nan() {
+        let mut pipeline = pipeline_with_node(set_torque_to_nan);
+        let mut frame = test_frame(0.5);
+
+        let result = pipeline.process(&mut frame);
+
+        assert_eq!(result, Err(RTError::PipelineFault));
+    }
+
+    #[test]
+    fn test_pipeline_returns_fault_when_node_exceeds_torque_bounds() {
+        let mut pipeline = pipeline_with_node(set_torque_out_of_bounds);
+        let mut frame = test_frame(0.5);
+
+        let result = pipeline.process(&mut frame);
+
+        assert_eq!(result, Err(RTError::PipelineFault));
+    }
+
+    #[test]
+    fn test_process_with_curve_uses_override_without_storing_curve() {
+        let mut pipeline = pipeline_with_node(halve_torque);
+        let curve = CurveType::Linear.to_lut();
+        let mut frame = test_frame(0.8);
+
+        let result = pipeline.process_with_curve(&mut frame, Some(&curve));
+
+        assert_eq!(result, Ok(()));
+        assert!(pipeline.response_curve().is_none());
+        assert!((frame.torque_out - 0.4).abs() < 0.02);
+    }
+
+    #[test]
+    fn test_process_with_curve_returns_fault_before_curve_mapping() {
+        let mut pipeline = pipeline_with_node(set_torque_out_of_bounds);
+        let curve = CurveType::Linear.to_lut();
+        let mut frame = test_frame(0.5);
+
+        let result = pipeline.process_with_curve(&mut frame, Some(&curve));
+
+        assert_eq!(result, Err(RTError::PipelineFault));
     }
 
     #[test]

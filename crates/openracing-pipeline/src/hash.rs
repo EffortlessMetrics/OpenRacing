@@ -161,7 +161,6 @@ fn hash_lut_sample(lut: &CurveLut, hasher: &mut DefaultHasher) {
 }
 
 #[cfg(test)]
-#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
     use racing_wheel_schemas::prelude::{FrequencyHz, Gain, NotchFilter};
@@ -174,7 +173,7 @@ mod tests {
     }
 
     fn create_test_config() -> FilterConfig {
-        FilterConfig::new_complete(
+        must(FilterConfig::new_complete(
             4,
             must(Gain::new(0.1)),
             must(Gain::new(0.15)),
@@ -193,8 +192,21 @@ mod tests {
             must(Gain::new(0.9)),
             racing_wheel_schemas::entities::BumpstopConfig::default(),
             racing_wheel_schemas::entities::HandsOffConfig::default(),
-        )
-        .unwrap()
+        ))
+    }
+
+    fn assert_config_hash_changes(changed_config: FilterConfig, description: &str) {
+        let base = create_test_config();
+        let base_hash = calculate_config_hash(&base);
+        let changed_hash = calculate_config_hash(&changed_config);
+
+        assert_ne!(
+            base_hash, changed_hash,
+            "changing {description} should change the config hash"
+        );
+
+        // Re-hash the changed config to make sure each sensitivity check stays deterministic.
+        assert_eq!(changed_hash, calculate_config_hash(&changed_config));
     }
 
     #[test]
@@ -222,17 +234,18 @@ mod tests {
     }
 
     #[test]
-    fn test_config_hash_with_curve_different() {
+    fn test_config_hash_with_curve_different() -> Result<(), openracing_curves::CurveError> {
         let config = create_test_config();
 
         let hash_no_curve = calculate_config_hash_with_curve(&config, None);
         let hash_linear = calculate_config_hash_with_curve(&config, Some(&CurveType::Linear));
-        let hash_exp =
-            calculate_config_hash_with_curve(&config, Some(&CurveType::exponential(2.0).unwrap()));
+        let exp_curve = CurveType::exponential(2.0)?;
+        let hash_exp = calculate_config_hash_with_curve(&config, Some(&exp_curve));
 
         assert_ne!(hash_no_curve, hash_linear);
         assert_ne!(hash_linear, hash_exp);
         assert_ne!(hash_no_curve, hash_exp);
+        Ok(())
     }
 
     #[test]
@@ -244,6 +257,87 @@ mod tests {
 
         assert_eq!(hash1, hash2);
         assert_eq!(hash2, hash3);
+    }
+
+    #[test]
+    fn test_config_hash_changes_for_scalar_filter_fields() {
+        let mut reconstruction = create_test_config();
+        reconstruction.reconstruction = 5;
+        assert_config_hash_changes(reconstruction, "reconstruction");
+
+        let mut friction = create_test_config();
+        friction.friction = must(Gain::new(0.11));
+        assert_config_hash_changes(friction, "friction");
+
+        let mut damper = create_test_config();
+        damper.damper = must(Gain::new(0.16));
+        assert_config_hash_changes(damper, "damper");
+
+        let mut inertia = create_test_config();
+        inertia.inertia = must(Gain::new(0.06));
+        assert_config_hash_changes(inertia, "inertia");
+
+        let mut slew_rate = create_test_config();
+        slew_rate.slew_rate = must(Gain::new(0.7));
+        assert_config_hash_changes(slew_rate, "slew rate");
+
+        let mut torque_cap = create_test_config();
+        torque_cap.torque_cap = must(Gain::new(0.85));
+        assert_config_hash_changes(torque_cap, "torque cap");
+    }
+
+    #[test]
+    fn test_config_hash_changes_for_curve_and_notch_collections() {
+        let mut curve_points = create_test_config();
+        curve_points.curve_points[1] = must(CurvePoint::new(0.5, 0.7));
+        assert_config_hash_changes(curve_points, "curve points");
+
+        let mut notch_frequency = create_test_config();
+        notch_frequency.notch_filters[0].frequency = must(FrequencyHz::new(61.0));
+        assert_config_hash_changes(notch_frequency, "notch frequency");
+
+        let mut notch_q = create_test_config();
+        notch_q.notch_filters[0].q_factor = 2.5;
+        assert_config_hash_changes(notch_q, "notch q factor");
+
+        let mut notch_gain = create_test_config();
+        notch_gain.notch_filters[0].gain_db = -10.0;
+        assert_config_hash_changes(notch_gain, "notch gain");
+    }
+
+    #[test]
+    fn test_config_hash_changes_for_safety_envelope_fields() {
+        let mut bumpstop_enabled = create_test_config();
+        bumpstop_enabled.bumpstop.enabled = false;
+        assert_config_hash_changes(bumpstop_enabled, "bumpstop enabled");
+
+        let mut bumpstop_start = create_test_config();
+        bumpstop_start.bumpstop.start_angle = 455.0;
+        assert_config_hash_changes(bumpstop_start, "bumpstop start angle");
+
+        let mut bumpstop_max = create_test_config();
+        bumpstop_max.bumpstop.max_angle = 545.0;
+        assert_config_hash_changes(bumpstop_max, "bumpstop max angle");
+
+        let mut bumpstop_stiffness = create_test_config();
+        bumpstop_stiffness.bumpstop.stiffness = 0.7;
+        assert_config_hash_changes(bumpstop_stiffness, "bumpstop stiffness");
+
+        let mut bumpstop_damping = create_test_config();
+        bumpstop_damping.bumpstop.damping = 0.4;
+        assert_config_hash_changes(bumpstop_damping, "bumpstop damping");
+
+        let mut hands_off_enabled = create_test_config();
+        hands_off_enabled.hands_off.enabled = false;
+        assert_config_hash_changes(hands_off_enabled, "hands-off enabled");
+
+        let mut hands_off_threshold = create_test_config();
+        hands_off_threshold.hands_off.threshold = 0.07;
+        assert_config_hash_changes(hands_off_threshold, "hands-off threshold");
+
+        let mut hands_off_timeout = create_test_config();
+        hands_off_timeout.hands_off.timeout_seconds = 4.0;
+        assert_config_hash_changes(hands_off_timeout, "hands-off timeout");
     }
 
     #[test]
