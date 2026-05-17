@@ -11,10 +11,11 @@
 #![deny(static_mut_refs)]
 #![deny(unused_must_use)]
 
+use openracing_tools::adr::{find_adr_files, has_adr_title};
+use openracing_tools::console::{stderr_line, stdout_line};
 use std::collections::HashSet;
 use std::env;
 use std::fs;
-use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
 #[derive(Debug)]
@@ -64,56 +65,6 @@ fn parse_args() -> Result<Args, String> {
     }
 
     Ok(args)
-}
-
-fn stdout_line(args: std::fmt::Arguments<'_>) {
-    let mut stdout = io::stdout().lock();
-    let _ = writeln!(stdout, "{args}");
-}
-
-fn stderr_line(args: std::fmt::Arguments<'_>) {
-    let mut stderr = io::stderr().lock();
-    let _ = writeln!(stderr, "{args}");
-}
-
-fn is_adr_file_name(name: &str) -> bool {
-    let Some((number, _rest)) = name.split_once('-') else {
-        return false;
-    };
-
-    number.len() == 4 && number.chars().all(|c| c.is_ascii_digit()) && name.ends_with(".md")
-}
-
-pub(crate) fn find_adr_files(adr_dir: &Path) -> Vec<PathBuf> {
-    let mut adr_files = Vec::new();
-
-    if let Ok(entries) = fs::read_dir(adr_dir) {
-        for entry in entries.flatten() {
-            let path = entry.path();
-            if path.extension().is_some_and(|ext| ext == "md")
-                && let Some(name) = path.file_name().and_then(|n| n.to_str())
-                && name != "template.md"
-                && name != "README.md"
-                && is_adr_file_name(name)
-            {
-                adr_files.push(path);
-            }
-        }
-    }
-
-    adr_files.sort();
-    adr_files
-}
-
-fn has_adr_title(line: &str) -> bool {
-    let Some(rest) = line.strip_prefix("# ADR-") else {
-        return false;
-    };
-    let Some((number, title)) = rest.split_once(": ") else {
-        return false;
-    };
-
-    number.len() == 4 && number.chars().all(|c| c.is_ascii_digit()) && !title.is_empty()
 }
 
 pub(crate) fn validate_adr_format(adr_path: &Path) -> Vec<String> {

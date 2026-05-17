@@ -9,10 +9,11 @@
 #![deny(static_mut_refs)]
 #![deny(unused_must_use)]
 
+use openracing_tools::adr::{adr_title, find_adr_files, is_iso_date};
+use openracing_tools::console::{stderr_line, stdout_line};
 use std::collections::HashMap;
 use std::env;
 use std::fs;
-use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
 #[derive(Debug)]
@@ -53,16 +54,6 @@ fn parse_args() -> Result<Args, String> {
     Ok(args)
 }
 
-fn stdout_line(args: std::fmt::Arguments<'_>) {
-    let mut stdout = io::stdout().lock();
-    let _ = writeln!(stdout, "{args}");
-}
-
-fn stderr_line(args: std::fmt::Arguments<'_>) {
-    let mut stderr = io::stderr().lock();
-    let _ = writeln!(stderr, "{args}");
-}
-
 #[derive(Debug, Default)]
 pub(crate) struct AdrInfo {
     title: String,
@@ -70,22 +61,6 @@ pub(crate) struct AdrInfo {
     status: String,
     date: String,
     authors: String,
-}
-
-fn is_adr_file_name(name: &str) -> bool {
-    let Some((number, _rest)) = name.split_once('-') else {
-        return false;
-    };
-
-    number.len() == 4 && number.chars().all(|c| c.is_ascii_digit()) && name.ends_with(".md")
-}
-
-fn adr_title(line: &str) -> Option<String> {
-    let rest = line.strip_prefix("# ADR-")?;
-    let (number, title) = rest.split_once(": ")?;
-
-    (number.len() == 4 && number.chars().all(|c| c.is_ascii_digit()) && !title.is_empty())
-        .then(|| format!("ADR-{number}: {title}"))
 }
 
 pub(crate) fn extract_adr_info(adr_path: &Path) -> AdrInfo {
@@ -147,39 +122,6 @@ pub(crate) fn extract_adr_info(adr_path: &Path) -> AdrInfo {
     }
 
     info
-}
-
-fn find_adr_files(adr_dir: &Path) -> Vec<PathBuf> {
-    let mut adr_files = Vec::new();
-
-    if let Ok(entries) = fs::read_dir(adr_dir) {
-        for entry in entries.flatten() {
-            let path = entry.path();
-            if path.extension().is_some_and(|ext| ext == "md")
-                && let Some(name) = path.file_name().and_then(|n| n.to_str())
-                && name != "template.md"
-                && name != "README.md"
-                && is_adr_file_name(name)
-            {
-                adr_files.push(path);
-            }
-        }
-    }
-
-    adr_files.sort();
-    adr_files
-}
-
-fn is_iso_date(date: &str) -> bool {
-    let mut parts = date.split('-');
-    let year = parts.next();
-    let month = parts.next();
-    let day = parts.next();
-
-    parts.next().is_none()
-        && year.is_some_and(|part| part.len() == 4 && part.chars().all(|c| c.is_ascii_digit()))
-        && month.is_some_and(|part| part.len() == 2 && part.chars().all(|c| c.is_ascii_digit()))
-        && day.is_some_and(|part| part.len() == 2 && part.chars().all(|c| c.is_ascii_digit()))
 }
 
 pub(crate) fn generate_adr_index(adr_dir: &Path) -> String {
