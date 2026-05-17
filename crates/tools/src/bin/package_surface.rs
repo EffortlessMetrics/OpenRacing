@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::env;
 use std::fs;
+use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -86,7 +87,8 @@ fn main() -> ExitCode {
             }
         }
         Err(error) => {
-            eprintln!("error: {error:#}");
+            let mut stderr = io::stderr().lock();
+            let _ = writeln!(stderr, "error: {error:#}");
             ExitCode::from(1)
         }
     }
@@ -110,7 +112,7 @@ fn run() -> Result<bool> {
     }
 
     if args.check {
-        print_check_summary(&report);
+        print_check_summary(&report)?;
     }
 
     Ok(report.success)
@@ -151,9 +153,12 @@ where
             "--allow-current-names" => allow_current_names = true,
             "--strict-target-names" => allow_current_names = false,
             "--help" | "-h" => {
-                println!(
+                let mut stdout = io::stdout().lock();
+                writeln!(
+                    stdout,
                     "package-surface [--check] [--policy <path>] [--json-out <path>] [--md-out <path>] [--allow-current-names]"
-                );
+                )
+                .context("failed to write package-surface usage")?;
                 return Ok(Args {
                     check,
                     policy,
@@ -666,25 +671,29 @@ fn push_list(output: &mut String, items: &[String]) {
     }
 }
 
-fn print_check_summary(report: &Report) {
+fn print_check_summary(report: &Report) -> Result<()> {
+    let mut stdout = io::stdout().lock();
     if report.success {
-        println!(
+        writeln!(
+            stdout,
             "package surface check passed: {} workspace packages classified, {} warnings",
             report.workspace_members.len(),
             report.warnings.len()
-        );
+        )?;
     } else {
-        println!(
+        writeln!(
+            stdout,
             "package surface check failed: {} violations, {} warnings",
             report.violations.len(),
             report.warnings.len()
-        );
+        )?;
     }
 
     for violation in &report.violations {
-        println!("violation: {violation}");
+        writeln!(stdout, "violation: {violation}")?;
     }
     for warning in &report.warnings {
-        println!("warning: {warning}");
+        writeln!(stdout, "warning: {warning}")?;
     }
+    Ok(())
 }
