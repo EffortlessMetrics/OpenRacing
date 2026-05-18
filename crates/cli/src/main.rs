@@ -432,6 +432,248 @@ mod tests {
     }
 
     #[test]
+    fn parse_hardware_sniff_plan() -> TestResult {
+        let cli = parse_cli([
+            "wheelctl",
+            "hardware",
+            "sniff-plan",
+            "--family",
+            "moza",
+            "--scenario",
+            "pit-house-open-idle",
+            "--lane",
+            "ci/hardware/moza-r5/2026-05-13",
+            "--operator",
+            "Steven",
+            "--device-note",
+            "R5 + KS, SR-P and HBP through base",
+            "--capture-tool",
+            "wireshark",
+            "--capture-tool",
+            "usbpcap",
+            "--platform-hint",
+            "windows",
+            "--json-out",
+            "target/sniff/pit-house-open-idle/sniff-plan.json",
+            "--md-out",
+            "target/sniff/pit-house-open-idle/sniff-plan.md",
+        ])?;
+        match &cli.command {
+            Commands::Hardware(HardwareCommands::SniffPlan {
+                family,
+                scenario,
+                lane,
+                operator,
+                device_note,
+                capture_tools,
+                platform_hint,
+                json_out,
+                md_out,
+            }) => {
+                assert_eq!(family, "moza");
+                assert_eq!(*scenario, HardwareSniffScenario::PitHouseOpenIdle);
+                assert_eq!(lane.to_str(), Some("ci/hardware/moza-r5/2026-05-13"));
+                assert_eq!(operator, "Steven");
+                assert_eq!(device_note, "R5 + KS, SR-P and HBP through base");
+                assert_eq!(
+                    capture_tools,
+                    &vec![
+                        HardwareSniffCaptureTool::Wireshark,
+                        HardwareSniffCaptureTool::UsbPcap,
+                    ]
+                );
+                assert_eq!(*platform_hint, Some(HardwareSniffPlatformHint::Windows));
+                assert_eq!(
+                    json_out.as_ref().and_then(|p| p.to_str()),
+                    Some("target/sniff/pit-house-open-idle/sniff-plan.json")
+                );
+                assert_eq!(
+                    md_out.as_ref().and_then(|p| p.to_str()),
+                    Some("target/sniff/pit-house-open-idle/sniff-plan.md")
+                );
+            }
+            _ => return Err("expected Hardware SniffPlan command".into()),
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn parse_hardware_sniff_receipt() -> TestResult {
+        let cli = parse_cli([
+            "wheelctl",
+            "hardware",
+            "sniff-receipt",
+            "--plan",
+            "target/sniff/pit-house-open-idle/sniff-plan.json",
+            "--pcapng",
+            "target/sniff/pit-house-open-idle/capture.pcapng",
+            "--operator",
+            "Steven",
+            "--app",
+            "Pit House",
+            "--scenario",
+            "pit-house-open-idle",
+            "--device-note",
+            "R5 + KS, SR-P and HBP through base",
+            "--evidence",
+            "Pit House opened and left idle for 30 seconds.",
+            "--json-out",
+            "target/sniff/pit-house-open-idle/sniff-receipt.json",
+        ])?;
+        match &cli.command {
+            Commands::Hardware(HardwareCommands::SniffReceipt {
+                plan,
+                pcapng,
+                operator,
+                app,
+                scenario,
+                device_note,
+                evidence,
+                json_out,
+            }) => {
+                assert_eq!(
+                    plan.to_str(),
+                    Some("target/sniff/pit-house-open-idle/sniff-plan.json")
+                );
+                assert_eq!(
+                    pcapng.as_ref().and_then(|p| p.to_str()),
+                    Some("target/sniff/pit-house-open-idle/capture.pcapng")
+                );
+                assert_eq!(operator.as_deref(), Some("Steven"));
+                assert_eq!(app, "Pit House");
+                assert_eq!(*scenario, Some(HardwareSniffScenario::PitHouseOpenIdle));
+                assert_eq!(
+                    device_note.as_deref(),
+                    Some("R5 + KS, SR-P and HBP through base")
+                );
+                assert_eq!(evidence, "Pit House opened and left idle for 30 seconds.");
+                assert_eq!(
+                    json_out.as_ref().and_then(|p| p.to_str()),
+                    Some("target/sniff/pit-house-open-idle/sniff-receipt.json")
+                );
+            }
+            _ => return Err("expected Hardware SniffReceipt command".into()),
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn parse_hardware_sniff_summary() -> TestResult {
+        let cli = parse_cli([
+            "wheelctl",
+            "hardware",
+            "sniff-summary",
+            "--pcapng",
+            "target/sniff/pit-house-open-idle/capture.pcapng",
+            "--vendor",
+            "0x346E",
+            "--product",
+            "0x0014",
+            "--interface",
+            "2",
+            "--include-payload-samples",
+            "--max-samples-per-report",
+            "2",
+            "--json-out",
+            "target/sniff/pit-house-open-idle/sniff-summary.json",
+            "--md-out",
+            "target/sniff/pit-house-open-idle/sniff-summary.md",
+        ])?;
+        match &cli.command {
+            Commands::Hardware(HardwareCommands::SniffSummary {
+                pcapng,
+                vendor,
+                product,
+                interface,
+                include_payload_samples,
+                max_samples_per_report,
+                json_out,
+                md_out,
+            }) => {
+                assert_eq!(
+                    pcapng.to_str(),
+                    Some("target/sniff/pit-house-open-idle/capture.pcapng")
+                );
+                assert_eq!(vendor.as_deref(), Some("0x346E"));
+                assert_eq!(product.as_deref(), Some("0x0014"));
+                assert_eq!(*interface, Some(2));
+                assert!(*include_payload_samples);
+                assert_eq!(*max_samples_per_report, Some(2));
+                assert_eq!(
+                    json_out.as_ref().and_then(|p| p.to_str()),
+                    Some("target/sniff/pit-house-open-idle/sniff-summary.json")
+                );
+                assert_eq!(
+                    md_out.as_ref().and_then(|p| p.to_str()),
+                    Some("target/sniff/pit-house-open-idle/sniff-summary.md")
+                );
+            }
+            _ => return Err("expected Hardware SniffSummary command".into()),
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn parse_hardware_sniff_bundle() -> TestResult {
+        let cli = parse_cli([
+            "wheelctl",
+            "--json",
+            "hardware",
+            "sniff-bundle",
+            "--plan",
+            "target/sniff/pit-house-open-idle/sniff-plan.json",
+            "--receipt",
+            "target/sniff/pit-house-open-idle/sniff-receipt.json",
+            "--summary",
+            "target/sniff/pit-house-open-idle/sniff-summary.json",
+            "--operator-notes",
+            "target/sniff/pit-house-open-idle/operator-notes.md",
+            "--include-pcapng",
+            "target/sniff/pit-house-open-idle/capture.pcapng",
+            "--out",
+            "target/sniff/pit-house-open-idle/openracing-sniff-bundle.zip",
+        ])?;
+        assert!(cli.json);
+        match &cli.command {
+            Commands::Hardware(HardwareCommands::SniffBundle {
+                plan,
+                receipt,
+                summary,
+                operator_notes,
+                include_pcapng,
+                out,
+            }) => {
+                assert_eq!(
+                    plan.to_str(),
+                    Some("target/sniff/pit-house-open-idle/sniff-plan.json")
+                );
+                assert_eq!(
+                    receipt.to_str(),
+                    Some("target/sniff/pit-house-open-idle/sniff-receipt.json")
+                );
+                assert_eq!(
+                    summary.to_str(),
+                    Some("target/sniff/pit-house-open-idle/sniff-summary.json")
+                );
+                assert_eq!(
+                    operator_notes.to_str(),
+                    Some("target/sniff/pit-house-open-idle/operator-notes.md")
+                );
+                assert_eq!(
+                    include_pcapng.as_ref().and_then(|p| p.to_str()),
+                    Some("target/sniff/pit-house-open-idle/capture.pcapng")
+                );
+                assert_eq!(
+                    out.to_str(),
+                    Some("target/sniff/pit-house-open-idle/openracing-sniff-bundle.zip")
+                );
+            }
+            _ => return Err("expected Hardware SniffBundle command".into()),
+        }
+        Ok(())
+    }
+
+    #[test]
     fn parse_hardware_lane_init() -> TestResult {
         let cli = parse_cli([
             "wheelctl",
@@ -2405,10 +2647,10 @@ mod tests {
             "ci/hardware/moza-r5/2026-05-13/steering-angle-stream-proof.json",
             "--target-degrees",
             "1",
+            "--profile",
+            "bounded-pidff-micro-step-v2",
             "--max-percent",
             "5",
-            "--timeout-ms",
-            "15000",
             "--strategy",
             "pidff-bounded-effect",
             "--dry-run",
@@ -2420,6 +2662,7 @@ mod tests {
                 device,
                 lane,
                 target_degrees,
+                profile,
                 max_percent,
                 timeout_ms,
                 strategy,
@@ -2434,8 +2677,12 @@ mod tests {
                     Some("ci/hardware/moza-r5/2026-05-13")
                 );
                 assert!((*target_degrees - 1.0).abs() < f64::EPSILON);
+                assert_eq!(
+                    *profile,
+                    MozaControlledAngleProfile::BoundedPidffMicroStepV2
+                );
                 assert!((*max_percent - 5.0).abs() < f32::EPSILON);
-                assert_eq!(*timeout_ms, 15000);
+                assert_eq!(*timeout_ms, 2000);
                 assert_eq!(*strategy, MozaLowTorqueStrategy::PidffBoundedEffect);
                 assert!(*dry_run);
                 assert!(!*confirm_controlled_angle);
@@ -2535,6 +2782,8 @@ mod tests {
             "ci/hardware/moza-r5/2026-05-13/steering-angle-stream-proof.json",
             "--target-degrees",
             "1",
+            "--profile",
+            "bounded-pidff-micro-step-v2",
             "--strategy",
             "pidff-bounded-effect",
             "--max-percent",
@@ -2550,6 +2799,7 @@ mod tests {
                 device,
                 operator,
                 target_degrees,
+                profile,
                 strategy,
                 max_percent,
                 timeout_ms,
@@ -2563,6 +2813,10 @@ mod tests {
                 assert_eq!(device, "hid-0x346E-0x0004-if2-0x0001-0x0004");
                 assert_eq!(operator, "Steven");
                 assert!((*target_degrees - 1.0).abs() < f64::EPSILON);
+                assert_eq!(
+                    *profile,
+                    MozaControlledAngleProfile::BoundedPidffMicroStepV2
+                );
                 assert_eq!(*strategy, MozaLowTorqueStrategy::PidffBoundedEffect);
                 assert!((*max_percent - 5.0).abs() < f32::EPSILON);
                 assert_eq!(*timeout_ms, 2000);

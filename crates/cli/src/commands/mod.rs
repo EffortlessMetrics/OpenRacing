@@ -353,9 +353,188 @@ pub enum HardwareCommands {
         json_out: Option<std::path::PathBuf>,
     },
 
+    /// Create a non-claiming passive USB sniff plan artifact
+    SniffPlan {
+        /// Hardware family this sniff supports, for example moza-r5
+        #[arg(long, default_value = "generic-wheelbase")]
+        family: String,
+        /// Passive sniff scenario taxonomy value
+        #[arg(long, value_enum)]
+        scenario: HardwareSniffScenario,
+        /// Hardware or sniff lane directory this plan belongs to
+        #[arg(long)]
+        lane: std::path::PathBuf,
+        /// Operator name recorded in the plan
+        #[arg(long, default_value = "Steven")]
+        operator: String,
+        /// Human device note, for example wheelbase PID and attached rim/pedals
+        #[arg(long)]
+        device_note: String,
+        /// Capture tool expected for this plan; repeat for multiple tools
+        #[arg(long = "capture-tool", value_enum)]
+        capture_tools: Vec<HardwareSniffCaptureTool>,
+        /// Platform hint for the intended capture host
+        #[arg(long, value_enum)]
+        platform_hint: Option<HardwareSniffPlatformHint>,
+        /// Write the sniff plan JSON artifact to this file
+        #[arg(long)]
+        json_out: Option<std::path::PathBuf>,
+        /// Write an optional Markdown operator plan to this file
+        #[arg(long)]
+        md_out: Option<std::path::PathBuf>,
+    },
+
+    /// Create a non-claiming passive USB sniff receipt from a plan and pcapng
+    SniffReceipt {
+        /// Sniff plan JSON artifact to read
+        #[arg(long)]
+        plan: std::path::PathBuf,
+        /// Passive USB capture saved by Wireshark, tshark, USBPcap, or usbmon
+        #[arg(long)]
+        pcapng: Option<std::path::PathBuf>,
+        /// Operator name for this receipt; defaults to the plan operator
+        #[arg(long)]
+        operator: Option<String>,
+        /// External app, OS stack, simulator, or bridge observed in this capture
+        #[arg(long)]
+        app: String,
+        /// Scenario override; defaults to the plan scenario
+        #[arg(long, value_enum)]
+        scenario: Option<HardwareSniffScenario>,
+        /// Device note override; defaults to the plan device note
+        #[arg(long)]
+        device_note: Option<String>,
+        /// Operator evidence text for what was observed
+        #[arg(long)]
+        evidence: String,
+        /// Write the sniff receipt JSON artifact to this file
+        #[arg(long)]
+        json_out: Option<std::path::PathBuf>,
+    },
+
+    /// Summarize a passive USB pcapng capture without sending hardware output
+    SniffSummary {
+        /// Passive USB capture saved as .pcapng
+        #[arg(long)]
+        pcapng: std::path::PathBuf,
+        /// Optional USB vendor ID filter, e.g. 0x346E
+        #[arg(long)]
+        vendor: Option<String>,
+        /// Optional USB product ID filter, e.g. 0x0014
+        #[arg(long)]
+        product: Option<String>,
+        /// Optional USB interface number filter
+        #[arg(long)]
+        interface: Option<u16>,
+        /// Include raw payload hex samples in addition to hashes
+        #[arg(long)]
+        include_payload_samples: bool,
+        /// Maximum payload samples to keep per direction/report ID
+        #[arg(long)]
+        max_samples_per_report: Option<usize>,
+        /// Write the sniff summary JSON artifact to this file
+        #[arg(long)]
+        json_out: Option<std::path::PathBuf>,
+        /// Write an optional Markdown summary to this file
+        #[arg(long)]
+        md_out: Option<std::path::PathBuf>,
+    },
+
+    /// Create a non-claiming passive USB sniff evidence bundle ZIP
+    SniffBundle {
+        /// Sniff plan JSON artifact to include
+        #[arg(long)]
+        plan: std::path::PathBuf,
+        /// Sniff receipt JSON artifact to include
+        #[arg(long)]
+        receipt: std::path::PathBuf,
+        /// Sniff summary JSON artifact to include
+        #[arg(long)]
+        summary: std::path::PathBuf,
+        /// Operator notes Markdown artifact to include
+        #[arg(long)]
+        operator_notes: std::path::PathBuf,
+        /// Optional raw pcapng capture to include after hash validation
+        #[arg(long)]
+        include_pcapng: Option<std::path::PathBuf>,
+        /// Output ZIP bundle path
+        #[arg(long)]
+        out: std::path::PathBuf,
+    },
+
     /// Scaffold a hardware validation lane from a device-family rail adapter
     #[command(subcommand)]
     Lane(Box<HardwareLaneCommands>),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub enum HardwareSniffScenario {
+    Enumeration,
+    VendorAppClosedIdle,
+    PitHouseOpenIdle,
+    PitHouseSettingChange,
+    PitHouseFirmwarePageObserved,
+    SimhubOpenIdle,
+    SimhubDeviceDetect,
+    SimhubOutputSession,
+    SimulatorSessionStartStop,
+    Custom,
+}
+
+impl HardwareSniffScenario {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Enumeration => "enumeration",
+            Self::VendorAppClosedIdle => "vendor-app-closed-idle",
+            Self::PitHouseOpenIdle => "pit-house-open-idle",
+            Self::PitHouseSettingChange => "pit-house-setting-change",
+            Self::PitHouseFirmwarePageObserved => "pit-house-firmware-page-observed",
+            Self::SimhubOpenIdle => "simhub-open-idle",
+            Self::SimhubDeviceDetect => "simhub-device-detect",
+            Self::SimhubOutputSession => "simhub-output-session",
+            Self::SimulatorSessionStartStop => "simulator-session-start-stop",
+            Self::Custom => "custom",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub enum HardwareSniffCaptureTool {
+    Wireshark,
+    #[value(name = "usbpcap")]
+    UsbPcap,
+    Tshark,
+    Usbmon,
+}
+
+impl HardwareSniffCaptureTool {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Wireshark => "wireshark",
+            Self::UsbPcap => "usbpcap",
+            Self::Tshark => "tshark",
+            Self::Usbmon => "usbmon",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub enum HardwareSniffPlatformHint {
+    Windows,
+    Linux,
+    Macos,
+    Unknown,
+}
+
+impl HardwareSniffPlatformHint {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Windows => "windows",
+            Self::Linux => "linux",
+            Self::Macos => "macos",
+            Self::Unknown => "unknown",
+        }
+    }
 }
 
 #[derive(Subcommand)]
@@ -908,11 +1087,14 @@ pub enum MozaCommands {
         /// Planned staged target angle in degrees; use the 1, 3, 5, 10, 30, 90 ladder
         #[arg(long, default_value = "1")]
         target_degrees: f64,
+        /// Reviewed controlled-angle profile variant
+        #[arg(long, value_enum, default_value_t = MozaControlledAngleProfile::BoundedPidffMicroStepV2)]
+        profile: MozaControlledAngleProfile,
         /// Planned maximum force percent, bounded to 0.1..=5.0
         #[arg(long, default_value = "5")]
         max_percent: f32,
-        /// Safety timeout in milliseconds; actual writes are currently capped at 2000 ms
-        #[arg(long, default_value = "15000")]
+        /// Safety timeout in milliseconds; actual writes are capped at 2000 ms
+        #[arg(long, default_value = "2000")]
         timeout_ms: u64,
         /// HID read timeout in milliseconds while sampling steering motion
         #[arg(long, default_value = "20")]
@@ -994,7 +1176,8 @@ pub enum MozaCommands {
         /// Operator or host label granting bench-clear
         #[arg(long, default_value = "Steven")]
         operator: String,
-        /// Fresh bench-clear evidence for this exact controlled-angle command
+        /// Fresh command-bound bench-clear evidence naming the exact 1 degree, 5 percent,
+        /// 2000 ms PIDFF command plus stable R5, secure rim, hands clear, and wheel clear
         #[arg(long)]
         bench_clear_evidence: String,
         /// Same-lane response-only native visible/actuator response receipt
@@ -1009,6 +1192,9 @@ pub enum MozaCommands {
         /// Planned controlled-angle target in degrees; first authorized rung is 1 degree
         #[arg(long, default_value = "1")]
         target_degrees: f64,
+        /// Reviewed controlled-angle profile variant
+        #[arg(long, value_enum, default_value_t = MozaControlledAngleProfile::BoundedPidffMicroStepV2)]
+        profile: MozaControlledAngleProfile,
         /// Planned output strategy; direct report 0x20 is not accepted
         #[arg(long, value_enum, default_value_t = MozaLowTorqueStrategy::PidffBoundedEffect)]
         strategy: MozaLowTorqueStrategy,
@@ -1330,6 +1516,12 @@ pub enum MozaActuatorProfile {
     ConstantLowForce,
     /// Bounded shaped PIDFF micro-profile for reviewed native visible-motion follow-up
     BoundedShapedPidffMicroProfile,
+}
+
+#[derive(ValueEnum, Clone, Copy, Debug, PartialEq, Eq)]
+pub enum MozaControlledAngleProfile {
+    /// Reviewed bounded PIDFF micro-step retry profile for the 1 degree controlled-angle rung
+    BoundedPidffMicroStepV2,
 }
 
 #[derive(ValueEnum, Clone, Copy, Debug, PartialEq, Eq)]

@@ -28,9 +28,9 @@ use std::process::Command;
 use std::time::{Duration, Instant};
 
 use crate::commands::{
-    MozaActuatorProfile, MozaBundleStage, MozaCommands, MozaInitMode, MozaLowTorqueStrategy,
-    MozaPitHouseEvidenceKind, MozaPitHouseObservationCase, MozaReceiptTemplateKind,
-    MozaZeroOutputStrategy,
+    MozaActuatorProfile, MozaBundleStage, MozaCommands, MozaControlledAngleProfile, MozaInitMode,
+    MozaLowTorqueStrategy, MozaPitHouseEvidenceKind, MozaPitHouseObservationCase,
+    MozaReceiptTemplateKind, MozaZeroOutputStrategy,
 };
 use crate::error::CliError;
 
@@ -204,6 +204,7 @@ struct ControlledAngleSmokeRequest<'a> {
     prior_actuator_proof: Option<&'a Path>,
     steering_proof: Option<&'a Path>,
     target_degrees: f64,
+    profile: MozaControlledAngleProfile,
     max_percent: f32,
     timeout_ms: u64,
     read_timeout_ms: i32,
@@ -243,6 +244,7 @@ struct AuthorizeControlledAngleOutputRequest<'a> {
     prior_actuator_proof: Option<&'a Path>,
     steering_proof: Option<&'a Path>,
     target_degrees: f64,
+    profile: MozaControlledAngleProfile,
     strategy: MozaLowTorqueStrategy,
     max_percent: f32,
     timeout_ms: u64,
@@ -361,6 +363,22 @@ fn actuator_profile_cli_name(profile: MozaActuatorProfile) -> &'static str {
         MozaActuatorProfile::ConstantLowForce => "constant-low-force",
         MozaActuatorProfile::BoundedShapedPidffMicroProfile => "bounded-shaped-pidff-micro-profile",
     }
+}
+
+fn controlled_angle_profile_name(profile: MozaControlledAngleProfile) -> &'static str {
+    match profile {
+        MozaControlledAngleProfile::BoundedPidffMicroStepV2 => "bounded_pidff_micro_step_v2",
+    }
+}
+
+fn controlled_angle_profile_cli_name(profile: MozaControlledAngleProfile) -> &'static str {
+    match profile {
+        MozaControlledAngleProfile::BoundedPidffMicroStepV2 => "bounded-pidff-micro-step-v2",
+    }
+}
+
+fn controlled_angle_profile_json_name_is_allowed(profile: &str) -> bool {
+    profile == controlled_angle_profile_name(MozaControlledAngleProfile::BoundedPidffMicroStepV2)
 }
 
 struct InitStagePreflight {
@@ -782,6 +800,7 @@ pub async fn execute(cmd: &MozaCommands, json: bool) -> Result<()> {
             prior_actuator_proof,
             steering_proof,
             target_degrees,
+            profile,
             max_percent,
             timeout_ms,
             read_timeout_ms,
@@ -798,6 +817,7 @@ pub async fn execute(cmd: &MozaCommands, json: bool) -> Result<()> {
                 prior_actuator_proof: prior_actuator_proof.as_deref(),
                 steering_proof: steering_proof.as_deref(),
                 target_degrees: *target_degrees,
+                profile: *profile,
                 max_percent: *max_percent,
                 timeout_ms: *timeout_ms,
                 read_timeout_ms: *read_timeout_ms,
@@ -855,6 +875,7 @@ pub async fn execute(cmd: &MozaCommands, json: bool) -> Result<()> {
             prior_actuator_proof,
             steering_proof,
             target_degrees,
+            profile,
             strategy,
             max_percent,
             timeout_ms,
@@ -871,6 +892,7 @@ pub async fn execute(cmd: &MozaCommands, json: bool) -> Result<()> {
                 prior_actuator_proof: prior_actuator_proof.as_deref(),
                 steering_proof: steering_proof.as_deref(),
                 target_degrees: *target_degrees,
+                profile: *profile,
                 strategy: *strategy,
                 max_percent: *max_percent,
                 timeout_ms: *timeout_ms,
@@ -3213,6 +3235,7 @@ async fn controlled_angle_smoke(request: ControlledAngleSmokeRequest<'_>) -> Res
         prior_actuator_proof,
         steering_proof,
         target_degrees,
+        profile,
         max_percent,
         timeout_ms,
         read_timeout_ms,
@@ -3266,6 +3289,7 @@ async fn controlled_angle_smoke(request: ControlledAngleSmokeRequest<'_>) -> Res
             lane,
             selector,
             target_degrees,
+            profile,
             max_percent,
             timeout_ms,
             strategy,
@@ -3306,6 +3330,7 @@ async fn controlled_angle_smoke(request: ControlledAngleSmokeRequest<'_>) -> Res
             snapshot,
             preflight,
             target_degrees,
+            profile,
             max_percent,
             timeout_ms,
             read_timeout_ms,
@@ -3315,6 +3340,7 @@ async fn controlled_angle_smoke(request: ControlledAngleSmokeRequest<'_>) -> Res
         let started_at = Instant::now();
         execute_pidff_controlled_angle_feedback_sequence(
             &mut receipt,
+            profile,
             started_at,
             true,
             |payload| device.write(payload).map_err(|error| error.to_string()),
@@ -3336,6 +3362,7 @@ async fn controlled_angle_smoke(request: ControlledAngleSmokeRequest<'_>) -> Res
             lane,
             selector,
             target_degrees,
+            profile,
             max_percent,
             timeout_ms,
             strategy,
@@ -3368,6 +3395,7 @@ async fn controlled_angle_smoke(request: ControlledAngleSmokeRequest<'_>) -> Res
         preflight,
         &controlled_angle_plan,
         target_degrees,
+        profile,
         max_percent,
         timeout_ms,
         read_timeout_ms,
@@ -4097,6 +4125,7 @@ async fn authorize_controlled_angle_output(
         prior_actuator_proof,
         steering_proof,
         target_degrees,
+        profile,
         strategy,
         max_percent,
         timeout_ms,
@@ -4113,6 +4142,7 @@ async fn authorize_controlled_angle_output(
         1080.0,
     )?;
     validate_controlled_angle_actual_output_limits(target_degrees, max_percent, timeout_ms)?;
+    validate_controlled_angle_bench_clear_evidence(bench_clear_evidence, profile)?;
     validate_lane_manifest_endpoint_selector(
         lane,
         Some(selector),
@@ -4156,6 +4186,7 @@ async fn authorize_controlled_angle_output(
         lane,
         selector,
         target_degrees,
+        profile,
         strategy,
         max_percent,
     )?;
@@ -4183,6 +4214,7 @@ async fn authorize_controlled_angle_output(
         lane,
         selector,
         target_degrees,
+        profile,
         strategy,
         max_percent,
         timeout_ms,
@@ -4192,6 +4224,7 @@ async fn authorize_controlled_angle_output(
         &planned_command,
         selector,
         target_degrees,
+        profile,
         max_percent,
         timeout_ms,
         strategy,
@@ -4199,7 +4232,7 @@ async fn authorize_controlled_angle_output(
     )?;
 
     let authorized_at = now_utc();
-    let receipt = serde_json::json!({
+    let mut receipt = serde_json::json!({
         "success": false,
         "command": "wheelctl moza authorize-controlled-angle-output",
         "generated_at_utc": authorized_at,
@@ -4237,6 +4270,7 @@ async fn authorize_controlled_angle_output(
                 == Some("wheelctl moza receipt-template"),
             "no_output_ok": native_controlled_angle_plan_no_output_ok(&controlled_angle_plan),
             "ladder_ok": native_controlled_angle_plan_ladder_ok(&controlled_angle_plan),
+            "retry_profile_ok": native_controlled_angle_plan_retry_profile_ok(&controlled_angle_plan),
             "review_scope": json_string(&controlled_angle_plan, "review_scope")
         },
         "controlled_angle_preflight_receipt": {
@@ -4295,6 +4329,14 @@ async fn authorize_controlled_angle_output(
             "No direct report 0x20, high torque, serial config, firmware, DFU, Pit House, SimHub, or simulator evidence is required for this native controlled-angle authorization."
         ]
     });
+    receipt["profile"] = serde_json::json!(controlled_angle_profile_name(profile));
+    receipt["profile_cli"] = serde_json::json!(controlled_angle_profile_cli_name(profile));
+    receipt["controlled_angle_preflight_receipt"]["profile"] =
+        serde_json::json!(json_string(&controlled_angle_preflight, "profile"));
+    receipt["planned_next_output"]["profile"] =
+        serde_json::json!(controlled_angle_profile_name(profile));
+    receipt["planned_next_output"]["profile_cli"] =
+        serde_json::json!(controlled_angle_profile_cli_name(profile));
 
     write_json_file(&plan_path, &receipt)?;
     print_authorize_controlled_angle_output_receipt(json, &plan_path, &receipt)
@@ -5639,9 +5681,10 @@ fn validate_controlled_angle_smoke_args(
     if !max_percent.is_finite() || !(0.1..=5.0).contains(&max_percent) {
         return Err(anyhow!("--max-percent must be in 0.1..=5.0"));
     }
-    if timeout_ms == 0 || timeout_ms > 15_000 {
+    if timeout_ms == 0 || timeout_ms > NATIVE_CONTROLLED_ANGLE_FIRST_MAX_DURATION_MS {
         return Err(anyhow!(
-            "--timeout-ms must be in 1..=15000; it is a safety cutoff, not an open-loop dwell"
+            "--timeout-ms must be in 1..={}; it is a safety cutoff, not an open-loop dwell",
+            NATIVE_CONTROLLED_ANGLE_FIRST_MAX_DURATION_MS
         ));
     }
     if read_timeout_ms < 0 {
@@ -5678,6 +5721,76 @@ fn validate_controlled_angle_actual_output_limits(
             NATIVE_CONTROLLED_ANGLE_FIRST_MAX_DURATION_MS
         ));
     }
+    Ok(())
+}
+
+fn contains_any(haystack: &str, needles: &[&str]) -> bool {
+    needles.iter().any(|needle| haystack.contains(needle))
+}
+
+fn validate_controlled_angle_bench_clear_evidence(
+    evidence: &str,
+    profile: MozaControlledAngleProfile,
+) -> Result<()> {
+    let normalized = evidence.trim().to_ascii_lowercase();
+    let mut missing = Vec::new();
+
+    if !contains_any(&normalized, &["bench clear", "bench-clear"]) {
+        missing.push("bench clear");
+    }
+    if !contains_any(&normalized, &["exactly one", "one exact"]) {
+        missing.push("exactly one command");
+    }
+    if !contains_any(
+        &normalized,
+        &["target 1 degree", "target 1 degrees", "1 degree"],
+    ) {
+        missing.push("target 1 degree");
+    }
+    if !contains_any(
+        &normalized,
+        &["max 5%", "max 5 percent", "max-percent 5", "max 5"],
+    ) {
+        missing.push("max 5 percent");
+    }
+    if !contains_any(
+        &normalized,
+        &["timeout 2000 ms", "timeout 2000ms", "2000 ms"],
+    ) {
+        missing.push("timeout 2000 ms");
+    }
+    if !normalized.contains("pidff-bounded-effect") {
+        missing.push("strategy pidff-bounded-effect");
+    }
+    if !normalized.contains(controlled_angle_profile_cli_name(profile)) {
+        missing.push(controlled_angle_profile_cli_name(profile));
+    }
+    if !normalized.contains("retry") {
+        missing.push("controlled-angle retry");
+    }
+    if !normalized.contains("prior failed receipt preserved") {
+        missing.push("prior failed receipt preserved");
+    }
+    if !(normalized.contains("r5") && normalized.contains("stable")) {
+        missing.push("R5 stable");
+    }
+    if !(normalized.contains("attached") && normalized.contains("secure")) {
+        missing.push("rim attached securely");
+    }
+    if !normalized.contains("hands clear") {
+        missing.push("hands clear");
+    }
+    if !normalized.contains("wheel clear") {
+        missing.push("wheel clear");
+    }
+
+    if !missing.is_empty() {
+        return Err(anyhow!(
+            "--bench-clear-evidence must be command-bound for the exact controlled-angle retry; missing: {}",
+            missing.join(", ")
+        ));
+    }
+
     Ok(())
 }
 
@@ -6726,6 +6839,7 @@ fn validate_native_controlled_angle_output_authorization(
     lane: &Path,
     selector: &str,
     target_degrees: f64,
+    profile: MozaControlledAngleProfile,
     max_percent: f32,
     timeout_ms: u64,
     strategy: MozaLowTorqueStrategy,
@@ -6754,6 +6868,10 @@ fn validate_native_controlled_angle_output_authorization(
     let target_ok = json_f64(planned_next_output, "target_degrees")
         .map(|value| (value - target_degrees).abs() <= f64::EPSILON)
         .unwrap_or(false);
+    let profile_ok = json_string(planned_next_output, "profile")
+        == Some(controlled_angle_profile_name(profile))
+        && json_string(planned_next_output, "profile_cli")
+            == Some(controlled_angle_profile_cli_name(profile));
     let max_percent_ok = json_f64(planned_next_output, "max_percent")
         .or_else(|| json_f64(planned_next_output, "force_percent"))
         .map(|value| (value - f64::from(max_percent)).abs() <= f64::EPSILON)
@@ -6773,6 +6891,7 @@ fn validate_native_controlled_angle_output_authorization(
             lane,
             selector,
             target_degrees,
+            profile,
             strategy,
             max_percent,
             timeout_ms,
@@ -6782,6 +6901,7 @@ fn validate_native_controlled_angle_output_authorization(
         command,
         selector,
         target_degrees,
+        profile,
         max_percent,
         timeout_ms,
         strategy,
@@ -6795,6 +6915,7 @@ fn validate_native_controlled_angle_output_authorization(
         && allowed
         && fresh_clear_recorded
         && target_ok
+        && profile_ok
         && max_percent_ok
         && timeout_ok
         && strategy_ok
@@ -6803,7 +6924,7 @@ fn validate_native_controlled_angle_output_authorization(
         Ok(())
     } else {
         Err(anyhow!(
-            "{} does not authorize this exact native controlled-angle output request: command_ok={command_ok}, authorization_recorded={authorization_recorded}, authorization_unused={authorization_unused}, hardware_authorized={hardware_authorized}, allowed={allowed}, fresh_clear_recorded={fresh_clear_recorded}, target_ok={target_ok}, max_percent_ok={max_percent_ok}, timeout_ok={timeout_ok}, strategy_ok={strategy_ok}, exact_command_text_ok={exact_command_text_ok}",
+            "{} does not authorize this exact native controlled-angle output request: command_ok={command_ok}, authorization_recorded={authorization_recorded}, authorization_unused={authorization_unused}, hardware_authorized={hardware_authorized}, allowed={allowed}, fresh_clear_recorded={fresh_clear_recorded}, target_ok={target_ok}, profile_ok={profile_ok}, max_percent_ok={max_percent_ok}, timeout_ok={timeout_ok}, strategy_ok={strategy_ok}, exact_command_text_ok={exact_command_text_ok}",
             NATIVE_CONTROLLED_ANGLE_AUTHORIZATION_FILE
         ))
     }
@@ -6814,6 +6935,7 @@ fn consume_native_controlled_angle_output_authorization(
     lane: &Path,
     selector: &str,
     target_degrees: f64,
+    profile: MozaControlledAngleProfile,
     max_percent: f32,
     timeout_ms: u64,
     strategy: MozaLowTorqueStrategy,
@@ -6846,6 +6968,7 @@ fn consume_native_controlled_angle_output_authorization(
         command,
         selector,
         target_degrees,
+        profile,
         max_percent,
         timeout_ms,
         strategy,
@@ -6877,6 +7000,7 @@ fn consume_native_controlled_angle_output_authorization(
         },
         "receipt": lane_relative_or_display(lane, json_out),
         "target_degrees": json_f64(receipt, "target_degrees"),
+        "profile": json_string(receipt, "profile"),
         "max_percent": json_f64(receipt, "max_percent"),
         "duration_ms": json_u64(receipt, "duration_ms"),
         "angle_delta_degrees": json_f64(receipt, "angle_delta_degrees"),
@@ -6907,6 +7031,7 @@ fn validate_authorized_native_controlled_angle_command(
     command: &str,
     selector: &str,
     target_degrees: f64,
+    profile: MozaControlledAngleProfile,
     max_percent: f32,
     timeout_ms: u64,
     strategy: MozaLowTorqueStrategy,
@@ -6932,6 +7057,11 @@ fn validate_authorized_native_controlled_angle_command(
         &lane.join("steering-angle-stream-proof.json"),
     );
     let target_ok = command_arg_f64_matches(&tokens, "--target-degrees", target_degrees);
+    let profile_ok = command_arg_matches(
+        &tokens,
+        "--profile",
+        controlled_angle_profile_cli_name(profile),
+    );
     let strategy_ok = command_arg_matches(
         &tokens,
         "--strategy",
@@ -6948,6 +7078,7 @@ fn validate_authorized_native_controlled_angle_command(
         && prior_ok
         && steering_ok
         && target_ok
+        && profile_ok
         && strategy_ok
         && max_percent_ok
         && timeout_ok
@@ -6958,7 +7089,7 @@ fn validate_authorized_native_controlled_angle_command(
         Ok(())
     } else {
         Err(anyhow!(
-            "planned_next_output.command does not match this native controlled-angle output request: command_prefix_ok={command_prefix_ok}, selector_ok={selector_ok}, lane_ok={lane_ok}, prior_ok={prior_ok}, steering_ok={steering_ok}, target_ok={target_ok}, strategy_ok={strategy_ok}, max_percent_ok={max_percent_ok}, timeout_ok={timeout_ok}, confirm_ok={confirm_ok}, dry_run_absent={dry_run_absent}, json_out_ok={json_out_ok}"
+            "planned_next_output.command does not match this native controlled-angle output request: command_prefix_ok={command_prefix_ok}, selector_ok={selector_ok}, lane_ok={lane_ok}, prior_ok={prior_ok}, steering_ok={steering_ok}, target_ok={target_ok}, profile_ok={profile_ok}, strategy_ok={strategy_ok}, max_percent_ok={max_percent_ok}, timeout_ok={timeout_ok}, confirm_ok={confirm_ok}, dry_run_absent={dry_run_absent}, json_out_ok={json_out_ok}"
         ))
     }
 }
@@ -7027,17 +7158,19 @@ fn native_controlled_angle_output_command(
     lane: &Path,
     selector: &str,
     target_degrees: f64,
+    profile: MozaControlledAngleProfile,
     strategy: MozaLowTorqueStrategy,
     max_percent: f32,
     timeout_ms: u64,
 ) -> String {
     format!(
-        "wheelctl moza controlled-angle-smoke --device {} --lane {} --prior-actuator-proof {} --steering-proof {} --target-degrees {} --max-percent {} --timeout-ms {} --strategy {} --confirm-controlled-angle --json-out {} --json",
+        "wheelctl moza controlled-angle-smoke --device {} --lane {} --prior-actuator-proof {} --steering-proof {} --target-degrees {} --profile {} --max-percent {} --timeout-ms {} --strategy {} --confirm-controlled-angle --json-out {} --json",
         command_arg(selector),
         command_arg(&lane.display().to_string()),
         lane_path_arg(lane, "native-actuator-profile-smoke.json"),
         lane_path_arg(lane, "steering-angle-stream-proof.json"),
         compact_f64(target_degrees),
+        controlled_angle_profile_cli_name(profile),
         compact_f32(max_percent),
         timeout_ms,
         low_torque_strategy_cli_name(strategy),
@@ -8340,11 +8473,22 @@ fn native_visible_smoke_failed_real_receipt_action(lane: &Path) -> Option<String
     ))
 }
 
-fn native_visible_authorization_guidance(lane: &Path) -> &'static str {
-    if native_controlled_angle_smoke_is_no_output_preflight(lane) {
-        "Do not run output until fresh bench-clear is recorded for the exact 1 degree controlled-angle command via wheelctl moza authorize-controlled-angle-output, producing native-controlled-angle-authorization.json; no visible-output authorizer is required for this controlled-angle path."
+fn native_visible_authorization_guidance(lane: &Path) -> String {
+    if native_controlled_angle_smoke_is_real_output_attempt(lane) {
+        if read_json_value(lane, NATIVE_CONTROLLED_ANGLE_PLAN_FILE)
+            .is_ok_and(|plan| native_controlled_angle_plan_retry_profile_ok(&plan))
+        {
+            return format!(
+                "A real controlled-angle attempt is already recorded and the reviewed retry profile is present in {NATIVE_CONTROLLED_ANGLE_PLAN_FILE}; preserve native-controlled-angle-smoke.json and use the bounded-pidff-micro-step-v2 profile/feedback loop only after a separate fresh command-bound bench-clear and exact wheelctl moza authorize-controlled-angle-output receipt. Do not use the visible-output authorizer, extend dwell, raise force, or rerun from verifier guidance."
+            );
+        }
+        format!(
+            "A real controlled-angle attempt is already recorded; preserve native-controlled-angle-smoke.json and diagnose the profile/feedback loop before any new output plan. Update {NATIVE_CONTROLLED_ANGLE_PLAN_FILE} with the reason the 1 degree target was not reached, then use wheelctl moza authorize-controlled-angle-output only after a separate reviewed exact command and fresh bench-clear; do not use the visible-output authorizer, extend dwell, raise force, or rerun from verifier guidance."
+        )
+    } else if native_controlled_angle_smoke_is_no_output_preflight(lane) {
+        "Do not run output until fresh bench-clear is recorded for the exact 1 degree controlled-angle command via wheelctl moza authorize-controlled-angle-output, producing native-controlled-angle-authorization.json; no visible-output authorizer is required for this controlled-angle path.".to_string()
     } else {
-        "Do not run output until the follow-up requirements are complete and a fresh bench-clear is recorded for the exact next output command via wheelctl moza authorize-visible-output."
+        "Do not run output until the follow-up requirements are complete and a fresh bench-clear is recorded for the exact next output command via wheelctl moza authorize-visible-output.".to_string()
     }
 }
 
@@ -8356,14 +8500,15 @@ fn native_controlled_angle_plan_artifact_summary(lane: &Path) -> String {
     let command_ok = json_string(&plan, "command") == Some("wheelctl moza receipt-template");
     let no_output_ok = native_controlled_angle_plan_no_output_ok(&plan);
     let ladder_ok = native_controlled_angle_plan_ladder_ok(&plan);
-    let artifact_status = if command_ok && no_output_ok && ladder_ok {
+    let retry_profile_ok = native_controlled_angle_plan_retry_profile_ok(&plan);
+    let artifact_status = if command_ok && no_output_ok && ladder_ok && retry_profile_ok {
         "present_no_output"
     } else {
         "present_needs_review"
     };
 
     format!(
-        "controlled_angle_plan_artifact={artifact_status}, controlled_angle_ladder=1/3/5/10/30/90, controlled_angle_command_ok={command_ok}, controlled_angle_no_output_ok={no_output_ok}, controlled_angle_ladder_ok={ladder_ok}"
+        "controlled_angle_plan_artifact={artifact_status}, controlled_angle_ladder=1/3/5/10/30/90, controlled_angle_command_ok={command_ok}, controlled_angle_no_output_ok={no_output_ok}, controlled_angle_ladder_ok={ladder_ok}, controlled_angle_retry_profile_ok={retry_profile_ok}"
     )
 }
 
@@ -8380,10 +8525,15 @@ fn native_controlled_angle_smoke_artifact_summary(lane: &Path) -> String {
         let target_reached = json_bool(&receipt, "target_reached") == Some(true);
         let returned = json_bool(&receipt, "return_to_start_proven") == Some(true);
         let delta = optional_f64_text(json_f64(&receipt, "angle_delta_degrees"));
+        let abort_reason = json_string(&receipt, "abort_reason").unwrap_or("missing");
+        let timeout_reached = optional_bool_text(json_bool(&receipt, "timeout_reached"));
+        let overshoot = optional_bool_text(json_bool(&receipt, "overshoot_detected"));
+        let no_steering_samples = optional_bool_text(json_bool(&receipt, "no_steering_samples"));
+        let write_errors = optional_u64_text(json_u64(&receipt, "write_errors"));
         let stop_all = optional_bool_text(json_bool(&receipt, "final_stop_all_sent"));
         let no_direct = optional_bool_text(json_bool(&receipt, "no_direct_torque_reports"));
         return format!(
-            "controlled_angle_receipt_artifact={}, controlled_angle_target_degrees={target}, controlled_angle_delta_degrees={delta}, controlled_angle_motion_proven={motion_proven}, controlled_angle_target_reached={target_reached}, controlled_angle_return_to_start={returned}, controlled_angle_final_stop_all_sent={stop_all}, controlled_angle_no_direct_report_0x20={no_direct}",
+            "controlled_angle_receipt_artifact={}, controlled_angle_target_degrees={target}, controlled_angle_delta_degrees={delta}, controlled_angle_motion_proven={motion_proven}, controlled_angle_target_reached={target_reached}, controlled_angle_return_to_start={returned}, controlled_angle_abort_reason={abort_reason}, controlled_angle_timeout_reached={timeout_reached}, controlled_angle_overshoot_detected={overshoot}, controlled_angle_no_steering_samples={no_steering_samples}, controlled_angle_write_errors={write_errors}, controlled_angle_final_stop_all_sent={stop_all}, controlled_angle_no_direct_report_0x20={no_direct}",
             actual_gate.status
         );
     }
@@ -8426,6 +8576,16 @@ fn native_controlled_angle_smoke_is_no_output_preflight(lane: &Path) -> bool {
     command_ok && no_output_ok && motion_unclaimed
 }
 
+fn native_controlled_angle_smoke_is_real_output_attempt(lane: &Path) -> bool {
+    let Ok(receipt) = read_json_value(lane, NATIVE_CONTROLLED_ANGLE_SMOKE_FILE) else {
+        return false;
+    };
+    json_string(&receipt, "command") == Some("wheelctl moza controlled-angle-smoke")
+        && json_bool(&receipt, "dry_run") == Some(false)
+        && json_bool(&receipt, "hardware_output_enabled") == Some(true)
+        && json_bool(&receipt, "actual_hardware_writes_supported") == Some(true)
+}
+
 fn native_controlled_angle_ladder_degrees() -> [f64; 6] {
     [1.0, 3.0, 5.0, 10.0, 30.0, 90.0]
 }
@@ -8455,6 +8615,29 @@ fn native_controlled_angle_plan_ladder_ok(plan: &Value) -> bool {
     observed == [1, 3, 5, 10, 30, 90]
 }
 
+fn native_controlled_angle_plan_retry_profile_ok(plan: &Value) -> bool {
+    let Some(profile) = plan
+        .get("controlled_angle_profile_plan")
+        .and_then(|profile| profile.get("reviewed_retry_profile"))
+    else {
+        return false;
+    };
+    json_string(profile, "profile")
+        == Some(controlled_angle_profile_name(
+            MozaControlledAngleProfile::BoundedPidffMicroStepV2,
+        ))
+        && json_string(profile, "profile_cli")
+            == Some(controlled_angle_profile_cli_name(
+                MozaControlledAngleProfile::BoundedPidffMicroStepV2,
+            ))
+        && json_string(profile, "status") == Some("implemented_no_output_authorized")
+        && json_bool(profile, "hardware_output_authorized") == Some(false)
+        && json_f64(profile, "target_degrees") == Some(NATIVE_CONTROLLED_ANGLE_FIRST_TARGET_DEGREES)
+        && json_f64(profile, "max_percent")
+            == Some(f64::from(NATIVE_CONTROLLED_ANGLE_FIRST_MAX_PERCENT))
+        && json_u64(profile, "timeout_ms") == Some(NATIVE_CONTROLLED_ANGLE_FIRST_MAX_DURATION_MS)
+}
+
 fn validate_native_controlled_angle_plan_artifact(lane: &Path) -> Result<Value> {
     let plan = read_json_value(lane, NATIVE_CONTROLLED_ANGLE_PLAN_FILE).with_context(|| {
         format!(
@@ -8465,11 +8648,12 @@ fn validate_native_controlled_angle_plan_artifact(lane: &Path) -> Result<Value> 
     let command_ok = json_string(&plan, "command") == Some("wheelctl moza receipt-template");
     let no_output_ok = native_controlled_angle_plan_no_output_ok(&plan);
     let ladder_ok = native_controlled_angle_plan_ladder_ok(&plan);
-    if command_ok && no_output_ok && ladder_ok {
+    let retry_profile_ok = native_controlled_angle_plan_retry_profile_ok(&plan);
+    if command_ok && no_output_ok && ladder_ok && retry_profile_ok {
         Ok(plan)
     } else {
         Err(anyhow!(
-            "{} is not a safe no-output controlled-angle plan artifact: command_ok={command_ok}, no_output_ok={no_output_ok}, ladder_ok={ladder_ok}",
+            "{} is not a safe no-output controlled-angle plan artifact: command_ok={command_ok}, no_output_ok={no_output_ok}, ladder_ok={ladder_ok}, retry_profile_ok={retry_profile_ok}",
             NATIVE_CONTROLLED_ANGLE_PLAN_FILE
         ))
     }
@@ -8479,6 +8663,7 @@ fn validate_native_controlled_angle_dry_run_preflight(
     lane: &Path,
     selector: &str,
     target_degrees: f64,
+    profile: MozaControlledAngleProfile,
     strategy: MozaLowTorqueStrategy,
     max_percent: f32,
 ) -> Result<Value> {
@@ -8511,6 +8696,8 @@ fn validate_native_controlled_angle_dry_run_preflight(
     let target_ok = json_f64(&receipt, "target_degrees")
         .map(|value| (value - target_degrees).abs() <= f64::EPSILON)
         .unwrap_or(false);
+    let profile_ok =
+        json_string(&receipt, "profile") == Some(controlled_angle_profile_name(profile));
     let max_percent_ok = json_f64(&receipt, "max_percent")
         .map(|value| (value - f64::from(max_percent)).abs() <= f64::EPSILON)
         .unwrap_or(false);
@@ -8537,6 +8724,7 @@ fn validate_native_controlled_angle_dry_run_preflight(
         && no_serial_config_commands
         && no_firmware_or_dfu_commands
         && target_ok
+        && profile_ok
         && max_percent_ok
         && strategy_ok
         && motion_unclaimed
@@ -8545,7 +8733,7 @@ fn validate_native_controlled_angle_dry_run_preflight(
         Ok(receipt)
     } else {
         Err(anyhow!(
-            "{} is not a matching no-output controlled-angle dry-run preflight: command_ok={command_ok}, receipt_path_ok={receipt_path_ok}, selector_ok={selector_ok}, success={success}, dry_run={dry_run}, preflight_only={preflight_only}, hardware_output_enabled_false={hardware_output_enabled}, actual_hardware_writes_supported_false={actual_hardware_writes_supported}, no_hid_device_opened={no_hid_device_opened}, no_feature_reports={no_feature_reports}, no_output_reports={no_output_reports}, no_ffb_writes={no_ffb_writes}, no_direct_torque_reports={no_direct_torque_reports}, no_high_torque={no_high_torque}, high_torque_false={high_torque}, no_serial_config_commands={no_serial_config_commands}, no_firmware_or_dfu_commands={no_firmware_or_dfu_commands}, target_ok={target_ok}, max_percent_ok={max_percent_ok}, strategy_ok={strategy_ok}, motion_unclaimed={motion_unclaimed}, no_out_of_scope={no_out_of_scope}",
+            "{} is not a matching no-output controlled-angle dry-run preflight: command_ok={command_ok}, receipt_path_ok={receipt_path_ok}, selector_ok={selector_ok}, success={success}, dry_run={dry_run}, preflight_only={preflight_only}, hardware_output_enabled_false={hardware_output_enabled}, actual_hardware_writes_supported_false={actual_hardware_writes_supported}, no_hid_device_opened={no_hid_device_opened}, no_feature_reports={no_feature_reports}, no_output_reports={no_output_reports}, no_ffb_writes={no_ffb_writes}, no_direct_torque_reports={no_direct_torque_reports}, no_high_torque={no_high_torque}, high_torque_false={high_torque}, no_serial_config_commands={no_serial_config_commands}, no_firmware_or_dfu_commands={no_firmware_or_dfu_commands}, target_ok={target_ok}, profile_ok={profile_ok}, max_percent_ok={max_percent_ok}, strategy_ok={strategy_ok}, motion_unclaimed={motion_unclaimed}, no_out_of_scope={no_out_of_scope}",
             NATIVE_CONTROLLED_ANGLE_SMOKE_FILE
         ))
     }
@@ -8598,6 +8786,12 @@ fn optional_f64_text(value: Option<f64>) -> String {
     value
         .filter(|value| value.is_finite())
         .map(|value| format!("{value:.3}"))
+        .unwrap_or_else(|| "missing".to_string())
+}
+
+fn optional_u64_text(value: Option<u64>) -> String {
+    value
+        .map(|value| value.to_string())
         .unwrap_or_else(|| "missing".to_string())
 }
 
@@ -10511,20 +10705,28 @@ fn push_native_visible_next_commands(
                     lane_path_arg(lane, NATIVE_VISIBLE_FOLLOW_UP_PLAN_FILE)
                 ));
             }
-            if !lane.join(NATIVE_CONTROLLED_ANGLE_PLAN_FILE).exists() {
+            let controlled_angle_plan_ready =
+                validate_native_controlled_angle_plan_artifact(lane).is_ok();
+            if !controlled_angle_plan_ready {
                 commands.push(format!(
                     "wheelctl moza receipt-template --kind controlled-angle-plan --json-out {} --json",
                     lane_path_arg(lane, NATIVE_CONTROLLED_ANGLE_PLAN_FILE)
                 ));
             }
-            if lane.join(NATIVE_CONTROLLED_ANGLE_PLAN_FILE).exists()
-                && !lane.join(NATIVE_CONTROLLED_ANGLE_SMOKE_FILE).exists()
-            {
+            if native_controlled_angle_real_attempt_recorded(lane) {
+                return;
+            }
+            let controlled_angle_dry_run_ready =
+                native_controlled_angle_first_rung_dry_run_ready(lane, &r5_selector);
+            if controlled_angle_plan_ready && !controlled_angle_dry_run_ready {
                 let target_degrees = compact_f64(NATIVE_CONTROLLED_ANGLE_FIRST_TARGET_DEGREES);
                 let max_percent = compact_f32(NATIVE_CONTROLLED_ANGLE_FIRST_MAX_PERCENT);
                 let timeout_ms = NATIVE_CONTROLLED_ANGLE_FIRST_MAX_DURATION_MS;
+                let profile = controlled_angle_profile_cli_name(
+                    MozaControlledAngleProfile::BoundedPidffMicroStepV2,
+                );
                 commands.push(format!(
-                    "wheelctl moza controlled-angle-smoke --device {r5_selector} --lane {lane_arg} --prior-actuator-proof {} --steering-proof {} --target-degrees {target_degrees} --max-percent {max_percent} --timeout-ms {timeout_ms} --strategy pidff-bounded-effect --dry-run --json-out {} --json",
+                    "wheelctl moza controlled-angle-smoke --device {r5_selector} --lane {lane_arg} --prior-actuator-proof {} --steering-proof {} --target-degrees {target_degrees} --profile {profile} --max-percent {max_percent} --timeout-ms {timeout_ms} --strategy pidff-bounded-effect --dry-run --json-out {} --json",
                     lane_path_arg(lane, "native-actuator-profile-smoke.json"),
                     lane_path_arg(lane, "steering-angle-stream-proof.json"),
                     lane_path_arg(lane, NATIVE_CONTROLLED_ANGLE_SMOKE_FILE)
@@ -10567,6 +10769,28 @@ fn push_native_visible_next_commands(
             )
         ));
     }
+}
+
+fn native_controlled_angle_real_attempt_recorded(lane: &Path) -> bool {
+    let Ok(receipt) = read_json_value(lane, NATIVE_CONTROLLED_ANGLE_SMOKE_FILE) else {
+        return false;
+    };
+    json_string(&receipt, "command") == Some("wheelctl moza controlled-angle-smoke")
+        && json_bool(&receipt, "dry_run") == Some(false)
+        && json_bool(&receipt, "hardware_output_enabled") == Some(true)
+        && json_bool(&receipt, "actual_hardware_writes_supported") == Some(true)
+}
+
+fn native_controlled_angle_first_rung_dry_run_ready(lane: &Path, selector: &str) -> bool {
+    validate_native_controlled_angle_dry_run_preflight(
+        lane,
+        selector,
+        NATIVE_CONTROLLED_ANGLE_FIRST_TARGET_DEGREES,
+        MozaControlledAngleProfile::BoundedPidffMicroStepV2,
+        MozaLowTorqueStrategy::PidffBoundedEffect,
+        NATIVE_CONTROLLED_ANGLE_FIRST_MAX_PERCENT,
+    )
+    .is_ok()
 }
 
 fn push_external_smoke_ready_next_commands(
@@ -16496,6 +16720,8 @@ fn verify_native_controlled_angle_smoke_gate(lane: &Path) -> BundleGateCheck {
         == Some(low_torque_strategy_name(
             MozaLowTorqueStrategy::PidffBoundedEffect,
         ));
+    let profile = json_string(&receipt, "profile").unwrap_or("missing");
+    let profile_ok = profile != "missing" && controlled_angle_profile_json_name_is_allowed(profile);
     let target_degrees = json_f64(&receipt, "target_degrees").unwrap_or(f64::NAN);
     let movement_threshold_degrees =
         json_f64(&receipt, "movement_threshold_degrees").unwrap_or(f64::NAN);
@@ -16565,6 +16791,7 @@ fn verify_native_controlled_angle_smoke_gate(lane: &Path) -> BundleGateCheck {
         && post_stop_stable == Some(true)
         && generated_at_valid
         && strategy_ok
+        && profile_ok
         && bounded
         && steering_sample_count > 0
         && post_stop_sample_count >= 2
@@ -16586,7 +16813,7 @@ fn verify_native_controlled_angle_smoke_gate(lane: &Path) -> BundleGateCheck {
         BundleGateCheck::fail(
             "native_controlled_angle_smoke",
             format!(
-                "success={success}, command_ok={command_ok}, receipt_path_ok={receipt_path_ok}, selector_matches_lane_endpoint={selector_matches_lane_endpoint}, confirmed={confirmed:?}, dry_run={dry_run:?}, preflight_only={preflight_only:?}, hardware_output_enabled={hardware_output_enabled:?}, actual_hardware_writes_supported={actual_hardware_writes_supported:?}, no_hid_device_opened={no_hid_device_opened:?}, no_feature_reports={no_feature_reports:?}, no_output_reports={no_output_reports:?}, no_ffb_writes={no_ffb_writes:?}, no_direct_torque_reports={no_direct_torque_reports:?}, no_high_torque={no_high_torque:?}, high_torque={high_torque:?}, no_nonzero_above_limit={no_nonzero_above_limit:?}, no_out_of_scope={no_out_of_scope}, prior_actuator_profile_smoke_validated={prior_actuator_profile_smoke_validated:?}, steering_proof_validated={steering_proof_validated:?}, pidff_effect_setup_proven={pidff_effect_setup_proven:?}, final_stop_all_attempted={final_stop_all_attempted:?}, final_stop_all_sent={final_stop_all_sent:?}, controlled_angle_motion_proven={controlled_angle_motion_proven:?}, movement_observed={movement_observed:?}, target_reached={target_reached:?}, return_to_start_proven={return_to_start_proven:?}, timeout_reached={timeout_reached:?}, overshoot_detected={overshoot_detected:?}, no_steering_samples={no_steering_samples:?}, movement_delta_ok={movement_delta_ok}, post_stop_stable={post_stop_stable:?}, generated_at_valid={generated_at_valid}, strategy_ok={strategy_ok}, target_degrees={target_degrees}, movement_threshold_degrees={movement_threshold_degrees}, max_percent={max_percent}, duration_ms={duration_ms}, steering_sample_count={steering_sample_count}, angle_delta_degrees={angle_delta_degrees}, post_stop_sample_count={post_stop_sample_count}, write_attempts={write_attempts}, writes_ok={writes_ok}, write_errors={write_errors}, command_log_entries={command_log_entries}, command_log_no_direct_report={command_log_no_direct_report}, r5_device={r5_device}"
+                "success={success}, command_ok={command_ok}, receipt_path_ok={receipt_path_ok}, selector_matches_lane_endpoint={selector_matches_lane_endpoint}, confirmed={confirmed:?}, dry_run={dry_run:?}, preflight_only={preflight_only:?}, hardware_output_enabled={hardware_output_enabled:?}, actual_hardware_writes_supported={actual_hardware_writes_supported:?}, no_hid_device_opened={no_hid_device_opened:?}, no_feature_reports={no_feature_reports:?}, no_output_reports={no_output_reports:?}, no_ffb_writes={no_ffb_writes:?}, no_direct_torque_reports={no_direct_torque_reports:?}, no_high_torque={no_high_torque:?}, high_torque={high_torque:?}, no_nonzero_above_limit={no_nonzero_above_limit:?}, no_out_of_scope={no_out_of_scope}, prior_actuator_profile_smoke_validated={prior_actuator_profile_smoke_validated:?}, steering_proof_validated={steering_proof_validated:?}, pidff_effect_setup_proven={pidff_effect_setup_proven:?}, final_stop_all_attempted={final_stop_all_attempted:?}, final_stop_all_sent={final_stop_all_sent:?}, controlled_angle_motion_proven={controlled_angle_motion_proven:?}, movement_observed={movement_observed:?}, target_reached={target_reached:?}, return_to_start_proven={return_to_start_proven:?}, timeout_reached={timeout_reached:?}, overshoot_detected={overshoot_detected:?}, no_steering_samples={no_steering_samples:?}, movement_delta_ok={movement_delta_ok}, post_stop_stable={post_stop_stable:?}, generated_at_valid={generated_at_valid}, strategy_ok={strategy_ok}, profile={profile}, profile_ok={profile_ok}, target_degrees={target_degrees}, movement_threshold_degrees={movement_threshold_degrees}, max_percent={max_percent}, duration_ms={duration_ms}, steering_sample_count={steering_sample_count}, angle_delta_degrees={angle_delta_degrees}, post_stop_sample_count={post_stop_sample_count}, write_attempts={write_attempts}, writes_ok={writes_ok}, write_errors={write_errors}, command_log_entries={command_log_entries}, command_log_no_direct_report={command_log_no_direct_report}, r5_device={r5_device}"
             ),
         )
     }
@@ -20363,8 +20590,25 @@ fn native_controlled_angle_plan_receipt_template_value() -> Value {
 
 fn native_controlled_angle_profile_plan_value() -> Value {
     serde_json::json!({
-        "status": "requires_software_implementation_no_output_authorized",
+        "status": "retry_profile_implemented_no_output_authorized",
         "profile_family": "feedback_bounded_controlled_angle",
+        "reviewed_retry_profile": {
+            "profile": controlled_angle_profile_name(MozaControlledAngleProfile::BoundedPidffMicroStepV2),
+            "profile_cli": controlled_angle_profile_cli_name(MozaControlledAngleProfile::BoundedPidffMicroStepV2),
+            "status": "implemented_no_output_authorized",
+            "target_degrees": 1,
+            "max_percent": 5,
+            "timeout_ms": 2000,
+            "reason": "The preserved 1 degree attempt timed out safely at about 0.181 degrees with writes and cleanup working; the next software profile changes pulse shape and feedback sampling while keeping the same force and timeout ceiling.",
+            "behavior": [
+                "repeat short bounded PIDFF micro-steps instead of one long dwell",
+                "sample steering after each micro-step",
+                "send PIDFF Stop All after each micro-step and at final cleanup",
+                "stop immediately on target reached, overshoot, stale samples, write error, or timeout",
+                "use a bounded return micro-step sequence only after the outbound target is reached"
+            ],
+            "hardware_output_authorized": false
+        },
         "objective": "Move to a relative steering target and return to the start angle using live steering feedback, not open-loop dwell duration.",
         "current_force_percent_limit": 5,
         "open_loop_dwell_allowed": false,
@@ -20392,7 +20636,7 @@ fn native_controlled_angle_profile_plan_value() -> Value {
         "promotion_rule": "Do not attempt a later ladder stage until the prior stage has a receipt with target reached, return-to-start cleanup, final Stop All, no direct report 0x20, no high torque, and no serial/firmware/DFU actions.",
         "operator_goal": {
             "eventual_target": "90 degrees right, then 90 degrees left to reset",
-            "next_authorizable_target": "the first ladder stage after implementation and review",
+            "next_authorizable_target": "one reviewed 1 degree retry after exact authorization and fresh bench-clear",
             "authorized_now": false
         }
     })
@@ -22964,6 +23208,8 @@ struct NativeControlledAngleSmokeReceipt {
     lane: String,
     selector: String,
     control_mode: &'static str,
+    profile: &'static str,
+    profile_cli: &'static str,
     output_strategy: &'static str,
     target_degrees: f64,
     target_ladder_degrees: [f64; 6],
@@ -23052,6 +23298,7 @@ impl NativeControlledAngleSmokeReceipt {
         device: MozaDeviceRecord,
         preflight: NativeActuatorVisibleSmokePreflight,
         target_degrees: f64,
+        profile: MozaControlledAngleProfile,
         max_percent: f32,
         duration_ms: u64,
         read_timeout_ms: i32,
@@ -23066,6 +23313,8 @@ impl NativeControlledAngleSmokeReceipt {
             lane: lane.display().to_string(),
             selector,
             control_mode: "feedback_bounded_controlled_angle",
+            profile: controlled_angle_profile_name(profile),
+            profile_cli: controlled_angle_profile_cli_name(profile),
             output_strategy: low_torque_strategy_name(MozaLowTorqueStrategy::PidffBoundedEffect),
             target_degrees,
             target_ladder_degrees: native_controlled_angle_ladder_degrees(),
@@ -23282,6 +23531,7 @@ impl NativeControlledAngleSmokeReceipt {
 
 fn execute_pidff_controlled_angle_feedback_sequence<F, R>(
     receipt: &mut NativeControlledAngleSmokeReceipt,
+    profile: MozaControlledAngleProfile,
     started_at: Instant,
     sleep_before_cleanup: bool,
     mut write: F,
@@ -23290,78 +23540,143 @@ fn execute_pidff_controlled_angle_feedback_sequence<F, R>(
     F: FnMut(&[u8]) -> std::result::Result<usize, String>,
     R: FnMut() -> std::result::Result<SteeringAngleSample, String>,
 {
+    match profile {
+        MozaControlledAngleProfile::BoundedPidffMicroStepV2 => {
+            execute_pidff_controlled_angle_micro_step_v2_sequence(
+                receipt,
+                started_at,
+                sleep_before_cleanup,
+                &mut write,
+                &mut read_angle,
+            );
+        }
+    }
+}
+
+fn execute_pidff_controlled_angle_micro_step_v2_sequence<F, R>(
+    receipt: &mut NativeControlledAngleSmokeReceipt,
+    started_at: Instant,
+    sleep_before_cleanup: bool,
+    write: &mut F,
+    read_angle: &mut R,
+) where
+    F: FnMut(&[u8]) -> std::result::Result<usize, String>,
+    R: FnMut() -> std::result::Result<SteeringAngleSample, String>,
+{
     let mut sequence = receipt.command_log.len().min(u32::MAX as usize) as u32;
-    if !sample_controlled_start_angle(receipt, sleep_before_cleanup, &mut read_angle) {
+    if !sample_controlled_start_angle(receipt, sleep_before_cleanup, read_angle) {
         receipt
             .abort_reason
             .get_or_insert_with(|| "pre_angle_unavailable".to_string());
+        write_controlled_stop_all(receipt, &mut sequence, started_at, "final_stop_all", write);
+        sample_controlled_post_stop_window(receipt, sleep_before_cleanup, read_angle);
+        return;
+    }
+
+    let pulse_ms = controlled_angle_micro_step_v2_pulse_ms(receipt.duration_ms);
+    let pulse_count = controlled_angle_micro_step_v2_pulse_count(receipt.duration_ms);
+    for _ in 0..pulse_count {
+        if !write_controlled_pidff_micro_step(
+            receipt,
+            &mut sequence,
+            started_at,
+            receipt.max_percent,
+            pulse_ms,
+            false,
+            write,
+        ) {
+            break;
+        }
+        sample_controlled_outbound_window(
+            receipt,
+            sleep_before_cleanup,
+            read_angle,
+            pulse_ms,
+            false,
+        );
         write_controlled_stop_all(
             receipt,
             &mut sequence,
             started_at,
-            "final_stop_all",
-            &mut write,
+            if receipt.target_reached {
+                "stop_all_at_target"
+            } else {
+                "stop_all_after_outbound_micro_step"
+            },
+            write,
         );
-        sample_controlled_post_stop_window(receipt, sleep_before_cleanup, &mut read_angle);
-        return;
+        if receipt.target_reached || receipt.abort_reason.is_some() {
+            break;
+        }
+    }
+    if !receipt.target_reached && receipt.abort_reason.is_none() {
+        receipt.timeout_reached = true;
+        receipt.abort_reason = Some("safety_timeout_before_target".to_string());
     }
 
-    for report in pidff_controlled_angle_plan_reports(receipt.max_percent, receipt.duration_ms) {
-        let phase = report.profile_phase;
-        if matches!(
-            phase,
-            Some("return_setup") | Some("return") | Some("return_hold")
-        ) && (!receipt.target_reached || receipt.abort_reason.is_some())
-        {
-            break;
-        }
-
-        if !write_controlled_pidff_report(receipt, &mut sequence, started_at, &report, &mut write) {
-            break;
-        }
-        if phase == Some("outbound_hold") {
-            sample_controlled_outbound_window(
-                receipt,
-                sleep_before_cleanup,
-                &mut read_angle,
-                report.phase_duration_ms.unwrap_or(receipt.duration_ms),
-            );
-            write_controlled_stop_all(
+    if receipt.target_reached && receipt.abort_reason.is_none() {
+        for _ in 0..pulse_count {
+            if !write_controlled_pidff_micro_step(
                 receipt,
                 &mut sequence,
                 started_at,
-                "stop_all_at_target",
-                &mut write,
-            );
-            if !receipt.target_reached || receipt.abort_reason.is_some() {
+                receipt.max_percent,
+                pulse_ms,
+                true,
+                write,
+            ) {
                 break;
             }
-        } else if phase == Some("return_hold") {
             sample_controlled_return_window(
                 receipt,
                 sleep_before_cleanup,
-                &mut read_angle,
-                report.phase_duration_ms.unwrap_or(receipt.duration_ms),
+                read_angle,
+                pulse_ms,
+                false,
             );
             write_controlled_stop_all(
                 receipt,
                 &mut sequence,
                 started_at,
-                "stop_all_after_return",
-                &mut write,
+                if receipt.return_to_start_proven {
+                    "stop_all_after_return"
+                } else {
+                    "stop_all_after_return_micro_step"
+                },
+                write,
             );
-            break;
+            if receipt.return_to_start_proven || receipt.abort_reason.is_some() {
+                break;
+            }
+        }
+        if !receipt.return_to_start_proven && receipt.abort_reason.is_none() {
+            receipt.timeout_reached = true;
+            receipt.abort_reason = Some("safety_timeout_before_return_to_start".to_string());
         }
     }
 
-    write_controlled_stop_all(
-        receipt,
-        &mut sequence,
-        started_at,
-        "final_stop_all",
-        &mut write,
-    );
-    sample_controlled_post_stop_window(receipt, sleep_before_cleanup, &mut read_angle);
+    write_controlled_stop_all(receipt, &mut sequence, started_at, "final_stop_all", write);
+    sample_controlled_post_stop_window(receipt, sleep_before_cleanup, read_angle);
+}
+
+fn write_controlled_pidff_micro_step<F>(
+    receipt: &mut NativeControlledAngleSmokeReceipt,
+    sequence: &mut u32,
+    started_at: Instant,
+    max_percent: f32,
+    pulse_ms: u64,
+    return_leg: bool,
+    write: &mut F,
+) -> bool
+where
+    F: FnMut(&[u8]) -> std::result::Result<usize, String>,
+{
+    for report in pidff_controlled_angle_micro_step_reports(max_percent, pulse_ms, return_leg) {
+        if !write_controlled_pidff_report(receipt, sequence, started_at, &report, write) {
+            return false;
+        }
+    }
+    true
 }
 
 fn write_controlled_pidff_report<F>(
@@ -23531,6 +23846,7 @@ fn sample_controlled_outbound_window<R>(
     sleep_before_cleanup: bool,
     read_angle: &mut R,
     duration_ms: u64,
+    timeout_is_abort: bool,
 ) where
     R: FnMut() -> std::result::Result<SteeringAngleSample, String>,
 {
@@ -23561,7 +23877,7 @@ fn sample_controlled_outbound_window<R>(
         receipt
             .abort_reason
             .get_or_insert_with(|| "no_steering_samples_after_output".to_string());
-    } else if !receipt.target_reached && receipt.abort_reason.is_none() {
+    } else if timeout_is_abort && !receipt.target_reached && receipt.abort_reason.is_none() {
         receipt.timeout_reached = true;
         receipt.abort_reason = Some("safety_timeout_before_target".to_string());
     }
@@ -23572,6 +23888,7 @@ fn sample_controlled_return_window<R>(
     sleep_before_cleanup: bool,
     read_angle: &mut R,
     duration_ms: u64,
+    timeout_is_abort: bool,
 ) where
     R: FnMut() -> std::result::Result<SteeringAngleSample, String>,
 {
@@ -23602,7 +23919,8 @@ fn sample_controlled_return_window<R>(
         receipt
             .abort_reason
             .get_or_insert_with(|| "no_steering_samples_during_return".to_string());
-    } else if !receipt.return_to_start_proven && receipt.abort_reason.is_none() {
+    } else if timeout_is_abort && !receipt.return_to_start_proven && receipt.abort_reason.is_none()
+    {
         receipt.timeout_reached = true;
         receipt.abort_reason = Some("safety_timeout_before_return_to_start".to_string());
     }
@@ -23716,12 +24034,13 @@ fn native_controlled_angle_smoke_dry_run_receipt(
     preflight: NativeActuatorVisibleSmokePreflight,
     controlled_angle_plan: &Value,
     target_degrees: f64,
+    profile: MozaControlledAngleProfile,
     max_percent: f32,
     timeout_ms: u64,
     read_timeout_ms: i32,
     degrees_of_rotation: f64,
 ) -> Result<Value> {
-    let command_log = planned_controlled_angle_command_log(max_percent, timeout_ms)?;
+    let command_log = planned_controlled_angle_command_log(profile, max_percent, timeout_ms)?;
     let planned_pidff_writes = command_log.len();
     let mut receipt = serde_json::Map::new();
     macro_rules! field {
@@ -23740,6 +24059,8 @@ fn native_controlled_angle_smoke_dry_run_receipt(
     field!("lane", lane.display().to_string());
     field!("selector", selector);
     field!("control_mode", "feedback_bounded_controlled_angle");
+    field!("profile", controlled_angle_profile_name(profile));
+    field!("profile_cli", controlled_angle_profile_cli_name(profile));
     field!(
         "output_strategy",
         low_torque_strategy_name(MozaLowTorqueStrategy::PidffBoundedEffect)
@@ -23794,6 +24115,7 @@ fn native_controlled_angle_smoke_dry_run_receipt(
                 == Some("wheelctl moza receipt-template"),
             "no_output_ok": native_controlled_angle_plan_no_output_ok(controlled_angle_plan),
             "ladder_ok": native_controlled_angle_plan_ladder_ok(controlled_angle_plan),
+            "retry_profile_ok": native_controlled_angle_plan_retry_profile_ok(controlled_angle_plan),
             "review_scope": json_string(controlled_angle_plan, "review_scope"),
             "generated_at_utc": json_string(controlled_angle_plan, "generated_at_utc")
         })
@@ -23838,35 +24160,46 @@ fn native_controlled_angle_smoke_dry_run_receipt(
         ])
     );
     field!("planned_pidff_writes", planned_pidff_writes);
+    field!("write_attempts", 0_u64);
+    field!("writes_ok", 0_u64);
+    field!("write_errors", 0_u64);
     field!("command_log", command_log);
     field!(
         "notes",
         [
             "Dry-run controlled-angle preflight only: this receipt opens no HID device and proves no motion.",
             "The profile is angle-bounded feedback control, not a longer open-loop dwell.",
-            "Actual hardware output remains unsupported by this command until a separate feedback writer is implemented, reviewed, and authorized.",
+            "Actual hardware output remains blocked unless a same-lane native-controlled-angle-authorization.json exactly matches one reviewed command.",
             "Pit House, SimHub, simulator telemetry, direct report 0x20, high torque, serial config, firmware, and DFU are outside this native controlled-angle path."
         ]
     );
     Ok(Value::Object(receipt))
 }
 
-fn planned_controlled_angle_command_log(max_percent: f32, timeout_ms: u64) -> Result<Vec<Value>> {
+fn planned_controlled_angle_command_log(
+    profile: MozaControlledAngleProfile,
+    max_percent: f32,
+    timeout_ms: u64,
+) -> Result<Vec<Value>> {
     let started_at = Instant::now();
     let mut sequence = 0_u32;
     let mut entries = Vec::new();
-    for report in pidff_controlled_angle_plan_reports(max_percent, timeout_ms) {
+    for report in pidff_controlled_angle_plan_reports(profile, max_percent, timeout_ms) {
         entries.push(serde_json::to_value(
             LowTorqueCommandRecord::planned_pidff_output(sequence, &report, started_at),
         )?);
         sequence = sequence.saturating_add(1);
-        if report.profile_phase == Some("outbound_hold") {
+        if matches!(
+            report.profile_phase,
+            Some("outbound_hold") | Some("return_hold")
+        ) {
+            let stop_kind = if report.profile_phase == Some("outbound_hold") {
+                "stop_all_after_outbound_micro_step"
+            } else {
+                "stop_all_after_return_micro_step"
+            };
             entries.push(serde_json::to_value(
-                LowTorqueCommandRecord::planned_pidff_stop_all(
-                    sequence,
-                    "stop_all_at_target",
-                    started_at,
-                ),
+                LowTorqueCommandRecord::planned_pidff_stop_all(sequence, stop_kind, started_at),
             )?);
             sequence = sequence.saturating_add(1);
         }
@@ -23878,18 +24211,80 @@ fn planned_controlled_angle_command_log(max_percent: f32, timeout_ms: u64) -> Re
 }
 
 fn pidff_controlled_angle_plan_reports(
+    profile: MozaControlledAngleProfile,
     max_percent: f32,
     timeout_ms: u64,
 ) -> Vec<PidffLowTorqueReport> {
-    let duration = timeout_ms.min(u64::from(u16::MAX)) as u16;
+    match profile {
+        MozaControlledAngleProfile::BoundedPidffMicroStepV2 => {
+            let pulse_ms = controlled_angle_micro_step_v2_pulse_ms(timeout_ms);
+            let pulse_count = controlled_angle_micro_step_v2_pulse_count(timeout_ms);
+            let mut reports = Vec::new();
+            for _ in 0..pulse_count {
+                reports.extend(pidff_controlled_angle_micro_step_reports(
+                    max_percent,
+                    pulse_ms,
+                    false,
+                ));
+            }
+            for _ in 0..pulse_count {
+                reports.extend(pidff_controlled_angle_micro_step_reports(
+                    max_percent,
+                    pulse_ms,
+                    true,
+                ));
+            }
+            reports
+        }
+    }
+}
+
+fn controlled_angle_micro_step_v2_pulse_ms(timeout_ms: u64) -> u64 {
+    timeout_ms.clamp(1, 250)
+}
+
+fn controlled_angle_micro_step_v2_pulse_count(timeout_ms: u64) -> u64 {
+    timeout_ms
+        .div_ceil(controlled_angle_micro_step_v2_pulse_ms(timeout_ms))
+        .max(1)
+}
+
+fn pidff_controlled_angle_micro_step_reports(
+    max_percent: f32,
+    pulse_ms: u64,
+    return_leg: bool,
+) -> Vec<PidffLowTorqueReport> {
+    let duration = pulse_ms.min(u64::from(u16::MAX)) as u16;
     let gain = pidff_gain_for_percent(max_percent);
-    let outbound_magnitude = pidff_signed_constant_force_for_percent(max_percent);
-    let return_percent = -max_percent;
-    let return_magnitude = pidff_signed_constant_force_for_percent(return_percent);
+    let percent = if return_leg {
+        -max_percent
+    } else {
+        max_percent
+    };
+    let magnitude = pidff_signed_constant_force_for_percent(percent);
+    let (setup_kind, force_kind, start_kind, setup_phase, force_phase, hold_phase) = if return_leg {
+        (
+            "pidff_set_effect_return_micro_step",
+            "pidff_set_constant_force_return_micro_step",
+            "pidff_effect_start_return_micro_step",
+            "return_setup",
+            "return",
+            "return_hold",
+        )
+    } else {
+        (
+            "pidff_set_effect_outbound_micro_step",
+            "pidff_set_constant_force_outbound_micro_step",
+            "pidff_effect_start_outbound_micro_step",
+            "outbound_setup",
+            "outbound",
+            "outbound_hold",
+        )
+    };
 
     vec![
         PidffLowTorqueReport::new(
-            "pidff_set_effect_outbound",
+            setup_kind,
             max_percent,
             r5_v1_pidff_set_effect_payload(
                 PIDFF_LOW_TORQUE_EFFECT_BLOCK_INDEX,
@@ -23904,63 +24299,19 @@ fn pidff_controlled_angle_plan_reports(
             false,
             PIDFF_EFFECT_SETUP_CLASSIFICATION,
         )
-        .with_profile_phase("outbound_setup", None),
+        .with_profile_phase(setup_phase, None),
         PidffLowTorqueReport::new(
-            "pidff_set_constant_force_outbound",
-            max_percent,
-            pidff::encode_set_constant_force(
-                PIDFF_LOW_TORQUE_EFFECT_BLOCK_INDEX,
-                outbound_magnitude,
-            )
-            .to_vec(),
-            outbound_magnitude,
-            true,
-            PIDFF_BOUNDED_EFFECT_CLASSIFICATION,
-        )
-        .with_profile_phase("outbound", None),
-        PidffLowTorqueReport::new(
-            "pidff_effect_start_outbound",
-            max_percent,
-            pidff::encode_effect_operation(
-                PIDFF_LOW_TORQUE_EFFECT_BLOCK_INDEX,
-                EffectOp::Start,
-                PIDFF_LOW_TORQUE_LOOP_COUNT,
-            )
-            .to_vec(),
-            0,
-            true,
-            PIDFF_BOUNDED_EFFECT_CLASSIFICATION,
-        )
-        .with_profile_phase("outbound_hold", Some(timeout_ms)),
-        PidffLowTorqueReport::new(
-            "pidff_set_effect_return",
-            max_percent,
-            r5_v1_pidff_set_effect_payload(
-                PIDFF_LOW_TORQUE_EFFECT_BLOCK_INDEX,
-                EffectType::Constant as u8,
-                duration,
-                gain,
-                PIDFF_LOW_TORQUE_DIRECTION_X,
-                PIDFF_LOW_TORQUE_DIRECTION_Y,
-            )
-            .to_vec(),
-            0,
-            false,
-            PIDFF_EFFECT_SETUP_CLASSIFICATION,
-        )
-        .with_profile_phase("return_setup", None),
-        PidffLowTorqueReport::new(
-            "pidff_set_constant_force_return",
-            return_percent,
-            pidff::encode_set_constant_force(PIDFF_LOW_TORQUE_EFFECT_BLOCK_INDEX, return_magnitude)
+            force_kind,
+            percent,
+            pidff::encode_set_constant_force(PIDFF_LOW_TORQUE_EFFECT_BLOCK_INDEX, magnitude)
                 .to_vec(),
-            return_magnitude,
+            magnitude,
             true,
             PIDFF_BOUNDED_EFFECT_CLASSIFICATION,
         )
-        .with_profile_phase("return", None),
+        .with_profile_phase(force_phase, None),
         PidffLowTorqueReport::new(
-            "pidff_effect_start_return",
+            start_kind,
             max_percent,
             pidff::encode_effect_operation(
                 PIDFF_LOW_TORQUE_EFFECT_BLOCK_INDEX,
@@ -23972,7 +24323,7 @@ fn pidff_controlled_angle_plan_reports(
             true,
             PIDFF_BOUNDED_EFFECT_CLASSIFICATION,
         )
-        .with_profile_phase("return_hold", Some(timeout_ms)),
+        .with_profile_phase(hold_phase, Some(pulse_ms)),
     ]
 }
 
@@ -30039,6 +30390,7 @@ mod tests {
             synthetic_moza_device_record(product_ids::R5_V1),
             preflight,
             1.0,
+            MozaControlledAngleProfile::BoundedPidffMicroStepV2,
             5.0,
             2_000,
             20,
@@ -30058,6 +30410,7 @@ mod tests {
         ]);
         execute_pidff_controlled_angle_feedback_sequence(
             &mut receipt,
+            MozaControlledAngleProfile::BoundedPidffMicroStepV2,
             Instant::now(),
             false,
             |payload| Ok(payload.len()),
@@ -30076,6 +30429,7 @@ mod tests {
     ) -> Value {
         let selector = "hid-0x346E-0x0004-if2-0x0001-0x0004";
         let strategy = MozaLowTorqueStrategy::PidffBoundedEffect;
+        let profile = MozaControlledAngleProfile::BoundedPidffMicroStepV2;
         serde_json::json!({
             "success": false,
             "command": "wheelctl moza authorize-controlled-angle-output",
@@ -30083,6 +30437,8 @@ mod tests {
             "authorization_recorded": true,
             "authorization_consumed": false,
             "hardware_output_authorized": true,
+            "profile": controlled_angle_profile_name(profile),
+            "profile_cli": controlled_angle_profile_cli_name(profile),
             "force_escalation_authorized": false,
             "authorized_by": "Steven",
             "bench_clear_evidence": "bench clear for exactly one controlled-angle command",
@@ -30101,11 +30457,14 @@ mod tests {
                     root,
                     selector,
                     target_degrees,
+                    profile,
                     strategy,
                     max_percent,
                     timeout_ms,
                 ),
                 "target_degrees": target_degrees,
+                "profile": controlled_angle_profile_name(profile),
+                "profile_cli": controlled_angle_profile_cli_name(profile),
                 "max_percent": max_percent,
                 "timeout_ms": timeout_ms,
                 "strategy": low_torque_strategy_cli_name(strategy),
@@ -31036,6 +31395,79 @@ mod tests {
         )?;
         write_service_status_artifacts(root)?;
         Ok(())
+    }
+
+    fn write_controlled_angle_dry_run_receipt(root: &Path, selector: &str) -> TestResult {
+        write_test_json_file(
+            &root.join(NATIVE_CONTROLLED_ANGLE_SMOKE_FILE),
+            &serde_json::json!({
+                "success": true,
+                "command": "wheelctl moza controlled-angle-smoke",
+                "generated_at_utc": now_utc(),
+                "receipt_path": root.join(NATIVE_CONTROLLED_ANGLE_SMOKE_FILE).display().to_string(),
+                "lane": root.display().to_string(),
+                "selector": selector,
+                "profile": "bounded_pidff_micro_step_v2",
+                "profile_cli": "bounded-pidff-micro-step-v2",
+                "output_strategy": "pidff_bounded_effect",
+                "target_degrees": 1.0,
+                "max_percent": 5.0,
+                "duration_ms": 2_000,
+                "safety_timeout_ms": 2_000,
+                "dry_run": true,
+                "preflight_only": true,
+                "hardware_output_enabled": false,
+                "actual_hardware_writes_supported": false,
+                "controlled_angle_motion_proven": false,
+                "planned_next_output_allowed": false,
+                "no_hid_device_opened": true,
+                "no_feature_reports": true,
+                "no_output_reports": true,
+                "no_ffb_writes": true,
+                "no_direct_torque_reports": true,
+                "no_high_torque": true,
+                "high_torque": false,
+                "no_serial_config_commands": true,
+                "no_firmware_or_dfu_commands": true
+            }),
+        )
+    }
+
+    fn write_failed_controlled_angle_output_receipt(root: &Path, selector: &str) -> TestResult {
+        write_test_json_file(
+            &root.join(NATIVE_CONTROLLED_ANGLE_SMOKE_FILE),
+            &serde_json::json!({
+                "success": false,
+                "command": "wheelctl moza controlled-angle-smoke",
+                "generated_at_utc": now_utc(),
+                "receipt_path": root.join(NATIVE_CONTROLLED_ANGLE_SMOKE_FILE).display().to_string(),
+                "lane": root.display().to_string(),
+                "selector": selector,
+                "confirmed": true,
+                "dry_run": false,
+                "preflight_only": false,
+                "hardware_output_enabled": true,
+                "actual_hardware_writes_supported": true,
+                "profile": "bounded_pidff_micro_step_v2",
+                "profile_cli": "bounded-pidff-micro-step-v2",
+                "controlled_angle_motion_proven": false,
+                "movement_observed": false,
+                "target_degrees": 1.0,
+                "movement_threshold_degrees": 1.0,
+                "max_percent": 5.0,
+                "duration_ms": 2_000,
+                "angle_delta_degrees": 0.18127718013275285,
+                "target_reached": false,
+                "return_to_start_proven": false,
+                "timeout_reached": true,
+                "overshoot_detected": false,
+                "no_steering_samples": false,
+                "write_errors": 0,
+                "final_stop_all_sent": true,
+                "no_direct_torque_reports": true,
+                "abort_reason": "safety_timeout_before_target"
+            }),
+        )
     }
 
     fn write_smoke_ready_bundle(root: &Path) -> TestResult {
@@ -34674,7 +35106,7 @@ mod tests {
             MozaLowTorqueStrategy::PidffBoundedEffect,
             1.0,
             5.0,
-            15_000,
+            2_000,
             20,
             1080.0,
         )?;
@@ -34682,7 +35114,7 @@ mod tests {
             MozaLowTorqueStrategy::PidffBoundedEffect,
             90.0,
             5.0,
-            15_000,
+            2_000,
             20,
             1080.0,
         )?;
@@ -34691,7 +35123,7 @@ mod tests {
             MozaLowTorqueStrategy::PidffBoundedEffect,
             2.0,
             5.0,
-            15_000,
+            2_000,
             20,
             1080.0,
         )
@@ -34704,7 +35136,7 @@ mod tests {
             MozaLowTorqueStrategy::PidffBoundedEffect,
             1.0,
             5.0,
-            30_000,
+            3_000,
             20,
             1080.0,
         )
@@ -34717,7 +35149,7 @@ mod tests {
             MozaLowTorqueStrategy::DirectReport0x20,
             1.0,
             5.0,
-            15_000,
+            2_000,
             20,
             1080.0,
         )
@@ -34762,8 +35194,9 @@ mod tests {
             prior_actuator_proof: Some(&dir.path().join("native-actuator-profile-smoke.json")),
             steering_proof: Some(&dir.path().join("steering-angle-stream-proof.json")),
             target_degrees: 1.0,
+            profile: MozaControlledAngleProfile::BoundedPidffMicroStepV2,
             max_percent: 5.0,
-            timeout_ms: 15_000,
+            timeout_ms: 2_000,
             read_timeout_ms: 20,
             degrees_of_rotation: 1080.0,
             strategy: MozaLowTorqueStrategy::PidffBoundedEffect,
@@ -34790,7 +35223,11 @@ mod tests {
             Some(false)
         );
         assert_eq!(json_f64(&receipt, "target_degrees"), Some(1.0));
-        assert_eq!(json_u64(&receipt, "safety_timeout_ms"), Some(15_000));
+        assert_eq!(
+            json_string(&receipt, "profile"),
+            Some("bounded_pidff_micro_step_v2")
+        );
+        assert_eq!(json_u64(&receipt, "safety_timeout_ms"), Some(2_000));
         assert_eq!(
             receipt
                 .get("target_ladder_degrees")
@@ -34809,7 +35246,7 @@ mod tests {
             .and_then(Value::as_array)
             .ok_or("expected controlled-angle command log")?;
         assert!(command_log.iter().any(|record| {
-            json_string(record, "kind") == Some("stop_all_at_target")
+            json_string(record, "kind") == Some("stop_all_after_outbound_micro_step")
                 && json_string(record, "payload_hex") == Some("0C04")
         }));
         assert!(command_log.iter().any(|record| {
@@ -34836,6 +35273,7 @@ mod tests {
             prior_actuator_proof: Some(&dir.path().join("native-actuator-profile-smoke.json")),
             steering_proof: Some(&dir.path().join("steering-angle-stream-proof.json")),
             target_degrees: 1.0,
+            profile: MozaControlledAngleProfile::BoundedPidffMicroStepV2,
             max_percent: 5.0,
             timeout_ms: 2_000,
             read_timeout_ms: 20,
@@ -34866,6 +35304,7 @@ mod tests {
             dir.path(),
             "hid-0x346E-0x0004-if2-0x0001-0x0004",
             1.0,
+            MozaControlledAngleProfile::BoundedPidffMicroStepV2,
             5.0,
             2_000,
             MozaLowTorqueStrategy::PidffBoundedEffect,
@@ -34885,6 +35324,7 @@ mod tests {
             dir.path(),
             "hid-0x346E-0x0004-if2-0x0001-0x0004",
             1.0,
+            MozaControlledAngleProfile::BoundedPidffMicroStepV2,
             5.0,
             2_000,
             MozaLowTorqueStrategy::PidffBoundedEffect,
@@ -34895,6 +35335,28 @@ mod tests {
         .ok_or("expected exact target mismatch rejection")?;
         assert!(wrong_message.contains("target_ok=false"));
 
+        let mut wrong_profile = controlled_angle_authorization_receipt(dir.path(), 1.0, 5.0, 2_000);
+        wrong_profile["planned_next_output"]["profile"] =
+            serde_json::json!("bounded_pidff_micro_step_v1");
+        write_test_json_file(
+            &dir.path().join(NATIVE_CONTROLLED_ANGLE_AUTHORIZATION_FILE),
+            &wrong_profile,
+        )?;
+        let wrong_profile_message = validate_native_controlled_angle_output_authorization(
+            dir.path(),
+            "hid-0x346E-0x0004-if2-0x0001-0x0004",
+            1.0,
+            MozaControlledAngleProfile::BoundedPidffMicroStepV2,
+            5.0,
+            2_000,
+            MozaLowTorqueStrategy::PidffBoundedEffect,
+            &output,
+        )
+        .err()
+        .map(|error| error.to_string())
+        .ok_or("expected exact profile mismatch rejection")?;
+        assert!(wrong_profile_message.contains("profile_ok=false"));
+
         let exact = controlled_angle_authorization_receipt(dir.path(), 1.0, 5.0, 2_000);
         write_test_json_file(
             &dir.path().join(NATIVE_CONTROLLED_ANGLE_AUTHORIZATION_FILE),
@@ -34904,6 +35366,7 @@ mod tests {
             dir.path(),
             "hid-0x346E-0x0004-if2-0x0001-0x0004",
             1.0,
+            MozaControlledAngleProfile::BoundedPidffMicroStepV2,
             5.0,
             2_000,
             MozaLowTorqueStrategy::PidffBoundedEffect,
@@ -34931,8 +35394,9 @@ mod tests {
             prior_actuator_proof: Some(&dir.path().join("native-actuator-profile-smoke.json")),
             steering_proof: Some(&dir.path().join("steering-angle-stream-proof.json")),
             target_degrees: 1.0,
+            profile: MozaControlledAngleProfile::BoundedPidffMicroStepV2,
             max_percent: 5.0,
-            timeout_ms: 15_000,
+            timeout_ms: 2_000,
             read_timeout_ms: 20,
             degrees_of_rotation: 1080.0,
             strategy: MozaLowTorqueStrategy::PidffBoundedEffect,
@@ -34948,11 +35412,12 @@ mod tests {
             lane: dir.path(),
             selector: "hid-0x346E-0x0004-if2-0x0001-0x0004",
             operator: "Steven",
-            bench_clear_evidence: "Bench clear for exactly one 1 degree controlled-angle command.",
+            bench_clear_evidence: "bench clear for exactly one Moza controlled-angle retry: target 1 degree, max 5%, timeout 2000 ms, strategy pidff-bounded-effect, profile bounded-pidff-micro-step-v2, R5 stable, KS attached securely, hands clear, wheel clear, prior failed receipt preserved",
             prior_response_proof: Some(&dir.path().join("native-actuator-visible-smoke.json")),
             prior_actuator_proof: Some(&dir.path().join("native-actuator-profile-smoke.json")),
             steering_proof: Some(&dir.path().join("steering-angle-stream-proof.json")),
             target_degrees: 1.0,
+            profile: MozaControlledAngleProfile::BoundedPidffMicroStepV2,
             strategy: MozaLowTorqueStrategy::PidffBoundedEffect,
             max_percent: 5.0,
             timeout_ms: 2_000,
@@ -34980,6 +35445,10 @@ mod tests {
             .ok_or("expected planned_next_output")?;
         assert_eq!(json_bool(planned, "allowed"), Some(true));
         assert_eq!(json_f64(planned, "target_degrees"), Some(1.0));
+        assert_eq!(
+            json_string(planned, "profile"),
+            Some("bounded_pidff_micro_step_v2")
+        );
         assert_eq!(json_f64(planned, "max_percent"), Some(5.0));
         assert_eq!(json_u64(planned, "timeout_ms"), Some(2_000));
         assert_eq!(
@@ -34990,11 +35459,44 @@ mod tests {
             dir.path(),
             "hid-0x346E-0x0004-if2-0x0001-0x0004",
             1.0,
+            MozaControlledAngleProfile::BoundedPidffMicroStepV2,
             5.0,
             2_000,
             MozaLowTorqueStrategy::PidffBoundedEffect,
             &dir.path().join(NATIVE_CONTROLLED_ANGLE_SMOKE_FILE),
         )?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn authorize_controlled_angle_output_rejects_vague_bench_clear() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        let error = authorize_controlled_angle_output(AuthorizeControlledAngleOutputRequest {
+            json: false,
+            lane: dir.path(),
+            selector: "hid-0x346E-0x0004-if2-0x0001-0x0004",
+            operator: "Steven",
+            bench_clear_evidence: "bench clear",
+            prior_response_proof: None,
+            prior_actuator_proof: None,
+            steering_proof: None,
+            target_degrees: 1.0,
+            profile: MozaControlledAngleProfile::BoundedPidffMicroStepV2,
+            strategy: MozaLowTorqueStrategy::PidffBoundedEffect,
+            max_percent: 5.0,
+            timeout_ms: 2_000,
+            json_out: Some(&dir.path().join(NATIVE_CONTROLLED_ANGLE_AUTHORIZATION_FILE)),
+            overwrite: false,
+        })
+        .await
+        .err()
+        .map(|error| error.to_string())
+        .ok_or("expected vague bench clear rejection")?;
+
+        assert!(error.contains("--bench-clear-evidence"));
+        assert!(error.contains("target 1 degree"));
+        assert!(error.contains("hands clear"));
+        assert!(error.contains("wheel clear"));
         Ok(())
     }
 
@@ -35097,8 +35599,9 @@ mod tests {
             )?,
             &moza_receipt_template(MozaReceiptTemplateKind::ControlledAnglePlan),
             1.0,
+            MozaControlledAngleProfile::BoundedPidffMicroStepV2,
             5.0,
-            15_000,
+            2_000,
             20,
             1080.0,
         )?;
@@ -35110,6 +35613,15 @@ mod tests {
         let gate = verify_native_actuator_visible_smoke_gate(dir.path());
         assert_eq!(gate.status, "fail");
         assert!(gate.details.contains("dry_run=Some(true)"));
+        assert_eq!(json_u64(&dry_run, "write_attempts"), Some(0));
+        assert_eq!(json_u64(&dry_run, "writes_ok"), Some(0));
+        assert_eq!(json_u64(&dry_run, "write_errors"), Some(0));
+        assert!(
+            gate.details.contains("write_errors=0")
+                && !gate.details.contains("write_errors=18446744073709551615"),
+            "dry-run verifier details should report explicit zero write errors: {}",
+            gate.details
+        );
         Ok(())
     }
 
@@ -38112,6 +38624,21 @@ mod tests {
         );
         assert_eq!(
             json_bool(controlled_plan, "duration_only_profile_allowed"),
+            Some(false)
+        );
+        assert_eq!(
+            json_string(controlled_plan, "status"),
+            Some("retry_profile_implemented_no_output_authorized")
+        );
+        let Some(retry_profile) = controlled_plan.get("reviewed_retry_profile") else {
+            return Err("controlled-angle template missing reviewed_retry_profile".into());
+        };
+        assert_eq!(
+            json_string(retry_profile, "profile"),
+            Some("bounded_pidff_micro_step_v2")
+        );
+        assert_eq!(
+            json_bool(retry_profile, "hardware_output_authorized"),
             Some(false)
         );
         let Some(stages) = controlled_plan.get("stages").and_then(Value::as_array) else {
@@ -41762,36 +42289,23 @@ mod tests {
             commands.contains("wheelctl moza controlled-angle-smoke")
                 && commands.contains("--dry-run")
                 && commands.contains("--target-degrees 1")
+                && commands.contains("--profile bounded-pidff-micro-step-v2")
                 && commands.contains("--max-percent 5")
                 && commands.contains("--timeout-ms 2000")
                 && !commands.contains("wheelctl moza actuator-visible-smoke"),
             "after controlled-angle planning is recorded, guidance should allow only the no-output controlled-angle preflight: {commands}"
         );
 
-        write_test_json_file(
-            &dir.path().join(NATIVE_CONTROLLED_ANGLE_SMOKE_FILE),
-            &serde_json::json!({
-                "success": true,
-                "command": "wheelctl moza controlled-angle-smoke",
-                "dry_run": true,
-                "hardware_output_enabled": false,
-                "no_hid_device_opened": true,
-                "no_ffb_writes": true,
-                "no_output_reports": true,
-                "no_feature_reports": true,
-                "no_serial_config_commands": true,
-                "no_firmware_or_dfu_commands": true,
-                "controlled_angle_motion_proven": false,
-                "actual_hardware_writes_supported": false,
-                "planned_next_output_allowed": false,
-                "target_degrees": 1.0
-            }),
-        )?;
+        write_controlled_angle_dry_run_receipt(dir.path(), "hid-0x346E-0x0014-if2-0x0001-0x0004")?;
         let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::SmokeReady);
         let commands = receipt.next_commands.join("\n");
         assert!(
-            receipt.next_commands.is_empty(),
-            "after response-only visible-motion review, no-output readiness, controlled-angle planning, and no-output preflight are recorded, guidance should stop instead of authorizing output: {commands}"
+            receipt.next_commands.is_empty()
+                && !commands.contains("wheelctl moza authorize-controlled-angle-output")
+                && !commands.contains(NATIVE_CONTROLLED_ANGLE_AUTHORIZATION_FILE)
+                && !commands.contains("wheelctl moza controlled-angle-smoke")
+                && !commands.contains("--confirm-controlled-angle"),
+            "after response-only visible-motion review, no-output readiness, controlled-angle planning, and valid no-output preflight are recorded, verifier guidance must not generate an authorization or output command: {commands}"
         );
         let action_text = receipt.operator_actions.join("\n");
         assert!(
@@ -44239,6 +44753,179 @@ mod tests {
                 "native-visible-ready must not require external compatibility gate {external_gate}"
             );
         }
+        Ok(())
+    }
+
+    #[test]
+    fn verify_bundle_native_visible_next_commands_do_not_authorize_controlled_angle_after_preflight()
+    -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_openracing_control_bundle(dir.path())?;
+        write_lane_audit_receipts(dir.path(), MozaBundleStage::Passive)?;
+        write_test_json_file(
+            &dir.path().join("native-actuator-visible-smoke.json"),
+            &failed_native_actuator_visible_smoke_receipt(dir.path(), product_ids::R5_V2),
+        )?;
+        write_test_json_file(
+            &dir.path().join(NATIVE_VISIBLE_FOLLOW_UP_PLAN_FILE),
+            &moza_receipt_template(MozaReceiptTemplateKind::VisibleMotionFollowUp),
+        )?;
+        write_test_json_file(
+            &dir.path().join(NATIVE_CONTROLLED_ANGLE_PLAN_FILE),
+            &moza_receipt_template(MozaReceiptTemplateKind::ControlledAnglePlan),
+        )?;
+        write_test_json_file(
+            &dir.path().join("pre-output-readiness.json"),
+            &serde_json::to_value(pre_output_readiness_dir(dir.path()))?,
+        )?;
+        write_controlled_angle_dry_run_receipt(dir.path(), "hid-0x346E-0x0014-if2-0x0001-0x0004")?;
+
+        let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::NativeVisibleReady);
+        let commands = receipt.next_commands.join("\n");
+
+        assert!(!receipt.success);
+        assert!(
+            receipt.next_commands.is_empty()
+                && !commands.contains("wheelctl moza authorize-controlled-angle-output")
+                && !commands.contains("bench clear")
+                && !commands.contains(NATIVE_CONTROLLED_ANGLE_AUTHORIZATION_FILE)
+                && !commands.contains("wheelctl moza actuator-visible-smoke")
+                && !commands.contains("wheelctl moza controlled-angle-smoke")
+                && !commands.contains("--confirm-controlled-angle")
+                && !commands.contains("--confirm-actuator-visible"),
+            "native-visible next_commands must not generate authorization, canned bench-clear, or output commands from plan/dry-run artifacts: {commands}"
+        );
+        let actions = receipt.operator_actions.join("\n");
+        assert!(
+            actions.contains("wheelctl moza authorize-controlled-angle-output")
+                && actions.contains(NATIVE_CONTROLLED_ANGLE_AUTHORIZATION_FILE)
+                && !actions.contains("wheelctl moza authorize-visible-output"),
+            "operator action may name the separate authorization path without generating a runnable authorization command: {actions}"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn verify_bundle_native_visible_next_commands_regenerates_mismatched_controlled_angle_preflight()
+    -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_openracing_control_bundle(dir.path())?;
+        write_lane_audit_receipts(dir.path(), MozaBundleStage::Passive)?;
+        write_test_json_file(
+            &dir.path().join("native-actuator-visible-smoke.json"),
+            &failed_native_actuator_visible_smoke_receipt(dir.path(), product_ids::R5_V2),
+        )?;
+        write_test_json_file(
+            &dir.path().join(NATIVE_VISIBLE_FOLLOW_UP_PLAN_FILE),
+            &moza_receipt_template(MozaReceiptTemplateKind::VisibleMotionFollowUp),
+        )?;
+        write_test_json_file(
+            &dir.path().join(NATIVE_CONTROLLED_ANGLE_PLAN_FILE),
+            &moza_receipt_template(MozaReceiptTemplateKind::ControlledAnglePlan),
+        )?;
+        write_test_json_file(
+            &dir.path().join("pre-output-readiness.json"),
+            &serde_json::to_value(pre_output_readiness_dir(dir.path()))?,
+        )?;
+        write_controlled_angle_dry_run_receipt(dir.path(), "hid-0x346E-0x0004-if2-0x0001-0x0004")?;
+
+        let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::NativeVisibleReady);
+        let commands = receipt.next_commands.join("\n");
+
+        assert!(!receipt.success);
+        assert!(
+            commands.contains("wheelctl moza controlled-angle-smoke")
+                && commands.contains("--dry-run"),
+            "mismatched controlled-angle preflight should regenerate the dry-run receipt: {commands}"
+        );
+        assert!(
+            commands.contains("--device hid-0x346E-0x0014-if2-0x0001-0x0004"),
+            "regenerated dry-run command should use the lane endpoint selector: {commands}"
+        );
+        assert!(
+            !commands.contains("authorize-controlled-angle-output")
+                && !commands.contains("--confirm-controlled-angle"),
+            "invalid dry-run preflight must not authorize or run hardware output: {commands}"
+        );
+
+        let command = receipt
+            .next_commands
+            .iter()
+            .find(|command| command.contains("controlled-angle-smoke"))
+            .ok_or("missing controlled-angle dry-run next command")?;
+        let args = split_generated_command(&command_with_test_placeholders(command))?;
+        parse_cli(args).map_err(|error| {
+            format!(
+                "generated controlled-angle dry-run command failed to parse: {command}\n{error}"
+            )
+        })?;
+        Ok(())
+    }
+
+    #[test]
+    fn verify_bundle_native_visible_next_commands_stop_after_failed_controlled_angle_attempt()
+    -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_openracing_control_bundle(dir.path())?;
+        write_lane_audit_receipts(dir.path(), MozaBundleStage::Passive)?;
+        write_test_json_file(
+            &dir.path().join("native-actuator-visible-smoke.json"),
+            &failed_native_actuator_visible_smoke_receipt(dir.path(), product_ids::R5_V2),
+        )?;
+        write_test_json_file(
+            &dir.path().join(NATIVE_VISIBLE_FOLLOW_UP_PLAN_FILE),
+            &moza_receipt_template(MozaReceiptTemplateKind::VisibleMotionFollowUp),
+        )?;
+        write_test_json_file(
+            &dir.path().join(NATIVE_CONTROLLED_ANGLE_PLAN_FILE),
+            &moza_receipt_template(MozaReceiptTemplateKind::ControlledAnglePlan),
+        )?;
+        write_test_json_file(
+            &dir.path().join("pre-output-readiness.json"),
+            &serde_json::to_value(pre_output_readiness_dir(dir.path()))?,
+        )?;
+        write_failed_controlled_angle_output_receipt(
+            dir.path(),
+            "hid-0x346E-0x0014-if2-0x0001-0x0004",
+        )?;
+
+        let receipt = verify_bundle_dir(dir.path(), MozaBundleStage::NativeVisibleReady);
+        let commands = receipt.next_commands.join("\n");
+
+        assert!(!receipt.success);
+        assert!(
+            receipt.next_commands.is_empty(),
+            "failed real controlled-angle attempts must be preserved and require a new reviewed plan, not generated overwrite guidance: {commands}"
+        );
+        assert!(
+            !commands.contains("controlled-angle-smoke")
+                && !commands.contains("authorize-controlled-angle-output")
+                && !commands.contains("--confirm-controlled-angle"),
+            "verifier must not emit another controlled-angle dry-run, authorization, or output command after a real attempt: {commands}"
+        );
+        let actions = receipt.operator_actions.join("\n");
+        assert!(
+            actions.contains("controlled_angle_abort_reason=safety_timeout_before_target")
+                && actions.contains("controlled_angle_timeout_reached=true")
+                && actions.contains("controlled_angle_write_errors=0"),
+            "operator action should classify the failed controlled-angle receipt: {actions}"
+        );
+        assert!(
+            actions.contains("native-controlled-angle-smoke.json")
+                && actions.contains("profile/feedback loop")
+                && actions.contains("native-controlled-angle-plan.json")
+                && actions.contains("bounded-pidff-micro-step-v2")
+                && actions.contains("authorize-controlled-angle-output"),
+            "operator action should point at preserving evidence and controlled-angle diagnosis: {actions}"
+        );
+        assert!(
+            !actions.contains("Update native-controlled-angle-plan.json"),
+            "operator action should not ask for another plan update when the reviewed retry profile is already present: {actions}"
+        );
+        assert!(
+            !actions.contains("authorize-visible-output"),
+            "operator action must not send failed controlled-angle follow-up through the older visible-output authorizer: {actions}"
+        );
         Ok(())
     }
 
