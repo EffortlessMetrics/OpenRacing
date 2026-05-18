@@ -3,6 +3,42 @@
 ## Summary
 Brief description of changes and motivation.
 
+## Source-of-truth links
+
+Proposal:
+Spec:
+ADR:
+Plan item:
+Active goal:
+
+## Source-of-truth scope
+
+- [ ] Proposal / why
+- [ ] Spec / behavior contract
+- [ ] ADR / durable decision
+- [ ] Plan / sequencing
+- [ ] Active goal / current execution state
+- [ ] Runtime / implementation
+- [ ] Policy ledger
+- [ ] Support-tier update
+- [ ] Generated status / receipt
+
+## Non-goals
+
+What this PR explicitly does not do.
+
+## Proof
+
+```bash
+# commands run
+```
+
+Results:
+
+Claim boundary:
+
+Rollback:
+
 ## Migration Notes
 **Required for all PRs that modify public APIs, schemas, or cross-crate interfaces**
 

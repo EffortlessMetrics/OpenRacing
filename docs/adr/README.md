@@ -46,3 +46,14 @@ This directory contains Architecture Decision Records for the Racing Wheel Softw
 - Use `template.md` as starting point for new ADRs
 - Validate ADR format with `cargo run -p openracing-tools --bin validate-adr -- --verbose`
 - Generate ADR index with `cargo run -p openracing-tools --bin generate-docs-index --`
+
+## Role in the source-of-truth stack
+
+ADRs are the source of truth for **durable decisions**: architecture or operating
+choices that should still matter months later. They record context, the selected
+decision, consequences, alternatives considered, and follow-up specs or plans.
+
+ADRs should not become PR task lists or live metric/status ledgers. Put task
+sequencing in `plans/<lane>/implementation-plan.md` and generated status in the
+appropriate status artifact or receipt. See `docs/reference/SPEC_SYSTEM.md` for
+the repo-wide source-of-truth rules.
