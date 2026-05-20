@@ -52048,7 +52048,7 @@ mod tests {
                 .axis_ranges
                 .get("brake_u16")
                 .and_then(|axis| axis.max),
-            Some(0)
+            Some(0x8000)
         );
         assert_eq!(
             receipt
@@ -52062,7 +52062,7 @@ mod tests {
                 .axis_ranges
                 .get("handbrake_u16")
                 .and_then(|axis| axis.max),
-            Some(0)
+            Some(0x8001)
         );
         Ok(())
     }
