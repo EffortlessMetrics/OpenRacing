@@ -19,16 +19,14 @@ This section is diagnostic navigation only. `generic_aux` roles are valid parser
 - Required roles: `7`
 - Required parser-visible roles: `7`
 - Role-specific semantic mapping complete: `false`
-- Unproven required role semantics: `3`
-- Generic auxiliary roles: `3`
+- Unproven required role semantics: `1`
+- Generic auxiliary roles: `1`
 
-- Candidate-only extended slots: `6`
+- Candidate-only extended slots: `2`
 
 | Control | Role | Evidence Capture | Semantic Status | Candidate Slots |
 | --- | --- | --- | --- | --- |
-| `brake` | `brake` | `captures/r5-brake-only-sweep.jsonl` | `generic_aux` | `r5_v1_extended_axis0_u16` |
 | `clutch` | `clutch` | `captures/r5-clutch-only-sweep.jsonl` | `generic_aux` | `r5_v1_extended_aux0_u16, r5_v1_extended_aux1_u16` |
-| `handbrake` | `handbrake` | `captures/r5-handbrake-only-sweep.jsonl` | `generic_aux` | `r5_v1_extended_aux0_u16, r5_v1_extended_aux1_u16, r5_v1_extended_axis1_u16` |
 
 ## Pit House Compatibility
 
@@ -68,7 +66,7 @@ This section is external-smoke navigation only. Simulator telemetry and bounded 
 
 This section is protocol research/support navigation only. Passive sniff artifacts do not authorize output, do not satisfy native-visible or smoke-ready gates, and are not required for native OpenRacing control.
 
-- Recorded scenarios: `1` / `5`
+- Recorded scenarios: `2` / `6`
 - Readiness claim: `false`
 - Blocks native control: `false`
 - Blocks native visible: `false`
@@ -77,6 +75,7 @@ This section is protocol research/support navigation only. Passive sniff artifac
 | Scenario | Status | Plan | Receipt | Summary |
 | --- | --- | --- | --- | --- |
 | `pit-house-open-idle` | `summary_recorded` | `present_non_claiming` | `present_non_claiming` | `present_non_claiming` |
+| `pit-house-full-controls` | `summary_recorded` | `present_non_claiming` | `present_non_claiming` | `present_non_claiming` |
 | `pit-house-setting-change` | `partial_or_unaccepted` | `present_non_claiming` | `missing` | `missing` |
 | `simhub-open-idle` | `partial_or_unaccepted` | `present_non_claiming` | `missing` | `missing` |
 | `simhub-output-session` | `partial_or_unaccepted` | `present_non_claiming` | `missing` | `missing` |

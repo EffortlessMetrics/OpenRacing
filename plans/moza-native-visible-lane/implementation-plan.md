@@ -50,16 +50,24 @@ to concrete receipts and confirms that the objective is still incomplete:
 native-visible, Pit House coexistence, simulator telemetry, bounded simulator
 FFB, and smoke-ready promotion remain missing.
 
-`ci/hardware/sniff/moza-r5/2026-05-13` now contains plan-only passive USB sniff
-artifacts for Pit House, SimHub, and simulator protocol research. The artifact
-index marks those plans as `present_non_claiming`; each scenario remains
-`partial_or_unaccepted` until a matching pcap receipt and summary exist.
+`ci/hardware/sniff/moza-r5/2026-05-13` now contains passive USB sniff artifacts
+for Pit House, SimHub, and simulator protocol research. The Pit House
+`open-idle` and `full-controls` scenarios have checked-in non-claiming plans,
+receipts, classified summaries, and bundle manifests; raw pcapng and bundle ZIP
+files remain local scratch artifacts. Remaining scenarios stay navigation-only
+until matching pcap receipts and summaries exist.
 
-The latest pre-output and artifact-index receipts also surface diagnostic
-candidate-only R5 V1 extended slots for the brake, clutch, and handbrake
-captures. Those candidates keep the passive evidence navigable while preserving
-`input_semantic_mapping_complete=false`; they do not prove role-specific input
-semantics or readiness.
+The latest lane analysis, role-status, and artifact-index receipts report six
+proven input roles and one remaining generic auxiliary role. Steering,
+throttle, brake, HBP handbrake, KS rim controls, and ES rim controls are
+parser-proven. The SR-P clutch capture is parser-visible through two live R5 V1
+extended auxiliary slots, but the role-specific clutch semantic mapping remains
+unproven:
+`input_semantic_mapping_complete=false`,
+`semantic_candidate_count=2`,
+`ambiguous_semantic_candidate_count=0`, and
+`unproven_required_role_count=1`. The clutch candidates are diagnostic
+navigation only and keep `readiness_claim=false`.
 
 The artifact-index and bench-wizard regression coverage now explicitly checks
 that valid failed native-visible and smoke-ready verifier receipts remain useful
@@ -86,10 +94,11 @@ as first-class frontier artifacts. After attempt 03, the required table marks
 `native_visible_not_claimed` remains preserved.
 
 The stored input analysis artifacts now include the same candidate-only R5 V1
-extended-slot details that the readiness and artifact-index renderers surface.
-`lane-capture-analysis.json` and `role-status-sync.json` identify brake,
-clutch, and handbrake candidates as diagnostic only with `readiness_claim=false`;
-they still leave role-specific input semantics incomplete.
+extended-slot details that the role-status and artifact-index renderers surface.
+`lane-capture-analysis.json` and `role-status-sync.json` identify brake and HBP
+handbrake as proven semantic axes, and identify only the clutch auxiliary slots
+as diagnostic candidates with `readiness_claim=false`; they still leave the
+full input semantic mapping incomplete.
 
 The current blocked-state handoff is
 `plans/moza-native-visible-lane/handoff.md`. Use it when no active goal work
@@ -1599,6 +1608,203 @@ Remove only the Pit House download/source fields, Markdown rendering, tests, and
 this work-item entry. Do not alter Pit House sniff receipts, availability
 snapshots, coexistence gates, native-control receipts, or semantic-control
 artifacts.
+
+## Work item: brake-hbp-semantic-promotion
+
+Status: completed
+Linked proposal: docs/proposals/OR-PROP-0001-moza-native-visible-lane.md
+Linked spec: docs/specs/OR-SPEC-0001-moza-native-visible-lane.md
+Linked ADR: docs/adr/0009-hardware-validation-evidence-state-machine.md
+Blocks: input topology cleanup for checked-in SR-P/HBP captures
+Blocked by: n/a
+
+### Goal
+
+Promote only the checked-in isolated R5 V1 through-hub brake and HBP
+handbrake evidence from generic auxiliary slots to parser semantic axes.
+
+### Production delta
+
+Map the live R5 V1 extended byte-11 axis to `brake_u16` and byte-13 axis to
+`handbrake_u16`, then regenerate the no-output capture validation,
+fixture-promotion, lane-analysis, role-status, blocked native-visible verifier,
+and artifact-index receipts from the stored captures.
+
+### Non-goals
+
+No clutch semantic promotion, wheel-button naming, rotary semantic promotion,
+native-visible promotion, smoke-ready promotion, Pit House coexistence claim,
+hardware output, authorization receipt, HID open, or new capture.
+
+### Acceptance
+
+- Brake reports `semantic_status=proven` with `moving_required_axes=["brake_u16"]`.
+- Handbrake reports `semantic_status=proven` with
+  `moving_required_axes=["handbrake_u16"]`.
+- Clutch remains `generic_aux` and `input_semantic_mapping_complete=false`.
+- Native-visible verification remains blocked.
+
+### Proof commands
+
+```powershell
+python scripts/cargo_fmt_workspace.py
+cargo test --locked -p racing-wheel-moza-wheelbase-report --all-features -- --nocapture
+cargo test --locked -p wheelctl --bin wheelctl input_role -- --nocapture
+cargo test --locked -p wheelctl --bin wheelctl artifact_index -- --nocapture
+cargo run --locked -p wheelctl --bin wheelctl -- moza validate-captures --lane ci/hardware/moza-r5/2026-05-13 --json-out ci/hardware/moza-r5/2026-05-13/parser-fixture-validation.json --json
+cargo run --locked -p wheelctl --bin wheelctl -- moza promote-fixtures --lane ci/hardware/moza-r5/2026-05-13 --fixture-dir crates/hid-moza-protocol/fixtures/moza-r5-2026-05-13 --json-out ci/hardware/moza-r5/2026-05-13/fixture-promotion.json --overwrite --json
+cargo run --locked -p wheelctl --bin wheelctl -- moza analyze-lane --lane ci/hardware/moza-r5/2026-05-13 --json-out ci/hardware/moza-r5/2026-05-13/lane-capture-analysis.json --json
+cargo run --locked -p wheelctl --bin wheelctl -- moza sync-role-status --lane ci/hardware/moza-r5/2026-05-13 --json-out ci/hardware/moza-r5/2026-05-13/role-status-sync.json --json
+.\target\debug\wheelctl.exe moza verify-bundle --lane ci/hardware/moza-r5/2026-05-13 --stage native-visible-ready --json-out ci/hardware/moza-r5/2026-05-13/native-visible-verification.json --json
+if ($LASTEXITCODE -eq 4) { exit 0 } else { throw "expected native-visible verifier to remain blocked" }
+cargo run --locked -p wheelctl --bin wheelctl -- moza artifact-index --lane ci/hardware/moza-r5/2026-05-13 --json-out target/moza-artifact-index-after-brake-hbp-semantics.json --md-out ci/hardware/moza-r5/2026-05-13/index.md --json
+.\target\debug\wheelctl.exe moza verify-bundle --lane ci/hardware/moza-r5/2026-05-13 --stage native-visible-ready --json-out target/moza-native-visible-after-brake-hbp-semantics.json --json
+if ($LASTEXITCODE -eq 4) { exit 0 } else { throw "expected native-visible verifier to remain blocked" }
+cargo clippy --locked -p racing-wheel-moza-wheelbase-report --all-features -- -D warnings
+cargo clippy --locked -p wheelctl --bin wheelctl --all-features -- -D warnings
+cargo run --locked -p openracing-tools --bin package-surface -- --check
+python scripts/policy_file.py
+git diff --check
+```
+
+### Rollback
+
+Remove only the R5 V1 brake/HBP parser mapping, regenerated no-output receipts,
+tests, and this work-item entry. Do not remove source captures, closed-loop
+output receipts, Pit House artifacts, or native-visible failure evidence.
+
+## Work item: pit-house-full-controls-sniff-evidence
+
+Status: completed
+Linked proposal: docs/proposals/OR-PROP-0001-moza-native-visible-lane.md
+Linked spec: docs/specs/OR-SPEC-0001-moza-native-visible-lane.md
+Linked ADR: docs/adr/0009-hardware-validation-evidence-state-machine.md
+Blocks: passive protocol evidence review before any future output family
+Blocked by: n/a
+
+### Goal
+
+Record the Pit House full-controls passive USB sniff capture as checked-in,
+non-claiming protocol/support evidence after the open-idle capture.
+
+### Production delta
+
+Added the `pit-house-full-controls` passive sniff scenario, generated its
+`sniff-plan.json`, and checked in `sniff-receipt.json`,
+`sniff-summary.json`, and `sniff-bundle-manifest.json` under
+`ci/hardware/sniff/moza-r5/2026-05-13/pit-house-full-controls`.
+
+The receipt records the operator's 60.131 second Pit House 1.3.8.38 release
+capture, the action order of wheel, HBP handbrake, gas, brake, clutch, and
+wheel-button movement, and confirms that OpenRacing opened no HID device and
+sent no output, feature, serial, firmware, or DFU commands. The summary records
+only device-to-host input/status report `0x01`, no standard PIDFF output
+reports, and no vendor/device-specific host-to-device decode candidates.
+
+### Non-goals
+
+No hardware output, no OpenRacing HID open, no raw pcap commit, no bundle ZIP
+commit, no vendor report decode claim, no native-control claim, no
+native-visible promotion, no smoke-ready promotion, no Pit House coexistence
+claim, no simulator claim, no semantic-control promotion, no serial config, no
+firmware, and no DFU.
+
+### Acceptance
+
+- The scenario taxonomy accepts `pit-house-full-controls` for plans and
+  receipts.
+- The receipt records `openracing_hardware_output=false`,
+  `openracing_hid_device_opened=false`, and all readiness claims false.
+- The classified summary records only input/status traffic for report `0x01`
+  and `decode_recommended=false`.
+- The bundle manifest records `includes_raw_pcapng=false`.
+- The artifact index records `pit-house-full-controls` as present non-claiming
+  evidence while leaving native-visible, smoke-ready, coexistence, and release
+  claims blocked.
+
+### Proof commands
+
+```powershell
+cargo run --locked -p wheelctl --bin wheelctl -- hardware sniff-plan --family moza-r5 --scenario pit-house-full-controls --lane ci/hardware/moza-r5/2026-05-13 --operator Steven --device-note "Moza R5 PID 0x0004 with KS/ES wheels, SR-P pedals, and HBP handbrake attached through the R5 hub" --capture-tool usbpcap --capture-tool wireshark --capture-tool tshark --platform-hint windows --json-out ci/hardware/sniff/moza-r5/2026-05-13/pit-house-full-controls/sniff-plan.json --json
+cargo run --locked -p wheelctl --bin wheelctl -- hardware sniff-receipt --plan ci/hardware/sniff/moza-r5/2026-05-13/pit-house-full-controls/sniff-plan.json --pcapng target/sniff/pit-house-full-controls/capture.pcapng --operator Steven --app "MOZA Pit House 1.3.8.38 release" --scenario pit-house-full-controls --evidence <operator-evidence> --json-out ci/hardware/sniff/moza-r5/2026-05-13/pit-house-full-controls/sniff-receipt.json --json
+cargo run --locked -p wheelctl --bin wheelctl -- hardware sniff-summary --pcapng target/sniff/pit-house-full-controls/capture.pcapng --vendor 0x346E --product 0x0004 --json-out ci/hardware/sniff/moza-r5/2026-05-13/pit-house-full-controls/sniff-summary.json --md-out target/sniff/pit-house-full-controls/sniff-summary.md --json
+cargo run --locked -p wheelctl --bin wheelctl -- hardware sniff-bundle --plan ci/hardware/sniff/moza-r5/2026-05-13/pit-house-full-controls/sniff-plan.json --receipt ci/hardware/sniff/moza-r5/2026-05-13/pit-house-full-controls/sniff-receipt.json --summary ci/hardware/sniff/moza-r5/2026-05-13/pit-house-full-controls/sniff-summary.json --operator-notes target/sniff/pit-house-full-controls/operator-notes.md --out target/sniff/pit-house-full-controls/openracing-sniff-bundle.zip --json-out ci/hardware/sniff/moza-r5/2026-05-13/pit-house-full-controls/sniff-bundle-manifest.json --json
+cargo run --locked -p wheelctl --bin wheelctl -- moza artifact-index --lane ci/hardware/moza-r5/2026-05-13 --json-out target/moza-current/artifact-index-after-pit-house-full-controls.json --md-out ci/hardware/moza-r5/2026-05-13/index.md --json
+.\target\debug\wheelctl.exe moza verify-bundle --lane ci/hardware/moza-r5/2026-05-13 --stage native-visible-ready --json-out target/moza-current/native-visible-after-pit-house-full-controls.json --json
+if ($LASTEXITCODE -eq 4) { exit 0 } else { throw "expected native-visible verifier to remain blocked" }
+cargo test --locked -p wheelctl --bin wheelctl passive_sniff -- --nocapture
+cargo test --locked -p wheelctl --bin wheelctl artifact_index -- --nocapture
+cargo test --locked -p wheelctl --bin wheelctl bench_wizard -- --nocapture
+cargo clippy --locked -p wheelctl --bin wheelctl --all-features -- -D warnings
+cargo run --locked -p openracing-tools --bin package-surface -- --check
+python scripts/policy_file.py
+git diff --check
+```
+
+### Rollback
+
+Remove only the `pit-house-full-controls` scenario wiring, generated
+non-claiming sniff artifacts, artifact-index refresh, tests, and this work-item
+entry. Do not remove Pit House open-idle evidence, controlled-angle receipts,
+semantic-input artifacts, or local raw pcap artifacts.
+
+## Work item: moza-current-state-status-refresh
+
+Status: completed
+Linked proposal: docs/proposals/OR-PROP-0001-moza-native-visible-lane.md
+Linked spec: docs/specs/OR-SPEC-0001-moza-native-visible-lane.md
+Linked ADR: docs/adr/0009-hardware-validation-evidence-state-machine.md
+Blocks: accurate source-of-truth handoff after semantic-input and passive-sniff slices
+Blocked by: n/a
+
+### Goal
+
+Refresh the human source-of-truth status docs so they match the current
+checked-in lane after the brake/HBP semantic promotion and Pit House
+full-controls sniff evidence slices.
+
+### Production delta
+
+Update the active goal work-item ledger, this implementation plan, the blocked
+handoff, and the completion audit to record that brake and HBP handbrake are
+parser-proven, SR-P clutch remains generic auxiliary evidence, Pit House
+availability is recorded, and passive sniff navigation has two recorded
+non-claiming scenarios out of six.
+
+### Non-goals
+
+No hardware output, HID open, new capture, raw pcap commit, receipt rewrite,
+native-control claim, native-visible promotion, smoke-ready promotion, Pit
+House coexistence claim, simulator claim, firmware, serial config, DFU, or
+release-ready claim.
+
+### Acceptance
+
+- The handoff names `pit-house-open-idle` and `pit-house-full-controls` as
+  recorded non-claiming passive sniff evidence.
+- The completion audit records brake and HBP handbrake as parser-proven while
+  keeping SR-P clutch generic and semantic mapping incomplete.
+- Pit House availability and official install-source guidance are surfaced as
+  non-claiming navigation only.
+- Native-visible verification remains blocked.
+
+### Proof commands
+
+```powershell
+cargo run --locked -p wheelctl --bin wheelctl -- moza artifact-index --lane ci/hardware/moza-r5/2026-05-13 --json-out target/moza-current/artifact-index-after-status-refresh.json --md-out target/moza-current/artifact-index-after-status-refresh.md --json
+cargo run --locked -p wheelctl --bin wheelctl -- moza bench-wizard --lane ci/hardware/moza-r5/2026-05-13 --json-out target/moza-current/bench-wizard-after-status-refresh.json --md-out target/moza-current/bench-wizard-after-status-refresh.md --json
+cargo run --locked -p wheelctl --bin wheelctl -- moza verify-bundle --lane ci/hardware/moza-r5/2026-05-13 --stage native-visible-ready --json-out target/moza-current/native-visible-after-status-refresh.json --json
+if ($LASTEXITCODE -eq 4) { exit 0 } else { throw "expected native-visible verifier to remain blocked" }
+cargo run --locked -p openracing-tools --bin package-surface -- --check
+python scripts/policy_file.py
+git diff --check
+```
+
+### Rollback
+
+Remove only this source-of-truth status refresh from the active goal, plan,
+handoff, and audit. Do not alter checked-in hardware receipts, sniff artifacts,
+parser fixtures, or generated lane indexes.
 
 ## Work item: native-visible-promotion
 
