@@ -57,6 +57,87 @@ cargo nextest run --all-features --workspace
 cargo test --all-features --workspace --exclude racing-wheel-ui
 ```
 
+#### Finding the right `--package`/`--exclude` name (F-076)
+
+`cargo test -p <name>`, `--exclude <name>`, and `cargo clippy -p <name>` all take the
+**crate name** (`[package] name` in `Cargo.toml`), not the directory under `crates/`.
+Most crates here don't match: directory `crates/ui` is crate `racing-wheel-ui`,
+directory `crates/cli` is crate `wheelctl`, directory `crates/telemetry-core` is
+crate `openracing-telemetry`, and so on.
+
+Look it up without leaving the shell:
+
+```bash
+# Print "<dir> -> <crate name>" for every crate under crates/
+cargo metadata --no-deps --format-version=1 | python3 -c "
+import json, sys, os
+for pkg in json.load(sys.stdin)['packages']:
+    d = os.path.dirname(pkg['manifest_path'])
+    rel = os.path.relpath(d, os.getcwd())
+    if rel.startswith('crates' + os.sep):
+        print(f\"{rel[len('crates') + 1:]} -> {pkg['name']}\")
+"
+```
+
+Or check the table below (regenerate it with the command above if crates are added,
+renamed, or removed):
+
+| Directory (`crates/...`) | Crate name |
+|---|---|
+| `changelog` | `racing-wheel-changelog` |
+| `cli` | `wheelctl` |
+| `engine` | `racing-wheel-engine` |
+| `hbp` | `racing-wheel-hbp` |
+| `hid-accuforce-protocol` | `racing-wheel-hid-accuforce-protocol` |
+| `hid-cammus-protocol` | `racing-wheel-hid-cammus-protocol` |
+| `hid-capture` | `racing-wheel-hid-capture` |
+| `hid-fanatec-protocol` | `racing-wheel-hid-fanatec-protocol` |
+| `hid-ffbeast-protocol` | `racing-wheel-hid-ffbeast-protocol` |
+| `hid-leo-bodnar-protocol` | `racing-wheel-hid-leo-bodnar-protocol` |
+| `hid-logitech-protocol` | `racing-wheel-hid-logitech-protocol` |
+| `hid-moza-protocol` | `racing-wheel-hid-moza-protocol` |
+| `hid-openffboard-protocol` | `racing-wheel-hid-openffboard-protocol` |
+| `hid-pxn-protocol` | `racing-wheel-hid-pxn-protocol` |
+| `hid-simagic-protocol` | `racing-wheel-hid-simagic-protocol` |
+| `hid-thrustmaster-protocol` | `racing-wheel-hid-thrustmaster-protocol` |
+| `hid-vrs-protocol` | `racing-wheel-hid-vrs-protocol` |
+| `input-maps` | `racing-wheel-input-maps` |
+| `integration-tests` | `racing-wheel-integration-tests` |
+| `ks` | `racing-wheel-ks` |
+| `moza-wheelbase-report` | `racing-wheel-moza-wheelbase-report` |
+| `pidff-common` | `openracing-pidff-common` |
+| `plugin-examples` | `openracing-plugin-examples` |
+| `plugins` | `racing-wheel-plugins` |
+| `schemas` | `racing-wheel-schemas` |
+| `service` | `racing-wheel-service` |
+| `simplemotion-v2` | `racing-wheel-simplemotion-v2` |
+| `srp` | `racing-wheel-srp` |
+| `telemetry-adapters` | `openracing-telemetry-adapters` |
+| `telemetry-ams2` | `racing-wheel-telemetry-ams2` |
+| `telemetry-bdd-metrics` | `racing-wheel-telemetry-bdd-metrics` |
+| `telemetry-config` | `openracing-telemetry-config` |
+| `telemetry-config-writers` | `racing-wheel-telemetry-config-writers` |
+| `telemetry-contracts` | `racing-wheel-telemetry-contracts` |
+| `telemetry-core` | `openracing-telemetry` |
+| `telemetry-f1` | `racing-wheel-telemetry-f1` |
+| `telemetry-forza` | `racing-wheel-telemetry-forza` |
+| `telemetry-integration` | `racing-wheel-telemetry-integration` |
+| `telemetry-kartkraft` | `racing-wheel-telemetry-kartkraft` |
+| `telemetry-lfs` | `racing-wheel-telemetry-lfs` |
+| `telemetry-mudrunner` | `racing-wheel-telemetry-mudrunner` |
+| `telemetry-orchestrator` | `racing-wheel-telemetry-orchestrator` |
+| `telemetry-raceroom` | `racing-wheel-telemetry-raceroom` |
+| `telemetry-rate-limiter` | `racing-wheel-telemetry-rate-limiter` |
+| `telemetry-recorder` | `openracing-telemetry-recorder` |
+| `telemetry-rennsport` | `racing-wheel-telemetry-rennsport` |
+| `telemetry-simhub` | `racing-wheel-telemetry-simhub` |
+| `telemetry-support` | `racing-wheel-telemetry-support` |
+| `telemetry-wrc-generations` | `racing-wheel-telemetry-wrc-generations` |
+| `tools` | `openracing-tools` |
+| `ui` | `racing-wheel-ui` |
+
+Any directory not listed above already has a crate name that matches its directory.
+
 #### Memory Safety Rules
 - **No static mut**: Use `std::sync::OnceLock` instead of `static mut` for thread-safe initialization
 - **Lint Guard**: All non-test crates must include `#![deny(static_mut_refs)]` to prevent regression
@@ -341,6 +422,18 @@ Mitigation:
 - For device ID constants, add assertions in a separate `*_id_verification.rs` test file (see `crates/hid-moza-protocol/tests/id_verification.rs`) that cross-check against the golden values in `docs/protocols/SOURCES.md`.
 - Add `// source: <URL>` comments inside snapshot files so reviewers can verify values against community documentation.
 - When adding a new device crate, add at least one "known-good byte string" unit test (e.g. a hard-coded raw HID report and the expected decoded struct) in addition to snapshots.
+
+### Regenerating `trybuild` `.stderr` snapshots (F-078)
+
+`trybuild` compile-fail tests (`crates/schemas/tests/trybuild*.rs`, `crates/engine/tests/compile_tests.rs`) compare the compiler's exact stderr output against checked-in `.stderr` files. A stable toolchain bump can change error wording, spans, or suggestion text and break these tests even though nothing in the repo changed.
+
+To regenerate the `.stderr` files after an intentional toolchain update:
+
+```bash
+TRYBUILD=overwrite cargo test -p <crate> --test <trybuild_test_file>
+```
+
+Review the diff before committing — a passing regeneration only confirms the new wording is *consistent*, not that the compile-fail case is still correct.
 
 ## Tools and Scripts
 

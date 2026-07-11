@@ -4,7 +4,7 @@ Running record of pain points, blockers, and technical debt encountered during d
 
 Each entry has: **date**, **severity** (Low/Medium/High), **status** (Open/Resolved/Won't Fix), and a description + proposed remedy.
 
-**Summary (71 items):** 12 Open · 2 In Progress · 52 Resolved · 1 Partially Resolved · 1 Investigating · 2 Noted · 1 Won't Fix
+**Summary (71 items):** 10 Open · 2 In Progress · 54 Resolved · 1 Partially Resolved · 1 Investigating · 2 Noted · 1 Won't Fix
 
 ---
 
@@ -830,13 +830,13 @@ Running `cargo test --workspace --all-features --exclude racing-wheel-ui` shows 
 
 ---
 
-### F-076 · Package name discovery — crate names don't match directory names (Low · Open)
+### F-076 · Package name discovery — crate names don't match directory names (Low · **Resolved**)
 
 **Encountered:** Wave 22-24 (2025-07)
 
 Rust crate names (in `Cargo.toml` `[package] name`) frequently differ from their directory names (e.g., directory `crates/engine` → crate `racing-wheel-engine`, directory `crates/plugins` → crate `racing-wheel-plugins`). This forces developers and agents to run `cargo metadata` or inspect each `Cargo.toml` to discover the correct `--package` flag for `cargo test`, `cargo clippy`, etc. The mismatch is especially confusing when `--exclude` flags reference the crate name, not the path.
 
-**Remedy:** Add a lookup table in `docs/DEVELOPMENT.md` mapping directory names to crate names. Long term: consider aligning directory and crate names where semver allows.
+**Fix applied:** `docs/DEVELOPMENT.md` (under "1. Code Standards") now has a "Finding the right `--package`/`--exclude` name" section: a one-liner `cargo metadata` command that prints every `directory -> crate name` mapping, plus a checked-in table of all 51 mismatches for quick lookup without running the command. Long term: aligning directory and crate names where semver allows remains a nice-to-have, not tracked here.
 
 ---
 
@@ -882,13 +882,13 @@ README, SETUP, USER_GUIDE, and DEVICE_SUPPORT docs showed outdated counts (25+ v
 
 ---
 
-### F-078 · trybuild stderr matching fragility across Rust versions (Low · Open)
+### F-078 · trybuild stderr matching fragility across Rust versions (Low · **Resolved**)
 
 **Encountered:** Wave 24 (2025-07)
 
 `trybuild` compile-fail tests compare exact stderr output against `.stderr` snapshot files. When the Rust compiler version changes (e.g., nightly → stable, or minor version bumps), error message wording, spans, and suggestion text change, causing spurious test failures. This requires regenerating `.stderr` files after every toolchain update.
 
-**Remedy:** Pin `rust-toolchain.toml` to a specific stable version (already done). Consider using `trybuild`'s `#[trybuild::ignore]` or `compile_fail` doc-test attributes for tests where exact stderr matching is unnecessary. Document the `.stderr` regeneration workflow (`TRYBUILD=overwrite cargo test`) in `docs/DEVELOPMENT.md`.
+**Fix applied:** `docs/DEVELOPMENT.md` now documents the regeneration workflow (`TRYBUILD=overwrite cargo test -p <crate> --test <trybuild_test_file>`) under "Regenerating `trybuild` `.stderr` snapshots", with a note to review the diff rather than blindly committing it. `rust-toolchain.toml` already pins a specific stable version, which limits how often this is needed.
 
 ---
 
