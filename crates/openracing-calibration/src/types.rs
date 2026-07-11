@@ -155,11 +155,12 @@ impl AxisCalibration {
             return 0.5;
         }
 
-        let normalized = ((raw - self.min) as f32 / range).clamp(0.0, 1.0);
+        let normalized = (raw.saturating_sub(self.min) as f32 / range).clamp(0.0, 1.0);
 
-        // Apply deadzone
-        let dz_min = self.deadzone_min as f32 / range;
-        let dz_max = self.deadzone_max as f32 / range;
+        // Deadzone bounds are raw values in the same coordinate space as
+        // `min`/`max`, so offset them by `min` before dividing, same as `normalized`.
+        let dz_min = self.deadzone_min.saturating_sub(self.min) as f32 / range;
+        let dz_max = self.deadzone_max.saturating_sub(self.min) as f32 / range;
 
         if normalized < dz_min {
             return 0.0;

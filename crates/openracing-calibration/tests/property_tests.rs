@@ -67,6 +67,38 @@ mod round_trip_tests {
 }
 
 // ---------------------------------------------------------------------------
+// apply() regression tests: raw-below-min underflow, deadzone/min offset
+// ---------------------------------------------------------------------------
+
+mod apply_regression_tests {
+    use super::*;
+
+    #[test]
+    fn raw_below_min_saturates_instead_of_underflowing() -> TestResult {
+        let calib = AxisCalibration::new(1000, u16::MAX);
+        // raw slightly below the calibrated min must not wrap around to a
+        // near-1.0 output (u16 underflow) nor panic in debug builds.
+        let out = calib.apply(999);
+        assert!((out - 0.0).abs() < 0.001, "expected 0.0, got {out}");
+        Ok(())
+    }
+
+    #[test]
+    fn deadzone_bounds_are_offset_by_min() -> TestResult {
+        // deadzone_min/max are raw values in the same coordinate space as
+        // min/max, so a deadzone that only trims a few percent off each end
+        // of the range must not swallow the calibrated midpoint.
+        let calib = AxisCalibration::new(1000, 3000).with_deadzone(1100, 2900);
+        let mid = calib.apply(2000);
+        assert!(
+            (mid - 0.5).abs() < 0.01,
+            "midpoint should map near 0.5, got {mid}"
+        );
+        Ok(())
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Calibration curve interpolation
 // ---------------------------------------------------------------------------
 
@@ -302,12 +334,12 @@ proptest! {
     fn prop_apply_subrange_bounded(
         min_val in 0u16..32000,
         spread in 1u16..32000,
-        frac in 0.0f32..=1.0,
+        raw in 0u16..=u16::MAX,
     ) {
         let max_val = min_val.saturating_add(spread);
         let calib = AxisCalibration::new(min_val, max_val);
-        // Only test raw values within [min, max] to avoid u16 underflow in apply()
-        let raw = min_val + (frac * spread as f32) as u16;
+        // raw is intentionally allowed outside [min, max]: apply() must
+        // saturate rather than underflow when raw < min.
         let out = calib.apply(raw);
         prop_assert!((0.0..=1.0).contains(&out), "output {} out of [0,1]", out);
         prop_assert!(out.is_finite(), "output must be finite");
@@ -395,8 +427,8 @@ proptest! {
         spread in 1u16..5000,
     ) {
         let max_val = min_val.saturating_add(spread);
-        let range = max_val.saturating_sub(min_val);
-        let calib = AxisCalibration::new(min_val, max_val).with_deadzone(0, range);
+        // Deadzone matching the axis range is a no-op.
+        let calib = AxisCalibration::new(min_val, max_val).with_deadzone(min_val, max_val);
         let at_min = calib.apply(min_val);
         let at_max = calib.apply(max_val);
         prop_assert!(
