@@ -96,6 +96,69 @@ mod apply_regression_tests {
         );
         Ok(())
     }
+
+    #[test]
+    fn default_deadzone_is_noop_for_nonzero_min_axis() -> TestResult {
+        // AxisCalibration::new() leaves the dead-zone at its default
+        // (0..=u16::MAX). For a non-zero-min axis that must still be a
+        // no-op, not a severe compression of the calibrated span.
+        let calib = AxisCalibration::new(1000, 3000);
+        assert!((calib.apply(1000) - 0.0).abs() < 0.01, "at min");
+        assert!((calib.apply(2000) - 0.5).abs() < 0.01, "at mid");
+        assert!((calib.apply(3000) - 1.0).abs() < 0.01, "at max");
+        Ok(())
+    }
+
+    #[test]
+    fn legacy_full_u16_deadzone_is_noop_for_nonzero_min_axis() -> TestResult {
+        // A calibration deserialized from a legacy record that explicitly
+        // stored deadzone_min=0, deadzone_max=65535 must behave identically
+        // to the default (no dead-zone configured).
+        let calib = AxisCalibration::new(1000, 3000).with_deadzone(0, u16::MAX);
+        assert!((calib.apply(1000) - 0.0).abs() < 0.01, "at min");
+        assert!((calib.apply(2000) - 0.5).abs() < 0.01, "at mid");
+        assert!((calib.apply(3000) - 1.0).abs() < 0.01, "at max");
+        Ok(())
+    }
+
+    #[test]
+    fn raw_above_max_saturates_instead_of_extrapolating() -> TestResult {
+        let calib = AxisCalibration::new(1000, 3000);
+        let out = calib.apply(3001);
+        assert!((out - 1.0).abs() < 0.001, "expected 1.0, got {out}");
+        Ok(())
+    }
+
+    #[test]
+    fn inverted_deadzone_bounds_resolve_finite_not_nan() -> TestResult {
+        // deadzone_min > deadzone_max (e.g. from corrupt or hand-edited
+        // data) must not produce NaN or a division-by-zero panic.
+        let calib = AxisCalibration::new(1000, 3000).with_deadzone(2900, 1100);
+        for raw in [1000u16, 1500, 2000, 2500, 3000] {
+            let out = calib.apply(raw);
+            assert!(
+                out.is_finite(),
+                "raw={raw} produced non-finite output: {out}"
+            );
+            assert!((0.0..=1.0).contains(&out), "raw={raw} out of [0,1]: {out}");
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn collapsed_deadzone_bounds_resolve_finite_not_nan() -> TestResult {
+        // deadzone_min == deadzone_max must not divide by zero.
+        let calib = AxisCalibration::new(1000, 3000).with_deadzone(2000, 2000);
+        for raw in [1000u16, 1999, 2000, 2001, 3000] {
+            let out = calib.apply(raw);
+            assert!(
+                out.is_finite(),
+                "raw={raw} produced non-finite output: {out}"
+            );
+            assert!((0.0..=1.0).contains(&out), "raw={raw} out of [0,1]: {out}");
+        }
+        Ok(())
+    }
 }
 
 // ---------------------------------------------------------------------------
