@@ -201,11 +201,32 @@ pub struct TestResult {
     /// Response validation results
     pub response_validation: Vec<ResponseValidationResult>,
 
+    /// Force-feedback write lifecycle observed by the harness
+    pub output_validation: OutputValidation,
+
     /// Error messages (if any)
     pub errors: Vec<String>,
 
     /// Test duration
     pub actual_duration: Duration,
+}
+
+/// Force-feedback output lifecycle results from a virtual-device run.
+#[derive(Debug, Clone, Default)]
+pub struct OutputValidation {
+    /// Number of force-feedback writes attempted during the run
+    pub attempted_writes: u64,
+    /// Number of writes rejected by the virtual device
+    pub rejected_writes: u64,
+    /// Whether the harness issued and accepted a final zero-torque write
+    pub final_zero_written: bool,
+}
+
+#[derive(Debug, Default)]
+struct OutputTrace {
+    attempted_writes: AtomicU64,
+    rejected_writes: AtomicU64,
+    final_zero_written: AtomicBool,
 }
 
 /// Timing validation results
@@ -315,12 +336,13 @@ impl RTLoopTestHarness {
         }
 
         let device_id = devices[0].id.clone();
-        let mut device = self.virtual_port.open_device(&device_id).await?;
+        let device = self.virtual_port.open_device(&device_id).await?;
+        let output_trace = Arc::new(OutputTrace::default());
 
         // Start RT loop
         let start_time = Instant::now();
         let rt_handle = self
-            .start_rt_loop(device.as_mut(), &scenario, start_time)
+            .start_rt_loop(device, &scenario, start_time, Arc::clone(&output_trace))
             .await?;
 
         // Wait for test completion
@@ -344,6 +366,11 @@ impl RTLoopTestHarness {
 
         let timing_validation = self.analyze_timing_data();
         let response_validation = self.validate_responses(&scenario, &device_id).await?;
+        let output_validation = OutputValidation {
+            attempted_writes: output_trace.attempted_writes.load(Ordering::Relaxed),
+            rejected_writes: output_trace.rejected_writes.load(Ordering::Relaxed),
+            final_zero_written: output_trace.final_zero_written.load(Ordering::Acquire),
+        };
 
         // Determine if test passed
         let mut errors = Vec::new();
@@ -367,6 +394,16 @@ impl RTLoopTestHarness {
             passed = false;
         }
 
+        if output_validation.attempted_writes == 0 {
+            errors.push("RT loop produced no force-feedback writes".to_string());
+            passed = false;
+        }
+
+        if !output_validation.final_zero_written {
+            errors.push("RT loop did not complete with an accepted zero-torque write".to_string());
+            passed = false;
+        }
+
         // Check response validations
         for validation in &response_validation {
             if !validation.passed {
@@ -383,6 +420,7 @@ impl RTLoopTestHarness {
             performance,
             timing_validation,
             response_validation,
+            output_validation,
             errors,
             actual_duration,
         };
@@ -402,9 +440,10 @@ impl RTLoopTestHarness {
     /// Start the real-time loop
     async fn start_rt_loop(
         &self,
-        device: &mut dyn HidDevice,
+        mut device: Box<dyn HidDevice>,
         scenario: &TestScenario,
         start_time: Instant,
+        output_trace: Arc<OutputTrace>,
     ) -> Result<
         tokio::task::JoinHandle<Result<(), Box<dyn std::error::Error + Send + Sync>>>,
         Box<dyn std::error::Error>,
@@ -417,10 +456,6 @@ impl RTLoopTestHarness {
         let timing_data = Arc::clone(&self.timing_data);
         let torque_pattern = scenario.torque_pattern.clone();
         let fault_injections = scenario.fault_injections.clone();
-
-        // We need to work around the fact that we can't move the device into the async task
-        // For now, we'll simulate the RT loop behavior
-        let _device_id = device.device_info().id.clone();
 
         let handle = tokio::spawn(async move {
             let mut next_tick = Instant::now();
@@ -455,12 +490,15 @@ impl RTLoopTestHarness {
                     }
                 }
 
-                // Simulate device write (this would normally be device.write_ffb_report)
-                if torque_value.abs() <= 25.0 { // Simulate torque limit check
-                    // Simulate successful write
-                } else {
-                    // Simulate torque limit error
-                    warn!("Torque limit exceeded: {} Nm", torque_value);
+                let write_result = device.write_ffb_report(torque_value, seq);
+                output_trace
+                    .attempted_writes
+                    .fetch_add(1, Ordering::Relaxed);
+                if write_result.is_err() {
+                    output_trace.rejected_writes.fetch_add(1, Ordering::Relaxed);
+                }
+                if let Err(error) = write_result {
+                    warn!("Force-feedback write rejected: {error}");
                 }
 
                 seq = seq.wrapping_add(1);
@@ -496,6 +534,18 @@ impl RTLoopTestHarness {
                     next_tick = now;
                 }
             }
+
+            let final_zero_result = device.write_ffb_report(0.0, seq.wrapping_add(1));
+            output_trace
+                .attempted_writes
+                .fetch_add(1, Ordering::Relaxed);
+            if let Err(error) = final_zero_result {
+                output_trace.rejected_writes.fetch_add(1, Ordering::Relaxed);
+                return Err(format!("final zero-torque write rejected: {error}").into());
+            }
+            output_trace
+                .final_zero_written
+                .store(true, Ordering::Release);
 
             info!(
                 "RT loop stopped after {} ticks",
@@ -776,6 +826,14 @@ impl RTLoopTestHarness {
                 "- P99 jitter: {:.2} μs\n",
                 result.timing_validation.p99_jitter_us
             ));
+            report.push_str(&format!(
+                "- FFB writes: {} attempted, {} rejected\n",
+                result.output_validation.attempted_writes, result.output_validation.rejected_writes
+            ));
+            report.push_str(&format!(
+                "- Final zero write: {}\n",
+                result.output_validation.final_zero_written
+            ));
 
             if !result.errors.is_empty() {
                 report.push_str("- Errors:\n");
@@ -840,6 +898,9 @@ mod tests {
         // Verify basic metrics
         assert!(result.performance.total_ticks > 0);
         assert_eq!(result.scenario_name, "Basic Test");
+        assert!(result.output_validation.attempted_writes > 0);
+        assert_eq!(result.output_validation.rejected_writes, 0);
+        assert!(result.output_validation.final_zero_written);
     }
 
     #[tokio::test]

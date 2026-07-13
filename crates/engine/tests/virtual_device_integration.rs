@@ -5,11 +5,16 @@
 //! - DM-02: Disconnect detection within 100ms and torque stop within 50ms
 //! - Testability: RT loop validation without physical hardware
 
+use openracing_ffb::{ConstantEffect, FfbGain};
 use racing_wheel_engine::{
     ExpectedResponse, HidDevice, HidPort, RTLoopTestHarness, TestHarnessConfig, TestScenario,
     TorquePattern, VirtualDevice, VirtualHidPort,
 };
 use racing_wheel_schemas::prelude::{DeviceId, DeviceType};
+use serde_json::Value;
+use std::collections::VecDeque;
+use std::fs;
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tracing_test::traced_test;
 
@@ -29,6 +34,172 @@ fn skip_timing_sensitive_tests() -> bool {
                 )
             })
             .unwrap_or(false)
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct ReplayFrame {
+    sequence: u64,
+    timestamp_ns: u64,
+    ffb_scalar: f32,
+}
+
+fn parse_replay_record(record: &Value) -> Result<ReplayFrame, Box<dyn std::error::Error>> {
+    if record.get("fixture_source").and_then(Value::as_str) != Some("synthetic")
+        || record
+            .get("real_simulator_validated")
+            .and_then(Value::as_bool)
+            != Some(false)
+    {
+        return Err("fixture must remain explicitly synthetic and non-real".into());
+    }
+
+    let snapshot = record
+        .get("snapshot")
+        .ok_or("fixture record is missing snapshot")?;
+    let ffb_scalar = snapshot
+        .get("ffb_scalar")
+        .and_then(Value::as_f64)
+        .ok_or("snapshot is missing finite ffb_scalar")? as f32;
+    if !ffb_scalar.is_finite() {
+        return Err("snapshot ffb_scalar must be finite".into());
+    }
+
+    Ok(ReplayFrame {
+        sequence: snapshot
+            .get("sequence")
+            .and_then(Value::as_u64)
+            .ok_or("snapshot is missing sequence")?,
+        timestamp_ns: snapshot
+            .get("timestamp_ns")
+            .and_then(Value::as_u64)
+            .ok_or("snapshot is missing timestamp_ns")?,
+        ffb_scalar,
+    })
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum PlannedWrite {
+    Accept,
+    Drop,
+    Short,
+    Interrupted,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum OutputWriteError {
+    Dropped,
+    ShortWrite { expected: usize, actual: usize },
+    Interrupted,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct OutputStatus {
+    attempted_writes: usize,
+    accepted_writes: usize,
+    rejected_writes: usize,
+    partial_writes: usize,
+}
+
+#[derive(Debug, Default)]
+struct RecordedOutputBackend {
+    planned_writes: VecDeque<PlannedWrite>,
+    attempted_writes: usize,
+    accepted_writes: usize,
+    rejected_writes: usize,
+    partial_writes: usize,
+    recorded_frames: Vec<Vec<u8>>,
+}
+
+impl RecordedOutputBackend {
+    fn new(planned_writes: impl IntoIterator<Item = PlannedWrite>) -> Self {
+        Self {
+            planned_writes: planned_writes.into_iter().collect(),
+            ..Self::default()
+        }
+    }
+
+    fn write_frame(&mut self, frame: &[u8]) -> Result<(), OutputWriteError> {
+        self.attempted_writes += 1;
+        match self
+            .planned_writes
+            .pop_front()
+            .unwrap_or(PlannedWrite::Accept)
+        {
+            PlannedWrite::Accept => {
+                self.accepted_writes += 1;
+                self.recorded_frames.push(frame.to_vec());
+                Ok(())
+            }
+            PlannedWrite::Drop => {
+                self.rejected_writes += 1;
+                Err(OutputWriteError::Dropped)
+            }
+            PlannedWrite::Short => {
+                let actual = frame.len().saturating_sub(1);
+                self.rejected_writes += 1;
+                self.partial_writes += 1;
+                self.recorded_frames.push(frame[..actual].to_vec());
+                Err(OutputWriteError::ShortWrite {
+                    expected: frame.len(),
+                    actual,
+                })
+            }
+            PlannedWrite::Interrupted => {
+                self.rejected_writes += 1;
+                Err(OutputWriteError::Interrupted)
+            }
+        }
+    }
+
+    fn status(&self) -> OutputStatus {
+        OutputStatus {
+            attempted_writes: self.attempted_writes,
+            accepted_writes: self.accepted_writes,
+            rejected_writes: self.rejected_writes,
+            partial_writes: self.partial_writes,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct LifecycleReceipt {
+    status: OutputStatus,
+    stop_all_attempted: bool,
+    stop_all_accepted: bool,
+    final_zero_attempted: bool,
+    final_zero_accepted: bool,
+    cleanup_interrupted: bool,
+}
+
+fn run_recorded_output_lifecycle(
+    backend: &mut RecordedOutputBackend,
+    replayed_frames: &[ReplayFrame],
+) -> LifecycleReceipt {
+    for frame in replayed_frames {
+        let encoded = [
+            0x01,
+            (frame.sequence & 0xff) as u8,
+            frame.ffb_scalar.to_bits() as u8,
+        ];
+        let _ = backend.write_frame(&encoded);
+    }
+
+    let writes_before_stop_all = backend.attempted_writes;
+    let stop_all_result = backend.write_frame(&[0x7f, 0x00]);
+    let stop_all_attempted = backend.attempted_writes > writes_before_stop_all;
+    let writes_before_final_zero = backend.attempted_writes;
+    let final_zero_result = backend.write_frame(&[0x00, 0x00]);
+    let final_zero_attempted = backend.attempted_writes > writes_before_final_zero;
+
+    LifecycleReceipt {
+        status: backend.status(),
+        stop_all_attempted,
+        stop_all_accepted: stop_all_result.is_ok(),
+        final_zero_attempted,
+        final_zero_accepted: final_zero_result.is_ok(),
+        cleanup_interrupted: matches!(stop_all_result, Err(OutputWriteError::Interrupted))
+            || matches!(final_zero_result, Err(OutputWriteError::Interrupted)),
+    }
 }
 
 /// Test device enumeration performance (DM-01)
@@ -590,6 +761,358 @@ async fn test_telemetry_consistency() -> Result<(), Box<dyn std::error::Error>> 
             // First half of sequence
             assert_eq!(telemetry.fault_flags, 0);
         }
+    }
+    Ok(())
+}
+
+/// Replay a checked-in simulator fixture through the bounded virtual FFB path.
+///
+/// This intentionally stays in the fake backend lane: it proves the ordering
+/// and cleanup contract without making any physical hardware or readiness claim.
+#[tokio::test]
+#[traced_test]
+async fn test_replayed_simulator_telemetry_ffb_lifecycle() -> Result<(), Box<dyn std::error::Error>>
+{
+    let fixture_path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../fixtures/telemetry/acc/basic-lap.jsonl");
+    let fixture = fs::read_to_string(&fixture_path)?;
+    let mut replayed_frames = Vec::new();
+    for line in fixture.lines() {
+        let record: Value = serde_json::from_str(line)?;
+        replayed_frames.push(parse_replay_record(&record)?);
+    }
+    if replayed_frames.len() != 3 {
+        return Err("expected the three-frame ACC replay fixture".into());
+    }
+
+    let device_id = "simulator-ffb-lifecycle".parse::<DeviceId>()?;
+    let mut device = VirtualDevice::new(device_id.clone(), "Virtual Simulator Wheel".to_string());
+    let gain = FfbGain::new(0.8).with_torque(0.75).with_effects(0.5);
+    let max_torque_nm = 1.25_f32;
+    let max_slew_nm = 0.25_f32;
+    let stale_timeout = Duration::from_millis(100);
+    let mut effect_created = false;
+    let mut effect_updates = 0usize;
+    let mut clipped_outputs = 0usize;
+    let mut accepted_writes = 0usize;
+    let mut last_torque_nm = 0.0_f32;
+    let mut last_timestamp_ns = None;
+
+    for frame in replayed_frames.iter().copied() {
+        let sequence = frame.sequence;
+        let timestamp_ns = frame.timestamp_ns;
+        let ffb_scalar = frame.ffb_scalar;
+        let effect_magnitude = (ffb_scalar.clamp(-1.0, 1.0) * f32::from(i16::MAX)).round() as i16;
+        let effect = ConstantEffect::new(effect_magnitude);
+        effect_created = true;
+        effect_updates += 1;
+        let target_torque_nm =
+            (f32::from(effect.apply_gain(gain.combined())) / f32::from(i16::MAX)) * 25.0;
+        let bounded_target = target_torque_nm.clamp(-max_torque_nm, max_torque_nm);
+        if (bounded_target - target_torque_nm).abs() > f32::EPSILON {
+            clipped_outputs += 1;
+        }
+        let torque_nm = (last_torque_nm
+            + (bounded_target - last_torque_nm).clamp(-max_slew_nm, max_slew_nm))
+        .clamp(-max_torque_nm, max_torque_nm);
+        device.write_ffb_report(torque_nm, sequence as u16)?;
+        accepted_writes += 1;
+        device.simulate_physics(Duration::from_millis(16));
+        last_torque_nm = torque_nm;
+        last_timestamp_ns = Some(timestamp_ns);
+    }
+
+    let stale_timestamp_ns = last_timestamp_ns.ok_or("replay did not produce a timestamp")?
+        + stale_timeout.as_nanos() as u64
+        + 1;
+    if Duration::from_nanos(stale_timestamp_ns - last_timestamp_ns.ok_or("missing timestamp")?)
+        > stale_timeout
+    {
+        let watchdog_result = device.write_ffb_report(0.0, 3);
+        watchdog_result?;
+        accepted_writes += 1;
+        last_torque_nm = 0.0;
+    }
+
+    let high_scalar_effect = ConstantEffect::new(i16::MAX);
+    let high_scalar_target =
+        (f32::from(high_scalar_effect.apply_gain(gain.combined())) / f32::from(i16::MAX)) * 25.0;
+    if high_scalar_target > max_torque_nm {
+        clipped_outputs += 1;
+    }
+    let clipped_torque = (last_torque_nm
+        + (max_torque_nm - last_torque_nm).clamp(-max_slew_nm, max_slew_nm))
+    .clamp(-max_torque_nm, max_torque_nm);
+    device.write_ffb_report(clipped_torque, 4)?;
+    accepted_writes += 1;
+
+    // Stop All/final zero must be attempted before the daemon session ends.
+    let final_zero_result = device.write_ffb_report(0.0, 5);
+    let stop_all_sent = final_zero_result.is_ok();
+    final_zero_result?;
+    if stop_all_sent {
+        accepted_writes += 1;
+    }
+    last_torque_nm = 0.0;
+    let final_zero_sent = stop_all_sent && device.is_connected() && last_torque_nm == 0.0;
+
+    assert!(effect_created);
+    assert_eq!(effect_updates, 3);
+    assert!(clipped_outputs >= 1);
+    assert_eq!(accepted_writes, 6);
+    assert!(stop_all_sent);
+    assert!(final_zero_sent);
+
+    // A disconnected backend rejects output, then recovers after reconnect.
+    device.disconnect();
+    assert!(matches!(
+        device.write_ffb_report(0.5, 6),
+        Err(racing_wheel_engine::RTError::DeviceDisconnected)
+    ));
+    assert!(matches!(
+        device.write_ffb_report(0.0, 7),
+        Err(racing_wheel_engine::RTError::DeviceDisconnected)
+    ));
+    device.reconnect();
+    device.write_ffb_report(0.0, 8)?;
+
+    // A daemon restart must rediscover and reopen the device after removal.
+    let mut port = VirtualHidPort::new();
+    port.add_device(VirtualDevice::new(
+        device_id.clone(),
+        "Virtual Simulator Wheel".to_string(),
+    ))?;
+    assert_eq!(port.list_devices().await?.len(), 1);
+    port.remove_device(&device_id)?;
+    assert!(port.list_devices().await?.is_empty());
+    port.add_device(VirtualDevice::new(
+        device_id.clone(),
+        "Virtual Simulator Wheel".to_string(),
+    ))?;
+    let mut reopened = port.open_device(&device_id).await?;
+    assert!(reopened.is_connected());
+    reopened.write_ffb_report(0.0, 9)?;
+    Ok(())
+}
+
+#[test]
+fn test_replay_rejects_malformed_telemetry_records() -> Result<(), Box<dyn std::error::Error>> {
+    let malformed_records = [
+        serde_json::json!({
+            "fixture_source": "synthetic",
+            "real_simulator_validated": false,
+            "snapshot": {"sequence": 1, "timestamp_ns": 2}
+        }),
+        serde_json::json!({
+            "fixture_source": "synthetic",
+            "real_simulator_validated": false,
+            "snapshot": {"sequence": "one", "timestamp_ns": 2, "ffb_scalar": 0.1}
+        }),
+        serde_json::json!({
+            "fixture_source": "synthetic",
+            "real_simulator_validated": false,
+            "snapshot": {"sequence": 1, "timestamp_ns": 2, "ffb_scalar": "invalid"}
+        }),
+        serde_json::json!({
+            "fixture_source": "synthetic",
+            "real_simulator_validated": true,
+            "snapshot": {"sequence": 1, "timestamp_ns": 2, "ffb_scalar": 0.1}
+        }),
+    ];
+
+    for record in malformed_records {
+        if parse_replay_record(&record).is_ok() {
+            return Err("malformed telemetry record was accepted".into());
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn test_recorded_output_lifecycle_failure_matrix_is_bounded()
+-> Result<(), Box<dyn std::error::Error>> {
+    let replayed_frames = [
+        ReplayFrame {
+            sequence: 1,
+            timestamp_ns: 10,
+            ffb_scalar: 0.25,
+        },
+        ReplayFrame {
+            sequence: 2,
+            timestamp_ns: 20,
+            ffb_scalar: -0.5,
+        },
+        ReplayFrame {
+            sequence: 3,
+            timestamp_ns: 30,
+            ffb_scalar: 1.0,
+        },
+    ];
+    let cases = [
+        (
+            "dropped report",
+            vec![
+                PlannedWrite::Accept,
+                PlannedWrite::Drop,
+                PlannedWrite::Accept,
+                PlannedWrite::Accept,
+                PlannedWrite::Accept,
+            ],
+            OutputStatus {
+                attempted_writes: 5,
+                accepted_writes: 4,
+                rejected_writes: 1,
+                partial_writes: 0,
+            },
+            false,
+        ),
+        (
+            "short write",
+            vec![
+                PlannedWrite::Accept,
+                PlannedWrite::Short,
+                PlannedWrite::Accept,
+                PlannedWrite::Accept,
+                PlannedWrite::Accept,
+            ],
+            OutputStatus {
+                attempted_writes: 5,
+                accepted_writes: 4,
+                rejected_writes: 1,
+                partial_writes: 1,
+            },
+            false,
+        ),
+        (
+            "interrupted shutdown",
+            vec![
+                PlannedWrite::Accept,
+                PlannedWrite::Accept,
+                PlannedWrite::Accept,
+                PlannedWrite::Interrupted,
+                PlannedWrite::Interrupted,
+            ],
+            OutputStatus {
+                attempted_writes: 5,
+                accepted_writes: 3,
+                rejected_writes: 2,
+                partial_writes: 0,
+            },
+            true,
+        ),
+    ];
+
+    for (name, plan, expected_status, expected_interrupted) in cases {
+        let mut backend = RecordedOutputBackend::new(plan);
+        let receipt = run_recorded_output_lifecycle(&mut backend, &replayed_frames);
+        assert_eq!(receipt.status, expected_status, "case: {name}");
+        assert!(receipt.stop_all_attempted, "case: {name}");
+        assert!(receipt.final_zero_attempted, "case: {name}");
+        assert_eq!(
+            receipt.cleanup_interrupted, expected_interrupted,
+            "case: {name}"
+        );
+        if expected_interrupted {
+            assert!(!receipt.stop_all_accepted, "case: {name}");
+            assert!(!receipt.final_zero_accepted, "case: {name}");
+        } else {
+            assert!(receipt.stop_all_accepted, "case: {name}");
+            assert!(receipt.final_zero_accepted, "case: {name}");
+        }
+    }
+
+    Ok(())
+}
+
+#[test]
+fn test_recorded_output_lifecycle_is_deterministic() -> Result<(), Box<dyn std::error::Error>> {
+    let replayed_frames = [
+        ReplayFrame {
+            sequence: 1,
+            timestamp_ns: 10,
+            ffb_scalar: 0.25,
+        },
+        ReplayFrame {
+            sequence: 2,
+            timestamp_ns: 20,
+            ffb_scalar: -0.5,
+        },
+    ];
+
+    let mut first_backend = RecordedOutputBackend::new([
+        PlannedWrite::Accept,
+        PlannedWrite::Accept,
+        PlannedWrite::Accept,
+        PlannedWrite::Accept,
+    ]);
+    let first_receipt = run_recorded_output_lifecycle(&mut first_backend, &replayed_frames);
+
+    let mut second_backend = RecordedOutputBackend::new([
+        PlannedWrite::Accept,
+        PlannedWrite::Accept,
+        PlannedWrite::Accept,
+        PlannedWrite::Accept,
+    ]);
+    let second_receipt = run_recorded_output_lifecycle(&mut second_backend, &replayed_frames);
+
+    assert_eq!(first_receipt, second_receipt);
+    assert_eq!(
+        first_backend.recorded_frames,
+        second_backend.recorded_frames
+    );
+    assert_eq!(
+        first_receipt.status.attempted_writes,
+        replayed_frames.len() + 2
+    );
+    assert!(first_receipt.stop_all_attempted);
+    assert!(first_receipt.final_zero_attempted);
+    assert!(first_receipt.stop_all_accepted);
+    assert!(first_receipt.final_zero_accepted);
+    Ok(())
+}
+
+#[test]
+fn test_recorded_output_status_is_consistent_under_concurrent_queries()
+-> Result<(), Box<dyn std::error::Error>> {
+    let mut backend = RecordedOutputBackend::new([
+        PlannedWrite::Accept,
+        PlannedWrite::Accept,
+        PlannedWrite::Drop,
+    ]);
+    let _ = backend.write_frame(&[1, 2, 3]);
+    let _ = backend.write_frame(&[4, 5, 6]);
+    let _ = backend.write_frame(&[7, 8, 9]);
+    let expected = backend.status();
+    let shared = Arc::new(Mutex::new(backend));
+    let mut handles = Vec::new();
+
+    for _ in 0..8 {
+        let shared = Arc::clone(&shared);
+        handles.push(std::thread::spawn(move || match shared.lock() {
+            Ok(backend) => Ok(backend.status()),
+            Err(_) => Err("status backend lock was poisoned"),
+        }));
+    }
+
+    for handle in handles {
+        let status = match handle.join() {
+            Ok(Ok(status)) => status,
+            Ok(Err(error)) => return Err(error.into()),
+            Err(_) => return Err("status query thread panicked".into()),
+        };
+        assert_eq!(status, expected);
+    }
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_missing_device_fails_closed_without_output() -> Result<(), Box<dyn std::error::Error>>
+{
+    let port = VirtualHidPort::new();
+    let device_id = "missing-device".parse::<DeviceId>()?;
+    if port.open_device(&device_id).await.is_ok() {
+        return Err("missing device unexpectedly opened".into());
     }
     Ok(())
 }
