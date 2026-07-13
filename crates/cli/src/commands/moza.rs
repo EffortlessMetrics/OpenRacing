@@ -46,6 +46,7 @@ use std::fs::{self, File};
 use std::io::{BufRead, BufReader, BufWriter, Read, Write};
 use std::path::{Component, Path, PathBuf};
 use std::process::Command;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 
 use crate::commands::{
@@ -75,6 +76,7 @@ const MOZA_PIT_HOUSE_INSTALL_GUIDANCE: &str = "Install or update Pit House from 
 const PASSIVE_SNIFF_POST_CAPTURE_EVIDENCE_COMMANDS_CHECKLIST_ITEM: &str = "run sniff-receipt, sniff-notes-template, and sniff-summary before treating the capture as lane evidence";
 const PIT_HOUSE_0X8E_CAPTURE_PREP_MAX_AGE_MINUTES: i64 = 10;
 const LOCAL_CAPTURE_PREP_FUTURE_TOLERANCE_SECONDS: i64 = 30;
+static JSON_WRITE_COUNTER: AtomicU64 = AtomicU64::new(0);
 const PASSIVE_SNIFF_LOW_YIELD_CLASSIFICATION_FILE: &str = "low-yield-capture-classification.json";
 const HIGH_TORQUE_FEATURE_REPORT_ID: &str = "0x02";
 const START_REPORTING_FEATURE_REPORT_ID: &str = "0x03";
@@ -1788,7 +1790,8 @@ pub async fn execute(cmd: &MozaCommands, json: bool) -> Result<()> {
             lane,
             stage,
             json_out,
-        } => verify_bundle(json, lane, *stage, json_out.as_deref()).await,
+            progress,
+        } => verify_bundle(json, lane, *stage, json_out.as_deref(), *progress).await,
         MozaCommands::AuditLane {
             lane,
             stage,
@@ -8718,8 +8721,21 @@ async fn verify_bundle(
     lane: &Path,
     stage: MozaBundleStage,
     json_out: Option<&Path>,
+    progress: bool,
 ) -> Result<()> {
-    let receipt = verify_bundle_dir(lane, stage);
+    let progress_reporter = |phase: &str| {
+        eprintln!("[moza verify-bundle] {phase}");
+    };
+    let receipt = if progress {
+        verify_bundle_dir_with_progress(
+            lane,
+            stage,
+            SupportBundleValidationMode::Fresh,
+            Some(&progress_reporter),
+        )
+    } else {
+        verify_bundle_dir(lane, stage)
+    };
     write_json_receipt(json_out, &receipt)?;
     print_bundle_verification_receipt(json, json_out, &receipt)?;
     if !receipt.success {
@@ -13451,7 +13467,7 @@ fn moza_status_receipt(
     selector: Option<&str>,
     lane: Option<&Path>,
 ) -> Value {
-    let lane_status = lane.map(support_bundle_status);
+    let lane_status = lane.map(artifact_navigation_status);
     let device_statuses: Vec<_> = devices
         .into_iter()
         .map(|device| {
@@ -13513,12 +13529,25 @@ fn verify_bundle_dir_with_support_validation(
     stage: MozaBundleStage,
     support_validation: SupportBundleValidationMode,
 ) -> BundleVerificationReceipt {
+    verify_bundle_dir_with_progress(lane, stage, support_validation, None)
+}
+
+fn verify_bundle_dir_with_progress(
+    lane: &Path,
+    stage: MozaBundleStage,
+    support_validation: SupportBundleValidationMode,
+    progress: Option<&dyn Fn(&str)>,
+) -> BundleVerificationReceipt {
+    let started = Instant::now();
+    let mut phase_timings_ms = BTreeMap::new();
+    report_verification_phase(progress, "loading artifact requirements");
     let artifact_requirements = bundle_artifact_requirements_for_lane(lane);
     let artifact_checks: Vec<_> = artifact_requirements
         .iter()
         .filter(|requirement| stage_rank(requirement.stage) <= stage_rank(stage))
         .map(|requirement| check_bundle_artifact(lane, requirement))
         .collect();
+    record_verification_phase(&mut phase_timings_ms, started, progress, "artifact_checks");
     // Missing stage artifacts already make the receipt fail; avoid recursively
     // rebuilding fresh support status before writing that diagnostic receipt.
     let support_validation = if matches!(support_validation, SupportBundleValidationMode::Fresh)
@@ -13557,11 +13586,13 @@ fn verify_bundle_dir_with_support_validation(
     gates.push(verify_passive_capture_parse_gate(lane));
     gates.push(verify_parser_validation_gate(lane));
     gates.push(verify_fixture_promotion_gate(lane));
+    record_verification_phase(&mut phase_timings_ms, started, progress, "passive_gates");
 
     if stage_rank(stage) >= stage_rank(MozaBundleStage::Zero) {
         gates.push(verify_zero_torque_gate(lane));
         gates.push(verify_watchdog_proof_gate(lane));
         gates.push(verify_disconnect_proof_gate(lane));
+        record_verification_phase(&mut phase_timings_ms, started, progress, "zero_gates");
     }
 
     if stage_rank(stage) >= stage_rank(MozaBundleStage::OpenRacingControlReady) {
@@ -13591,14 +13622,27 @@ fn verify_bundle_dir_with_support_validation(
         gates.push(verify_low_torque_gate(lane));
         gates.push(verify_steering_angle_stream_gate(lane));
         gates.push(verify_native_actuator_profile_smoke_gate(lane));
+        record_verification_phase(&mut phase_timings_ms, started, progress, "control_gates");
     }
 
     if stage_rank(stage) >= stage_rank(MozaBundleStage::NativeResponseReady) {
         gates.push(verify_native_actuator_response_smoke_gate(lane));
+        record_verification_phase(
+            &mut phase_timings_ms,
+            started,
+            progress,
+            "native_response_gate",
+        );
     }
 
     if stage_rank(stage) >= stage_rank(MozaBundleStage::NativeVisibleReady) {
         gates.push(verify_native_actuator_visible_smoke_gate(lane));
+        record_verification_phase(
+            &mut phase_timings_ms,
+            started,
+            progress,
+            "native_visible_gate",
+        );
     }
 
     if stage_rank(stage) >= stage_rank(MozaBundleStage::SmokeReady) {
@@ -13608,6 +13652,7 @@ fn verify_bundle_dir_with_support_validation(
         ));
         gates.push(verify_simulator_telemetry_gate(lane));
         gates.push(verify_simulator_ffb_gate(lane));
+        record_verification_phase(&mut phase_timings_ms, started, progress, "smoke_gates");
     }
 
     let missing_artifacts = artifact_checks
@@ -13642,6 +13687,7 @@ fn verify_bundle_dir_with_support_validation(
         operator_actions,
         next_commands,
         blocked_safe_followups,
+        phase_timings_ms,
         no_hid_device_opened: true,
         no_ffb_writes: true,
         no_serial_config_commands: true,
@@ -13655,6 +13701,22 @@ fn verify_bundle_dir_with_support_validation(
                 .to_string(),
         ],
     }
+}
+
+fn report_verification_phase(progress: Option<&dyn Fn(&str)>, phase: &str) {
+    if let Some(progress) = progress {
+        progress(phase);
+    }
+}
+
+fn record_verification_phase(
+    timings: &mut BTreeMap<String, u128>,
+    started: Instant,
+    progress: Option<&dyn Fn(&str)>,
+    phase: &str,
+) {
+    timings.insert(phase.to_string(), started.elapsed().as_millis());
+    report_verification_phase(progress, phase);
 }
 
 fn bundle_role_evidence(lane: &Path) -> Vec<LaneRoleEvidenceEntry> {
@@ -20443,6 +20505,10 @@ fn passive_receipt_requirements() -> [PassiveReceiptRequirement; 7] {
 }
 
 fn verify_passive_capture_parse_gate(lane: &Path) -> BundleGateCheck {
+    if let Some(cached) = current_parser_validation_receipt(lane) {
+        return cached;
+    }
+
     let mut failures = Vec::new();
     let mut total_reports = 0usize;
 
@@ -20500,6 +20566,52 @@ fn verify_passive_capture_parse_gate(lane: &Path) -> BundleGateCheck {
         }
         BundleGateCheck::fail("passive_captures_parse", details)
     }
+}
+
+fn current_parser_validation_receipt(lane: &Path) -> Option<BundleGateCheck> {
+    let receipt = read_json_value(lane, "parser-fixture-validation.json").ok()?;
+    if json_string(&receipt, "command") != Some("wheelctl moza validate-captures")
+        || json_bool(&receipt, "success") != Some(true)
+        || !no_out_of_scope_device_commands(&receipt)
+        || json_bool(&receipt, "no_hid_device_opened") != Some(true)
+    {
+        return None;
+    }
+
+    let requirements = passive_capture_requirements_for_lane(lane);
+    let captures = receipt.get("captures").and_then(Value::as_array)?;
+    if captures.len() != requirements.len()
+        || !requirements.iter().all(|requirement| {
+            captures.iter().any(|entry| {
+                parser_validation_entry_matches_requirement(entry, requirement, lane)
+                    && parser_validation_entry_source_hash_matches(entry, lane, requirement)
+            })
+        })
+    {
+        return None;
+    }
+
+    let parsed_reports = json_u64(&receipt, "parsed_reports").unwrap_or(0);
+    Some(BundleGateCheck::pass(
+        "passive_captures_parse",
+        format!(
+            "reused current parser-fixture-validation.json for {parsed_reports} report(s); source hashes match"
+        ),
+    ))
+}
+
+fn parser_validation_entry_source_hash_matches(
+    entry: &Value,
+    lane: &Path,
+    requirement: &PassiveCaptureRequirement,
+) -> bool {
+    let Some(expected_hash) = json_string(entry, "source_sha256") else {
+        return false;
+    };
+    let path = lane.join(requirement.relative_path);
+    sha256_file_hex(&path)
+        .map(|actual_hash| actual_hash == expected_hash)
+        .unwrap_or(false)
 }
 
 fn passive_capture_requirements() -> &'static [PassiveCaptureRequirement] {
@@ -28702,6 +28814,8 @@ fn validate_lane_captures(lane: &Path) -> Result<CaptureValidationSetReceipt> {
         let path = lane.join(requirement.relative_path);
         let receipt = validate_capture_file(&path, None)
             .with_context(|| format!("failed to validate {}", requirement.relative_path))?;
+        let source_sha256 = sha256_file_hex(&path)
+            .with_context(|| format!("failed to hash {}", requirement.relative_path))?;
 
         let expected_product_ids = expected_product_ids_for_requirement(requirement, lane);
         let evaluation =
@@ -28714,6 +28828,7 @@ fn validate_lane_captures(lane: &Path) -> Result<CaptureValidationSetReceipt> {
         captures.push(CaptureValidationSetEntry {
             capture: requirement.relative_path.to_string(),
             fixture_id: requirement.fixture_id.to_string(),
+            source_sha256,
             required_category: requirement.required_category.to_string(),
             required_product_ids: product_id_hex_list(&expected_product_ids),
             required_axis_variation: string_slice_to_vec(requirement.required_axis_variation),
@@ -39364,6 +39479,11 @@ fn sha256_hex(bytes: &[u8]) -> String {
     digest.iter().map(|byte| format!("{byte:02x}")).collect()
 }
 
+fn sha256_file_hex(path: &Path) -> Result<String> {
+    let bytes = fs::read(path).with_context(|| format!("failed to read '{}'", path.display()))?;
+    Ok(sha256_hex(&bytes))
+}
+
 fn moza_serial_port_identity(serial_port: &str) -> Result<VendorStatusProbePortIdentity> {
     let requested = normalize_serial_port_name(serial_port);
     let ports = serialport::available_ports()
@@ -42107,6 +42227,7 @@ struct CaptureValidationSetReceipt {
 struct CaptureValidationSetEntry {
     capture: String,
     fixture_id: String,
+    source_sha256: String,
     required_category: String,
     required_product_ids: Vec<String>,
     required_axis_variation: Vec<String>,
@@ -45604,6 +45725,7 @@ struct BundleVerificationReceipt {
     operator_actions: Vec<String>,
     next_commands: Vec<String>,
     blocked_safe_followups: Vec<BundleBlockedSafeFollowup>,
+    phase_timings_ms: BTreeMap<String, u128>,
     no_hid_device_opened: bool,
     no_ffb_writes: bool,
     no_serial_config_commands: bool,
@@ -46489,8 +46611,66 @@ fn write_json_file<T: Serialize>(path: &Path, value: &T) -> Result<()> {
     }
 
     let json = serde_json::to_string_pretty(value).context("failed to serialize JSON receipt")?;
-    fs::write(path, json).with_context(|| format!("failed to write '{}'", path.display()))?;
+    let file_name = path
+        .file_name()
+        .map(|name| name.to_string_lossy())
+        .unwrap_or_else(|| std::borrow::Cow::Borrowed("receipt.json"));
+    let temp_path = path.with_file_name(format!(
+        ".{file_name}.{}.{}.tmp",
+        std::process::id(),
+        JSON_WRITE_COUNTER.fetch_add(1, Ordering::Relaxed)
+    ));
+
+    if let Err(error) = fs::write(&temp_path, json) {
+        let _ = fs::remove_file(&temp_path);
+        return Err(error).with_context(|| {
+            format!(
+                "failed to write temporary receipt '{}'",
+                temp_path.display()
+            )
+        });
+    }
+
+    let publish_result = fs::rename(&temp_path, path);
+    if let Err(rename_error) = publish_result {
+        #[cfg(windows)]
+        let (publish_result, destination_removed): (std::io::Result<()>, bool) = if path.exists() {
+            match fs::remove_file(path) {
+                Ok(()) => (fs::rename(&temp_path, path), true),
+                Err(error) => (Err(error), false),
+            }
+        } else {
+            (Err(rename_error), false)
+        };
+
+        #[cfg(not(windows))]
+        let (publish_result, destination_removed): (std::io::Result<()>, bool) =
+            (Err(rename_error), false);
+
+        if let Err(error) = publish_result {
+            cleanup_failed_receipt_temp(&temp_path, destination_removed);
+            let context = if destination_removed {
+                format!(
+                    "failed to publish receipt '{}'; temporary receipt retained at '{}'",
+                    path.display(),
+                    temp_path.display()
+                )
+            } else {
+                format!("failed to publish receipt '{}'", path.display())
+            };
+            return Err(error).with_context(|| context);
+        } else {
+            return Ok(());
+        }
+    }
+
     Ok(())
+}
+
+fn cleanup_failed_receipt_temp(temp_path: &Path, destination_removed: bool) {
+    if !destination_removed {
+        let _ = fs::remove_file(temp_path);
+    }
 }
 
 fn write_text_file(path: &Path, contents: &str) -> Result<()> {
@@ -57904,6 +58084,26 @@ mod tests {
         assert_eq!(json_string(first, "init_state"), Some("uninitialized"));
         assert_eq!(json_bool(first, "safe_to_send_torque"), Some(false));
         assert_eq!(json_bool(first, "high_torque_allowed"), Some(false));
+        Ok(())
+    }
+
+    #[test]
+    fn status_lane_context_uses_stored_navigation_without_replaying_captures() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        let receipt = moza_status_receipt(Vec::new(), None, Some(dir.path()));
+        let lane_status = receipt.get("lane_status").ok_or("expected lane status")?;
+
+        assert!(lane_status.get("readiness").is_some());
+        assert!(lane_status.get("artifact_index").is_some());
+        assert!(lane_status.get("verifications").is_none());
+        let notes = lane_status
+            .get("notes")
+            .and_then(Value::as_array)
+            .ok_or("expected navigation notes")?;
+        assert!(notes.iter().any(|note| {
+            note.as_str()
+                .is_some_and(|text| text.contains("reads stored lane receipts only"))
+        }));
         Ok(())
     }
 
@@ -80430,6 +80630,30 @@ mod tests {
     }
 
     #[test]
+    fn verify_bundle_reuses_parser_receipt_only_when_capture_hashes_match() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        write_minimal_passive_bundle(dir.path())?;
+        let receipt = validate_lane_captures(dir.path())?;
+        write_test_json_file(
+            &dir.path().join("parser-fixture-validation.json"),
+            &serde_json::to_value(&receipt)?,
+        )?;
+
+        let cached = current_parser_validation_receipt(dir.path())
+            .ok_or("expected current parser receipt cache")?;
+        assert_eq!(cached.status, "pass");
+
+        let capture = dir.path().join("captures/r5-idle.jsonl");
+        let original = fs::read_to_string(&capture)?;
+        write_text_file(&capture, &format!("{original}\n"))?;
+        assert!(
+            current_parser_validation_receipt(dir.path()).is_none(),
+            "a changed capture must force fresh replay"
+        );
+        Ok(())
+    }
+
+    #[test]
     fn verify_bundle_passive_requires_isolated_clutch_role_movement() -> TestResult {
         let dir = tempfile::tempdir()?;
         write_minimal_passive_bundle(dir.path())?;
@@ -82727,6 +82951,7 @@ mod tests {
                 operator_actions: Vec::new(),
                 next_commands: Vec::new(),
                 blocked_safe_followups: Vec::new(),
+                phase_timings_ms: BTreeMap::new(),
                 no_hid_device_opened: true,
                 no_ffb_writes: true,
                 no_serial_config_commands: true,
@@ -83469,6 +83694,47 @@ mod tests {
             "expected service gate to reject support-bundle top-level PID mismatch, got {}",
             service_gate.details
         );
+        Ok(())
+    }
+
+    #[test]
+    fn write_json_file_replaces_receipt_without_leaving_partial_or_temp_files() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        let path = dir.path().join("verification.json");
+
+        write_json_file(
+            &path,
+            &serde_json::json!({"success": false, "generation": 1}),
+        )?;
+        write_json_file(
+            &path,
+            &serde_json::json!({"success": true, "generation": 2}),
+        )?;
+
+        let receipt = read_json_path(&path)?;
+        assert_eq!(json_bool(&receipt, "success"), Some(true));
+        assert_eq!(json_u64(&receipt, "generation"), Some(2));
+
+        let temp_files = fs::read_dir(dir.path())?
+            .filter_map(std::result::Result::ok)
+            .filter(|entry| entry.file_name().to_string_lossy().ends_with(".tmp"))
+            .count();
+        assert_eq!(temp_files, 0);
+        Ok(())
+    }
+
+    #[test]
+    fn failed_receipt_publish_retains_temp_after_destination_removal() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        let retained_temp_path = dir.path().join(".verification.json.1.0.tmp");
+        fs::write(&retained_temp_path, "{}")?;
+        cleanup_failed_receipt_temp(&retained_temp_path, true);
+        assert!(retained_temp_path.exists());
+
+        let cleaned_temp_path = dir.path().join(".verification.json.2.0.tmp");
+        fs::write(&cleaned_temp_path, "{}")?;
+        cleanup_failed_receipt_temp(&cleaned_temp_path, false);
+        assert!(!cleaned_temp_path.exists());
         Ok(())
     }
 }
