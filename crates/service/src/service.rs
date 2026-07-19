@@ -234,6 +234,8 @@ impl WheelService {
     async fn shutdown(&self) -> Result<()> {
         info!("Shutting down services");
 
+        self.device_service.stop().await?;
+
         // Shutdown tracing if available
         if let Some(_tracer) = &self.tracer {
             // Note: TracingManager doesn't have a mutable shutdown method in our current design
