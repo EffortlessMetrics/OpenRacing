@@ -1,5 +1,14 @@
 # Droid Auto Review
 
+## Command surfaces
+
+- **Droid Auto Review** (`.github/workflows/droid-review.yml`) runs automatically on PR open/reopen events and keeps the action non-blocking.
+- **Droid Tag** (`.github/workflows/droid.yml`) reacts to PR review comments and PR review body comments only.
+
+Supported `@droid` commands on PRs are those handled by the underlying Droid action:
+`@droid review`, `@droid fill`, and configured security variants.
+Issue events are not used for execution.
+
 `Droid Auto Review` is an advisory pull request review workflow. It can provide
 useful automated review comments, but it is backed by an external credit-based
 service and is not a deterministic repository gate.

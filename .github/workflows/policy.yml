@@ -32,6 +32,53 @@ jobs:
       - name: "No-panic family checker (Stage A: report-only)"
         run: python scripts/policy_no_panic.py
 
+      - name: Check droid workflow policy
+        run: |
+          python - <<'PY'
+          import pathlib
+          import re
+          import sys
+
+          safe_action = "EffortlessMetrics/droid-action-safe@7c1377ccbacddc95560d1570547a5baa51de01ec"
+          errors = []
+
+          def get_on_block(text: str) -> str:
+              match = re.search(r"^on:\n(?s:.*?)^jobs:", text, re.M)
+              return match.group(0) if match else ""
+
+          droid = pathlib.Path(".github/workflows/droid.yml").read_text(encoding="utf-8")
+          if "Factory-AI/droid-action@main" in droid:
+              errors.append("droid.yml still references Factory-AI/droid-action@main.")
+          if safe_action not in droid:
+              errors.append("droid.yml is not pinned to the expected droid-action-safe revision.")
+          if "upload_debug_artifacts: false" not in droid:
+              errors.append("droid.yml is missing upload_debug_artifacts: false.")
+          droid_on = get_on_block(droid)
+          if re.search(r"^  issues:", droid_on, re.M):
+              errors.append("droid.yml should not trigger on issues events.")
+          if re.search(r"^  pull_request:", droid_on, re.M):
+              errors.append("droid.yml should not trigger on pull_request body/title events.")
+          if "github.event.issue.pull_request" not in droid:
+              errors.append("droid.yml issue comments must be constrained to PR comment contexts.")
+          if "author_association" not in droid:
+              errors.append("droid.yml should include trusted actor checks for comment/review events.")
+
+          droid_review = pathlib.Path(".github/workflows/droid-review.yml").read_text(encoding="utf-8")
+          if "Factory-AI/droid-action@main" in droid_review:
+              errors.append("droid-review.yml still references Factory-AI/droid-action@main.")
+          if safe_action not in droid_review:
+              errors.append("droid-review.yml is not pinned to the expected droid-action-safe revision.")
+          if "upload_debug_artifacts: false" not in droid_review:
+              errors.append("droid-review.yml is missing upload_debug_artifacts: false.")
+
+          if errors:
+              print("::error::Droid workflow policy violations:")
+              for issue in errors:
+                  print(f"::error::{issue}")
+              sys.exit(1)
+          print("Droid workflow policy checks passed.")
+          PY
+
       - name: Upload reports
         if: always()
         uses: actions/upload-artifact@v4
