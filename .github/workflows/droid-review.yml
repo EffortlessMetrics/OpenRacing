@@ -10,7 +10,9 @@ concurrency:
 
 jobs:
   droid-review:
-    if: github.event.pull_request.draft == false
+    if: |
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -25,8 +27,10 @@ jobs:
           fetch-depth: 1
       - name: Run Droid Auto Review
         continue-on-error: true
-        uses: Factory-AI/droid-action@main
+        uses: EffortlessMetrics/droid-action-safe@771733c28562b87ae9c89c83c0bd32bde75d7dbe
         with:
           factory_api_key: ${{ secrets.FACTORY_API_KEY }}
           automatic_review: true
           automatic_security_review: true
+          upload_debug_artifacts: false
+          show_full_output: false

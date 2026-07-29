@@ -29,6 +29,9 @@ jobs:
       - name: File policy (non-Rust surface)
         run: python scripts/policy_file.py
 
+      - name: Validate Droid workflow controls
+        run: python scripts/check_droid_workflows.py
+
       - name: "No-panic family checker (Stage A: report-only)"
         run: python scripts/policy_no_panic.py
 

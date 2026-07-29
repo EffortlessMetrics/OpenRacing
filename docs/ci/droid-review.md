@@ -17,3 +17,15 @@ required status check for `main`.
 If the team wants Droid review to become blocking later, first ensure the
 external service has reliable credits, a stable model path, and an operational
 runbook for service outages.
+
+## Supported `@droid` command surface
+
+This repository routes explicit commands only from trusted PR-linked comment paths:
+
+- `@droid review`
+- `@droid fill`
+- `@droid security`
+
+Issue events are intentionally not supported for command execution. The only
+automatic path is `droid-review.yml`, which runs on non-fork pull requests
+for opened/ready-for-review/reopened events.
