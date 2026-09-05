@@ -1,10 +1,14 @@
 //! Documentation index generator - generates an index of all ADRs.
 //!
 //! Usage:
-//!     cargo run -p openracing-tools --bin generate-docs-index -- [options]
+//! ```text
+//! cargo run -p openracing-tools --bin generate-docs-index -- [options]
+//! ```
 //!
 //! Options:
+//! ```text
 //!     --adr-dir <path>  Path to ADR directory (default: docs/adr)
+//! ```
 
 #![deny(static_mut_refs)]
 #![deny(unused_must_use)]

@@ -1,12 +1,16 @@
 //! ADR validation binary - validates that ADR files follow the required format.
 //!
 //! Usage:
-//!     cargo run -p openracing-tools --bin validate-adr -- [options]
+//! ```text
+//! cargo run -p openracing-tools --bin validate-adr -- [options]
+//! ```
 //!
 //! Options:
+//! ```text
 //!     --adr-dir <path>      Path to ADR directory (default: docs/adr)
 //!     --requirements <path> Path to requirements file
 //!     -v, --verbose         Verbose output
+//! ```
 
 #![deny(static_mut_refs)]
 #![deny(unused_must_use)]
