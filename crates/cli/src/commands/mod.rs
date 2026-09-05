@@ -586,7 +586,7 @@ pub enum HardwareLaneCommands {
         /// Replace scaffold files that already exist
         #[arg(long)]
         overwrite: bool,
-        /// Write the lane-init receipt to this JSON file instead of <lane>/lane-init.json
+        /// Write the lane-init receipt to this JSON file instead of `<lane>/lane-init.json`
         #[arg(long)]
         json_out: Option<std::path::PathBuf>,
     },
